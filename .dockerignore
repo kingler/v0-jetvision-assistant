@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage
+.nyc_output
+
+# Next.js
+.next/
+out/
+build
+dist
+
+# Environment variables
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug
+*.log
+.DS_Store
+
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+
+# Misc
+*.md
+!README.md
+.github

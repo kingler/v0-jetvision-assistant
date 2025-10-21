@@ -18,6 +18,14 @@ export interface ChatSession {
   operator?: string
   quotesReceived?: number
   quotesTotal?: number
+  chatkitThreadId?: string | null
+  customer?: {
+    name: string
+    preferences?: {
+      catering?: string
+      groundTransport?: string
+    }
+  }
   messages: Array<{
     id: string
     type: "user" | "agent"
@@ -26,6 +34,7 @@ export interface ChatSession {
     showWorkflow?: boolean
     showProposal?: boolean
     showQuoteStatus?: boolean
+    showCustomerPreferences?: boolean
   }>
 }
 
