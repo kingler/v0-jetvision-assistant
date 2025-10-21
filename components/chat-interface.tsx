@@ -10,7 +10,7 @@ import { Send, Loader2, Plane, FileText, Eye, Clock, CheckCircle } from "lucide-
 import { cn } from "@/lib/utils"
 import { WorkflowVisualization } from "./workflow-visualization"
 import { ProposalPreview } from "./proposal-preview"
-import type { ChatSession } from "./chat-sidebar"
+import type { ChatSession } from "@/lib/types"
 
 interface ChatInterfaceProps {
   activeChat: ChatSession

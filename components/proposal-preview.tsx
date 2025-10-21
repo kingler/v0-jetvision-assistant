@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Send, Download, Edit } from "lucide-react"
-import type { ChatSession } from "./chat-sidebar"
+import type { ChatSession } from "@/lib/types"
 
 interface ProposalPreviewProps {
   embedded?: boolean
