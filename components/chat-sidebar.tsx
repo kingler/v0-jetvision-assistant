@@ -5,29 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, MessageSquare, CheckCircle, Clock, Loader2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-export interface ChatSession {
-  id: string
-  route: string
-  passengers: number
-  date: string
-  status: "proposal_ready" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"
-  currentStep: number
-  totalSteps: number
-  aircraft?: string
-  operator?: string
-  quotesReceived?: number
-  quotesTotal?: number
-  messages: Array<{
-    id: string
-    type: "user" | "agent"
-    content: string
-    timestamp: Date
-    showWorkflow?: boolean
-    showProposal?: boolean
-    showQuoteStatus?: boolean
-  }>
-}
+import type { ChatSession } from "@/lib/types"
 
 interface ChatSidebarProps {
   chatSessions: ChatSession[]
