@@ -1,0 +1,204 @@
+{
+  "main": {
+    "id": "a1317ff80fcc4c9c",
+    "type": "split",
+    "children": [
+      {
+        "id": "174590b40910749b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d8a02ca2b234c483",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "New tab"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "034871d1e2132d7e",
+    "type": "split",
+    "children": [
+      {
+        "id": "136fbdf45d6351e6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "bc43d091b2367ce1",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "cd09858a63a3ffad",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "4cb790dff8a4829c",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "608a629eb50fbf2c",
+    "type": "split",
+    "children": [
+      {
+        "id": "8c8537c57f78a7c1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "84b3a321eecdc5f3",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "b7756798823dc7d9",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "34a8276dee8b15a3",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "fd91364fa6fd3787",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "d8a02ca2b234c483",
+  "lastOpenFiles": [
+    "tasks/COMPREHENSIVE_TASK_GENERATION_SUMMARY.md",
+    "tasks/backlog/TASK-037-final-qa-production-deployment.md",
+    "tasks/backlog/TASK-036-api-documentation-user-guide.md",
+    "tasks/backlog/TASK-035-production-environment-setup.md",
+    "tasks/backlog/TASK-034-staging-environment-deployment.md",
+    "tasks/backlog/TASK-033-cicd-pipeline-configuration.md",
+    "tasks/backlog/TASK-032-sentry-integration-monitoring.md",
+    "tasks/backlog/TASK-031-database-query-optimization.md",
+    "tasks/backlog/TASK-031-database-query-optimization.md.tmp.731.1761009304651",
+    "tasks/backlog/TASK-030-security-audit-vulnerability-fixes.md",
+    "tasks/backlog/TASK-029-performance-optimization-benchmarking.md",
+    "tasks/backlog/TASK-028-e2e-tests-critical-workflows.md",
+    "tasks/backlog/TASK-027-integration-tests-for-api-routes.md",
+    "tasks/backlog/TASK-026-unit-tests-for-agents.md",
+    "docs/WEEK4_TASKS_SUMMARY.md",
+    "tasks/backlog/TASK-025-settings-panel-implementation.md",
+    "tasks/backlog/TASK-024-workflow-state-management.md",
+    "tasks/backlog/TASK-024-workflow-state-management.md.tmp.731.1761008416684",
+    "tasks/backlog/TASK-023-chat-interface-backend-integration.md",
+    "tasks/backlog/TASK-022-supabase-realtime-integration.md",
+    "tasks/backlog/TASK-021-api-client-data-fetching.md",
+    "tasks/backlog/TASK-020-dashboard-pages-implementation.md",
+    "tasks/backlog/TASK-020-dashboard-pages-implementation.md.tmp.731.1761008059025",
+    "tasks/backlog/TASK-019-pdf-generation-service.md",
+    "tasks/backlog/TASK-018-complete-api-routes-layer.md",
+    "tasks/backlog/TASK-017-error-monitor-agent.md",
+    "tasks/backlog/TASK-017-error-monitor-agent.md.tmp.731.1761007697408",
+    "tasks/backlog/TASK-016-communication-manager-agent.md",
+    "tasks/backlog/TASK-015-proposal-analysis-agent.md",
+    "tasks/backlog/TASK-015-proposal-analysis-agent.md.tmp.731.1761007554705",
+    "tasks/backlog/TASK-014-flight-search-agent.md",
+    "tasks/backlog/TASK-014-flight-search-agent.md.tmp.731.1761007466072",
+    "tasks/backlog/TASK-012-agent-tools-helper-functions.md.tmp.731.1761007135122",
+    "package.json.tmp.69484.1761006506009",
+    "scripts/execute-task.ts",
+    "scripts/generate-all-tasks.ts"
+  ]
+}

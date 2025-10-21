@@ -1,0 +1,142 @@
+{
+  "project": {
+    "name": "Prompt Builder Multiagent System",
+    "description": "AI-driven development framework with specialized agents",
+    "version": "1.0.0"
+  },
+  "hooks": {
+    "onProjectOpen": {
+      "commands": ["/mas_status"],
+      "description": "Check multiagent system status when project opens"
+    },
+    "onFileCreate": {
+      "patterns": ["src/**/*.tsx", "src/**/*.ts"],
+      "commands": ["/test unit", "/check_duplicates files"],
+      "description": "Run unit tests and check for duplicates when new TypeScript files are created"
+    },
+    "onGitCommit": {
+      "pre": ["/test integration", "/security code", "/check_duplicates all"],
+      "description": "Run integration tests, security checks, and duplicate detection before commits"
+    },
+    "onBranchSwitch": {
+      "commands": ["/mas_sync"],
+      "description": "Synchronize agent memory when switching branches"
+    },
+    "onTaskComplete": {
+      "commands": [
+        "/complete_task ${taskId}",
+        "/docs",
+        "/check_duplicates all"
+      ],
+      "description": "Update progress, generate docs, and check for duplicates when tasks are completed"
+    }
+  },
+  "agents": {
+    "multiagent_system": {
+      "enabled": true,
+      "auto_initialize": false,
+      "health_check_interval": 300000,
+      "memory_sync_interval": 600000,
+      "duplicate_check_interval": 900000,
+      "task_completion_tracking": true
+    }
+  },
+  "commands": {
+    "auto_execute": {
+      "init_dev": {
+        "confirm": true,
+        "description": "Initialize complete multiagent development system"
+      },
+      "mas_status": {
+        "confirm": false,
+        "description": "Check system status (safe to run automatically)"
+      },
+      "test": {
+        "confirm": false,
+        "description": "Run tests (safe to run automatically)"
+      },
+      "docs": {
+        "confirm": false,
+        "description": "Generate documentation (safe to run automatically)"
+      },
+      "check_duplicates": {
+        "confirm": false,
+        "description": "Check for code duplicates (safe to run automatically)"
+      },
+      "complete_task": {
+        "confirm": true,
+        "description": "Mark task as complete and update progress tracking"
+      }
+    }
+  },
+  "task_management": {
+    "taskmaster_integration": true,
+    "auto_progress_tracking": true,
+    "epic_calculation": true,
+    "completion_validation": {
+      "require_tests": true,
+      "require_security_scan": true,
+      "require_coverage_threshold": 90
+    }
+  },
+  "code_quality": {
+    "duplicate_detection": {
+      "enabled": true,
+      "similarity_threshold": 80,
+      "auto_scan_on_commit": true,
+      "exclude_patterns": ["test/**", "*.test.ts", "*.spec.ts"]
+    },
+    "agent_coordination": {
+      "conflict_detection": true,
+      "file_registry": true,
+      "auto_assignment_validation": true
+    }
+  },
+  "mcp": {
+    "servers": {
+      "multiagent_orchestrator": {
+        "command": "node",
+        "args": ["scripts/mcp_multiagent_server.js"],
+        "env": {
+          "PROMPT_BUILDER_ROOT": "."
+        }
+      },
+      "taskmaster": {
+        "command": "npx",
+        "args": ["-y", "@taskmaster-ai/mcp-server"],
+        "env": {
+          "TASKMASTER_PROJECT_ROOT": "."
+        }
+      }
+    }
+  },
+  "shortcuts": {
+    "quick_commands": {
+      "Ctrl+Shift+I": "/init_dev",
+      "Ctrl+Shift+S": "/mas_status",
+      "Ctrl+Shift+T": "/test unit",
+      "Ctrl+Shift+D": "/docs",
+      "Ctrl+Shift+C": "/complete_task",
+      "Ctrl+Shift+U": "/check_duplicates"
+    }
+  },
+  "workspace": {
+    "auto_save": true,
+    "format_on_save": true,
+    "run_tests_on_save": true,
+    "security_scan_on_save": false,
+    "duplicate_check_on_save": true
+  },
+  "reporting": {
+    "progress_reports": {
+      "auto_generate": true,
+      "include_epic_progress": true,
+      "include_completion_metrics": true
+    },
+    "code_analysis": {
+      "auto_generate": true,
+      "include_duplicate_analysis": true,
+      "include_agent_conflicts": true
+    }
+  }
+}
