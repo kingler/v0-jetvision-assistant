@@ -4,6 +4,11 @@
 
 <!-- Provide a clear and concise description of the changes -->
 
+### Linear Issue
+**Linear Issue**: [DES-XXX](https://linear.app/designthru-ai/issue/DES-XXX)
+**SubAgent**: [Coder/Reviewer/Tester/Designer/Documenter]
+**Priority**: [Low/Medium/High/Urgent]
+
 ### Related Task/Issue
 Closes #TASK-XXX (link to task file or GitHub issue)
 
@@ -224,6 +229,14 @@ NEW_VAR_NAME=description of what it does
 - [ ] Performance is acceptable
 - [ ] Documentation is adequate
 - [ ] No unresolved questions or concerns
+
+### Linear Workflow Integration
+<!-- Update Linear issue status as you progress -->
+- [ ] Linear issue updated to "In Review" when PR created
+- [ ] Linear issue linked in PR description
+- [ ] Progress comments added to Linear issue
+- [ ] On approval: Linear issue updated to "Done"
+- [ ] On changes requested: Linear issue updated to "In Progress" and reassigned to Coder
 
 ---
 

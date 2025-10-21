@@ -45,6 +45,7 @@ Frontend:
 ├── TypeScript
 ├── Clerk Authentication
 ├── Tailwind CSS 4.1.9
+├── ChatKit React Embed
 └── shadcn/ui Components
 
 Backend:
@@ -75,6 +76,7 @@ DevOps:
 5. **Multi-Factor Proposal Analysis**: AI-powered comparative analysis and recommendations
 6. **Automated Communications**: Email generation and delivery tracking
 7. **Comprehensive Error Handling**: Automatic recovery and escalation workflows
+8. **Embedded Agentic Chat UI**: ChatKit-powered experience spanning private jet search, quote orchestration, and booking hand-offs
 
 ---
 
@@ -223,6 +225,12 @@ CLERK_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET
 NEXT_PUBLIC_SUPABASE_URL=https://sbzaevawnjlrsjsuevli.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNiemFldmF3bmpscnNqc3VldmxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjcxMDIsImV4cCI6MjA3NjUwMzEwMn0.r-ClgNXSaDnzcz8sJ9LeJb-ITceLLWV_RUSJBYcJThg
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
+
+# ChatKit
+CHATKIT_WORKFLOW_ID=wf_your_chatkit_workflow_id
+OPENAI_API_KEY=sk-your-openai-api-key
+CHATKIT_MOCK_CLIENT_SECRET=demo_client_secret # optional local override
+NEXT_PUBLIC_CHATKIT_ENABLED=true
 ```
 
 **⚠️ SECURITY NOTE**: Verify `.gitignore` includes `.env*` to prevent credential leaks.
@@ -598,7 +606,7 @@ export function createSupabaseClient() {
 
 | Day | Task | Branch | Owner |
 |-----|------|--------|-------|
-| Mon Nov 10 | Update chat interface for authenticated users | `feature/auth-ui-integration` | Frontend Developer |
+| Mon Nov 10 | Embed ChatKit conversation shell & ensure authenticated hand-off to jet search flow | `feature/chatkit-ui` | Frontend Developer |
 | Tue Nov 11 | Supabase Realtime integration | `feature/realtime-updates` | Frontend Developer |
 | Wed Nov 12 | Request creation flow with auth | `feature/request-creation-ui` | Frontend Developer |
 | Thu Nov 13 | Live quote status display + PDF generation service | `feature/quote-status-ui` + `feature/pdf-generation` | Frontend + Backend Developer |
@@ -608,10 +616,16 @@ export function createSupabaseClient() {
 
 **Deliverables**:
 - ✅ Complete authenticated UI
+- ✅ ChatKit embed themed for JetVision and wired into jet search → quote → booking workflows
 - ✅ Real-time updates working
 - ✅ PDF generation service operational
 - ✅ PDF download and preview functionality
 - ✅ End-user workflow functional
+
+#### ChatKit Integration Objectives
+- Align the ChatKit session lifecycle with Clerk-authenticated agents so flight search, quote requests, and bookings remain gated by existing permissions.
+- Mirror the private jet search → request-for-quote → booking milestones inside ChatKit via custom widgets, action buttons, and transcripts synchronized with Supabase state.
+- Expose agent tool invocations (flight search, quote refresh, booking finalization) through ChatKit actions that call the existing API routes, ensuring we reuse—not replace—the orchestrated workflow.
 
 ### Week 5: Testing & Optimization (Nov 17-23)
 

@@ -1,0 +1,135 @@
+name: Review Command
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  review:
+    name: Run review checks
+    if: startsWith(github.event.comment.body, '/review')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare review request
+        id: prepare
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.comment.body.trim();
+            const [command, ...args] = body.split(/\s+/);
+            const allowed = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+
+            core.setOutput('run', 'false');
+            core.setOutput('branch', '');
+            core.setOutput('error', '');
+
+            if (!allowed.includes(context.payload.comment.author_association)) {
+              core.setOutput('error', 'Only repository collaborators can trigger `/review`.');
+              return;
+            }
+
+            if (args.length === 0 || !args[0]) {
+              core.setOutput('error', 'Please specify a branch, e.g. `/review feature/my-branch`.');
+              return;
+            }
+
+            const branch = args[0];
+
+            try {
+              await github.rest.repos.getBranch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                branch,
+              });
+            } catch (error) {
+              core.setOutput('error', `Branch \`${branch}\` was not found in this repository.`);
+              return;
+            }
+
+            core.setOutput('run', 'true');
+            core.setOutput('branch', branch);
+
+      - name: Notify invalid command usage
+        if: steps.prepare.outputs.run != 'true' && steps.prepare.outputs.error != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+              body: `⚠️ ${process.env.MESSAGE}`,
+            });
+        env:
+          MESSAGE: ${{ steps.prepare.outputs.error }}
+
+      - name: Acknowledge review request
+        if: steps.prepare.outputs.run == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+              body: `🛠️ Starting review checks for \`${process.env.BRANCH}\`.`,
+            });
+        env:
+          BRANCH: ${{ steps.prepare.outputs.branch }}
+
+      - name: Check out branch
+        if: steps.prepare.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.prepare.outputs.branch }}
+
+      - name: Set up Node.js
+        if: steps.prepare.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Set up pnpm
+        if: steps.prepare.outputs.run == 'true'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install dependencies
+        if: steps.prepare.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint
+        if: steps.prepare.outputs.run == 'true'
+        run: pnpm lint
+
+      - name: Run build
+        if: steps.prepare.outputs.run == 'true'
+        run: pnpm build
+
+      - name: Report result
+        if: always() && steps.prepare.outputs.run == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = process.env.JOB_STATUS;
+            const branch = process.env.BRANCH;
+            const body =
+              status === 'success'
+                ? `✅ Review checks completed for \`${branch}\`.`
+                : `❌ Review checks failed for \`${branch}\`. Check the workflow run for details.`;
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+              body,
+            });
+        env:
+          JOB_STATUS: ${{ job.status }}
+          BRANCH: ${{ steps.prepare.outputs.branch }}
