@@ -252,13 +252,7 @@ export function WorkflowVisualization({
           </Button>
         </div>
         <ProposalPreview
-          operator={proposal.operator}
-          route={proposal.route}
-          passengers={proposal.passengers}
-          date={proposal.date}
-          basePrice={proposal.basePrice}
-          margin={proposal.margin}
-          totalPrice={proposal.totalPrice}
+          embedded={true}
           onDownloadPdf={() => alert("PDF download would start here")}
           onEditProposal={() => alert("Edit proposal functionality would open here")}
         />
