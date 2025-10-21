@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Redis - Task Queue for BullMQ
+  redis:
+    image: redis:7-alpine
+    container_name: jetvision-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - jetvision-network
+
+  # Redis Commander - Web UI for Redis (Development Only)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: jetvision-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    depends_on:
+      - redis
+    networks:
+      - jetvision-network
+    profiles:
+      - dev
+
+volumes:
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/docker/volumes/redis
+      o: bind
+
+networks:
+  jetvision-network:
+    driver: bridge

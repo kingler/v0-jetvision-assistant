@@ -2,16 +2,18 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Send, Loader2, Plane, FileText, Eye, Clock, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { WorkflowVisualization } from "./workflow-visualization"
 import { ProposalPreview } from "./proposal-preview"
 import { QuoteCard } from "@/components/aviation"
 import type { ChatSession, Quote } from "./chat-sidebar"
+import { ChatKitWidget } from "./chatkit-widget"
 
 interface ChatInterfaceProps {
   activeChat: ChatSession
@@ -31,6 +33,16 @@ export function ChatInterface({
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const latestMessagesRef = useRef(activeChat.messages)
+  const chatKitMetadata = useMemo(
+    () => ({
+      route: activeChat.route,
+      date: activeChat.date,
+      passengers: activeChat.passengers,
+      status: activeChat.status,
+    }),
+    [activeChat.date, activeChat.passengers, activeChat.route, activeChat.status],
+  )
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -39,6 +51,48 @@ export function ChatInterface({
   useEffect(() => {
     scrollToBottom()
   }, [activeChat.messages, isTyping])
+
+  useEffect(() => {
+    latestMessagesRef.current = activeChat.messages
+  }, [activeChat.messages])
+
+  const commitChatUpdate = useCallback(
+    (
+      updates: Partial<ChatSession>,
+      message?: {
+        content: string
+        showWorkflow?: boolean
+        showQuoteStatus?: boolean
+        showProposal?: boolean
+        showCustomerPreferences?: boolean
+      },
+    ) => {
+      let updatedMessages = latestMessagesRef.current
+
+      if (message) {
+        const agentMessage = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: "agent" as const,
+          content: message.content,
+          timestamp: new Date(),
+          showWorkflow: message.showWorkflow,
+          showQuoteStatus: message.showQuoteStatus,
+          showProposal: message.showProposal,
+          showCustomerPreferences: message.showCustomerPreferences,
+        }
+
+        updatedMessages = [...updatedMessages, agentMessage]
+      }
+
+      latestMessagesRef.current = updatedMessages
+
+      onUpdateChat(activeChat.id, {
+        ...updates,
+        messages: updatedMessages,
+      })
+    },
+    [activeChat.id, onUpdateChat],
+  )
 
   const simulateWorkflowProgress = async (userMessage: string) => {
     const steps: Array<{
@@ -86,6 +140,7 @@ export function ChatInterface({
       status: "understanding_request",
       currentStep: 1,
     })
+    latestMessagesRef.current = currentMessages
 
     // Progress through each step
     for (let i = 0; i < steps.length; i++) {
@@ -117,8 +172,108 @@ export function ChatInterface({
       // The showQuotes flag will display quotes if they exist in activeChat.quotes
 
       onUpdateChat(activeChat.id, updateData)
+      latestMessagesRef.current = currentMessages
     }
   }
+
+  const handleChatKitAction = useCallback(
+    (action: { type: string; payload?: Record<string, unknown> }) => {
+      const payload = action.payload ?? {}
+
+      switch (action.type) {
+        case "jetvision.workflow.search":
+        case "jetvision.search": {
+          onProcessingChange(true)
+          commitChatUpdate(
+            {
+              status: "searching_aircraft",
+              currentStep: 2,
+            },
+            {
+              content: "Launching a refreshed aircraft search with the latest parameters supplied via ChatKit.",
+              showWorkflow: true,
+            },
+          )
+          onProcessingChange(false)
+          break
+        }
+        case "jetvision.workflow.request_quotes":
+        case "jetvision.request_quotes": {
+          onProcessingChange(true)
+          const quotesTotal = typeof payload.quotesTotal === "number" ? payload.quotesTotal : activeChat.quotesTotal || 5
+          commitChatUpdate(
+            {
+              status: "requesting_quotes",
+              currentStep: 3,
+              quotesReceived: typeof payload.quotesReceived === "number" ? payload.quotesReceived : 0,
+              quotesTotal,
+            },
+            {
+              content: "Submitting quote requests to operators. I'll surface responses here as they arrive.",
+              showQuoteStatus: true,
+            },
+          )
+          onProcessingChange(false)
+          break
+        }
+        case "jetvision.workflow.analyze_options":
+        case "jetvision.analyze_options": {
+          commitChatUpdate(
+            {
+              status: "analyzing_options",
+              currentStep: 4,
+            },
+            {
+              content: "Reviewing operator responses to compile the best proposal for your client.",
+              showWorkflow: true,
+            },
+          )
+          break
+        }
+        case "jetvision.workflow.finalize_booking":
+        case "jetvision.booking.finalize": {
+          commitChatUpdate(
+            {
+              status: "proposal_ready",
+              currentStep: 5,
+              quotesReceived: activeChat.quotesReceived,
+              quotesTotal: activeChat.quotesTotal,
+            },
+            {
+              content:
+                "The proposal is ready to present. Confirm the itinerary details and proceed to booking when the client approves.",
+              showProposal: true,
+            },
+          )
+          onProcessingChange(false)
+          break
+        }
+        case "jetvision.thread.attach": {
+          if (typeof payload.threadId === "string") {
+            commitChatUpdate({
+              chatkitThreadId: payload.threadId,
+            })
+          }
+          break
+        }
+        default: {
+          commitChatUpdate(
+            {},
+            {
+              content: `Received ChatKit action "${action.type}". No workflow mapping configured yet.`,
+            },
+          )
+          break
+        }
+      }
+    },
+    [
+      activeChat.quotesReceived,
+      activeChat.quotesTotal,
+      commitChatUpdate,
+      onProcessingChange,
+    ],
+  )
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return
@@ -387,6 +542,23 @@ export function ChatInterface({
               </div>
             </div>
           ))}
+
+          <Card className="bg-gray-900 text-gray-100 border border-gray-800 shadow-lg shadow-cyan-500/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-white">ChatKit Live Assistant</CardTitle>
+              <CardDescription className="text-xs text-gray-400">
+                Embedded assistant connected to jet search, quote orchestration, and booking workflows.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-6">
+              <ChatKitWidget
+                sessionId={activeChat.chatkitThreadId ?? `flight-${activeChat.id}`}
+                metadata={chatKitMetadata}
+                onWorkflowAction={handleChatKitAction}
+                className="h-[420px]"
+              />
+            </CardContent>
+          </Card>
 
           {/* Typing Indicator */}
           {isTyping && (

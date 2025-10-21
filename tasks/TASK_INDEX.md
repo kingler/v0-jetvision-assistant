@@ -1,6 +1,6 @@
-# Jetvision AI Assistant - Master Task Index
+# JetVision AI Assistant - Master Task Index
 
-**Project**: Jetvision AI Assistant
+**Project**: JetVision AI Assistant
 **Timeline**: October 20 - December 1, 2025 (6 weeks)
 **Last Updated**: October 21, 2025
 **Overall Completion**: 3% (1/37 tasks)
@@ -78,7 +78,9 @@
 | TASK-020 | Dashboard Pages Implementation | HIGH | ⏳ Pending | - |
 | TASK-021 | API Client & Data Fetching Layer | HIGH | ⏳ Pending | - |
 | TASK-022 | Supabase Realtime Integration | HIGH | ⏳ Pending | - |
-| TASK-023 | Chat Interface Backend Integration | HIGH | ⏳ Pending | - |
+| TASK-023 | ChatKit embed & workflow bridge | HIGH | ⏳ Pending | - |
+| TASK-038 | ChatKit session token API route | HIGH | ⏳ Pending | - |
+| TASK-039 | ChatKit theming & action widgets | NORMAL | ⏳ Pending | - |
 | TASK-024 | Workflow State Management Integration | NORMAL | ⏳ Pending | - |
 | TASK-025 | Settings Panel Implementation | NORMAL | ⏳ Pending | - |
 
@@ -120,21 +122,21 @@
 
 ## Overall Progress
 
-**Total Tasks**: 37
+**Total Tasks**: 39
 **Completed**: 1 (3%)
 **In Progress**: 0 (0%)
-**Pending**: 36 (97%)
+**Pending**: 38 (97%)
 
 ### By Priority
 - **CRITICAL**: 10 tasks
-- **HIGH**: 22 tasks
-- **NORMAL**: 5 tasks
+- **HIGH**: 23 tasks
+- **NORMAL**: 6 tasks
 - **LOW**: 0 tasks
 
 ### By Status
 - ✅ **Completed**: 1 task
 - 🟡 **Active**: 0 tasks
-- ⏳ **Pending**: 36 tasks
+- ⏳ **Pending**: 38 tasks
 - 🚫 **Blocked**: 0 tasks
 
 ---

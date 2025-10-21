@@ -37,6 +37,7 @@ export interface ChatSession {
   margin?: number
   quotes?: Quote[]
   selectedQuoteId?: string
+  chatkitThreadId?: string | null
   customer?: {
     name: string
     isReturning: boolean
