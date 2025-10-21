@@ -1,0 +1,44 @@
+
+> jetvision-multi-agent@0.1.0 type-check
+> tsc --noEmit
+
+agents/core/base-agent.ts(145,9): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(body: ChatCompletionCreateParamsNonStreaming, options?: RequestOptions | undefined): APIPromise<ChatCompletion>', gave the following error.
+    Type '{ tool_call_id?: string | undefined; name?: string | undefined; role: "user" | "assistant" | "system" | "tool"; content: string; }[]' is not assignable to type 'ChatCompletionMessageParam[]'.
+      Type '{ tool_call_id?: string | undefined; name?: string | undefined; role: "user" | "assistant" | "system" | "tool"; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+        Type '{ tool_call_id?: string | undefined; name?: string | undefined; role: "user" | "assistant" | "system" | "tool"; content: string; }' is not assignable to type 'ChatCompletionFunctionMessageParam'.
+          Types of property 'name' are incompatible.
+            Type 'string | undefined' is not assignable to type 'string'.
+              Type 'undefined' is not assignable to type 'string'.
+  Overload 2 of 3, '(body: ChatCompletionCreateParamsStreaming, options?: RequestOptions | undefined): APIPromise<Stream<ChatCompletionChunk>>', gave the following error.
+    Type '{ tool_call_id?: string | undefined; name?: string | undefined; role: "user" | "assistant" | "system" | "tool"; content: string; }[]' is not assignable to type 'ChatCompletionMessageParam[]'.
+  Overload 3 of 3, '(body: ChatCompletionCreateParamsBase, options?: RequestOptions | undefined): APIPromise<ChatCompletion | Stream<...>>', gave the following error.
+    Type '{ tool_call_id?: string | undefined; name?: string | undefined; role: "user" | "assistant" | "system" | "tool"; content: string; }[]' is not assignable to type 'ChatCompletionMessageParam[]'.
+app/page.tsx(20,67): error TS2345: Argument of type '({ id: string; route: string; passengers: number; date: string; status: string; currentStep: number; totalSteps: number; aircraft: string; operator: string; basePrice: number; totalPrice: number; ... 4 more ...; customer?: undefined; } | { ...; } | { ...; } | { ...; })[]' is not assignable to parameter of type 'ChatSession[] | (() => ChatSession[])'.
+  Type '({ id: string; route: string; passengers: number; date: string; status: string; currentStep: number; totalSteps: number; aircraft: string; operator: string; basePrice: number; totalPrice: number; ... 4 more ...; customer?: undefined; } | { ...; } | { ...; } | { ...; })[]' is not assignable to type 'ChatSession[]'.
+    Type '{ id: string; route: string; passengers: number; date: string; status: string; currentStep: number; totalSteps: number; aircraft: string; operator: string; basePrice: number; totalPrice: number; ... 4 more ...; customer?: undefined; } | { ...; } | { ...; } | { ...; }' is not assignable to type 'ChatSession'.
+      Type '{ id: string; route: string; passengers: number; date: string; status: string; currentStep: number; totalSteps: number; aircraft: string; operator: string; basePrice: number; totalPrice: number; margin: number; messages: ({ ...; } | { ...; })[]; quotesReceived?: undefined; quotesTotal?: undefined; customer?: undefin...' is not assignable to type 'ChatSession'.
+        Types of property 'status' are incompatible.
+          Type 'string' is not assignable to type '"proposal_ready" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"'.
+components/chat-interface.tsx(170,80): error TS2339: Property 'customer' does not exist on type 'ChatSession'.
+components/chat-interface.tsx(180,75): error TS2339: Property 'customer' does not exist on type 'ChatSession'.
+components/chat-interface.tsx(186,75): error TS2339: Property 'customer' does not exist on type 'ChatSession'.
+components/chat-interface.tsx(261,26): error TS2339: Property 'showCustomerPreferences' does not exist on type '{ id: string; type: "user" | "agent"; content: string; timestamp: Date; showWorkflow?: boolean | undefined; showProposal?: boolean | undefined; showQuoteStatus?: boolean | undefined; }'.
+components/chat-interface.tsx(261,64): error TS2339: Property 'customer' does not exist on type 'ChatSession'.
+components/chat-interface.tsx(286,22): error TS2786: 'ProposalPreview' cannot be used as a JSX component.
+  Its return type 'Element | undefined' is not a valid JSX element.
+components/proposal-preview.tsx(73,28): error TS2339: Property 'customer' does not exist on type 'ChatSession'.
+components/theme-provider.tsx(9,33): error TS2339: Property 'children' does not exist on type 'ThemeProviderProps'.
+components/ui/badge.tsx(38,6): error TS2322: Type '{ ref?: LegacyRef<HTMLSpanElement> | undefined; key?: Key | null | undefined; defaultChecked?: boolean | undefined; defaultValue?: string | number | readonly string[] | undefined; ... 253 more ...; className: string; }' is not assignable to type 'RefAttributes<HTMLElement>'.
+  Types of property 'ref' are incompatible.
+    Type 'LegacyRef<HTMLSpanElement> | undefined' is not assignable to type 'Ref<HTMLElement> | undefined'.
+      Type 'string' is not assignable to type 'Ref<HTMLElement> | undefined'.
+components/ui/button.tsx(51,6): error TS2322: Type '{ ref?: LegacyRef<HTMLButtonElement> | undefined; key?: Key | null | undefined; autoFocus?: boolean | undefined; disabled?: boolean | undefined; ... 264 more ...; className: string; }' is not assignable to type 'RefAttributes<HTMLElement>'.
+  Types of property 'ref' are incompatible.
+    Type 'LegacyRef<HTMLButtonElement> | undefined' is not assignable to type 'Ref<HTMLElement> | undefined'.
+      Type 'string' is not assignable to type 'Ref<HTMLElement> | undefined'.
+components/workflow-visualization.tsx(254,10): error TS2786: 'ProposalPreview' cannot be used as a JSX component.
+  Its return type 'Element | undefined' is not a valid JSX element.
+    Type 'undefined' is not assignable to type 'Element | null'.
+components/workflow-visualization.tsx(255,11): error TS2322: Type '{ operator: Operator; route: FlightRoute; passengers: number; date: string; basePrice: number; margin: number; totalPrice: number; onDownloadPdf: () => void; onEditProposal: () => void; }' is not assignable to type 'IntrinsicAttributes & ProposalPreviewProps'.
+  Property 'operator' does not exist on type 'IntrinsicAttributes & ProposalPreviewProps'.

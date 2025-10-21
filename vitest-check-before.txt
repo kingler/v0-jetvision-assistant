@@ -1,0 +1,5 @@
+
+> jetvision-multi-agent@0.1.0 test
+> vitest --version
+
+vitest/2.1.9 darwin-arm64 node-v22.13.1
