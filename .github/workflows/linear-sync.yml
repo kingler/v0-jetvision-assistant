@@ -1,0 +1,155 @@
+name: Linear Status Sync
+
+on:
+  pull_request:
+    types:
+      - opened
+      - ready_for_review
+      - closed
+  pull_request_review:
+    types:
+      - submitted
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sync-to-linear:
+    name: Sync PR status to Linear
+    runs-on: ubuntu-latest
+    if: github.event.review.state == 'approved' || github.event.action != 'submitted'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract task/issue IDs
+        id: extract
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            const title = context.payload.pull_request.title;
+            const body = context.payload.pull_request.body || '';
+            const isDraft = context.payload.pull_request.draft;
+
+            // Extract Linear ID (DES-XXX)
+            const linearPattern = /DES-\d+/gi;
+            const linearMatch = branch.match(linearPattern) ||
+                               title.match(linearPattern) ||
+                               body.match(linearPattern);
+            const linearId = linearMatch ? linearMatch[0] : null;
+
+            // Extract Task ID (TASK-XXX)
+            const taskPattern = /TASK-\d{3}/gi;
+            const taskMatch = branch.match(taskPattern) ||
+                             title.match(taskPattern) ||
+                             body.match(taskPattern);
+            const taskId = taskMatch ? taskMatch[0] : null;
+
+            // Determine Linear state based on PR status
+            let linearState = 'todo';
+            let eventType = 'created';
+
+            if (context.payload.action === 'closed' && context.payload.pull_request.merged) {
+              linearState = 'completed';
+              eventType = 'merged';
+            } else if (context.payload.action === 'closed') {
+              linearState = 'canceled';
+              eventType = 'closed';
+            } else if (context.payload.action === 'ready_for_review' || !isDraft) {
+              linearState = 'started'; // In Review
+              eventType = 'ready_for_review';
+            } else if (context.payload.action === 'opened' && isDraft) {
+              linearState = 'started'; // In Progress
+              eventType = 'created';
+            } else if (context.payload.review && context.payload.review.state === 'approved') {
+              linearState = 'started'; // In Review (Approved)
+              eventType = 'approved';
+            }
+
+            core.setOutput('linear_id', linearId || '');
+            core.setOutput('task_id', taskId || '');
+            core.setOutput('linear_state', linearState);
+            core.setOutput('event_type', eventType);
+            core.setOutput('has_linear_id', linearId ? 'true' : 'false');
+
+            console.log(`Extracted - Linear ID: ${linearId}, Task ID: ${taskId}, State: ${linearState}`);
+
+      - name: Skip if no Linear ID
+        if: steps.extract.outputs.has_linear_id != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('⚠️  No Linear ID found in branch name, PR title, or description');
+            console.log('   Branch:', context.payload.pull_request.head.ref);
+            console.log('   Title:', context.payload.pull_request.title);
+            console.log('   To enable Linear sync, include a Linear issue ID (e.g., DES-73) or task ID (e.g., TASK-001)');
+
+      - name: Update Linear issue status
+        if: steps.extract.outputs.has_linear_id == 'true'
+        uses: actions/github-script@v7
+        env:
+          LINEAR_ID: ${{ steps.extract.outputs.linear_id }}
+          LINEAR_STATE: ${{ steps.extract.outputs.linear_state }}
+          EVENT_TYPE: ${{ steps.extract.outputs.event_type }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        with:
+          script: |
+            const { LINEAR_ID, LINEAR_STATE, EVENT_TYPE, PR_NUMBER, PR_URL, BRANCH } = process.env;
+
+            console.log(`\n🔄 Linear Sync Request:`);
+            console.log(`   Issue: ${LINEAR_ID}`);
+            console.log(`   New State: ${LINEAR_STATE}`);
+            console.log(`   Event: ${EVENT_TYPE}`);
+            console.log(`   PR: #${PR_NUMBER} (${PR_URL})`);
+            console.log(`   Branch: ${BRANCH}\n`);
+
+            // Generate status comment
+            let comment = '';
+            switch (EVENT_TYPE) {
+              case 'created':
+                comment = `🔄 PR created: [#${PR_NUMBER}](${PR_URL})\nBranch: \`${BRANCH}\``;
+                break;
+              case 'ready_for_review':
+                comment = `👀 PR ready for review: [#${PR_NUMBER}](${PR_URL})`;
+                break;
+              case 'approved':
+                comment = `✅ PR approved: [#${PR_NUMBER}](${PR_URL})\nReady to merge`;
+                break;
+              case 'merged':
+                comment = `🎉 PR merged: [#${PR_NUMBER}](${PR_URL})\nTask completed`;
+                break;
+              case 'closed':
+                comment = `❌ PR closed without merging: [#${PR_NUMBER}](${PR_URL})`;
+                break;
+            }
+
+            // TODO: Implement Linear API call or MCP integration
+            // For now, just log what would happen
+            console.log('📝 Would update Linear with:');
+            console.log(`   Comment: ${comment}`);
+            console.log(`   State: ${LINEAR_STATE}`);
+
+            // Add a GitHub comment to track the sync
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `🔗 **Linear Sync**\n\nIssue \`${LINEAR_ID}\` would be updated to state: \`${LINEAR_STATE}\`\n\n${comment}\n\n_Note: Linear API integration pending. This is a preview of what will be synced._`,
+            });
+
+            console.log('✅ Sync logged successfully');
+
+      - name: Handle sync failure
+        if: failure() && steps.extract.outputs.has_linear_id == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `⚠️  **Linear Sync Failed**\n\nFailed to sync status for Linear issue \`${process.env.LINEAR_ID}\`.\nPlease update the Linear issue manually.\n\nCheck the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`,
+            });
