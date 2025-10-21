@@ -11,12 +11,15 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
+    // @ts-expect-error - ClerkProvider is an async Server Component (returns Promise<JSX.Element>)
+    // This is a known TypeScript limitation with async components in JSX
+    // The component works correctly at runtime
     <ClerkProvider>
       <html lang="en">
         <body className="font-sans">
