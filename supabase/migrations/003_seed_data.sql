@@ -28,7 +28,7 @@ INSERT INTO iso_agents (
   'percentage',
   15.00,
   true,
-  '{"company": "Jetvision West", "territory": "US-West", "preferred_operators": ["NetJets", "VistaJet"]}'::jsonb
+-- Jetvision AI Assistant - Seed Data
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- Test ISO Agent 2
@@ -51,7 +51,7 @@ INSERT INTO iso_agents (
   'fixed',
   5000.00,
   true,
-  '{"company": "Jetvision East", "territory": "US-East", "preferred_operators": ["FlexJet", "Wheels Up"]}'::jsonb
+-- Jetvision AI Assistant - Seed Data
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- Test Admin User
@@ -74,7 +74,7 @@ INSERT INTO iso_agents (
   'percentage',
   0.00,
   true,
-  '{"company": "Jetvision HQ", "access_level": "full"}'::jsonb
+-- Jetvision AI Assistant - Seed Data
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- ============================================================================
@@ -184,7 +184,7 @@ INSERT INTO requests (
   status,
   metadata
 ) VALUES (
-  '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
   'a1111111-1111-1111-1111-111111111111',
   'c1111111-1111-1111-1111-111111111111',
   'KTEB',
@@ -215,7 +215,7 @@ INSERT INTO requests (
   status,
   metadata
 ) VALUES (
-  '22222222-2222-2222-2222-222222222222',
+-- Jetvision AI Assistant - Seed Data
   'a1111111-1111-1111-1111-111111111111',
   'c2222222-2222-2222-2222-222222222222',
   'KBOS',
@@ -246,7 +246,7 @@ INSERT INTO requests (
   status,
   metadata
 ) VALUES (
-  '33333333-3333-3333-3333-333333333333',
+-- Jetvision AI Assistant - Seed Data
   'a2222222-2222-2222-2222-222222222222',
   'c3333333-3333-3333-3333-333333333333',
   'KJFK',
@@ -289,8 +289,7 @@ INSERT INTO quotes (
 ) VALUES
   -- Quote 1: Best option
   (
-    '01111111-1111-1111-1111-111111111111',
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'OP-001',
     'NetJets',
     95000.00,
@@ -319,8 +318,7 @@ INSERT INTO quotes (
 
   -- Quote 2: Second best
   (
-    '02222222-2222-2222-2222-222222222222',
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'OP-002',
     'VistaJet',
     105000.00,
@@ -349,8 +347,7 @@ INSERT INTO quotes (
 
   -- Quote 3: Budget option
   (
-    '03333333-3333-3333-3333-333333333333',
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'OP-003',
     'FlexJet',
     88000.00,
@@ -399,8 +396,7 @@ INSERT INTO quotes (
   metadata
 ) VALUES
   (
-    '04444444-4444-4444-4444-444444444444',
-    '22222222-2222-2222-2222-222222222222',
+-- Jetvision AI Assistant - Seed Data
     'OP-004',
     'Wheels Up',
     28000.00,
@@ -441,16 +437,14 @@ INSERT INTO workflow_states (
   state_entered_at
 ) VALUES
   (
-    '11111111-1111-1111-1111-111111111111',
-    'analyzing',
-    'draft',
+-- Jetvision AI Assistant - Seed Data
     'agent-orchestrator-001',
     '{"analysis_result": "Valid RFP, proceeding to client data fetch"}'::jsonb,
     1250,
     NOW() - INTERVAL '48 hours'
   ),
   (
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'fetching_client_data',
     'analyzing',
     'agent-client-data-001',
@@ -459,7 +453,7 @@ INSERT INTO workflow_states (
     NOW() - INTERVAL '47 hours 58 minutes'
   ),
   (
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'searching_flights',
     'fetching_client_data',
     'agent-flight-search-001',
@@ -468,7 +462,7 @@ INSERT INTO workflow_states (
     NOW() - INTERVAL '47 hours 56 minutes'
   ),
   (
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'awaiting_quotes',
     'searching_flights',
     'agent-flight-search-001',
@@ -477,7 +471,7 @@ INSERT INTO workflow_states (
     NOW() - INTERVAL '47 hours 50 minutes'
   ),
   (
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'analyzing_proposals',
     'awaiting_quotes',
     'agent-proposal-analysis-001',
@@ -486,7 +480,7 @@ INSERT INTO workflow_states (
     NOW() - INTERVAL '23 hours 50 minutes'
   ),
   (
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'completed',
     'sending_proposal',
     'agent-communication-001',
@@ -506,7 +500,7 @@ INSERT INTO workflow_states (
   state_entered_at
 ) VALUES
   (
-    '22222222-2222-2222-2222-222222222222',
+-- Jetvision AI Assistant - Seed Data
     'awaiting_quotes',
     'searching_flights',
     'agent-flight-search-001',
@@ -534,8 +528,7 @@ INSERT INTO agent_executions (
   completed_at
 ) VALUES
   (
-    '01111111-1111-1111-1111-111111111111',
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'orchestrator',
     'agent-orchestrator-001',
     '{"request_id": "r1111111-1111-1111-1111-111111111111", "action": "analyze_rfp"}'::jsonb,
@@ -547,8 +540,7 @@ INSERT INTO agent_executions (
     NOW() - INTERVAL '48 hours' + INTERVAL '1.25 seconds'
   ),
   (
-    '02222222-2222-2222-2222-222222222222',
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'client_data',
     'agent-client-data-001',
     '{"client_profile_id": "c1111111-1111-1111-1111-111111111111"}'::jsonb,
@@ -560,8 +552,7 @@ INSERT INTO agent_executions (
     NOW() - INTERVAL '47 hours 58 minutes' + INTERVAL '2.1 seconds'
   ),
   (
-    '03333333-3333-3333-3333-333333333333',
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'flight_search',
     'agent-flight-search-001',
     '{"route": "KTEB-KLAX", "date": "2025-11-20", "passengers": 8}'::jsonb,
@@ -573,8 +564,7 @@ INSERT INTO agent_executions (
     NOW() - INTERVAL '47 hours 56 minutes' + INTERVAL '5.4 seconds'
   ),
   (
-    '04444444-4444-4444-4444-444444444444',
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'proposal_analysis',
     'agent-proposal-analysis-001',
     '{"request_id": "r1111111-1111-1111-1111-111111111111", "quotes_count": 3}'::jsonb,
@@ -586,8 +576,7 @@ INSERT INTO agent_executions (
     NOW() - INTERVAL '23 hours 50 minutes' + INTERVAL '8.9 seconds'
   ),
   (
-    '05555555-5555-5555-5555-555555555555',
-    '11111111-1111-1111-1111-111111111111',
+-- Jetvision AI Assistant - Seed Data
     'communication',
     'agent-communication-001',
     '{"request_id": "r1111111-1111-1111-1111-111111111111", "best_quote_id": "q1111111-1111-1111-1111-111111111111"}'::jsonb,
