@@ -41,62 +41,6 @@ export function ChatInterface({
   }, [activeChat.messages, isTyping])
 
   const simulateWorkflowProgress = async (userMessage: string) => {
-    // Generate sample quotes
-    const sampleQuotes: Quote[] = [
-      {
-        id: 'quote-1',
-        operatorName: 'NetJets',
-        aircraftType: 'Challenger 350',
-        price: 42500,
-        aiScore: 95,
-        rank: 1,
-        operatorRating: 4.8,
-        departureTime: '9:00 AM',
-        arrivalTime: '12:30 PM',
-        flightDuration: '3h 30m',
-        isRecommended: true,
-      },
-      {
-        id: 'quote-2',
-        operatorName: 'Flexjet',
-        aircraftType: 'Citation X',
-        price: 38900,
-        aiScore: 88,
-        rank: 2,
-        operatorRating: 4.6,
-        departureTime: '10:00 AM',
-        arrivalTime: '1:45 PM',
-        flightDuration: '3h 45m',
-        isRecommended: false,
-      },
-      {
-        id: 'quote-3',
-        operatorName: 'Vista Global',
-        aircraftType: 'Learjet 75',
-        price: 35200,
-        aiScore: 82,
-        rank: 3,
-        operatorRating: 4.5,
-        departureTime: '11:30 AM',
-        arrivalTime: '3:15 PM',
-        flightDuration: '3h 45m',
-        isRecommended: false,
-      },
-      {
-        id: 'quote-4',
-        operatorName: 'Wheels Up',
-        aircraftType: 'Hawker 900XP',
-        price: 39800,
-        aiScore: 85,
-        rank: 4,
-        operatorRating: 4.4,
-        departureTime: '8:30 AM',
-        arrivalTime: '12:00 PM',
-        flightDuration: '3h 30m',
-        isRecommended: false,
-      },
-    ]
-
     const steps: Array<{
       status: string
       message: string
@@ -116,13 +60,13 @@ export function ChatInterface({
       { status: "requesting_quotes", message: "Requesting quotes from our network of operators...", delay: 4000 },
       {
         status: "analyzing_options",
-        message: "Great news! I've received 4 quotes from our operators. Here are your options:",
+        message: "Analyzing quotes from our operators...",
         delay: 2500,
         showQuotes: true,
       },
       {
         status: "proposal_ready",
-        message: "Based on your requirements and the AI analysis, I recommend the Challenger 350 from NetJets. Would you like me to proceed with this option?",
+        message: "I've analyzed the available options and prepared a recommendation based on your requirements.",
         delay: 2000,
       },
     ]
@@ -162,18 +106,15 @@ export function ChatInterface({
 
       currentMessages = [...currentMessages, agentMsg]
 
-      // Add quotes when analyzing options
+      // Update chat state
       const updateData: Partial<ChatSession> = {
         messages: currentMessages,
         status: step.status as any,
         currentStep: i + 2,
       }
 
-      if (step.showQuotes) {
-        updateData.quotes = sampleQuotes
-        updateData.quotesReceived = sampleQuotes.length
-        updateData.quotesTotal = sampleQuotes.length
-      }
+      // Quotes should be populated by the actual agent workflow (FlightSearchAgent → ProposalAnalysisAgent)
+      // The showQuotes flag will display quotes if they exist in activeChat.quotes
 
       onUpdateChat(activeChat.id, updateData)
     }
@@ -207,6 +148,27 @@ export function ChatInterface({
   const QuoteComparisonDisplay = () => {
     const quotes = activeChat.quotes || []
     const sortedQuotes = [...quotes].sort((a, b) => a.rank - b.rank)
+
+    if (quotes.length === 0) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium">Compare Flight Quotes</h4>
+            <Badge variant="outline" className="text-xs">
+              0 quotes received
+            </Badge>
+          </div>
+          <div className="p-8 text-center border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              Waiting for quotes from operators...
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Quotes will appear here once received from the flight search workflow.
+            </p>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div className="space-y-4">
