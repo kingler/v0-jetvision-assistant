@@ -29,9 +29,12 @@ export async function POST(req: NextRequest) {
   try {
     const { deviceId } = await req.json()
 
-    if (!deviceId) {
+    if (!deviceId || typeof deviceId !== 'string' || deviceId.trim().length === 0) {
       return NextResponse.json(
-        { error: 'Missing required field: deviceId' },
+        {
+          error: 'Invalid deviceId',
+          details: 'deviceId must be a non-empty string',
+        },
         { status: 400 }
       )
     }
@@ -40,7 +43,13 @@ export async function POST(req: NextRequest) {
     if (!process.env.OPENAI_API_KEY) {
       console.error('ChatKit session creation failed: Missing OPENAI_API_KEY')
       return NextResponse.json(
-        { error: 'Server configuration error' },
+        {
+          error: 'Server configuration error',
+          details:
+            process.env.NODE_ENV === 'development'
+              ? 'OPENAI_API_KEY is not configured. Please set it in .env.local'
+              : undefined,
+        },
         { status: 500 }
       )
     }
@@ -49,9 +58,11 @@ export async function POST(req: NextRequest) {
       console.error('ChatKit session creation failed: Missing CHATKIT_WORKFLOW_ID')
       return NextResponse.json(
         {
-          error: 'ChatKit not configured',
-          message:
-            'Please create a workflow in OpenAI Agent Builder and set CHATKIT_WORKFLOW_ID',
+          error: 'Server configuration error',
+          details:
+            process.env.NODE_ENV === 'development'
+              ? 'CHATKIT_WORKFLOW_ID is not configured. Please set it in .env.local'
+              : undefined,
         },
         { status: 500 }
       )
@@ -76,23 +87,29 @@ export async function POST(req: NextRequest) {
     console.error('ChatKit session creation failed:', error)
 
     // Handle specific OpenAI API errors
-    if (error.status === 404) {
-      return NextResponse.json(
-        {
-          error: 'Workflow not found',
-          message: `Workflow ${process.env.CHATKIT_WORKFLOW_ID} not found. Please check CHATKIT_WORKFLOW_ID in .env.local`,
-        },
-        { status: 404 }
-      )
-    }
-
     if (error.status === 401) {
       return NextResponse.json(
         {
           error: 'Authentication failed',
-          message: 'Invalid OPENAI_API_KEY. Please check your API key.',
+          details:
+            process.env.NODE_ENV === 'development'
+              ? 'Invalid OpenAI API key'
+              : undefined,
         },
         { status: 401 }
+      )
+    }
+
+    if (error.status === 404) {
+      return NextResponse.json(
+        {
+          error: 'Workflow not found',
+          details:
+            process.env.NODE_ENV === 'development'
+              ? 'CHATKIT_WORKFLOW_ID does not exist. Please create a workflow in Agent Builder.'
+              : undefined,
+        },
+        { status: 404 }
       )
     }
 
@@ -100,7 +117,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to create session',
-        message: error.message || 'Unknown error occurred',
+        details:
+          process.env.NODE_ENV === 'development'
+            ? error.message || 'Unknown error'
+            : undefined,
       },
       { status: 500 }
     )
@@ -113,13 +133,11 @@ export async function POST(req: NextRequest) {
  * Health check endpoint
  */
 export async function GET() {
-  const configured = !!(
-    process.env.OPENAI_API_KEY && process.env.CHATKIT_WORKFLOW_ID
-  )
-
   return NextResponse.json({
     status: 'ok',
-    configured,
-    workflowId: configured ? process.env.CHATKIT_WORKFLOW_ID : null,
+    configured: {
+      openai_api_key: !!process.env.OPENAI_API_KEY,
+      chatkit_workflow_id: !!process.env.CHATKIT_WORKFLOW_ID,
+    },
   })
 }
