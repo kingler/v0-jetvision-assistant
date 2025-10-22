@@ -61,8 +61,8 @@ export function PreferencesStep({ form }: PreferencesStepProps) {
               {...register('budgetMax', { valueAsNumber: true })}
               placeholder="$100,000"
             />
-            {errors.budgetMax && (
-              <p className="text-sm text-destructive">{errors.budgetMax.message}</p>
+            {errors.budgetMax?.message && (
+              <p className="text-sm text-destructive">{String(errors.budgetMax.message)}</p>
             )}
           </div>
         </div>
@@ -76,8 +76,8 @@ export function PreferencesStep({ form }: PreferencesStepProps) {
           placeholder="Any special requests, accessibility needs, or preferences..."
           rows={4}
         />
-        {errors.specialRequirements && (
-          <p className="text-sm text-destructive">{errors.specialRequirements.message}</p>
+        {errors.specialRequirements?.message && (
+          <p className="text-sm text-destructive">{String(errors.specialRequirements.message)}</p>
         )}
       </div>
 

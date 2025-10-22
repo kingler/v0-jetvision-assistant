@@ -36,8 +36,8 @@ export function ClientSelectionStep({ form }: ClientSelectionStepProps) {
           {...register('clientName')}
           placeholder="John Smith"
         />
-        {errors.clientName && (
-          <p className="text-sm text-destructive">{errors.clientName.message}</p>
+        {errors.clientName?.message && (
+          <p className="text-sm text-destructive">{String(errors.clientName.message)}</p>
         )}
       </div>
 
@@ -50,8 +50,8 @@ export function ClientSelectionStep({ form }: ClientSelectionStepProps) {
           {...register('clientId')}
           placeholder="CL-12345"
         />
-        {errors.clientId && (
-          <p className="text-sm text-destructive">{errors.clientId.message}</p>
+        {errors.clientId?.message && (
+          <p className="text-sm text-destructive">{String(errors.clientId.message)}</p>
         )}
       </div>
 
@@ -64,8 +64,8 @@ export function ClientSelectionStep({ form }: ClientSelectionStepProps) {
             {...register('clientEmail')}
             placeholder="john@example.com"
           />
-          {errors.clientEmail && (
-            <p className="text-sm text-destructive">{errors.clientEmail.message}</p>
+          {errors.clientEmail?.message && (
+            <p className="text-sm text-destructive">{String(errors.clientEmail.message)}</p>
           )}
         </div>
 

@@ -35,8 +35,8 @@ export function FlightDetailsStep({ form }: FlightDetailsStepProps) {
             {...register('departureAirport')}
             placeholder="KJFK or JFK"
           />
-          {errors.departureAirport && (
-            <p className="text-sm text-destructive">{errors.departureAirport.message}</p>
+          {errors.departureAirport?.message && (
+            <p className="text-sm text-destructive">{String(errors.departureAirport.message)}</p>
           )}
         </div>
 
@@ -49,8 +49,8 @@ export function FlightDetailsStep({ form }: FlightDetailsStepProps) {
             {...register('arrivalAirport')}
             placeholder="KLAX or LAX"
           />
-          {errors.arrivalAirport && (
-            <p className="text-sm text-destructive">{errors.arrivalAirport.message}</p>
+          {errors.arrivalAirport?.message && (
+            <p className="text-sm text-destructive">{String(errors.arrivalAirport.message)}</p>
           )}
         </div>
       </div>
@@ -65,8 +65,8 @@ export function FlightDetailsStep({ form }: FlightDetailsStepProps) {
             type="date"
             {...register('departureDate', { valueAsDate: true })}
           />
-          {errors.departureDate && (
-            <p className="text-sm text-destructive">{errors.departureDate.message}</p>
+          {errors.departureDate?.message && (
+            <p className="text-sm text-destructive">{String(errors.departureDate.message)}</p>
           )}
         </div>
 
@@ -88,8 +88,8 @@ export function FlightDetailsStep({ form }: FlightDetailsStepProps) {
             type="date"
             {...register('returnDate', { valueAsDate: true })}
           />
-          {errors.returnDate && (
-            <p className="text-sm text-destructive">{errors.returnDate.message}</p>
+          {errors.returnDate?.message && (
+            <p className="text-sm text-destructive">{String(errors.returnDate.message)}</p>
           )}
         </div>
 
@@ -115,8 +115,8 @@ export function FlightDetailsStep({ form }: FlightDetailsStepProps) {
             max={20}
             {...register('passengers', { valueAsNumber: true })}
           />
-          {errors.passengers && (
-            <p className="text-sm text-destructive">{errors.passengers.message}</p>
+          {errors.passengers?.message && (
+            <p className="text-sm text-destructive">{String(errors.passengers.message)}</p>
           )}
         </div>
 
