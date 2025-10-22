@@ -143,7 +143,7 @@ describe('GET /api/requests', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               order: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue({
+                range: vi.fn().mockResolvedValue({
                   data: mockRequests,
                   error: null,
                 }),
@@ -201,11 +201,14 @@ describe('GET /api/requests', () => {
       } else {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue({
-                data: mockRequests,
-                error: null,
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                range: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockResolvedValue({
+                    data: mockRequests,
+                    error: null,
+                  }),
+                }),
               }),
             }),
           }),
@@ -259,11 +262,12 @@ describe('GET /api/requests', () => {
       } else {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue({
-                data: mockRequests,
-                error: null,
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                range: vi.fn().mockResolvedValue({
+                  data: mockRequests,
+                  error: null,
+                }),
               }),
             }),
           }),
@@ -317,11 +321,12 @@ describe('GET /api/requests', () => {
       } else {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue({
-                data: [mockRequest],
-                error: null,
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                range: vi.fn().mockResolvedValue({
+                  data: [mockRequest],
+                  error: null,
+                }),
               }),
             }),
           }),

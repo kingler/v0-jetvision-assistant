@@ -150,8 +150,8 @@ describe('GET /api/workflows', () => {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({
+              order: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({
                   data: mockWorkflows,
                   error: null,
                 }),
