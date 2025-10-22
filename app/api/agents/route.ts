@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const requestId = searchParams.get('request_id');
+    const agentType = searchParams.get('agent_type');
+    const status = searchParams.get('status');
 
     const { data: isoAgent } = await supabase.from('iso_agents').select('id').eq('clerk_user_id', userId).single();
     if (!isoAgent) return NextResponse.json({ error: 'ISO agent not found' }, { status: 404 });
@@ -23,6 +25,8 @@ export async function GET(request: NextRequest) {
       .order('executed_at', { ascending: false });
 
     if (requestId) query = query.eq('request_id', requestId);
+    if (agentType) query = query.eq('agent_type', agentType);
+    if (status) query = query.eq('status', status);
 
     const { data: executions, error } = await query;
     if (error) return NextResponse.json({ error: 'Failed to fetch executions' }, { status: 500 });

@@ -82,15 +82,30 @@ describe('GET /api/agents', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: mockExecutions,
-            error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'agent_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: mockExecutions,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -124,17 +139,32 @@ describe('GET /api/agents', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({
-              data: mockExecutions,
-              error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'agent_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({
+                  data: mockExecutions,
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -172,17 +202,32 @@ describe('GET /api/agents', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({
-              data: mockExecutions,
-              error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'agent_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({
+                  data: mockExecutions,
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -215,17 +260,32 @@ describe('GET /api/agents', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({
-              data: mockExecutions,
-              error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'agent_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({
+                  data: mockExecutions,
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -254,15 +314,30 @@ describe('GET /api/agents', () => {
       { id: 'exec-2', agent_type: 'client_data' },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: mockExecutions,
-            error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'agent_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: mockExecutions,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -284,15 +359,30 @@ describe('GET /api/agents', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'agent_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -314,15 +404,30 @@ describe('GET /api/agents', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: null,
-            error: { message: 'Database connection failed' },
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'agent_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Database connection failed' },
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -331,6 +436,6 @@ describe('GET /api/agents', () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toContain('Failed to fetch agent executions');
+    expect(data.error).toBe('Failed to fetch executions');
   });
 });
