@@ -99,10 +99,8 @@ describe('GET /api/clients', () => {
       },
     ];
 
-    let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1 && table === 'iso_agents') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -116,11 +114,9 @@ describe('GET /api/clients', () => {
       } else if (table === 'client_profiles') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockClients,
-                error: null,
-              }),
+            eq: vi.fn().mockResolvedValue({
+              data: mockClients,
+              error: null,
             }),
           }),
         };
@@ -157,10 +153,8 @@ describe('GET /api/clients', () => {
       contact_email: 'bob@specific.com',
     };
 
-    let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -171,11 +165,10 @@ describe('GET /api/clients', () => {
             }),
           }),
         };
-      } else {
+      } else if (table === 'client_profiles') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
+            eq: vi.fn().mockResolvedValue({
               data: [mockClient],
               error: null,
             }),
@@ -209,7 +202,7 @@ describe('POST /api/clients', () => {
       body: JSON.stringify({
         company_name: 'New Corp',
         contact_name: 'Alice Brown',
-        contact_email: 'alice@newcorp.com',
+        email: 'alice@newcorp.com',
       }),
     });
 
@@ -274,7 +267,7 @@ describe('POST /api/clients', () => {
       body: JSON.stringify({
         company_name: 'New Corp',
         contact_name: 'Alice Brown',
-        contact_email: 'alice@newcorp.com',
+        email: 'alice@newcorp.com',
       }),
     });
 
@@ -302,10 +295,10 @@ describe('POST /api/clients', () => {
       iso_agent_id: 'iso-agent-123',
       company_name: 'Full Corp',
       contact_name: 'Charlie Davis',
-      contact_email: 'charlie@full.com',
-      contact_phone: '+1234567890',
-      address: '123 Main St',
+      email: 'charlie@full.com',
+      phone: '+1234567890',
       preferences: { vip: true },
+      notes: 'VIP client',
     };
 
     let callCount = 0;
@@ -342,10 +335,10 @@ describe('POST /api/clients', () => {
       body: JSON.stringify({
         company_name: 'Full Corp',
         contact_name: 'Charlie Davis',
-        contact_email: 'charlie@full.com',
-        contact_phone: '+1234567890',
-        address: '123 Main St',
+        email: 'charlie@full.com',
+        phone: '+1234567890',
         preferences: { vip: true },
+        notes: 'VIP client',
       }),
     });
 
@@ -353,8 +346,7 @@ describe('POST /api/clients', () => {
     const data = await response.json();
 
     expect(response.status).toBe(201);
-    expect(data.client.contact_phone).toBe('+1234567890');
-    expect(data.client.address).toBe('123 Main St');
+    expect(data.client.phone).toBe('+1234567890');
     expect(data.client.preferences).toEqual({ vip: true });
   });
 });
@@ -397,21 +389,35 @@ describe('PATCH /api/clients', () => {
       iso_agent_id: 'iso-agent-123',
       company_name: 'Updated Corp',
       contact_name: 'John Doe',
-      contact_email: 'john@updated.com',
+      email: 'john@updated.com',
       updated_at: new Date().toISOString(),
     };
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockUpdatedClient,
-              error: null,
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'client_profiles') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockUpdatedClient,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -420,7 +426,7 @@ describe('PATCH /api/clients', () => {
       body: JSON.stringify({
         client_id: 'client-1',
         company_name: 'Updated Corp',
-        contact_email: 'john@updated.com',
+        email: 'john@updated.com',
       }),
     });
 
@@ -429,7 +435,7 @@ describe('PATCH /api/clients', () => {
 
     expect(response.status).toBe(200);
     expect(data.client.company_name).toBe('Updated Corp');
-    expect(data.client.contact_email).toBe('john@updated.com');
+    expect(data.client.email).toBe('john@updated.com');
   });
 
   it('should update client preferences', async () => {
@@ -448,17 +454,31 @@ describe('PATCH /api/clients', () => {
       updated_at: new Date().toISOString(),
     };
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockUpdatedClient,
-              error: null,
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'client_profiles') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockUpdatedClient,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -487,17 +507,31 @@ describe('PATCH /api/clients', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'Database error' },
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'client_profiles') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Database error' },
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -513,6 +547,6 @@ describe('PATCH /api/clients', () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toContain('Failed to update client');
+    expect(data.error).toBe('Failed to update client');
   });
 });
