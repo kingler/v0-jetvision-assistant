@@ -218,5 +218,6 @@ export function ProposalPreview({
     )
   }
 
-  // ... existing code for full proposal view ...
+  // Full proposal view placeholder
+  return null
 }

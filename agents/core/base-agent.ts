@@ -142,12 +142,29 @@ export abstract class BaseAgent implements IAgent {
     try {
       const response = await this.openai.chat.completions.create({
         model: this.config.model || 'gpt-4-turbo-preview',
-        messages: messages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-          ...(msg.name && { name: msg.name }),
-          ...(msg.toolCallId && { tool_call_id: msg.toolCallId }),
-        })),
+        messages: messages.map((msg) => {
+          const baseMessage: OpenAI.Chat.ChatCompletionMessageParam = {
+            role: msg.role,
+            content: msg.content,
+          } as OpenAI.Chat.ChatCompletionMessageParam;
+
+          if (msg.role === 'tool' && msg.toolCallId) {
+            return {
+              role: 'tool',
+              content: msg.content,
+              tool_call_id: msg.toolCallId,
+            } as OpenAI.Chat.ChatCompletionToolMessageParam;
+          }
+
+          if (msg.name) {
+            return {
+              ...baseMessage,
+              name: msg.name,
+            } as OpenAI.Chat.ChatCompletionMessageParam;
+          }
+
+          return baseMessage;
+        }),
         tools: this.getToolDefinitions(),
         temperature: this.config.temperature ?? 0.7,
         max_tokens: this.config.maxTokens ?? 4096,

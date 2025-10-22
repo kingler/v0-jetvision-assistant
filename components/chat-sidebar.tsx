@@ -18,6 +18,14 @@ export interface ChatSession {
   operator?: string
   quotesReceived?: number
   quotesTotal?: number
+  basePrice?: number
+  totalPrice?: number
+  margin?: number
+  customer?: {
+    name: string
+    isReturning: boolean
+    preferences: Record<string, string>
+  }
   messages: Array<{
     id: string
     type: "user" | "agent"
@@ -26,6 +34,7 @@ export interface ChatSession {
     showWorkflow?: boolean
     showProposal?: boolean
     showQuoteStatus?: boolean
+    showCustomerPreferences?: boolean
   }>
 }
 
