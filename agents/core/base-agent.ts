@@ -176,6 +176,7 @@ export abstract class BaseAgent implements IAgent {
         response = await (this.openai as any).responses.create(requestParams)
       } else {
         // Fallback to Chat Completions for non-GPT-5 models
+        // Pass trackMetrics=false to prevent double counting
         const messages: AgentMessage[] = [
           {
             role: 'system',
@@ -188,24 +189,11 @@ export abstract class BaseAgent implements IAgent {
             timestamp: new Date(),
           },
         ]
-        response = await this.createChatCompletionLegacy(messages, context)
+        response = await this.createChatCompletionLegacy(messages, context, false)
       }
 
-      // Update metrics
-      const executionTime = Date.now() - startTime
-      this.metrics.totalExecutions++
-      this.metrics.successfulExecutions++
-      this.metrics.averageExecutionTime =
-        (this.metrics.averageExecutionTime * (this.metrics.totalExecutions - 1) +
-          executionTime) /
-        this.metrics.totalExecutions
-
-      if (response.usage) {
-        this.metrics.totalTokensUsed += response.usage.total_tokens
-      }
-
-      this.metrics.lastExecutionAt = new Date()
-      this._status = AgentStatus.COMPLETED
+      // Update metrics (centralized for all paths)
+      this.recordExecutionMetrics(response, startTime, true)
 
       return response
     } catch (error) {
@@ -220,10 +208,14 @@ export abstract class BaseAgent implements IAgent {
    *
    * @deprecated Use createResponse() for GPT-5 models
    * This method is kept for backward compatibility with GPT-4 and earlier models.
+   * @param messages - Array of chat messages
+   * @param context - Optional agent context
+   * @param trackMetrics - Whether to update metrics (default: true). Set to false when called from createResponse to prevent double counting.
    */
   protected async createChatCompletionLegacy(
     messages: AgentMessage[],
-    context?: AgentContext
+    context?: AgentContext,
+    trackMetrics: boolean = true
   ): Promise<OpenAI.Chat.ChatCompletion> {
     this._status = AgentStatus.RUNNING
 
@@ -260,25 +252,16 @@ export abstract class BaseAgent implements IAgent {
         max_tokens: this.config.maxTokens ?? 4096,
       })
 
-      // Update metrics
-      const executionTime = Date.now() - startTime
-      this.metrics.totalExecutions++
-      this.metrics.successfulExecutions++
-      this.metrics.averageExecutionTime =
-        (this.metrics.averageExecutionTime * (this.metrics.totalExecutions - 1) +
-          executionTime) /
-        this.metrics.totalExecutions
-
-      if (response.usage) {
-        this.metrics.totalTokensUsed += response.usage.total_tokens
+      // Update metrics only if tracking is enabled
+      if (trackMetrics) {
+        this.recordExecutionMetrics(response, startTime, true)
       }
-
-      this.metrics.lastExecutionAt = new Date()
-      this._status = AgentStatus.COMPLETED
 
       return response
     } catch (error) {
-      this.metrics.failedExecutions++
+      if (trackMetrics) {
+        this.metrics.failedExecutions++
+      }
       this._status = AgentStatus.ERROR
       throw error
     }
@@ -292,7 +275,37 @@ export abstract class BaseAgent implements IAgent {
     messages: AgentMessage[],
     context?: AgentContext
   ): Promise<OpenAI.Chat.ChatCompletion> {
-    return this.createChatCompletionLegacy(messages, context)
+    return this.createChatCompletionLegacy(messages, context, true)
+  }
+
+  /**
+   * Record execution metrics after a successful API call
+   * Centralized metrics updating to prevent double counting
+   * @param response - The API response containing usage information
+   * @param startTime - The start time of the execution
+   * @param success - Whether the execution was successful
+   */
+  private recordExecutionMetrics(response: any, startTime: number, success: boolean): void {
+    const executionTime = Date.now() - startTime
+    this.metrics.totalExecutions++
+    
+    if (success) {
+      this.metrics.successfulExecutions++
+      this._status = AgentStatus.COMPLETED
+    }
+    
+    // Update average execution time
+    this.metrics.averageExecutionTime =
+      (this.metrics.averageExecutionTime * (this.metrics.totalExecutions - 1) +
+        executionTime) /
+      this.metrics.totalExecutions
+
+    // Update token usage if available
+    if (response.usage) {
+      this.metrics.totalTokensUsed += response.usage.total_tokens
+    }
+
+    this.metrics.lastExecutionAt = new Date()
   }
 
   /**
