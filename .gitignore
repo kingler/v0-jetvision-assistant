@@ -25,3 +25,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# testing
+coverage/
+*.lcov
+test-results/
+playwright-report/
+
+# MCP servers - ignore generated files
+**/node_modules/
+**/pnpm-lock.yaml
+**/coverage/
+
+# IDE
+.cursor/
+.obsidian/workspace.json
