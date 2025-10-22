@@ -1,0 +1,47 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tsx",
+        "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/supabase-mcp-server/src/index.ts"
+      ],
+      "env": {
+        "NEXT_PUBLIC_SUPABASE_URL": "https://sbzaevawnjlrsjsuevli.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNiemFldmF3bmpscnNqc3VldmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDkyNzEwMiwiZXhwIjoyMDc2NTAzMTAyfQ.R2TtahKp42sk11OqwB_DSn6-Uxi6flfD-_1hpm4FaEU"
+      }
+    },
+    "google-sheets": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tsx",
+        "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/google-sheets-mcp-server/src/index.ts"
+      ],
+      "env": {}
+    },
+    "avinode": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tsx",
+        "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/avinode-mcp-server/src/index.ts"
+      ],
+      "env": {}
+    },
+    "gmail": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tsx",
+        "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/gmail-mcp-server/src/index.ts"
+      ],
+      "env": {}
+    }
+  }
+}
