@@ -10,7 +10,8 @@ import { Send, Loader2, Plane, FileText, Eye, Clock, CheckCircle } from "lucide-
 import { cn } from "@/lib/utils"
 import { WorkflowVisualization } from "./workflow-visualization"
 import { ProposalPreview } from "./proposal-preview"
-import type { ChatSession } from "./chat-sidebar"
+import { QuoteCard } from "@/components/aviation"
+import type { ChatSession, Quote } from "./chat-sidebar"
 
 interface ChatInterfaceProps {
   activeChat: ChatSession
@@ -40,7 +41,68 @@ export function ChatInterface({
   }, [activeChat.messages, isTyping])
 
   const simulateWorkflowProgress = async (userMessage: string) => {
-    const steps = [
+    // Generate sample quotes
+    const sampleQuotes: Quote[] = [
+      {
+        id: 'quote-1',
+        operatorName: 'NetJets',
+        aircraftType: 'Challenger 350',
+        price: 42500,
+        aiScore: 95,
+        rank: 1,
+        operatorRating: 4.8,
+        departureTime: '9:00 AM',
+        arrivalTime: '12:30 PM',
+        flightDuration: '3h 30m',
+        isRecommended: true,
+      },
+      {
+        id: 'quote-2',
+        operatorName: 'Flexjet',
+        aircraftType: 'Citation X',
+        price: 38900,
+        aiScore: 88,
+        rank: 2,
+        operatorRating: 4.6,
+        departureTime: '10:00 AM',
+        arrivalTime: '1:45 PM',
+        flightDuration: '3h 45m',
+        isRecommended: false,
+      },
+      {
+        id: 'quote-3',
+        operatorName: 'Vista Global',
+        aircraftType: 'Learjet 75',
+        price: 35200,
+        aiScore: 82,
+        rank: 3,
+        operatorRating: 4.5,
+        departureTime: '11:30 AM',
+        arrivalTime: '3:15 PM',
+        flightDuration: '3h 45m',
+        isRecommended: false,
+      },
+      {
+        id: 'quote-4',
+        operatorName: 'Wheels Up',
+        aircraftType: 'Hawker 900XP',
+        price: 39800,
+        aiScore: 85,
+        rank: 4,
+        operatorRating: 4.4,
+        departureTime: '8:30 AM',
+        arrivalTime: '12:00 PM',
+        flightDuration: '3h 30m',
+        isRecommended: false,
+      },
+    ]
+
+    const steps: Array<{
+      status: string
+      message: string
+      delay: number
+      showQuotes?: boolean
+    }> = [
       {
         status: "understanding_request",
         message: "I understand you're looking for a flight. Let me analyze your requirements...",
@@ -52,10 +114,15 @@ export function ChatInterface({
         delay: 3000,
       },
       { status: "requesting_quotes", message: "Requesting quotes from our network of operators...", delay: 4000 },
-      { status: "analyzing_options", message: "Analyzing the best options for your trip...", delay: 2500 },
+      {
+        status: "analyzing_options",
+        message: "Great news! I've received 4 quotes from our operators. Here are your options:",
+        delay: 2500,
+        showQuotes: true,
+      },
       {
         status: "proposal_ready",
-        message: "Perfect! I found a Light Jet that's ideal for your trip. Here's your proposal:",
+        message: "Based on your requirements and the AI analysis, I recommend the Challenger 350 from NetJets. Would you like me to proceed with this option?",
         delay: 2000,
       },
     ]
@@ -87,18 +154,28 @@ export function ChatInterface({
         type: "agent" as const,
         content: step.message,
         timestamp: new Date(),
-        showWorkflow: true,
-        showQuoteStatus: step.status === "requesting_quotes" || step.status === "analyzing_options",
+        showWorkflow: i < steps.length - 1, // Don't show workflow on last message
+        showQuoteStatus: step.status === "requesting_quotes",
+        showQuotes: step.showQuotes || false,
         showProposal: step.status === "proposal_ready",
       }
 
       currentMessages = [...currentMessages, agentMsg]
 
-      onUpdateChat(activeChat.id, {
+      // Add quotes when analyzing options
+      const updateData: Partial<ChatSession> = {
         messages: currentMessages,
         status: step.status as any,
         currentStep: i + 2,
-      })
+      }
+
+      if (step.showQuotes) {
+        updateData.quotes = sampleQuotes
+        updateData.quotesReceived = sampleQuotes.length
+        updateData.quotesTotal = sampleQuotes.length
+      }
+
+      onUpdateChat(activeChat.id, updateData)
     }
   }
 
@@ -121,6 +198,57 @@ export function ChatInterface({
       e.preventDefault()
       handleSendMessage()
     }
+  }
+
+  const handleSelectQuote = (quoteId: string) => {
+    onUpdateChat(activeChat.id, { selectedQuoteId: quoteId })
+  }
+
+  const QuoteComparisonDisplay = () => {
+    const quotes = activeChat.quotes || []
+    const sortedQuotes = [...quotes].sort((a, b) => a.rank - b.rank)
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="font-medium">Compare Flight Quotes</h4>
+          <Badge variant="outline" className="text-xs">
+            {quotes.length} quote{quotes.length !== 1 ? 's' : ''} received
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {sortedQuotes.map((quote) => (
+            <QuoteCard
+              key={quote.id}
+              id={quote.id}
+              operatorName={quote.operatorName}
+              aircraftType={quote.aircraftType}
+              price={quote.price}
+              aiScore={quote.aiScore}
+              rank={quote.rank}
+              totalQuotes={quotes.length}
+              operatorRating={quote.operatorRating}
+              departureTime={quote.departureTime}
+              arrivalTime={quote.arrivalTime}
+              flightDuration={quote.flightDuration}
+              isRecommended={quote.isRecommended}
+              isSelected={activeChat.selectedQuoteId === quote.id}
+              onSelect={() => handleSelectQuote(quote.id)}
+              compact={false}
+            />
+          ))}
+        </div>
+
+        {activeChat.selectedQuoteId && (
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              ✓ You've selected a quote. I can send this proposal to your client, or you can select a different option.
+            </p>
+          </div>
+        )}
+      </div>
+    )
   }
 
   const QuoteStatusDisplay = () => (
@@ -278,6 +406,12 @@ export function ChatInterface({
                 {message.showQuoteStatus && (
                   <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                     <QuoteStatusDisplay />
+                  </div>
+                )}
+
+                {message.showQuotes && activeChat.quotes && activeChat.quotes.length > 0 && (
+                  <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <QuoteComparisonDisplay />
                   </div>
                 )}
 
