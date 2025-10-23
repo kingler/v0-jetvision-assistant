@@ -1,8 +1,22 @@
 # Workflow Visualization - Avinode Integration Guide
 
 **Date**: October 22, 2025
-**Status**: Ready for Integration
+**Status**: Using Dummy Data (Sandbox Not Configured)
 **Component**: `components/workflow-visualization.tsx`
+
+---
+
+## ⚠️ Current Implementation Status
+
+### Dummy Data Mode
+**The Avinode MCP server is currently using dummy/mock data** because the Avinode API Sandbox has not been configured yet. To use real Avinode data, you must:
+
+1. **Contact Avinode Group** to request sandbox access
+2. **Obtain API credentials** (API Token and Bearer Token)
+3. **Configure authentication** in the MCP server
+4. **Test in sandbox environment** before production deployment
+
+See the [Avinode API Setup](#avinode-api-setup) section below for detailed instructions.
 
 ---
 
@@ -10,7 +24,7 @@
 
 The workflow visualization component has been enhanced to support:
 1. **Clickable/expandable steps** - Users can click any step to show/hide details
-2. **Real Avinode data** - Displays actual results from FlightSearchAgent and ProposalAnalysisAgent
+2. **Real Avinode data** - Displays actual results from FlightSearchAgent and ProposalAnalysisAgent (when sandbox is configured)
 3. **Sequential display** - Results appear automatically as each workflow step completes
 
 ## 5 Workflow Steps
@@ -480,13 +494,206 @@ const workflowData = {
 ✅ **Transparent** - Users see exactly what's happening (RFP IDs, quote counts)
 ✅ **Reusable** - Same component works in chat and full-page views
 
+## Avinode API Setup
+
+### Prerequisites
+
+Before integrating with the real Avinode API, complete these steps:
+
+#### 1. Request Sandbox Access
+
+Contact your Avinode Group representative to:
+- Define your specific use case (schedule uploads, RFQ management, trip search, etc.)
+- Obtain sandbox environment access
+- Receive API credentials
+
+**Access URL**: https://sandbox.avinode.com
+
+#### 2. Authentication Configuration
+
+The Avinode API requires **two authentication tokens**:
+
+```typescript
+// mcp-servers/avinode-mcp-server/.env
+AVINODE_API_TOKEN=your-api-token-here          // X-Avinode-ApiToken header
+AVINODE_BEARER_TOKEN=your-bearer-token-here    // Authorization: Bearer token
+```
+
+**Security Note**: Treat these tokens like passwords. Never commit them to version control or share publicly.
+
+#### 3. Required HTTP Headers
+
+All Avinode API requests must include:
+
+```typescript
+const headers = {
+  'Content-Type': 'application/json',
+  'X-Avinode-ApiToken': process.env.AVINODE_API_TOKEN,
+  'Authorization': `Bearer ${process.env.AVINODE_BEARER_TOKEN}`,
+  'X-Avinode-SentTimestamp': new Date().toISOString(), // ISO-8601 UTC (must be within 5 minutes)
+  'X-Avinode-ApiVersion': 'v1.0',
+  'X-Avinode-Product': 'JetVision/1.0.0',
+  'Accept-Encoding': 'gzip', // Optional, for compression
+}
+```
+
+#### 4. Data Format Standards
+
+Follow these ISO standards for API requests:
+
+- **Dates/Times**: ISO 8601 format (e.g., `2025-11-20T14:00:00Z`)
+- **Currency**: ISO 4217 codes (e.g., `USD`, `EUR`, `GBP`)
+- **Countries**: ISO 3166-1 alpha-2 codes (e.g., `US`, `GB`, `FR`)
+- **Provinces/States**: ISO 3166-2 format (e.g., `US-FL`, `US-CA`)
+
+#### 5. Rate Limiting
+
+Avinode enforces rate limits of **~1 call per second** with burst tolerance:
+
+- **429 Too Many Requests** response when rate limited
+- Response headers:
+  - `X-Rate-Limit-Limit`: Allowed calls per hour
+  - `X-Rate-Limit-Remaining`: Calls remaining in current window
+  - `X-Rate-Limit-Reset`: Seconds until counter resets
+
+**Recommendation**: Implement exponential backoff retry logic for 429 errors.
+
+#### 6. Sandbox Environment Notes
+
+**Important Limitations**:
+
+- **Shared environment**: Multiple customers may be testing simultaneously
+- **Weekly data reset**: Database rebuilds every Monday (6-8 AM UTC)
+- **Password reset required**: After each weekly reset
+- **Data confidentiality**: Do not extract or disclose sandbox data to third parties
+- **Lifecycle**: Sandbox access continues alongside production access
+
+**Test Data Setup**:
+1. Log in to https://sandbox.avinode.com
+2. Create test RFQs, quotes, and empty legs
+3. Use test data to verify your integration
+
+### MCP Server Configuration
+
+Update the Avinode MCP server to use real credentials:
+
+```typescript
+// mcp-servers/avinode-mcp-server/src/index.ts
+
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+
+const AVINODE_BASE_URL = process.env.AVINODE_SANDBOX_MODE === 'true'
+  ? 'https://sandbox.avinode.com/api'
+  : 'https://api.avinode.com';
+
+const AVINODE_API_TOKEN = process.env.AVINODE_API_TOKEN;
+const AVINODE_BEARER_TOKEN = process.env.AVINODE_BEARER_TOKEN;
+
+if (!AVINODE_API_TOKEN || !AVINODE_BEARER_TOKEN) {
+  throw new Error('Missing Avinode API credentials. Set AVINODE_API_TOKEN and AVINODE_BEARER_TOKEN in .env');
+}
+
+async function makeAvinodeRequest(endpoint: string, options: RequestInit = {}) {
+  const url = `${AVINODE_BASE_URL}${endpoint}`;
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Avinode-ApiToken': AVINODE_API_TOKEN,
+    'Authorization': `Bearer ${AVINODE_BEARER_TOKEN}`,
+    'X-Avinode-SentTimestamp': new Date().toISOString(),
+    'X-Avinode-ApiVersion': 'v1.0',
+    'X-Avinode-Product': 'JetVision/1.0.0',
+    'Accept-Encoding': 'gzip',
+    ...options.headers,
+  };
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  // Handle rate limiting
+  if (response.status === 429) {
+    const resetSeconds = parseInt(response.headers.get('X-Rate-Limit-Reset') || '60');
+    throw new Error(`Rate limited. Retry after ${resetSeconds} seconds`);
+  }
+
+  if (!response.ok) {
+    throw new Error(`Avinode API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+```
+
+### HTTP Status Codes
+
+Handle these common API responses:
+
+- **200 OK**: Successful GET/PUT request
+- **201 Created**: Successful POST request
+- **401 Unauthorized**: Invalid or missing authentication token
+- **403 Forbidden**: Valid token but insufficient permissions
+- **409 Conflict**: Simultaneous update conflict
+- **422 Unprocessable Entity**: Validation failure
+- **423 Locked**: Resource is locked
+- **429 Too Many Requests**: Rate limit exceeded
+- **503 Service Unavailable**: Temporary server issue
+
+### Error Handling Example
+
+```typescript
+async function createRFPWithRetry(rfpData: RFPRequest, maxRetries = 3): Promise<RFPResponse> {
+  let attempts = 0;
+
+  while (attempts < maxRetries) {
+    try {
+      return await makeAvinodeRequest('/rfp/create', {
+        method: 'POST',
+        body: JSON.stringify(rfpData),
+      });
+    } catch (error) {
+      attempts++;
+
+      if (error.message.includes('Rate limited')) {
+        // Exponential backoff
+        const delay = Math.pow(2, attempts) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw error; // Non-rate-limit error, fail immediately
+    }
+  }
+
+  throw new Error('Max retries exceeded for Avinode API request');
+}
+```
+
+---
+
 ## Next Steps
 
+### Phase 1: Sandbox Configuration (CURRENT)
+1. ✅ **Contact Avinode** for sandbox access
+2. ⏳ **Obtain API credentials** (API Token and Bearer Token)
+3. ⏳ **Configure MCP server** with authentication
+4. ⏳ **Test basic API calls** in sandbox environment
+5. ⏳ **Verify data format compliance** with ISO standards
+
+### Phase 2: Agent Integration
 1. **Implement FlightSearchAgent** Avinode integration
 2. **Implement ProposalAnalysisAgent** quote fetching
 3. **Add real-time updates** via Supabase subscriptions
-4. **Test with live Avinode** MCP server
+4. **Test with live Avinode** sandbox data
 5. **Add error handling** for failed steps
+
+### Phase 3: Production Deployment
+1. **Pass Avinode implementation review**
+2. **Obtain production API credentials**
+3. **Configure production environment variables**
+4. **Deploy to production**
+5. **Monitor API usage and rate limits**
 
 ## Related Files
 
