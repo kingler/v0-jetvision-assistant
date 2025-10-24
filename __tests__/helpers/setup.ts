@@ -1,38 +1,42 @@
 /**
- * Vitest Global Setup
+ * Test Setup File
  *
- * This file is executed before all tests run.
- * Use it for global test configuration and setup.
+ * This file is run before all tests via vitest.config.ts
+ * Sets up global test environment, mocks, and utilities
  */
 
-import { config } from 'dotenv'
-import path from 'path'
+import { vi } from 'vitest'
 
-// Load environment variables from .env.local for testing
-config({ path: path.join(process.cwd(), '.env.local') })
-
-// Validate required environment variables
-const requiredEnvVars = [
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
-]
-
-const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName])
-
-if (missingEnvVars.length > 0) {
-  console.warn('⚠️  Warning: Missing environment variables for tests:')
-  missingEnvVars.forEach((varName) => {
-    console.warn(`   - ${varName}`)
-  })
-  console.warn('\nℹ️  Tests may fail without proper environment configuration.')
-  console.warn('   Please ensure .env.local is configured correctly.\n')
+// Global test utilities
+global.testUtils = {
+  delay: (ms: number) => new Promise(resolve => setTimeout(resolve, ms)),
 }
 
-// Set test timeout (10 seconds default)
-if (typeof global.vi !== 'undefined') {
-  global.vi?.setConfig?.({ testTimeout: 10000 })
+// Mock environment variables for testing
+// @ts-ignore - NODE_ENV is read-only but we need to set it for tests
+if (!process.env.NODE_ENV) process.env.NODE_ENV = 'test'
+process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_mock'
+process.env.CLERK_SECRET_KEY = 'sk_test_mock'
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+process.env.OPENAI_API_KEY = 'sk-test-openai-key'
+process.env.REDIS_HOST = 'localhost'
+process.env.REDIS_PORT = '6379'
+
+// Extend global types
+declare global {
+  var testUtils: {
+    delay: (ms: number) => Promise<void>
+  }
 }
 
-// Console output for test runs
-console.log('🧪 Vitest setup complete\n')
+// Console suppression for cleaner test output (optional)
+// Uncomment if you want to hide console logs during tests
+// global.console = {
+//   ...console,
+//   log: vi.fn(),
+//   debug: vi.fn(),
+//   info: vi.fn(),
+//   warn: vi.fn(),
+// }
