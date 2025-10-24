@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth, UserButton } from '@clerk/nextjs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -122,12 +122,22 @@ export default function DashboardPage() {
               <h1 className="text-2xl font-bold text-gray-900">JetVision Dashboard</h1>
               <p className="text-sm text-gray-600">Multi-Agent RFP Processing System</p>
             </div>
-            <Link href="/dashboard/new-request">
-              <Button className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                New RFP Request
-              </Button>
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard/new-request">
+                <Button className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  New RFP Request
+                </Button>
+              </Link>
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: 'w-10 h-10',
+                  },
+                }}
+                afterSignOutUrl="/"
+              />
+            </div>
           </div>
         </div>
       </header>
