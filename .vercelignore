@@ -1,0 +1,22 @@
+# Exclude MCP servers from Vercel deployment
+mcp-servers/
+
+# Exclude test files
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Exclude development files
+scripts/
+.vscode/
+.idea/
+
+# Exclude documentation
+docs/
+*.md
+!README.md
+
+# Exclude database migration files (not needed for web app)
+supabase/migrations/
