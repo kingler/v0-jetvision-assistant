@@ -101,6 +101,18 @@ export function validateBody<T extends z.ZodType>(
 export async function safeParseJSON(
   request: Request
 ): Promise<{ success: true; data: unknown } | { success: false; response: NextResponse }> {
+  // Check Content-Type header
+  const contentType = request.headers.get('content-type');
+  if (contentType && !contentType.includes('application/json')) {
+    return {
+      success: false,
+      response: NextResponse.json(
+        { error: 'Content-Type must be application/json' },
+        { status: 400 }
+      ),
+    };
+  }
+
   try {
     const body = await request.json();
     return { success: true, data: body };
