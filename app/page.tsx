@@ -15,9 +15,6 @@ import { useIsMobile } from "@/hooks/use-mobile"
 
 type View = "landing" | "chat" | "workflow" | "settings"
 
-// Force dynamic rendering since we use Clerk's useUser hook
-export const dynamic = 'force-dynamic'
-
 export default function JetVisionAgent() {
   const { user, isLoaded } = useUser()
   const [currentView, setCurrentView] = useState<View>("landing")

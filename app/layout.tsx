@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   title: "JetVision Agent",
   description: "AI-powered private jet booking assistant",
   generator: "v0.app",
-} // Force rebuild
+}
+
+// Force dynamic rendering for the entire app
+export const dynamic = 'force-dynamic'
+export const dynamicParams = true
 
 export default function RootLayout({
   children,
