@@ -6,39 +6,42 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { GET } from '@/app/api/analytics/route';
 
-// Mock Clerk auth
-vi.mock('@clerk/nextjs/server', () => ({
-  auth: vi.fn(),
+// Mock API utilities
+vi.mock('@/lib/utils/api', () => ({
+  getAuthenticatedAgent: vi.fn(),
+  isErrorResponse: vi.fn(),
+  withErrorHandling: vi.fn((handler) => handler),
+  ErrorResponses: {
+    badRequest: vi.fn((msg) => NextResponse.json({ error: msg }, { status: 400 })),
+    internalError: vi.fn((msg, details) => NextResponse.json({ error: msg, details }, { status: 500 })),
+  },
 }));
 
 // Mock Supabase
 vi.mock('@/lib/supabase/client', () => ({
   supabase: {
-    from: vi.fn(),
     rpc: vi.fn(),
   },
 }));
 
-import { auth } from '@clerk/nextjs/server';
+import { getAuthenticatedAgent, isErrorResponse } from '@/lib/utils/api';
 import { supabase } from '@/lib/supabase/client';
 
 describe('GET /api/analytics', () => {
+  const mockISOAgent = { id: 'iso-agent-123' };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('should return 401 if user is not authenticated', async () => {
-    vi.mocked(auth).mockResolvedValue({
-      userId: null,
-      sessionId: null,
-      sessionClaims: null,
-      actor: null,
-      has: () => false,
-      debug: () => null,
-    });
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(
+      NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    );
+    vi.mocked(isErrorResponse).mockReturnValue(true);
 
     const request = new NextRequest(
       'http://localhost:3000/api/analytics?metric=requests_summary&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z'
@@ -51,14 +54,8 @@ describe('GET /api/analytics', () => {
   });
 
   it('should return 400 for missing required parameters', async () => {
-    vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null,
-    });
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
+    vi.mocked(isErrorResponse).mockReturnValue(false);
 
     const request = new NextRequest('http://localhost:3000/api/analytics');
     const response = await GET(request);
@@ -69,16 +66,9 @@ describe('GET /api/analytics', () => {
   });
 
   it('should return requests summary analytics', async () => {
-    vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null,
-    });
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
+    vi.mocked(isErrorResponse).mockReturnValue(false);
 
-    const mockISOAgent = { id: 'iso-agent-123' };
     const mockAnalytics = {
       total_requests: 50,
       completed: 35,
@@ -87,22 +77,6 @@ describe('GET /api/analytics', () => {
       average_turnaround_hours: 24.5,
     };
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
-    });
-
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.rpc).mockResolvedValue({
       data: mockAnalytics,
       error: null,
@@ -117,19 +91,18 @@ describe('GET /api/analytics', () => {
     expect(response.status).toBe(200);
     expect(data.analytics.total_requests).toBe(50);
     expect(data.analytics.completed).toBe(35);
+    expect(supabase.rpc).toHaveBeenCalledWith('get_requests_summary', {
+      p_agent_id: mockISOAgent.id,
+      p_start_date: '2025-01-01T00:00:00Z',
+      p_end_date: '2025-01-31T23:59:59Z',
+      p_group_by: 'day',
+    });
   });
 
   it('should return quote conversion analytics', async () => {
-    vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null,
-    });
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
+    vi.mocked(isErrorResponse).mockReturnValue(false);
 
-    const mockISOAgent = { id: 'iso-agent-123' };
     const mockAnalytics = {
       total_quotes: 150,
       accepted: 45,
@@ -139,22 +112,6 @@ describe('GET /api/analytics', () => {
       average_quotes_per_request: 3.0,
     };
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
-    });
-
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.rpc).mockResolvedValue({
       data: mockAnalytics,
       error: null,
@@ -169,19 +126,17 @@ describe('GET /api/analytics', () => {
     expect(response.status).toBe(200);
     expect(data.analytics.total_quotes).toBe(150);
     expect(data.analytics.conversion_rate).toBe(0.30);
+    expect(supabase.rpc).toHaveBeenCalledWith('get_quote_conversion', {
+      p_agent_id: mockISOAgent.id,
+      p_start_date: '2025-01-01T00:00:00Z',
+      p_end_date: '2025-01-31T23:59:59Z',
+    });
   });
 
   it('should return agent performance analytics', async () => {
-    vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null,
-    });
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
+    vi.mocked(isErrorResponse).mockReturnValue(false);
 
-    const mockISOAgent = { id: 'iso-agent-123' };
     const mockAnalytics = {
       total_executions: 200,
       successful: 185,
@@ -196,22 +151,6 @@ describe('GET /api/analytics', () => {
       ],
     };
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
-    });
-
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.rpc).mockResolvedValue({
       data: mockAnalytics,
       error: null,
@@ -230,16 +169,9 @@ describe('GET /api/analytics', () => {
   });
 
   it('should return revenue analytics', async () => {
-    vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null,
-    });
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
+    vi.mocked(isErrorResponse).mockReturnValue(false);
 
-    const mockISOAgent = { id: 'iso-agent-123' };
     const mockAnalytics = {
       total_revenue: 875000,
       total_bookings: 35,
@@ -247,22 +179,6 @@ describe('GET /api/analytics', () => {
       currency: 'USD',
     };
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
-    });
-
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.rpc).mockResolvedValue({
       data: mockAnalytics,
       error: null,
@@ -280,31 +196,9 @@ describe('GET /api/analytics', () => {
   });
 
   it('should return 500 on database error', async () => {
-    vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null,
-    });
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
+    vi.mocked(isErrorResponse).mockReturnValue(false);
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
-    });
-
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.rpc).mockResolvedValue({
       data: null,
       error: { message: 'Database error' },
