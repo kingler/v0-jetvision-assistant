@@ -1,34 +1,31 @@
-import { SignIn } from '@clerk/nextjs'
-
-/**
- * Sign In Page
- *
- * Provides authentication interface using Clerk's pre-built component
- * Features:
- * - Email/password authentication
- * - OAuth providers (Google)
- * - Remember me functionality
- * - Password reset
- * - Automatic redirect to dashboard after sign-in
- */
+import { SignIn } from '@clerk/nextjs';
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-      <SignIn
-        appearance={{
-          elements: {
-            rootBox: 'mx-auto',
-            card: 'shadow-xl rounded-lg',
-            headerTitle: 'text-2xl font-bold',
-            formButtonPrimary: 'bg-blue-600 hover:bg-blue-700',
-          },
-        }}
-        routing="path"
-        path="/sign-in"
-        signUpUrl="/sign-up"
-        afterSignInUrl="/dashboard"
-      />
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="w-full max-w-md px-4">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+            Welcome to JetVision
+          </h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+            AI-powered private jet booking assistant
+          </p>
+        </div>
+        <SignIn
+          appearance={{
+            elements: {
+              rootBox: 'mx-auto',
+              card: 'shadow-xl',
+            },
+          }}
+          routing="path"
+          path="/sign-in"
+          signUpUrl="/sign-up"
+          forceRedirectUrl="/"
+          fallbackRedirectUrl="/"
+        />
+      </div>
     </div>
-  )
+  );
 }

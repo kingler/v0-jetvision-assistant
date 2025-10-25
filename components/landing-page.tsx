@@ -9,9 +9,10 @@ import { Send, Plane, DollarSign, Calendar } from "lucide-react"
 
 interface LandingPageProps {
   onStartChat: (message: string) => void
+  userName?: string
 }
 
-export function LandingPage({ onStartChat }: LandingPageProps) {
+export function LandingPage({ onStartChat, userName }: LandingPageProps) {
   const [message, setMessage] = useState("")
 
   const getGreeting = () => {
@@ -56,7 +57,7 @@ export function LandingPage({ onStartChat }: LandingPageProps) {
         {/* Greeting */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-            {getGreeting()}, Adrian
+            {getGreeting()}{userName ? `, ${userName}` : ''}
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300">How can I help you today?</p>
         </div>

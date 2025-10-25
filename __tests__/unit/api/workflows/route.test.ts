@@ -75,15 +75,31 @@ describe('GET /api/workflows', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: mockWorkflows,
-            error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      }
+      if (table === 'workflow_history') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: mockWorkflows,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -92,9 +108,9 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflows).toHaveLength(2);
-    expect(data.workflows[0].current_state).toBe('analyzing');
-    expect(data.workflows[1].current_state).toBe('completed');
+    expect(data.workflow_history).toHaveLength(2);
+    expect(data.workflow_history[0].current_state).toBe('analyzing');
+    expect(data.workflow_history[1].current_state).toBe('completed');
   });
 
   it('should filter workflows by request_id', async () => {
@@ -117,17 +133,33 @@ describe('GET /api/workflows', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({
-              data: mockWorkflows,
-              error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      }
+      if (table === 'workflow_history') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({
+                  data: mockWorkflows,
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -136,9 +168,9 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflows).toHaveLength(1);
-    expect(data.workflows[0].request_id).toBe('req-specific');
-    expect(data.workflows[0].current_state).toBe('searching_flights');
+    expect(data.workflow_history).toHaveLength(1);
+    expect(data.workflow_history[0].request_id).toBe('req-specific');
+    expect(data.workflow_history[0].current_state).toBe('searching_flights');
   });
 
   it('should filter workflows by current_state', async () => {
@@ -164,17 +196,31 @@ describe('GET /api/workflows', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({
-              data: mockWorkflows,
-              error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      }
+      if (table === 'workflow_history') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: mockWorkflows,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -183,9 +229,9 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflows).toHaveLength(2);
-    expect(data.workflows[0].current_state).toBe('awaiting_quotes');
-    expect(data.workflows[1].current_state).toBe('awaiting_quotes');
+    expect(data.workflow_history).toHaveLength(2);
+    expect(data.workflow_history[0].current_state).toBe('awaiting_quotes');
+    expect(data.workflow_history[1].current_state).toBe('awaiting_quotes');
   });
 
   it('should respect limit parameter', async () => {
@@ -204,15 +250,31 @@ describe('GET /api/workflows', () => {
       { id: 'workflow-3', request_id: 'req-3', current_state: 'failed' },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: mockWorkflows,
-            error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      }
+      if (table === 'workflow_history') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: mockWorkflows,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -221,7 +283,7 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflows).toHaveLength(3);
+    expect(data.workflow_history).toHaveLength(3);
   });
 
   it('should return empty array when no workflows found', async () => {
@@ -234,15 +296,31 @@ describe('GET /api/workflows', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      }
+      if (table === 'workflow_history') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -251,7 +329,7 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflows).toEqual([]);
+    expect(data.workflow_history).toEqual([]);
   });
 
   it('should include workflow metadata in response', async () => {
@@ -279,15 +357,31 @@ describe('GET /api/workflows', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: mockWorkflows,
-            error: null,
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      }
+      if (table === 'workflow_history') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: mockWorkflows,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -296,9 +390,9 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflows[0].metadata.quotesReceived).toBe(5);
-    expect(data.workflows[0].metadata.bestPrice).toBe(45000);
-    expect(data.workflows[0].metadata.recommendedOperator).toBe('Operator A');
+    expect(data.workflow_history[0].metadata.quotesReceived).toBe(5);
+    expect(data.workflow_history[0].metadata.bestPrice).toBe(45000);
+    expect(data.workflow_history[0].metadata.recommendedOperator).toBe('Operator A');
   });
 
   it('should return 500 on database error', async () => {
@@ -311,15 +405,31 @@ describe('GET /api/workflows', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: null,
-            error: { message: 'Database connection failed' },
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'iso_agents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'iso-agent-123' },
+                error: null,
+              }),
+            }),
           }),
-        }),
-      }),
+        };
+      }
+      if (table === 'workflow_history') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Database connection failed' },
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -328,6 +438,6 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toContain('Failed to fetch workflows');
+    expect(data.error).toBe('Failed to fetch workflow history');
   });
 });

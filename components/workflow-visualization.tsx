@@ -12,13 +12,28 @@ import { ProposalPreview } from "./proposal-preview"
 import { mockRoutes, getOperatorsForRoute, generateProposal } from "@/lib/mock-data"
 import type { Operator } from "@/lib/mock-data"
 
+export interface WorkflowStepData {
+  // Real data from agents/API
+  aircraftFound?: number
+  operatorsQueried?: number
+  quotesReceived?: number
+  quotesAnalyzed?: number
+  proposalGenerated?: boolean
+  // Avinode-specific data
+  avinodeRfpId?: string
+  avinodeQuotes?: any[]
+  avinodeResults?: Record<string, any>
+}
+
 interface WorkflowStep {
   id: string
   title: string
   description: string
   status: "completed" | "in-progress" | "pending"
   details?: string[]
+  data?: WorkflowStepData
   icon: React.ReactNode
+  isExpanded?: boolean
 }
 
 interface WorkflowVisualizationProps {
@@ -26,6 +41,13 @@ interface WorkflowVisualizationProps {
   embedded?: boolean
   currentStep?: number
   status?: string
+  workflowData?: {
+    step1?: WorkflowStepData
+    step2?: WorkflowStepData
+    step3?: WorkflowStepData
+    step4?: WorkflowStepData
+    step5?: WorkflowStepData
+  }
 }
 
 export function WorkflowVisualization({
@@ -33,6 +55,7 @@ export function WorkflowVisualization({
   embedded = false,
   currentStep = 1,
   status = "understanding_request",
+  workflowData = {},
 }: WorkflowVisualizationProps) {
   const getStepStatus = (stepId: string): "completed" | "in-progress" | "pending" => {
     const stepNumber = Number.parseInt(stepId)
@@ -54,6 +77,14 @@ export function WorkflowVisualization({
     }
   }
 
+  const toggleStepExpansion = (stepId: string) => {
+    setSteps((prev) =>
+      prev.map((step) =>
+        step.id === stepId ? { ...step, isExpanded: !step.isExpanded } : step
+      )
+    )
+  }
+
   const [steps, setSteps] = useState<WorkflowStep[]>([
     {
       id: "1",
@@ -61,6 +92,8 @@ export function WorkflowVisualization({
       description: "Parsing natural language input and extracting flight details",
       status: getStepStatus("1"),
       icon: <CheckCircle className="w-5 h-5" />,
+      isExpanded: false,
+      data: workflowData.step1,
     },
     {
       id: "2",
@@ -68,6 +101,8 @@ export function WorkflowVisualization({
       description: "Querying operator database for suitable aircraft",
       status: getStepStatus("2"),
       icon: <Search className="w-5 h-5" />,
+      isExpanded: false,
+      data: workflowData.step2,
     },
     {
       id: "3",
@@ -75,6 +110,8 @@ export function WorkflowVisualization({
       description: "Sending requests to qualified operators",
       status: getStepStatus("3"),
       icon: <Clock className="w-5 h-5" />,
+      isExpanded: false,
+      data: workflowData.step3,
     },
     {
       id: "4",
@@ -82,6 +119,8 @@ export function WorkflowVisualization({
       description: "Comparing pricing and availability",
       status: getStepStatus("4"),
       icon: <Calculator className="w-5 h-5" />,
+      isExpanded: false,
+      data: workflowData.step4,
     },
     {
       id: "5",
@@ -89,6 +128,8 @@ export function WorkflowVisualization({
       description: "Creating JetVision branded quote",
       status: getStepStatus("5"),
       icon: <FileText className="w-5 h-5" />,
+      isExpanded: false,
+      data: workflowData.step5,
     },
   ])
 
@@ -147,7 +188,11 @@ export function WorkflowVisualization({
   }, [status])
 
   useEffect(() => {
-    const getStepDetails = (stepId: string, stepStatus: "completed" | "in-progress" | "pending") => {
+    const getStepDetails = (
+      stepId: string,
+      stepStatus: "completed" | "in-progress" | "pending",
+      stepData?: WorkflowStepData
+    ) => {
       if (stepStatus === "pending") return undefined
 
       switch (stepId) {
@@ -155,22 +200,54 @@ export function WorkflowVisualization({
           return stepStatus === "completed"
             ? ["Parsed flight requirements", "Extracted route and preferences", "Validated passenger count"]
             : ["Processing natural language input..."]
+
         case "2":
-          return stepStatus === "completed"
-            ? ["Queried 15 operators", "Found 8 potential aircraft", "Filtered by capacity and range"]
-            : ["Searching aircraft database..."]
+          // Use real Avinode data if available
+          if (stepStatus === "completed" && stepData) {
+            const details = []
+            if (stepData.operatorsQueried) details.push(`Queried ${stepData.operatorsQueried} operators`)
+            if (stepData.aircraftFound) details.push(`Found ${stepData.aircraftFound} potential aircraft`)
+            if (stepData.avinodeResults) details.push("Filtered by capacity and range")
+            return details.length > 0 ? details : ["Aircraft search completed"]
+          }
+          return ["Searching aircraft database..."]
+
         case "3":
-          return stepStatus === "completed"
-            ? ["Sent requests to 6 operators", "Received all 6 responses", "Average response time: 18 minutes"]
-            : ["Requesting quotes from operators..."]
+          // Use real quote data from Avinode
+          if (stepStatus === "completed" && stepData) {
+            const details = []
+            if (stepData.avinodeRfpId) details.push(`RFP ID: ${stepData.avinodeRfpId}`)
+            if (stepData.quotesReceived) details.push(`Received ${stepData.quotesReceived} quotes`)
+            if (stepData.operatorsQueried) details.push(`Sent requests to ${stepData.operatorsQueried} operators`)
+            return details.length > 0 ? details : ["Quotes received from operators"]
+          }
+          return ["Requesting quotes from operators..."]
+
         case "4":
-          return stepStatus === "completed"
-            ? ["Compared 6 pricing options", "Selected top 3 options", "Verified aircraft specifications"]
-            : ["Analyzing pricing options..."]
+          // Use real quote analysis data
+          if (stepStatus === "completed" && stepData) {
+            const details = []
+            if (stepData.quotesAnalyzed) details.push(`Analyzed ${stepData.quotesAnalyzed} quotes`)
+            if (stepData.avinodeQuotes?.length) {
+              details.push(`Compared ${stepData.avinodeQuotes.length} pricing options`)
+              const topQuotes = stepData.avinodeQuotes.slice(0, 3)
+              details.push(`Selected top ${topQuotes.length} options`)
+            }
+            return details.length > 0 ? details : ["Quote analysis completed"]
+          }
+          return ["Analyzing pricing options..."]
+
         case "5":
-          return stepStatus === "completed"
-            ? ["Applied 50% margin settings", "Created JetVision branded quote", "Proposal ready for client"]
-            : ["Generating proposal..."]
+          // Use real proposal data
+          if (stepStatus === "completed" && stepData && stepData.proposalGenerated) {
+            return [
+              "Applied margin settings",
+              "Created JetVision branded quote",
+              "Proposal ready for client"
+            ]
+          }
+          return ["Generating proposal..."]
+
         default:
           return undefined
       }
@@ -179,10 +256,10 @@ export function WorkflowVisualization({
     setSteps((prev) =>
       prev.map((step) => ({
         ...step,
-        details: getStepDetails(step.id, step.status),
+        details: getStepDetails(step.id, step.status, step.data),
       })),
     )
-  }, [status])
+  }, [status, workflowData])
 
   const handleViewProposal = () => {
     if (selectedOperator) {
@@ -198,29 +275,56 @@ export function WorkflowVisualization({
     return (
       <div className="space-y-3">
         <h4 className="font-medium text-sm mb-3">Flight Search Progress</h4>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="space-y-2">
           {steps.map((step, index) => (
-            <div key={step.id} className="text-center">
-              <div
+            <div key={step.id} className="space-y-1">
+              <button
+                onClick={() => toggleStepExpansion(step.id)}
                 className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1",
-                  step.status === "completed"
-                    ? "bg-green-100 text-green-600"
-                    : step.status === "in-progress"
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-gray-100 text-gray-400",
+                  "w-full flex items-center justify-between p-2 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-800",
+                  step.isExpanded && "bg-gray-50 dark:bg-gray-800"
                 )}
               >
-                {step.status === "completed" ? (
-                  <CheckCircle className="w-4 h-4" />
-                ) : step.status === "in-progress" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Clock className="w-4 h-4" />
-                )}
-              </div>
-              <div className="text-xs font-medium text-gray-700 dark:text-gray-300">[{index + 1}]</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{step.title}</div>
+                <div className="flex items-center space-x-2">
+                  <div
+                    className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center",
+                      step.status === "completed"
+                        ? "bg-green-100 text-green-600"
+                        : step.status === "in-progress"
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-gray-100 text-gray-400"
+                    )}
+                  >
+                    {step.status === "completed" ? (
+                      <CheckCircle className="w-3 h-3" />
+                    ) : step.status === "in-progress" ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Clock className="w-3 h-3" />
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs font-medium">Step {index + 1}: {step.title}</div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {step.isExpanded ? '−' : '+'}
+                </div>
+              </button>
+
+              {step.isExpanded && step.details && (
+                <div className="ml-8 pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                  <ul className="space-y-1">
+                    {step.details.map((detail, detailIndex) => (
+                      <li key={detailIndex} className="text-xs text-gray-600 dark:text-gray-400 flex items-center space-x-2">
+                        <div className="w-1 h-1 bg-blue-600 rounded-full" />
+                        <span>{detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -235,7 +339,9 @@ export function WorkflowVisualization({
           />
         </div>
 
-        <div className="text-xs text-gray-600 dark:text-gray-400">Click any step for details</div>
+        <div className="text-xs text-gray-600 dark:text-gray-400 text-center">
+          Click steps to expand/collapse details
+        </div>
       </div>
     )
   }
@@ -282,9 +388,10 @@ export function WorkflowVisualization({
           <Card
             key={step.id}
             className={cn(
-              "transition-all duration-300",
+              "transition-all duration-300 cursor-pointer hover:shadow-md",
               step.status === "in-progress" && "ring-2 ring-primary ring-opacity-50",
             )}
+            onClick={() => toggleStepExpansion(step.id)}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -301,11 +408,16 @@ export function WorkflowVisualization({
                     </p>
                   </div>
                 </div>
-                {getStatusBadge(step.status)}
+                <div className="flex items-center space-x-2">
+                  {getStatusBadge(step.status)}
+                  <div className="text-sm text-muted-foreground">
+                    {step.isExpanded ? '−' : '+'}
+                  </div>
+                </div>
               </div>
             </CardHeader>
 
-            {step.details && (
+            {step.isExpanded && step.details && (
               <CardContent className="pt-0">
                 <div className="bg-muted rounded-lg p-3">
                   <ul className="space-y-1">
