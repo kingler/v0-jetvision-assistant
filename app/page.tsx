@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
 import { WorkflowVisualization } from "@/components/workflow-visualization"
@@ -14,6 +15,9 @@ import { useCaseChats } from "@/lib/mock-data"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 type View = "landing" | "chat" | "workflow" | "settings"
+
+// Force dynamic rendering since we use Clerk's useUser hook
+export const dynamic = 'force-dynamic'
 
 export default function JetVisionAgent() {
   const { user, isLoaded } = useUser()
