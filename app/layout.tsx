@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "JetVision Agent",
   description: "AI-powered private jet booking assistant",
   generator: "v0.app",
-}
+} // Force rebuild
 
 export default function RootLayout({
   children,
