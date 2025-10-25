@@ -16,7 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 type View = "landing" | "chat" | "workflow" | "settings"
 
 export default function JetVisionAgent() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
   const [currentView, setCurrentView] = useState<View>("landing")
   const [isProcessing, setIsProcessing] = useState(false)
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(useCaseChats)
@@ -76,6 +76,18 @@ export default function JetVisionAgent() {
   }
 
   const activeChat = activeChatId ? chatSessions.find((chat) => chat.id === activeChatId) : null
+
+  // Show loading state while Clerk is initializing
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
