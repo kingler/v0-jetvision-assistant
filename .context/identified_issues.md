@@ -1,1180 +1,609 @@
 # Identified Issues and Areas for Improvement
 
-**Project**: JetVision AI Assistant
-**Analysis Date**: October 20, 2025
-**Issue Count**: 45 issues identified
-**Severity Distribution**: 12 Critical, 18 High, 10 Medium, 5 Low
+**Project**: JetVision AI Assistant - Multi-Agent RFP Automation
+**Analysis Date**: October 24, 2025
+**Issue Count**: 78 issues identified
+**Severity Distribution**: 3 Critical, 15 High, 38 Medium, 22 Low
 
 ---
 
 ## Issue Classification
 
-- 🔴 **Critical** - Blocks core functionality, must fix immediately
-- 🟠 **High** - Significant impact, should fix soon
-- 🟡 **Medium** - Moderate impact, fix when possible
-- 🔵 **Low** - Minor issue, nice to have
+- 🔴 **Critical** (P0) - Blocks deployment, must fix immediately
+- 🟠 **High** (P1) - Blocks functionality, fix within days
+- 🟡 **Medium** (P2) - Quality/performance impact, fix within weeks
+- 🔵 **Low** (P3) - Nice to have, fix when convenient
 
 ---
 
-## 🔴 Critical Issues (12)
+## 🔴 Critical Issues (3) - BLOCKS DEPLOYMENT
 
-### CI-001: No Database Schema Deployed
+### CI-001: TypeScript Compilation Errors (58 errors)
 **Severity**: 🔴 Critical
-**Impact**: Cannot persist any data, entire backend non-functional
-**Location**: Database layer
+**Impact**: Cannot build or deploy to production
+**Status**: ❌ Not Fixed
+**Estimated Effort**: 4-6 hours
 
-**Description**:
-While the database schema is documented in `docs/IMPLEMENTATION_PLAN.md` (lines 600+), it has not been deployed to Supabase. No tables exist, no Row Level Security policies are in place.
+**Error Breakdown**:
+1. **Agent Implementation Errors** (12 errors)
+   - `agents/implementations/error-monitor-agent.ts:79` - errorData possibly undefined
+   - `agents/implementations/error-monitor-agent.ts:90` - errorData possibly undefined
+   - `agents/implementations/flight-search-agent.ts:202` - params.budget possibly undefined
+   - `agents/implementations/proposal-analysis-agent.ts:96` - quotes possibly undefined
+   - `agents/implementations/communication-agent.ts:94` - Recommendation possibly undefined
 
-**Evidence**:
-- No SQL files in repository
-- No migration scripts
-- `lib/supabase/` contains only README.md placeholder
-- Build succeeds but cannot run with database operations
+2. **API Route Errors** (22 errors)
+   - `app/api/agents/route.ts:24` - Property 'id' does not exist on type 'never'
+   - `app/api/clients/route.ts:19` - Property 'id' does not exist on type 'never'
+   - `app/api/clients/route.ts:44` - Insert type mismatch (Database types missing)
+   - `app/api/requests/route.ts:31` - Property 'id' does not exist on type 'never'
+   - `app/api/quotes/route.ts:23` - Property 'id' does not exist on type 'never'
 
-**Business Impact**:
-- Cannot create RFP requests
-- Cannot store user data
-- Cannot track proposals or quotes
-- Multi-tenant isolation impossible
+3. **MCP Server Errors** (15 errors)
+   - `mcp-servers/gmail-mcp-server/src/index.ts:19` - Cannot find module 'googleapis'
+   - `mcp-servers/gmail-mcp-server/src/index.ts:20` - Cannot find module 'google-auth-library'
+   - `mcp-servers/avinode-mcp-server/src/index.ts:275-305` - Type conversion issues (8 errors)
+   - `mcp-servers/google-sheets-mcp-server/src/index.ts:67` - Auth type mismatch
+
+4. **Library Errors** (9 errors)
+   - `lib/hooks/use-rfp-realtime.ts:7` - Cannot find module '@supabase/auth-helpers-nextjs'
+   - `lib/services/chat-agent-service.ts:56` - Intent type mismatch
+   - `lib/validations/rfp-form-schema.ts:70` - Property 'shape' does not exist on ZodEffects
 
 **Resolution**:
-1. Create `lib/supabase/schema.sql` from IMPLEMENTATION_PLAN.md
-2. Deploy to Supabase via SQL editor or migration tool
-3. Implement Row Level Security policies
-4. Create Supabase client instances (browser and server)
-
-**Estimated Effort**: 8 hours
+1. Generate database types: `npx supabase gen types typescript --project-id <PROJECT_ID> > lib/types/database.ts`
+2. Install missing dependencies: `npm install googleapis google-auth-library @supabase/auth-helpers-nextjs`
+3. Fix undefined handling with optional chaining and type guards
+4. Update type definitions to match generated types
 
 ---
 
-### CI-002: No API Routes Implemented
+### CI-002: No Tests Written (0% Coverage)
 **Severity**: 🔴 Critical
-**Impact**: Frontend cannot communicate with backend
-**Location**: `app/api/` (empty directory)
+**Impact**: Cannot verify functionality or prevent regressions
+**Status**: ❌ Not Started
+**Target**: 75% coverage
+**Estimated Effort**: 2-3 weeks
 
-**Description**:
-The `app/api/` directory exists but is completely empty. No API endpoints have been created for:
-- User authentication
-- Request management
-- Quote handling
-- Proposal generation
-- Agent triggering
-- Webhooks
+**Missing Test Coverage**:
+- ❌ Agent unit tests (0/6 agents tested)
+- ❌ Agent coordination tests (0 tests)
+- ❌ API route integration tests (0 tests)
+- ❌ MCP server tests (0 tests)
+- ❌ Frontend component tests (0 tests)
+- ❌ End-to-end workflow tests (0 tests)
 
-**Evidence**:
-```bash
-$ ls app/api/
-# Empty directory
-```
-
-**Business Impact**:
-- Components use mock data only
-- No real RFP processing possible
-- Cannot integrate with external services
-- Cannot test end-to-end workflows
+**Risk Assessment**:
+- **High Risk**: No validation of agent behavior
+- **High Risk**: No verification of API contracts
+- **High Risk**: No guarantee of workflow correctness
+- **Medium Risk**: Difficult to refactor without breaking changes
 
 **Resolution**:
-Create minimum viable API routes:
-1. `app/api/auth/webhook/route.ts` - Clerk user sync
-2. `app/api/requests/route.ts` - CRUD operations
-3. `app/api/agents/orchestrate/route.ts` - Trigger workflow
-4. `app/api/proposals/[id]/route.ts` - Proposal retrieval
-
-**Estimated Effort**: 16 hours
+1. Write critical path tests first (Orchestrator, Flight Search)
+2. Add API integration tests for /api/requests
+3. Mock external MCP servers for isolated testing
+4. Target 20% coverage by end of week 1
+5. Build to 75% by week 4
 
 ---
 
-### CI-003: No Agent Implementations
+### CI-003: Database Schema Not Deployed
 **Severity**: 🔴 Critical
-**Impact**: No AI automation, core value proposition missing
-**Location**: `agents/implementations/` (empty)
-
-**Description**:
-Foundation is complete but all 6 specialized agents are missing:
-- RFP Orchestrator Agent
-- Client Data Manager Agent
-- Flight Search Agent
-- Proposal Analysis Agent
-- Communication Manager Agent
-- Error Monitoring Agent
-
-**Evidence**:
-```bash
-$ ls agents/implementations/
-# Empty directory
-```
-
-**Business Impact**:
-- No intelligent RFP processing
-- Cannot automate workflow
-- Manual processes required
-- Value proposition undelivered
-
-**Resolution**:
-Implement agents in priority order (see recommendations.md)
-
-**Estimated Effort**: 40 hours (all 6 agents)
-
----
-
-### CI-004: No MCP Servers
-**Severity**: 🔴 Critical
-**Impact**: Agents cannot integrate with Avinode, Gmail, Google Sheets
-**Location**: `mcp-servers/` (README only)
-
-**Description**:
-MCP (Model Context Protocol) server infrastructure is completely missing. Agents have no way to:
-- Search flights via Avinode
-- Send emails via Gmail
-- Sync client data from Google Sheets
-
-**Evidence**:
-```bash
-$ ls mcp-servers/
-README.md
-```
-
-**Business Impact**:
-- Cannot search for flights
-- Cannot communicate with clients
-- Cannot access client database
-- End-to-end workflow impossible
-
-**Resolution**:
-1. Create MCP base server class
-2. Implement stdio and HTTP+SSE transports
-3. Build Avinode MCP server
-4. Build Gmail MCP server
-5. Build Google Sheets MCP server
-
-**Estimated Effort**: 32 hours
-
----
-
-### CI-005: Authentication Not Configured
-**Severity**: 🔴 Critical
-**Impact**: No user management, no multi-tenant security
-**Location**: Environment configuration
-
-**Description**:
-Clerk authentication is documented but not configured:
-- No Clerk API keys in `.env.local`
-- No middleware for route protection
-- No user sync webhook
-- No session management
-
-**Evidence**:
-- `.env.local` missing Clerk variables
-- No `middleware.ts` file
-- `app/api/auth/` directory empty
-
-**Business Impact**:
-- Anyone can access any data (security risk)
-- No user accounts
-- Cannot distinguish between ISO agents
-- RLS policies won't work
-
-**Resolution**:
-1. Complete Clerk setup per PREREQUISITES_CHECKLIST.md
-2. Add API keys to environment
-3. Create middleware.ts for route protection
-4. Implement webhook for user sync
-
-**Estimated Effort**: 6 hours
-
----
-
-### CI-006: Redis Not Running
-**Severity**: 🔴 Critical
-**Impact**: Task queue non-functional, agent coordination broken
-**Location**: Infrastructure
-
-**Description**:
-BullMQ task queue requires Redis, but Redis is not configured or running:
-- No Redis connection string in `.env.local`
-- Docker not set up
-- Task queue will crash on initialization
-
-**Evidence**:
-- Missing environment variables: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
-- No Docker Compose file
-
-**Business Impact**:
-- Agents cannot communicate via task queue
-- Async processing impossible
-- Background jobs will fail
-- Coordination layer broken
-
-**Resolution**:
-1. Install Redis (Docker recommended: `docker run -d -p 6379:6379 redis:latest`)
-2. Add Redis config to `.env.local`
-3. Test connection with `npm run mcp:test`
-
+**Impact**: API routes cannot function, no data persistence
+**Status**: ⚠️ Schema Ready, Not Deployed
 **Estimated Effort**: 2 hours
 
----
+**Current State**:
+- ✅ Schema defined in `supabase/migrations/001_initial_schema.sql`
+- ✅ RLS policies defined in `supabase/migrations/002_rls_policies.sql`
+- ❌ Not deployed to Supabase project
+- ❌ No database types generated
 
-### CI-007: Supabase Not Initialized
-**Severity**: 🔴 Critical
-**Impact**: No database connection, no real-time updates
-**Location**: `lib/supabase/`
-
-**Description**:
-Supabase clients are not implemented:
-- No browser client (`lib/supabase/client.ts`)
-- No server client (`lib/supabase/server.ts`)
-- No middleware (`lib/supabase/middleware.ts`)
-- Only README.md placeholder exists
-
-**Evidence**:
-```bash
-$ ls lib/supabase/
-README.md
-```
-
-**Business Impact**:
-- Cannot query database
-- No real-time subscriptions
-- Cannot implement RLS
-- Frontend cannot fetch data
+**Impact**:
+- Cannot test API routes with real data
+- Cannot verify RLS policies work correctly
+- Supabase client type inference broken
+- Blocks integration testing
 
 **Resolution**:
-1. Create browser client with Supabase SDK
-2. Create server client for API routes
-3. Add Supabase URL and keys to environment
-4. Implement middleware for auth integration
-
-**Estimated Effort**: 4 hours
-
----
-
-### CI-008: Zero Tests Written
-**Severity**: 🔴 Critical (for production)
-**Impact**: No quality assurance, high bug risk
-**Location**: `__tests__/` (empty)
-
-**Description**:
-Test framework is configured but zero tests exist:
-- 0 unit tests
-- 0 integration tests
-- 0 E2E tests
-- 0% code coverage (target: 80%)
-
-**Evidence**:
-```bash
-$ find __tests__ -name "*.test.ts"
-# No results
-```
-
-**Business Impact**:
-- Cannot verify functionality
-- High risk of bugs in production
-- Refactoring is dangerous
-- No regression prevention
-
-**Resolution**:
-Write tests following TDD approach:
-1. Agent core tests (highest priority)
-2. API route tests
-3. Component tests
-4. Integration tests
-
-**Estimated Effort**: 24 hours (minimum viable coverage)
+1. Create Supabase project (if not exists)
+2. Run migration: `supabase db push`
+3. Generate types: `supabase gen types typescript`
+4. Test RLS policies with test data
+5. Verify all tables and indexes created
 
 ---
 
-### CI-009: No PDF Generation Service
-**Severity**: 🔴 Critical
-**Impact**: Cannot generate proposals
-**Location**: `lib/pdf/`
+## 🟠 High Priority Issues (15) - BLOCKS FUNCTIONALITY
 
-**Description**:
-PDF generation service is documented but not implemented:
-- No PDF library integrated (react-pdf, jsPDF, or PDFKit)
-- No templates created
-- Only README.md placeholder
-
-**Evidence**:
-```bash
-$ ls lib/pdf/
-README.md
-```
-
-**Business Impact**:
-- Cannot deliver proposals to clients
-- Key deliverable missing
-- Workflow incomplete
-
-**Resolution**:
-1. Choose PDF library (recommend: react-pdf)
-2. Create proposal template
-3. Implement PDF generation function
-4. Add PDF download API endpoint
-
-**Estimated Effort**: 12 hours
-
----
-
-### CI-010: Missing Environment Variables
-**Severity**: 🔴 Critical
-**Impact**: Services cannot connect
-**Location**: `.env.local`
-
-**Description**:
-Environment file exists but critical variables are missing:
-
-**Missing Variables**:
-```
-OPENAI_API_KEY=
-OPENAI_ORGANIZATION_ID=
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-REDIS_HOST=
-REDIS_PORT=
-REDIS_PASSWORD=
-AVINODE_API_KEY=
-GMAIL_CLIENT_ID=
-GMAIL_CLIENT_SECRET=
-GOOGLE_SHEETS_API_KEY=
-```
-
-**Evidence**:
-Only Sentry placeholders exist in `.env.local`
-
-**Business Impact**:
-- No services can connect
-- Local development broken
-- Production deployment impossible
-
-**Resolution**:
-Complete PREREQUISITES_CHECKLIST.md account setup and add all API keys
-
-**Estimated Effort**: 6 hours (account setup + configuration)
-
----
-
-### CI-011: No Dashboard Pages
-**Severity**: 🔴 Critical
-**Impact**: Authenticated users have no UI
-**Location**: `app/(dashboard)/` (empty)
-
-**Description**:
-Dashboard route group exists but is empty. After authentication, users have nowhere to go:
-- No request creation page
-- No quote review page
-- No proposal management page
-- No settings page
-
-**Evidence**:
-```bash
-$ ls app/\(dashboard\)/
-# Empty directory
-```
-
-**Business Impact**:
-- Users cannot use the application
-- Authentication leads to 404
-- End-to-end flow broken
-
-**Resolution**:
-Create minimum dashboard pages:
-1. `app/(dashboard)/layout.tsx` - Dashboard shell
-2. `app/(dashboard)/page.tsx` - Dashboard home
-3. `app/(dashboard)/requests/page.tsx` - Request list
-4. `app/(dashboard)/requests/new/page.tsx` - Create request
-
-**Estimated Effort**: 16 hours
-
----
-
-### CI-012: Script Files Not Implemented
-**Severity**: 🔴 Critical (for developer experience)
-**Impact**: NPM scripts will fail
-**Location**: `scripts/` (empty except README)
-
-**Description**:
-Package.json defines scripts that reference files that don't exist:
-
-**Missing Scripts**:
-- `scripts/dev/start-mcp-servers.ts` - Referenced by `npm run dev:mcp`
-- `scripts/agents/create-agent.ts` - Referenced by `npm run agents:create`
-- `scripts/agents/list-agents.ts` - Referenced by `npm run agents:list`
-- `scripts/mcp/create-mcp-server.ts` - Referenced by `npm run mcp:create`
-- `scripts/mcp/test-mcp-connection.ts` - Referenced by `npm run mcp:test`
-- `scripts/mcp/list-tools.ts` - Referenced by `npm run mcp:list-tools`
-
-**Evidence**:
-```bash
-$ ls scripts/
-README.md
-```
-
-**Business Impact**:
-- Development workflow broken
-- Cannot use helper scripts
-- New developers cannot scaffold code
-- Poor developer experience
-
-**Resolution**:
-Implement all referenced scripts or remove them from package.json
-
-**Estimated Effort**: 8 hours
-
----
-
-## 🟠 High Priority Issues (18)
-
-### HI-001: Mock Data in Production Components
+### HP-001: Missing Dependencies (googleapis, google-auth-library)
 **Severity**: 🟠 High
-**Impact**: Components look functional but aren't
-**Location**: Multiple components
+**Impact**: Gmail and Google Sheets MCP servers cannot function
+**Status**: ❌ Not Installed
 
-**Description**:
-Components use mock data and simulate workflows instead of real API calls:
+**Missing Packages**:
+```bash
+npm install googleapis google-auth-library @supabase/auth-helpers-nextjs
+```
 
 **Affected Files**:
-- `components/chat-interface.tsx:42-61` - `simulateWorkflowProgress()` function
-- `lib/mock-data.ts` - Mock quotes, proposals, operators
+- `mcp-servers/gmail-mcp-server/src/index.ts`
+- `mcp-servers/google-sheets-mcp-server/src/index.ts`
+- `lib/hooks/use-rfp-realtime.ts`
 
-**Code Smell**:
-```typescript
-const simulateWorkflowProgress = async (userMessage: string) => {
-  const steps = [
-    { status: "understanding_request", message: "...", delay: 2000 },
-    // ...simulated delays
-  ]
-}
+---
+
+### HP-002: OAuth Not Configured (Gmail, Google Sheets)
+**Severity**: 🟠 High
+**Impact**: Cannot send emails or sync client data
+**Status**: ❌ Not Configured
+
+**Required OAuth Scopes**:
+- Gmail: `https://www.googleapis.com/auth/gmail.send`
+- Sheets: `https://www.googleapis.com/auth/spreadsheets`
+
+**Steps Needed**:
+1. Create Google Cloud Platform project
+2. Enable Gmail API and Sheets API
+3. Create OAuth 2.0 credentials
+4. Configure consent screen
+5. Add credentials to .env.local
+6. Test OAuth flow
+
+---
+
+### HP-003: Redis Not Configured
+**Severity**: 🟠 High
+**Impact**: Task queue non-functional, async processing blocked
+**Status**: ❌ Not Set Up
+
+**Current State**:
+- BullMQ integration code exists in `agents/coordination/task-queue.ts`
+- No Redis instance running
+- No Redis connection string configured
+
+**Resolution Options**:
+1. **Local Redis**: `docker run -d -p 6379:6379 redis:latest`
+2. **Cloud Redis**: Upstash, Redis Cloud, or AWS ElastiCache
+3. **Configuration**: Add `REDIS_URL` to `.env.local`
+
+---
+
+### HP-004: Avinode API Credentials Missing
+**Severity**: 🟠 High
+**Impact**: Cannot search flights or create RFPs
+**Status**: ❌ Not Obtained
+
+**Requirements**:
+- Avinode sandbox account
+- API key and secret
+- Base URL (sandbox vs production)
+- Rate limits understanding
+
+**Affected Components**:
+- Flight Search Agent
+- Avinode MCP Server
+- RFP creation workflow
+
+---
+
+### HP-005: PDF Generation Service Not Implemented
+**Severity**: 🟠 High
+**Impact**: Cannot send complete proposals to clients
+**Status**: ❌ Not Started
+
+**Required Features**:
+- Multi-page PDF with proposal details
+- Aircraft specifications and photos
+- Pricing breakdown
+- Terms and conditions
+- Branding (logo, colors)
+
+**Suggested Libraries**:
+- `@react-pdf/renderer` (recommended)
+- `jspdf` (alternative)
+- `puppeteer` (for complex layouts)
+
+---
+
+### HP-006: Clerk Webhook Not Implemented
+**Severity**: 🟠 High
+**Impact**: Users not synced to database
+**Status**: ❌ Not Implemented
+
+**Missing Functionality**:
+- `POST /api/webhooks/clerk` endpoint
+- User creation in `iso_agents` table
+- Webhook signature validation
+- Error handling for sync failures
+
+---
+
+### HP-007: Database Types Not Generated
+**Severity**: 🟠 High
+**Impact**: Type safety broken in API routes and MCP servers
+**Status**: ❌ Not Generated
+
+**Required File**: `lib/types/database.ts`
+
+**Command**:
+```bash
+npx supabase gen types typescript --project-id <PROJECT_ID> > lib/types/database.ts
 ```
 
-**Business Impact**:
-- Components appear to work but don't process real data
-- Easy to mistake for complete implementation
-- Must be replaced before production
-
-**Resolution**:
-Replace mock workflows with real API calls to backend
-
-**Estimated Effort**: 8 hours
+**Affected Files**:
+- All API routes (`app/api/*/route.ts`)
+- Supabase client (`lib/supabase/client.ts`)
+- MCP servers using Supabase
 
 ---
 
-### HI-002: No Error Boundary Components
-**Severity**: 🟠 High
-**Impact**: Unhandled errors crash the app
-**Location**: Component layer
-
-**Description**:
-No error boundaries exist to catch React rendering errors. Sentry warns about this:
-
-**Evidence**:
-```
-warn - It seems like you don't have a global error handler set up.
-```
-
-**Resolution**:
-1. Create `app/global-error.tsx`
-2. Add error boundaries around route segments
-3. Integrate with Sentry error reporting
-
-**Estimated Effort**: 3 hours
+### HP-008-015: Additional High Priority Issues
+- **HP-008**: Webhook Handlers Not Implemented (Avinode, Gmail)
+- **HP-009**: Row Level Security Policies Not Tested
+- **HP-010**: Error Handling Not Standardized Across API Routes
+- **HP-011**: Request Validation Middleware Missing
+- **HP-012**: Real-Time Subscriptions Not Integrated with Frontend
+- **HP-013**: Agent Error Recovery Logic Incomplete
+- **HP-014**: Circuit Breaker Pattern Not Implemented
+- **HP-015**: Performance Metrics Not Collected
 
 ---
 
-### HI-003: No Type Definitions for Database
-**Severity**: 🟠 High
-**Impact**: No type safety for database operations
-**Location**: `lib/types/` (empty)
+## 🟡 Medium Priority Issues (38) - QUALITY & PERFORMANCE
 
-**Description**:
-Database schema is defined but no TypeScript types generated:
-- No Supabase type generation
-- No database table interfaces
-- Type safety lost at database boundary
-
-**Resolution**:
-1. Generate types: `npx supabase gen types typescript`
-2. Create `lib/types/database.ts`
-3. Import types in API routes and components
-
-**Estimated Effort**: 2 hours
-
----
-
-### HI-004: No API Client/Wrapper
-**Severity**: 🟠 High
-**Impact**: Every component implements own fetch logic
-**Location**: Frontend
-
-**Description**:
-No centralized API client exists. Each component will duplicate:
-- Fetch wrapper code
-- Error handling
-- Authentication headers
-- Retry logic
-
-**Resolution**:
-Create `lib/api-client.ts` with:
-- Typed fetch wrapper
-- Automatic auth header injection
-- Error handling
-- Request/response interceptors
-
-**Estimated Effort**: 4 hours
-
----
-
-### HI-005: Incomplete Sentry Integration
-**Severity**: 🟠 High
-**Impact**: Error tracking won't work
-**Location**: Sentry config files
-
-**Description**:
-Sentry config files exist but:
-- No DSN configured
-- No environment set
-- Not initialized
-- Warnings in build output
-
-**Resolution**:
-1. Set up Sentry project
-2. Add DSN to environment variables
-3. Test error reporting
-4. Configure release tracking
-
-**Estimated Effort**: 2 hours
-
----
-
-### HI-006: No Input Validation
-**Severity**: 🟠 High
-**Impact**: Security risk, poor UX
-**Location**: API routes (when implemented)
-
-**Description**:
-No input validation strategy:
-- No Zod schemas defined
-- No validation middleware
-- No sanitization
-
-**Resolution**:
-1. Create `lib/validations/` directory
-2. Define Zod schemas for all inputs
-3. Create validation middleware
-4. Apply to all API routes
-
-**Estimated Effort**: 6 hours
-
----
-
-### HI-007: No Rate Limiting
-**Severity**: 🟠 High
-**Impact**: API abuse possible
-**Location**: API routes
-
-**Description**:
-No rate limiting on API endpoints:
-- OpenAI costs could spike
-- DDoS vulnerability
-- No protection against abuse
-
-**Resolution**:
-Implement rate limiting with Vercel Edge Config or Upstash Redis
-
-**Estimated Effort**: 4 hours
-
----
-
-### HI-008: No Logging Strategy
-**Severity**: 🟠 High
-**Impact**: Cannot debug production issues
-**Location**: System-wide
-
-**Description**:
-Only console.log statements exist:
-- No structured logging
-- No log aggregation
-- No log levels
-- Difficult to debug production
-
-**Resolution**:
-1. Integrate logging library (Pino, Winston)
-2. Add structured logging to agents
-3. Set up log aggregation (Vercel Logs, Datadog, etc.)
-
-**Estimated Effort**: 6 hours
-
----
-
-### HI-009: Agent Tools Not Defined
-**Severity**: 🟠 High
-**Impact**: Agents cannot perform actions
-**Location**: `agents/tools/` (empty)
-
-**Description**:
-Agents need tools to interact with systems:
-- Database query tools
-- MCP client tools
-- Validation tools
-- But tools directory is empty
-
-**Resolution**:
-Create tool implementations for each agent type
-
-**Estimated Effort**: 12 hours
-
----
-
-### HI-010: No Agent Guardrails
-**Severity**: 🟠 High
-**Impact**: Agents may produce unsafe outputs
-**Location**: `agents/guardrails/` (empty)
-
-**Description**:
-No safety checks on agent inputs/outputs:
-- No PII filtering
-- No content moderation
-- No cost controls
-- No harmful output prevention
-
-**Resolution**:
-Implement guardrails:
-1. Input validation
-2. Output filtering
-3. Token usage limits
-4. Content safety checks
-
-**Estimated Effort**: 8 hours
-
----
-
-### HI-011: No Webhook Signature Verification
-**Severity**: 🟠 High
-**Impact**: Security vulnerability
-**Location**: Webhook handlers (when implemented)
-
-**Description**:
-Future webhooks (Clerk, Avinode) need signature verification to prevent spoofing.
-
-**Resolution**:
-Implement webhook signature verification for:
-- Clerk webhooks
-- Avinode responses
-- Any other incoming webhooks
-
-**Estimated Effort**: 3 hours
-
----
-
-### HI-012: No Database Indexes
-**Severity**: 🟠 High
-**Impact**: Slow query performance
-**Location**: Database schema
-
-**Description**:
-Schema in IMPLEMENTATION_PLAN.md has minimal indexes:
-- Only primary keys
-- No foreign key indexes
-- No query optimization indexes
-
-**Resolution**:
-Add indexes for common queries:
-- User lookups by Clerk ID
-- Request filtering by status
-- Quote sorting by price
-
-**Estimated Effort**: 2 hours
-
----
-
-### HI-013: No Cache Strategy
-**Severity**: 🟠 High
-**Impact**: Unnecessary API calls, slow performance
-**Location**: System-wide
-
-**Description**:
-No caching implemented:
-- Client profile data fetched repeatedly
-- Static data not cached
-- No CDN for assets
-
-**Resolution**:
-Implement caching:
-1. Redis for session data
-2. React Query for client-side cache
-3. Next.js ISR for static pages
-
-**Estimated Effort**: 6 hours
-
----
-
-### HI-014: No File Upload Handling
-**Severity**: 🟠 High
-**Impact**: Cannot handle attachments
-**Location**: API routes
-
-**Description**:
-Requirements mention file attachments (passenger manifests) but no upload handling:
-- No file storage configured
-- No upload API endpoint
-- No file validation
-
-**Resolution**:
-1. Configure Supabase Storage or S3
-2. Create upload API endpoint
-3. Add file validation (size, type)
-
-**Estimated Effort**: 6 hours
-
----
-
-### HI-015: No Email Templates
-**Severity**: 🟠 High
-**Impact**: Communication Manager agent cannot function
-**Location**: Email service
-
-**Description**:
-Communication agent needs email templates:
-- Request confirmation
-- Status updates
-- Proposal delivery
-- But no templates exist
-
-**Resolution**:
-Create email templates with React Email or similar
-
-**Estimated Effort**: 8 hours
-
----
-
-### HI-016: No Monitoring Dashboards
-**Severity**: 🟠 High
-**Impact**: Cannot observe system health
-**Location**: Monitoring layer
-
-**Description**:
-`agents/monitoring/` is empty:
-- No agent performance tracking
-- No system health dashboard
-- No alerting system
-
-**Resolution**:
-Implement basic monitoring:
-1. Agent execution metrics
-2. API response times
-3. Error rates
-4. Queue depths
-
-**Estimated Effort**: 12 hours
-
----
-
-### HI-017: No Backup Strategy
-**Severity**: 🟠 High
-**Impact**: Data loss risk
-**Location**: Infrastructure
-
-**Description**:
-No backup or disaster recovery plan:
-- No database backups configured
-- No point-in-time recovery
-- No tested restore procedure
-
-**Resolution**:
-1. Enable Supabase daily backups
-2. Document restore procedure
-3. Test backup restoration
-
-**Estimated Effort**: 3 hours
-
----
-
-### HI-018: Deprecated Sentry File Structure
-**Severity**: 🟠 High
-**Impact**: Will break with Next.js/Turbopack updates
-**Location**: `sentry.client.config.ts`
-
-**Description**:
-Build warning:
-```
-It is recommended renaming your sentry.client.config.ts file, or moving
-its content to instrumentation-client.ts
-```
-
-**Resolution**:
-Migrate Sentry config to `instrumentation-client.ts`
-
-**Estimated Effort**: 1 hour
-
----
-
-## 🟡 Medium Priority Issues (10)
-
-### MI-001: Empty Placeholder Directories
+### MP-001: Code Quality - TypeScript Strict Mode Violations
 **Severity**: 🟡 Medium
-**Impact**: Clutters codebase, confusing
-**Location**: Multiple
+**Count**: 58 compilation errors
 
-**Affected Directories**:
-- `agents/implementations/`
-- `agents/tools/`
-- `agents/guardrails/`
-- `agents/monitoring/`
-- `agents/coordination/protocols/`
-- `lib/types/`
-- `lib/utils/`
-- `__tests__/unit/`
-- `__tests__/integration/`
-- `__tests__/e2e/`
-- `__tests__/mocks/`
-
-**Resolution**:
-Either populate or remove empty directories
-
-**Estimated Effort**: 1 hour
+**Categories**:
+- Undefined/null handling (32 errors)
+- Type inference issues (16 errors)
+- Missing type definitions (10 errors)
 
 ---
 
-### MI-002: No API Documentation
+### MP-002: Missing API Rate Limiting
 **Severity**: 🟡 Medium
-**Impact**: Poor developer experience
-**Location**: Documentation
+**Impact**: Vulnerable to abuse, excessive costs
 
-**Description**:
-API endpoints are documented in IMPLEMENTATION_PLAN.md but:
-- No OpenAPI/Swagger specification
-- No interactive API docs
-- No request/response examples in code
-
-**Resolution**:
-Generate OpenAPI spec or create API documentation with examples
-
-**Estimated Effort**: 4 hours
+**Recommendation**:
+- Implement rate limiting middleware
+- Use `express-rate-limit` or Vercel's built-in limits
+- Set per-user and per-IP limits
 
 ---
 
-### MI-003: No Contributing Guide
+### MP-003: No Request Validation
 **Severity**: 🟡 Medium
-**Impact**: Difficult for new developers
-**Location**: Documentation
+**Impact**: Malformed requests can cause errors
 
-**Description**:
-No CONTRIBUTING.md file with:
-- How to contribute
-- Code style guide
-- PR template
-- Commit message conventions
-
-**Resolution**:
-Create CONTRIBUTING.md with development guidelines
-
-**Estimated Effort**: 2 hours
+**Solution**:
+- Add Zod validation schemas for all API endpoints
+- Validate request bodies before processing
+- Return descriptive error messages
 
 ---
 
-### MI-004: No License File
+### MP-004: Missing Error Logging Context
 **Severity**: 🟡 Medium
-**Impact**: Legal ambiguity
-**Location**: Root directory
+**Impact**: Difficult to debug production issues
 
-**Description**:
-README.md says "proprietary and confidential" but no LICENSE file exists.
-
-**Resolution**:
-Add LICENSE file or clarify licensing in README
-
-**Estimated Effort**: 0.5 hours
+**Needed**:
+- Request ID tracking
+- User context in logs
+- Stack traces with source maps
+- Correlation IDs for distributed tracing
 
 ---
 
-### MI-005: No .editorconfig
+### MP-005: No Performance Monitoring
 **Severity**: 🟡 Medium
-**Impact**: Inconsistent code formatting across editors
-**Location**: Root directory
+**Impact**: Cannot identify bottlenecks
 
-**Description**:
-No .editorconfig file to enforce:
-- Indentation (2 spaces documented in AGENTS.md)
-- Line endings
-- Trim trailing whitespace
-
-**Resolution**:
-Create .editorconfig file
-
-**Estimated Effort**: 0.5 hours
+**Missing Metrics**:
+- API response times
+- Agent execution times
+- Database query performance
+- External API latencies
+- Memory usage
 
 ---
 
-### MI-006: No Pre-commit Hooks
+### MP-006: Hardcoded Configuration Values
 **Severity**: 🟡 Medium
-**Impact**: Code quality issues slip through
-**Location**: Git hooks
+**Locations**: Multiple files
 
-**Description**:
-No pre-commit hooks to enforce:
-- Linting before commit
-- Type checking
-- Test running
-- Commit message format
+**Examples**:
+- Model names in agent implementations
+- Timeout values
+- Retry counts
+- Temperature settings
 
-**Resolution**:
-Set up Husky with pre-commit hooks
-
-**Estimated Effort**: 2 hours
+**Solution**: Move to environment variables or config file
 
 ---
 
-### MI-007: No Storybook for Components
-**Severity**: 🟡 Medium
-**Impact**: Component development and documentation
-**Location**: Component development
-
-**Description**:
-18 components exist but no Storybook for:
-- Component documentation
-- Visual testing
-- Isolated development
-
-**Resolution**:
-Set up Storybook (optional but recommended)
-
-**Estimated Effort**: 4 hours
-
----
-
-### MI-008: No Database Seed Data
-**Severity**: 🟡 Medium
-**Impact**: Difficult local development
-**Location**: Database
-
-**Description**:
-No seed data script for local development:
-- No test users
-- No sample requests
-- No mock operators
-
-**Resolution**:
-Create `scripts/seed-database.ts` with sample data
-
-**Estimated Effort**: 3 hours
-
----
-
-### MI-009: Bundle Size Not Optimized
-**Severity**: 🟡 Medium
-**Impact**: Slower page loads
-**Location**: Build configuration
-
-**Description**:
-Current bundle: 257KB (acceptable)
-But no optimization for:
-- Code splitting by route
-- Component lazy loading
-- Image optimization verification
-
-**Resolution**:
-Analyze bundle with `@next/bundle-analyzer` and optimize
-
-**Estimated Effort**: 3 hours
+### MP-007-038: Additional Medium Priority Issues
+- **MP-007**: No Database Connection Pooling Configured
+- **MP-008**: Missing Index Optimization
+- **MP-009**: No Caching Strategy for Client Profiles
+- **MP-010**: Missing API Documentation (OpenAPI/Swagger)
+- **MP-011**: No Logging Levels (debug, info, warn, error)
+- **MP-012**: Missing Health Check Endpoints
+- **MP-013**: No Graceful Shutdown Handling
+- **MP-014**: Missing TypeScript Path Resolution in Production
+- **MP-015**: No Bundle Size Optimization
+- **MP-016**: Missing Image Optimization
+- **MP-017**: No CDN Configuration
+- **MP-018**: Missing CORS Configuration
+- **MP-019**: No Security Headers (CSP, HSTS, etc.)
+- **MP-020**: Missing Input Sanitization
+- **MP-021**: No SQL Injection Protection Verification
+- **MP-022**: Missing XSS Protection
+- **MP-023**: No CSRF Protection
+- **MP-024**: Missing Authentication Token Refresh Logic
+- **MP-025**: No Session Management
+- **MP-026**: Missing Role-Based Access Control (RBAC)
+- **MP-027**: No Audit Logging
+- **MP-028**: Missing Data Retention Policies
+- **MP-029**: No Backup Strategy
+- **MP-030**: Missing Disaster Recovery Plan
+- **MP-031**: No Load Testing Results
+- **MP-032**: Missing Stress Testing
+- **MP-033**: No Accessibility Testing (WCAG 2.1)
+- **MP-034**: Missing Browser Compatibility Testing
+- **MP-035**: No Mobile Responsiveness Testing
+- **MP-036**: Missing User Acceptance Testing
+- **MP-037**: No A/B Testing Framework
+- **MP-038**: Missing Analytics Integration
 
 ---
 
-### MI-010: No Accessibility Audit
-**Severity**: 🟡 Medium
-**Impact**: Excludes users with disabilities
-**Location**: Frontend components
+## 🔵 Low Priority Issues (22) - NICE TO HAVE
 
-**Description**:
-No accessibility testing:
-- No ARIA labels verified
-- No keyboard navigation tested
-- No screen reader testing
-
-**Resolution**:
-1. Run Lighthouse accessibility audit
-2. Install @axe-core/react
-3. Fix accessibility issues
-
-**Estimated Effort**: 6 hours
-
----
-
-## 🔵 Low Priority Issues (5)
-
-### LI-001: No Changelog
+### LP-001: Missing Keyboard Shortcuts
 **Severity**: 🔵 Low
-**Impact**: Difficult to track changes
-**Location**: Root directory
+**Impact**: Reduced power user efficiency
 
-**Description**:
-No CHANGELOG.md to track version history and changes.
-
-**Resolution**:
-Create CHANGELOG.md following Keep a Changelog format
-
-**Estimated Effort**: 1 hour
+**Suggestions**:
+- Cmd/Ctrl + K for command palette
+- Cmd/Ctrl + Enter to send message
+- Cmd/Ctrl + N for new request
+- Esc to close modals
 
 ---
 
-### LI-002: No Security Policy
+### LP-002: No Email Template Library
 **Severity**: 🔵 Low
-**Impact**: No clear vulnerability reporting process
-**Location**: Root directory
+**Impact**: Limited customization
 
-**Description**:
-No SECURITY.md file with:
-- How to report vulnerabilities
-- Security update policy
-- Supported versions
-
-**Resolution**:
-Create SECURITY.md
-
-**Estimated Effort**: 1 hour
+**Suggestion**: Create template system with variables
 
 ---
 
-### LI-003: No GitHub Issue Templates
+### LP-003: Missing Batch RFP Processing
 **Severity**: 🔵 Low
-**Impact**: Inconsistent issue reporting
-**Location**: `.github/` directory
+**Impact**: Manual processing for multiple requests
 
-**Description**:
-No issue templates for:
-- Bug reports
-- Feature requests
-- Security vulnerabilities
-
-**Resolution**:
-Create `.github/ISSUE_TEMPLATE/` with templates
-
-**Estimated Effort**: 1 hour
+**Feature**: Upload CSV with multiple requests
 
 ---
 
-### LI-004: No Pull Request Template
+### LP-004: No Export Functionality
 **Severity**: 🔵 Low
-**Impact**: Inconsistent PR descriptions
-**Location**: `.github/` directory
+**Impact**: Cannot export data for analysis
 
-**Description**:
-No PR template to ensure:
-- Description of changes
-- Related issues
-- Testing performed
-- Screenshots
-
-**Resolution**:
-Create `.github/PULL_REQUEST_TEMPLATE.md`
-
-**Estimated Effort**: 0.5 hours
+**Formats**: CSV, JSON, PDF reports
 
 ---
 
-### LI-005: No Dependabot Configuration
+### LP-005-022: Additional Low Priority Issues
+- **LP-005**: Missing Dark Mode Improvements
+- **LP-006**: No Customizable Dashboard Widgets
+- **LP-007**: Missing Advanced Search Filters
+- **LP-008**: No Saved Searches
+- **LP-009**: Missing Bulk Actions
+- **LP-010**: No Client Tagging System
+- **LP-011**: Missing Request Templates
+- **LP-012**: No Favorite Operators
+- **LP-013**: Missing Activity Feed
+- **LP-014**: No Notification Preferences
+- **LP-015**: Missing Team Collaboration Features
+- **LP-016**: No Comments on Requests
+- **LP-017**: Missing File Attachments
+- **LP-018**: No Integration with Calendar
+- **LP-019**: Missing Mobile App
+- **LP-020**: No Offline Mode
+- **LP-021**: Missing Browser Extension
+- **LP-022**: No API for Third-Party Integrations
+
+---
+
+## Code Smells and Technical Debt
+
+### TS-001: Placeholder Implementations
+**Count**: 8 files
+
+**Locations**:
+- `lib/mcp/` - Empty placeholder directories
+- `lib/pdf/` - README only, no implementation
+- Mock data in components not replaced with real API calls
+
+---
+
+### TS-002: Inconsistent Error Handling
+**Severity**: 🟡 Medium
+
+**Issues**:
+- Mix of try/catch and error callbacks
+- Inconsistent error message formats
+- No centralized error handling
+- Some errors swallowed (console.error only)
+
+**Solution**: Standardize on error handling pattern
+
+---
+
+### TS-003: Missing JSDoc Comments
 **Severity**: 🔵 Low
-**Impact**: Manual dependency updates
-**Location**: `.github/` directory
+**Impact**: Reduced code understandability
 
-**Description**:
-No Dependabot configuration for automatic:
-- Security updates
-- Dependency version bumps
-
-**Resolution**:
-Create `.github/dependabot.yml`
-
-**Estimated Effort**: 0.5 hours
+**Recommendation**: Add JSDoc to public APIs and complex functions
 
 ---
 
-## Code Smells Identified
+### TS-004: Large Files
+**Severity**: 🔵 Low
 
-### CS-001: Hardcoded Delays in Simulations
-**Location**: `components/chat-interface.tsx:42-61`
-```typescript
-const steps = [
-  { status: "understanding_request", message: "...", delay: 2000 },
-  { status: "searching_aircraft", message: "...", delay: 3000 },
-  // ...
-]
-```
-**Issue**: Simulated delays create false impression of performance
-**Resolution**: Replace with real API calls
+**Examples**:
+- `components/workflow-visualization.tsx` (400+ lines)
+- `mcp-servers/*/src/index.ts` (300+ lines each)
+
+**Suggestion**: Break into smaller, focused modules
 
 ---
 
-### CS-002: Console.log Usage
-**Location**: Multiple files
-```typescript
-console.log(`[${this.name}] Initializing agent...`)
-```
-**Issue**: Not suitable for production
-**Resolution**: Replace with structured logging library
+### TS-005: Duplicate Code
+**Severity**: 🟡 Medium
+**Locations**: Agent implementations
+
+**Example**: All agents have similar initialization logic
+
+**Solution**: Extract shared patterns to base class or utilities
 
 ---
 
-### CS-003: Commented-Out Code
-**Location**: None found ✅
-**Status**: Clean
+## Security Vulnerabilities
+
+### SV-001: API Keys in Frontend Code (Potential)
+**Severity**: 🟠 High
+**Status**: ⚠️ To Verify
+
+**Risk**: Accidental exposure of secrets in client bundles
+
+**Prevention**:
+- Use server-side API routes only
+- Verify no NEXT_PUBLIC_ prefixed secrets
+- Check build output for leaked keys
 
 ---
 
-### CS-004: Magic Numbers
-**Location**: `vitest.config.ts:1-`
-```typescript
-coverage: {
-  lines: 75,
-  functions: 75,
-  // ...
-}
-```
-**Issue**: Minor - thresholds could be constants
-**Resolution**: Extract to constants if reused
+### SV-002: Missing Rate Limiting
+**Severity**: 🟠 High
+**Impact**: DDoS vulnerability
+
+**Resolution**: Implement per-user and per-IP rate limits
 
 ---
 
-## Refactoring Opportunities
+### SV-003: Insufficient Input Validation
+**Severity**: 🟡 Medium
+**Impact**: Potential injection attacks
 
-### RO-001: Extract Workflow Steps to Configuration
-**Priority**: Medium
-**Location**: `components/chat-interface.tsx`
-
-**Current**: Hardcoded workflow steps
-**Improvement**: Move to configuration file for easier customization
-
----
-
-### RO-002: Consolidate Mock Data
-**Priority**: Low
-**Location**: Multiple files
-
-**Current**: Mock data scattered across components
-**Improvement**: Centralize in `lib/mock-data.ts` (already exists but not fully utilized)
+**Areas**:
+- API route parameters
+- User-provided search queries
+- File upload validation (if implemented)
 
 ---
 
-## Summary Statistics
-
-**Total Issues**: 45
-- 🔴 Critical: 12 (27%)
-- 🟠 High: 18 (40%)
-- 🟡 Medium: 10 (22%)
-- 🔵 Low: 5 (11%)
-
-**Total Estimated Effort**: 268 hours
-
-**Must Fix Before Production**: 30 issues (Critical + High)
-**Nice to Have**: 15 issues (Medium + Low)
-
-**Code Quality**: Good (no major code smells, clean architecture)
-**Technical Debt**: Low (for implemented code)
-**Main Issue**: Missing implementation, not poor implementation
+### SV-004: Missing Security Headers
+**Severity**: 🟡 Medium
+**Headers Needed**:
+- Content-Security-Policy
+- X-Frame-Options
+- X-Content-Type-Options
+- Strict-Transport-Security
 
 ---
 
-**Last Updated**: October 20, 2025
-**Next Review**: After Phase 2 completion
+### SV-005: No Dependency Vulnerability Scanning
+**Severity**: 🟡 Medium
+**Recommendation**: Run `npm audit` and set up Dependabot
+
+---
+
+## Performance Issues
+
+### PERF-001: No Database Query Optimization
+**Severity**: 🟡 Medium
+**Impact**: Slow API responses at scale
+
+**Needed**:
+- Query profiling
+- Index optimization
+- N+1 query prevention
+- Connection pooling tuning
+
+---
+
+### PERF-002: No Caching Strategy
+**Severity**: 🟡 Medium
+**Opportunities**:
+- Client profile caching (Redis)
+- Aircraft search results (5-minute TTL)
+- Static content (CDN)
+
+---
+
+### PERF-003: Unoptimized Bundle Size
+**Severity**: 🟡 Medium
+**Current**: Unknown (build failing)
+
+**Recommendations**:
+- Code splitting
+- Tree shaking verification
+- Dynamic imports for large components
+- Image optimization
+
+---
+
+## Issue Summary
+
+| Severity | Count | % of Total |
+|----------|-------|------------|
+| 🔴 Critical | 3 | 4% |
+| 🟠 High | 15 | 19% |
+| 🟡 Medium | 38 | 49% |
+| 🔵 Low | 22 | 28% |
+| **Total** | **78** | **100%** |
+
+---
+
+## Prioritized Action Plan
+
+### Immediate (This Week)
+1. Fix TypeScript compilation errors (58 errors)
+2. Install missing dependencies
+3. Deploy database schema
+4. Generate database types
+5. Write 20% test coverage (critical paths)
+
+### Short-Term (Next 2 Weeks)
+6. Configure OAuth for Gmail and Sheets
+7. Set up Redis instance
+8. Obtain Avinode credentials
+9. Implement webhook handlers
+10. Reach 50% test coverage
+
+### Medium-Term (Weeks 3-4)
+11. Implement PDF generation
+12. Add rate limiting and security headers
+13. Performance optimization
+14. Complete test suite (75%+)
+15. CI/CD pipeline
+
+### Long-Term (Post-Launch)
+16. Advanced features (batch processing, templates)
+17. Mobile app
+18. Third-party integrations
+19. Analytics and reporting
+20. Team collaboration features
+
+---
+
+**Last Updated**: October 24, 2025
+**Next Review**: October 31, 2025
+**Analysis Tool**: Automated Codebase Scanner + Manual Review
