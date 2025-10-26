@@ -55,7 +55,7 @@ describe('GET /api/requests', () => {
     expect(data.error).toBe('Unauthorized');
   });
 
-  it('should return 404 if ISO agent not found', async () => {
+  it('should return 404 if User not found', async () => {
     // Mock authenticated user
     vi.mocked(auth).mockResolvedValue({
       userId: 'user-123',
@@ -66,7 +66,7 @@ describe('GET /api/requests', () => {
       debug: () => null
     });
 
-    // Mock Supabase query returning no ISO agent
+    // Mock Supabase query returning no User
     const mockFrom = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -84,7 +84,7 @@ describe('GET /api/requests', () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toContain('ISO agent not found');
+    expect(data.error).toContain('User not found');
   });
 
   it('should return all requests for authenticated user', async () => {
@@ -98,11 +98,11 @@ describe('GET /api/requests', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123', clerk_user_id: 'user-123' };
+    const mockUser = { id: 'iso-agent-123', clerk_user_id: 'user-123' };
     const mockRequests = [
       {
         id: 'req-1',
-        iso_agent_id: 'iso-agent-123',
+        user_id: 'iso-agent-123',
         client_profile_id: 'client-1',
         departure_airport: 'KJFK',
         arrival_airport: 'KLAX',
@@ -112,7 +112,7 @@ describe('GET /api/requests', () => {
       },
       {
         id: 'req-2',
-        iso_agent_id: 'iso-agent-123',
+        user_id: 'iso-agent-123',
         client_profile_id: 'client-2',
         departure_airport: 'KORD',
         arrival_airport: 'KSFO',
@@ -125,13 +125,13 @@ describe('GET /api/requests', () => {
     let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       callCount++;
-      if (callCount === 1 && table === 'iso_agents') {
-        // First call for ISO agent lookup
+      if (callCount === 1 && table === 'users') {
+        // First call for User lookup
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -176,7 +176,7 @@ describe('GET /api/requests', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123' };
     const mockRequests = [
       {
         id: 'req-1',
@@ -192,7 +192,7 @@ describe('GET /api/requests', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -237,7 +237,7 @@ describe('GET /api/requests', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123' };
     const mockRequests = [
       {
         id: 'req-1',
@@ -253,7 +253,7 @@ describe('GET /api/requests', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -296,10 +296,10 @@ describe('GET /api/requests', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123' };
     const mockRequest = {
       id: 'req-specific',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'iso-agent-123',
       departure_airport: 'KJFK',
       status: 'pending',
     };
@@ -312,7 +312,7 @@ describe('GET /api/requests', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -371,7 +371,7 @@ describe('POST /api/requests', () => {
     expect(data.error).toBe('Unauthorized');
   });
 
-  it('should return 404 if ISO agent not found', async () => {
+  it('should return 404 if User not found', async () => {
     vi.mocked(auth).mockResolvedValue({
       userId: 'user-123',
       sessionId: 'session-123',
@@ -408,7 +408,7 @@ describe('POST /api/requests', () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toContain('ISO agent not found');
+    expect(data.error).toContain('User not found');
   });
 
   it('should create a new request successfully', async () => {
@@ -421,10 +421,10 @@ describe('POST /api/requests', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123' };
     const mockNewRequest = {
       id: 'new-req-123',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'iso-agent-123',
       client_profile_id: 'client-1',
       departure_airport: 'KJFK',
       arrival_airport: 'KLAX',
@@ -438,12 +438,12 @@ describe('POST /api/requests', () => {
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       callCount++;
       if (callCount === 1) {
-        // ISO agent lookup
+        // User lookup
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -495,10 +495,10 @@ describe('POST /api/requests', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123' };
     const mockNewRequest = {
       id: 'new-req-456',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'iso-agent-123',
       client_profile_id: 'client-1',
       departure_airport: 'KJFK',
       arrival_airport: 'KLAX',
@@ -520,7 +520,7 @@ describe('POST /api/requests', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -575,7 +575,7 @@ describe('POST /api/requests', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123' };
 
     let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
@@ -585,7 +585,7 @@ describe('POST /api/requests', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
