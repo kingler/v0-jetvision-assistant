@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
 
     const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
-    if (!isoAgent) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     let query = supabase.from('client_profiles').select('*').eq('user_id', user.id);
     if (search) query = query.or(`company_name.ilike.%${search}%,contact_name.ilike.%${search}%`);
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (!company_name || !contact_name || !email) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
 
     const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
-    if (!isoAgent) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { data: newClient, error } = await supabase
       .from('client_profiles')
@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest) {
     if (!client_id) return NextResponse.json({ error: 'Missing client_id' }, { status: 400 });
 
     const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
-    if (!isoAgent) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const updateData: any = {};
     if (company_name !== undefined) updateData.company_name = company_name;

@@ -81,9 +81,17 @@ export async function POST(req: Request) {
         }
 
         // Get role from public_metadata or default to 'sales_rep'
-        const role = (public_metadata as any)?.role || 'sales_rep';
-        const validRoles = ['sales_rep', 'admin', 'customer', 'operator'];
-        const userRole = validRoles.includes(role) ? role : 'sales_rep';
+        const metadata = public_metadata as Record<string, unknown>;
+        const proposedRole = metadata?.role;
+
+        const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
+        let userRole: typeof VALID_ROLES[number] = 'sales_rep';
+
+        if (typeof proposedRole === 'string' && VALID_ROLES.includes(proposedRole as any)) {
+          userRole = proposedRole as typeof VALID_ROLES[number];
+        } else if (proposedRole) {
+          console.warn(`[WEBHOOK] Invalid role "${proposedRole}" from Clerk for user ${id}, defaulting to sales_rep`);
+        }
 
         // Create user in Supabase users table
         const { data, error } = await supabase
@@ -120,18 +128,23 @@ export async function POST(req: Request) {
         const email = email_addresses[0]?.email_address;
 
         // Get role from public_metadata if provided
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           email: email,
           full_name: `${first_name || ''} ${last_name || ''}`.trim() || email,
           updated_at: new Date().toISOString(),
         };
 
         // Update role if provided in metadata
-        if ((public_metadata as any)?.role) {
-          const role = (public_metadata as any).role;
-          const validRoles = ['sales_rep', 'admin', 'customer', 'operator'];
-          if (validRoles.includes(role)) {
-            updateData.role = role;
+        const metadata = public_metadata as Record<string, unknown>;
+        const proposedRole = metadata?.role;
+
+        if (typeof proposedRole === 'string') {
+          const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
+          if (VALID_ROLES.includes(proposedRole as any)) {
+            updateData.role = proposedRole;
+            console.log(`[WEBHOOK] Updated role to "${proposedRole}" for user ${id}`);
+          } else {
+            console.warn(`[WEBHOOK] Invalid role "${proposedRole}" ignored for user ${id}`);
           }
         }
 
