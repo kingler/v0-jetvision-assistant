@@ -39,7 +39,7 @@ describe('GET /api/quotes', () => {
     expect(data.error).toBe('Unauthorized');
   });
 
-  it('should return 404 if ISO agent not found', async () => {
+  it('should return 404 if user not found', async () => {
     vi.mocked(auth).mockResolvedValue({
       userId: 'user-123',
       sessionId: 'session-123',
@@ -66,7 +66,7 @@ describe('GET /api/quotes', () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toContain('ISO agent not found');
+    expect(data.error).toContain('User not found');
   });
 
   it('should return all quotes for authenticated user', async () => {
@@ -79,7 +79,7 @@ describe('GET /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockQuotes = [
       {
         id: 'quote-1',
@@ -102,12 +102,12 @@ describe('GET /api/quotes', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -146,7 +146,7 @@ describe('GET /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockQuotes = [
       {
         id: 'quote-1',
@@ -157,12 +157,12 @@ describe('GET /api/quotes', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -202,7 +202,7 @@ describe('GET /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockQuotes = [
       {
         id: 'quote-1',
@@ -212,12 +212,12 @@ describe('GET /api/quotes', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -281,7 +281,7 @@ describe('PATCH /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockUpdatedQuote = {
       id: 'quote-1',
       request_id: 'req-1',
@@ -291,12 +291,12 @@ describe('PATCH /api/quotes', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -354,7 +354,7 @@ describe('PATCH /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockUpdatedQuote = {
       id: 'quote-1',
       status: 'rejected',
@@ -363,12 +363,12 @@ describe('PATCH /api/quotes', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -418,7 +418,7 @@ describe('PATCH /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockUpdatedQuote = {
       id: 'quote-1',
       request_id: 'req-1',
@@ -428,12 +428,12 @@ describe('PATCH /api/quotes', () => {
     let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       callCount++;
-      if (callCount === 1 && table === 'iso_agents') {
+      if (callCount === 1 && table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -493,14 +493,14 @@ describe('PATCH /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
