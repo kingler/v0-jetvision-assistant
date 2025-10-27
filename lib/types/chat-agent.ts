@@ -42,6 +42,10 @@ export enum ChatIntent {
   VIEW_WORKFLOW = 'view_workflow',
   GET_WORKFLOW_STATUS = 'get_workflow_status',
 
+  // Archived RFP Management
+  LIST_ARCHIVED_RFPS = 'list_archived_rfps',
+  VIEW_ARCHIVED_RFP = 'view_archived_rfp',
+
   // General
   HELP = 'help',
   CLARIFY = 'clarify',
@@ -79,6 +83,12 @@ export interface ExtractedEntities {
   // RFP references
   rfpId?: string
   quoteId?: string
+
+  // Archived RFP filters
+  statusFilter?: ('completed' | 'cancelled' | 'failed')[]
+  startDate?: Date
+  endDate?: Date
+  archivedRfpId?: string
 
   // Other metadata
   [key: string]: unknown
@@ -134,8 +144,88 @@ export enum ChatResponseType {
   PROPOSAL_READY = 'proposal_ready',
   WORKFLOW_UPDATE = 'workflow_update',
   CLIENT_INFO = 'client_info',
+  ARCHIVED_RFPS_LIST = 'archived_rfps_list',
+  ARCHIVED_RFP_DETAIL = 'archived_rfp_detail',
   ERROR = 'error',
   CLARIFICATION_NEEDED = 'clarification_needed',
+}
+
+/**
+ * Archived RFP Summary
+ * Lightweight data for list view
+ */
+export interface ArchivedRFPSummary {
+  id: string
+  clientName: string
+  route: {
+    departure: string
+    arrival: string
+  }
+  date: string
+  passengers: number
+  status: 'completed' | 'cancelled' | 'failed'
+  completedAt: string
+  duration: number // milliseconds
+  selectedOperator?: string
+  finalPrice?: number
+}
+
+/**
+ * Archived RFP Detail
+ * Complete data for detail view
+ */
+export interface ArchivedRFPDetail extends ArchivedRFPSummary {
+  // Full request data
+  request: {
+    id: string
+    departureAirport: string
+    arrivalAirport: string
+    departureDate: string
+    returnDate: string | null
+    passengers: number
+    aircraftType: string | null
+    budget: number | null
+    specialRequirements: string | null
+  }
+
+  // Client information
+  client: {
+    id: string
+    name: string
+    email: string
+    company: string | null
+    isVIP: boolean
+    preferences?: Record<string, any>
+  }
+
+  // Selected quote (if completed)
+  selectedQuote?: {
+    id: string
+    operatorName: string
+    aircraftType: string
+    basePrice: number
+    totalPrice: number
+    score: number | null
+    ranking: number | null
+  }
+
+  // All quotes received
+  allQuotes: QuoteData[]
+
+  // Workflow timeline
+  workflowHistory: {
+    state: string
+    enteredAt: string
+    duration: number
+    agentId: string | null
+  }[]
+
+  // Proposal info (if sent)
+  proposal?: {
+    sentAt: string
+    status: 'sent' | 'accepted' | 'rejected'
+    recipientEmail: string
+  }
 }
 
 /**
@@ -158,6 +248,12 @@ export interface ChatResponseData {
 
   // Workflow state
   workflowState?: WorkflowState
+
+  // Archived RFP data
+  archivedRfps?: ArchivedRFPSummary[]
+  archivedRfpDetail?: ArchivedRFPDetail
+  totalCount?: number
+  hasMore?: boolean
 
   // Other structured data
   [key: string]: unknown
@@ -334,6 +430,8 @@ export interface ChatMessage {
   showQuoteStatus?: boolean
   showProposal?: boolean
   showCustomerPreferences?: boolean
+  showArchivedRFPsList?: boolean
+  showArchivedRFPDetail?: boolean
   metadata?: Record<string, unknown>
 }
 
