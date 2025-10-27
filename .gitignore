@@ -33,6 +33,11 @@ test-results/
 playwright-report/
 .playwright-mcp/
 
+# backup files
+*.bak
+*.backup
+*~
+
 # MCP servers - ignore generated files
 **/node_modules/
 **/pnpm-lock.yaml

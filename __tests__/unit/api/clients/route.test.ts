@@ -39,7 +39,7 @@ describe('GET /api/clients', () => {
     expect(data.error).toBe('Unauthorized');
   });
 
-  it('should return 404 if ISO agent not found', async () => {
+  it('should return 404 if user not found', async () => {
     vi.mocked(auth).mockResolvedValue({
       userId: 'user-123',
       sessionId: 'session-123',
@@ -66,7 +66,7 @@ describe('GET /api/clients', () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toContain('ISO agent not found');
+    expect(data.error).toContain('User not found');
   });
 
   it('should return all clients for authenticated user', async () => {
@@ -79,33 +79,33 @@ describe('GET /api/clients', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockClients = [
       {
         id: 'client-1',
-        iso_agent_id: 'iso-agent-123',
+        user_id: 'user-123',
         company_name: 'Acme Corp',
         contact_name: 'John Doe',
-        contact_email: 'john@acme.com',
+        email: 'john@acme.com',
         created_at: '2025-01-01T00:00:00Z',
       },
       {
         id: 'client-2',
-        iso_agent_id: 'iso-agent-123',
+        user_id: 'user-123',
         company_name: 'Tech Inc',
         contact_name: 'Jane Smith',
-        contact_email: 'jane@tech.com',
+        email: 'jane@tech.com',
         created_at: '2025-01-02T00:00:00Z',
       },
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -131,7 +131,7 @@ describe('GET /api/clients', () => {
     expect(response.status).toBe(200);
     expect(data.clients).toHaveLength(2);
     expect(data.clients[0].company_name).toBe('Acme Corp');
-    expect(data.clients[1].contact_email).toBe('jane@tech.com');
+    expect(data.clients[1].email).toBe('jane@tech.com');
   });
 
   it('should return a specific client by client_id', async () => {
@@ -144,22 +144,22 @@ describe('GET /api/clients', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockClient = {
       id: 'client-specific',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'user-123',
       company_name: 'Specific Corp',
       contact_name: 'Bob Johnson',
-      contact_email: 'bob@specific.com',
+      email: 'bob@specific.com',
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -223,13 +223,13 @@ describe('POST /api/clients', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockNewClient = {
       id: 'new-client-123',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'user-123',
       company_name: 'New Corp',
       contact_name: 'Alice Brown',
-      contact_email: 'alice@newcorp.com',
+      email: 'alice@newcorp.com',
       created_at: new Date().toISOString(),
     };
 
@@ -241,7 +241,7 @@ describe('POST /api/clients', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -289,10 +289,10 @@ describe('POST /api/clients', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockNewClient = {
       id: 'new-client-456',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'user-123',
       company_name: 'Full Corp',
       contact_name: 'Charlie Davis',
       email: 'charlie@full.com',
@@ -309,7 +309,7 @@ describe('POST /api/clients', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -386,7 +386,7 @@ describe('PATCH /api/clients', () => {
 
     const mockUpdatedClient = {
       id: 'client-1',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'user-123',
       company_name: 'Updated Corp',
       contact_name: 'John Doe',
       email: 'john@updated.com',
@@ -394,12 +394,12 @@ describe('PATCH /api/clients', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
@@ -455,12 +455,12 @@ describe('PATCH /api/clients', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
@@ -508,12 +508,12 @@ describe('PATCH /api/clients', () => {
     });
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),

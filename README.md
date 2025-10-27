@@ -54,6 +54,9 @@ OpenAI model configuration:
 - Agent-specific configurations
 - Rate limiting and retry logic
 
+### 🤝 [**AGENTS.md**](./AGENTS.md)
+Contributor playbook covering project layout, build/test commands, coding style, and MCP/Responses integration notes for new collaborators.
+
 ---
 
 ## 🌟 Overview
