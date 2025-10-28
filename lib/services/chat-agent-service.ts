@@ -16,6 +16,7 @@ import type {
   ExtractedEntities,
 } from '@/lib/types/chat-agent'
 import { AgentType } from '@/agents/core/types'
+import { getArchivedRFPs, getArchivedRFPDetail, type ArchivedRFPFilters } from '@/lib/services/supabase-queries'
 
 /**
  * Chat Agent Service Implementation
@@ -168,6 +169,37 @@ export class ChatAgentService implements IChatAgentService {
       }
     }
 
+    // Archived REP keywords
+    const archivedKeywords = [
+      'archived', 'archive', 'past', 'completed', 'history', 'previous',
+      'old request', 'finished', 'cancelled', 'failed'
+    ]
+    const hasArchivedKeyword = archivedKeywords.some(kw => lowerMessage.includes(kw))
+
+    if (hasArchivedKeyword) {
+      const listKeywords = ['show', 'list', 'view', 'see', 'get', 'display', 'all', 'my']
+      const detailKeywords = ['detail', 'information', 'about', 'specific', 'id']
+
+      const hasListKeyword = listKeywords.some(kw => lowerMessage.includes(kw))
+      const hasDetailKeyword = detailKeywords.some(kw => lowerMessage.includes(kw))
+
+      if (hasDetailKeyword || context?.metadata?.archivedRfpId) {
+        return {
+          intent: ChatIntent.VIEW_ARCHIVED_RFP,
+          confidence: 0.85,
+          entities: {},
+          requiresClarification: false,
+        }
+      } else if (hasListKeyword || hasArchivedKeyword) {
+        return {
+          intent: ChatIntent.LIST_ARCHIVED_RFPS,
+          confidence: 0.9,
+          entities: {},
+          requiresClarification: false,
+        }
+      }
+    }
+
     // Help keywords
     if (lowerMessage.match(/help|how.*work|what.*can.*do|assist/i)) {
       return {
@@ -285,6 +317,12 @@ export class ChatAgentService implements IChatAgentService {
 
       case ChatIntent.GET_QUOTES:
         return this.handleGetQuotes(request)
+
+      case ChatIntent.LIST_ARCHIVED_RFPS:
+        return this.handleListArchivedRFPs(request)
+
+      case ChatIntent.VIEW_ARCHIVED_RFP:
+        return this.handleViewArchivedRFP(request)
 
       case ChatIntent.HELP:
         return this.handleHelp(request)
@@ -715,6 +753,183 @@ I'm now searching for available aircraft and requesting quotes from operators. T
 
     this.sessions.set(sessionId, session)
     return session
+  }
+
+  /**
+   * Handle LIST_ARCHIVED_RFPS intent
+   * Returns paginated list of archived REPs
+   */
+  private async handleListArchivedRFPs(
+    request: ChatAgentRequest
+  ): Promise<ChatAgentResponse> {
+    try {
+      const { userId, entities } = request
+
+      // Extract filters from entities
+      const filters: ArchivedRFPFilters = {
+        statusFilter: entities?.statusFilter,
+        startDate: entities?.startDate,
+        endDate: entities?.endDate,
+        limit: 10, // Default page size
+      }
+
+      // Query database
+      const { rfps, totalCount, hasMore } = await getArchivedRFPs(userId, filters)
+
+      // Generate response message
+      let content = ''
+      if (rfps.length === 0) {
+        content = 'You don\'t have any archived REPs yet. Completed, cancelled, or failed requests will appear here.'
+      } else {
+        const statusText = filters.statusFilter
+          ? ` ${filters.statusFilter.join(', ')} `
+          : ' '
+        content = `I found ${rfps.length}${statusText}archived REP${rfps.length !== 1 ? 's' : ''}${totalCount > rfps.length ? ` (showing first ${rfps.length} of ${totalCount})` : ''}.`
+      }
+
+      return {
+        messageId: request.messageId,
+        content,
+        intent: ChatIntent.LIST_ARCHIVED_RFPS,
+        responseType: ChatResponseType.ARCHIVED_RFPS_LIST,
+        data: {
+          archivedRfps: rfps,
+          totalCount,
+          hasMore,
+        },
+        suggestedActions: rfps.length > 0 ? [
+          {
+            id: 'view-details',
+            label: 'View Details',
+            description: 'See full information for a REP',
+            action: 'view_archived_rfp_detail',
+            icon: '📄',
+            intent: ChatIntent.VIEW_ARCHIVED_RFP,
+          },
+          hasMore ? {
+            id: 'load-more',
+            label: 'Load More',
+            description: 'Show more archived REPs',
+            action: 'load_more_archived_rfps',
+            icon: '⬇️',
+            intent: ChatIntent.LIST_ARCHIVED_RFPS,
+            parameters: { offset: rfps.length },
+          } : null,
+        ].filter((action): action is NonNullable<typeof action> => action !== null) : [],
+        metadata: {
+          processingTime: 0,
+        },
+      }
+    } catch (error) {
+      console.error('[handleListArchivedRFPs] Error:', error)
+
+      return {
+        messageId: request.messageId,
+        content: 'I encountered an error retrieving your archived REPs. Please try again.',
+        intent: ChatIntent.LIST_ARCHIVED_RFPS,
+        responseType: ChatResponseType.ERROR,
+        data: {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        metadata: {
+          processingTime: 0,
+        },
+      }
+    }
+  }
+
+  /**
+   * Handle VIEW_ARCHIVED_RFP intent
+   * Returns complete archived REP details
+   */
+  private async handleViewArchivedRFP(
+    request: ChatAgentRequest
+  ): Promise<ChatAgentResponse> {
+    try {
+      const { userId, entities } = request
+
+      // Get RFP ID from entities
+      const rfpId = entities?.archivedRfpId || entities?.rfpId
+
+      if (!rfpId) {
+        return {
+          messageId: request.messageId,
+          content: 'Which archived REP would you like to view? Please provide the REP ID or select from the list.',
+          intent: ChatIntent.VIEW_ARCHIVED_RFP,
+          responseType: ChatResponseType.CLARIFICATION_NEEDED,
+          requiresClarification: true,
+          clarificationQuestions: ['Which archived REP would you like to view?'],
+          metadata: {
+            processingTime: 0,
+          },
+        }
+      }
+
+      // Fetch detail from database
+      const detail = await getArchivedRFPDetail(rfpId, userId)
+
+      // Generate response message
+      const statusEmoji = {
+        completed: '✅',
+        cancelled: '❌',
+        failed: '⚠️',
+      }[detail.status] || '📄'
+
+      const content = `${statusEmoji} Here are the details for your ${detail.status} REP from ${detail.route.departure} to ${detail.route.arrival} on ${new Date(detail.date).toLocaleDateString()}.`
+
+      return {
+        messageId: request.messageId,
+        content,
+        intent: ChatIntent.VIEW_ARCHIVED_RFP,
+        responseType: ChatResponseType.ARCHIVED_RFP_DETAIL,
+        data: {
+          archivedRfpDetail: detail,
+        },
+        suggestedActions: [
+          {
+            id: 'view-quotes',
+            label: 'See All Quotes',
+            description: `View all ${detail.allQuotes.length} quotes received`,
+            action: 'show_all_quotes',
+            icon: '💰',
+            intent: ChatIntent.GET_QUOTES,
+            parameters: { rfpId: detail.id },
+          },
+          {
+            id: 'similar-flight',
+            label: 'Request Similar Flight',
+            description: 'Create new request with same route',
+            action: 'create_similar_rfp',
+            icon: '✈️',
+            intent: ChatIntent.CREATE_RFP,
+            parameters: {
+              departureAirport: detail.request.departureAirport,
+              arrivalAirport: detail.request.arrivalAirport,
+              passengers: detail.request.passengers,
+              aircraftType: detail.request.aircraftType,
+            },
+          },
+        ],
+        metadata: {
+          processingTime: 0,
+        },
+      }
+    } catch (error) {
+      console.error('[handleViewArchivedRFP] Error:', error)
+
+      return {
+        messageId: request.messageId,
+        content: 'I couldn\'t find that archived REP. Please check the ID and try again.',
+        intent: ChatIntent.VIEW_ARCHIVED_RFP,
+        responseType: ChatResponseType.ERROR,
+        data: {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        metadata: {
+          processingTime: 0,
+        },
+      }
+    }
   }
 }
 
