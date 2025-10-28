@@ -76,6 +76,7 @@ export function LandingPage({ onStartChat, userName }: LandingPageProps) {
               size="sm"
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-cyan-600 hover:bg-cyan-700"
               disabled={!message.trim()}
+              aria-label="Send message"
             >
               <Send className="w-4 h-4" />
             </Button>

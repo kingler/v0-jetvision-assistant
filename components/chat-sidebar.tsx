@@ -170,6 +170,16 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
                   : "hover:bg-gray-50 dark:hover:bg-gray-800",
               )}
               onClick={() => onSelectChat(session.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelectChat(session.id)
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={`Flight Request ${session.id}: ${session.route}, ${session.passengers} passengers, ${session.date}`}
+              aria-pressed={activeChatId === session.id}
             >
               <CardContent className="p-2 sm:p-3">
                 <div className="flex items-start justify-between mb-2">

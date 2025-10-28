@@ -127,6 +127,8 @@ export default function JetvisionAgent() {
                   size="sm"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                   className="text-gray-300 hover:text-white hover:bg-gray-800 flex-shrink-0"
+                  aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+                  aria-expanded={sidebarOpen}
                 >
                   {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </Button>
