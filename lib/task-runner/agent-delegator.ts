@@ -334,7 +334,7 @@ export class AgentDelegator {
    * Extracts testing requirements from task content
    */
   private static extractTestingRequirements(taskContent: string): string {
-    const testSection = taskContent.match(/## 7\. Testing Requirements(.+?)(?=## 8\.|$)/s)
+    const testSection = taskContent.match(/## 7\. Testing Requirements([\s\S]+?)(?=## 8\.|$)/)
     if (!testSection) return 'No specific testing requirements found in task file.'
 
     // Extract key points

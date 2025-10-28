@@ -353,7 +353,7 @@ export class TaskOrchestrator {
     const steps: TaskStep[] = []
 
     // Find implementation steps section
-    const stepsSection = content.match(/## 4\. Implementation Steps(.+?)(?=## 5\.|$)/s)
+    const stepsSection = content.match(/## 4\. Implementation Steps([\s\S]+?)(?=## 5\.|$)/)
     if (!stepsSection) return steps
 
     // Extract steps (looking for ### Step patterns)
