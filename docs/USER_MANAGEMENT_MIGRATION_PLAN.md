@@ -76,7 +76,7 @@ CREATE TABLE iso_agents (
 
 #### 1.1 Create New User Role Enum
 
-**Migration**: `004_update_user_roles.sql`
+**Migration**: `005_update_user_roles.sql`
 
 ```sql
 -- Add new role values to existing enum
@@ -103,7 +103,7 @@ CREATE TYPE user_role_new AS ENUM (
 
 #### 1.2 Rename Table and Update Schema
 
-**Migration**: `005_rename_iso_agents_to_users.sql`
+**Migration**: `006_rename_iso_agents_to_users.sql`
 
 ```sql
 -- Step 1: Rename the table
@@ -142,7 +142,7 @@ CREATE TRIGGER update_users_updated_at
 
 #### 1.3 Update Foreign Key Constraints
 
-**Migration**: `006_update_foreign_keys.sql`
+**Migration**: `007_update_foreign_keys.sql`
 
 ```sql
 -- Update client_profiles table
@@ -166,7 +166,7 @@ COMMENT ON COLUMN requests.user_id IS 'Reference to the user (sales rep) who cre
 
 #### 1.4 Update RLS Functions and Policies
 
-**Migration**: `007_update_rls_for_users.sql`
+**Migration**: `008_update_rls_for_users.sql`
 
 ```sql
 -- Drop old functions
@@ -422,7 +422,7 @@ COMMENT ON FUNCTION owns_resource(UUID) IS
 
 #### 1.5 Rollback Migration
 
-**Migration**: `008_rollback_to_iso_agents.sql`
+**Migration**: `009_rollback_to_iso_agents.sql`
 
 ```sql
 -- This migration reverses all changes if needed
@@ -1539,8 +1539,8 @@ export default function AdminUsersPage() {
 ```bash
 # Test migration up
 supabase db push
-supabase db test migration_004_update_user_roles
-supabase db test migration_005_rename_iso_agents_to_users
+supabase db test migration_005_update_user_roles
+supabase db test migration_006_rename_iso_agents_to_users
 
 # Test migration rollback
 supabase db reset
@@ -1829,11 +1829,11 @@ psql postgres://... < backup-YYYYMMDD.sql
 
 ### A. Database Migration Scripts Summary
 
-1. `004_update_user_roles.sql` - Update user_role enum
-2. `005_rename_iso_agents_to_users.sql` - Rename table and update schema
-3. `006_update_foreign_keys.sql` - Update foreign key references
-4. `007_update_rls_for_users.sql` - Update RLS functions and policies
-5. `008_rollback_to_iso_agents.sql` - Rollback migration (emergency use)
+1. `005_update_user_roles.sql` - Update user_role enum
+2. `006_rename_iso_agents_to_users.sql` - Rename table and update schema
+3. `007_update_foreign_keys.sql` - Update foreign key references
+4. `008_update_rls_for_users.sql` - Update RLS functions and policies
+5. `009_rollback_to_iso_agents.sql` - Rollback migration (emergency use)
 
 ### B. Code Files to Update
 

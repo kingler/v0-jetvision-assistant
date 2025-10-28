@@ -166,11 +166,11 @@ export async function POST(req: Request) {
 ### 5. Database Migrations (5 Files)
 
 **Created Migrations:**
-1. ✅ [004_update_user_roles.sql](supabase/migrations/004_update_user_roles.sql) - Add new roles
-2. ✅ [005_rename_iso_agents_to_users.sql](supabase/migrations/005_rename_iso_agents_to_users.sql) - Rename table
-3. ✅ [006_update_foreign_keys.sql](supabase/migrations/006_update_foreign_keys.sql) - Update FKs
-4. ✅ [007_update_rls_for_users.sql](supabase/migrations/007_update_rls_for_users.sql) - Update RLS
-5. ✅ [008_rollback_to_iso_agents.sql](supabase/migrations/008_rollback_to_iso_agents.sql) - Rollback
+1. ✅ [005_update_user_roles.sql](supabase/migrations/005_update_user_roles.sql) - Add new roles
+2. ✅ [006_rename_iso_agents_to_users.sql](supabase/migrations/006_rename_iso_agents_to_users.sql) - Rename table
+3. ✅ [007_update_foreign_keys.sql](supabase/migrations/007_update_foreign_keys.sql) - Update FKs
+4. ✅ [008_update_rls_for_users.sql](supabase/migrations/008_update_rls_for_users.sql) - Update RLS
+5. ✅ [009_rollback_to_iso_agents.sql](supabase/migrations/009_rollback_to_iso_agents.sql) - Rollback
 
 **Documentation:**
 - ✅ [README_USER_MIGRATION.md](supabase/migrations/README_USER_MIGRATION.md) - Complete guide
