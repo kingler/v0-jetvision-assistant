@@ -1,135 +1,208 @@
-import { Webhook } from 'svix'
-import { headers } from 'next/headers'
-import { WebhookEvent } from '@clerk/nextjs/server'
-import { createClient } from '@/lib/supabase/server'
+import { Webhook } from 'svix';
+import { headers } from 'next/headers';
+import { WebhookEvent } from '@clerk/nextjs/server';
+import { supabase } from '@/lib/supabase/client';
 
 /**
  * Clerk Webhook Handler
  *
- * Handles webhook events from Clerk to sync user data to Supabase
+ * This endpoint receives webhook events from Clerk and syncs user data to Supabase.
  * Events handled:
- * - user.created: Creates new user in iso_agents table
- * - user.updated: Updates user profile in Supabase
- * - user.deleted: Soft deletes user (sets is_active = false)
+ * - user.created: Creates a new user record in Supabase users table
+ * - user.updated: Updates existing user record in Supabase
+ * - user.deleted: Soft deletes user record in Supabase
  *
- * Security: Verifies webhook signature using Svix
+ * Role Assignment:
+ * - Default role is 'sales_rep'
+ * - Role can be set via Clerk user public metadata: { role: 'admin' | 'sales_rep' | 'customer' | 'operator' }
  */
-
 export async function POST(req: Request) {
-  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
+  // Get webhook secret from environment
+  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    console.error('CLERK_WEBHOOK_SECRET is not set')
-    return new Response('Error: Missing webhook secret', { status: 500 })
+    console.error('Missing CLERK_WEBHOOK_SECRET environment variable');
+    return new Response('Error: Missing webhook secret configuration', {
+      status: 500
+    });
   }
 
-  // Get headers
-  const headerPayload = await headers()
-  const svix_id = headerPayload.get('svix-id')
-  const svix_timestamp = headerPayload.get('svix-timestamp')
-  const svix_signature = headerPayload.get('svix-signature')
+  // Get the headers
+  const headerPayload = await headers();
+  const svix_id = headerPayload.get('svix-id');
+  const svix_timestamp = headerPayload.get('svix-timestamp');
+  const svix_signature = headerPayload.get('svix-signature');
 
+  // Verify all required headers are present
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response('Error: Missing svix headers', { status: 400 })
+    console.error('Missing svix headers');
+    return new Response('Error: Missing svix headers', {
+      status: 400
+    });
   }
 
-  // Get request body
-  const payload = await req.json()
-  const body = JSON.stringify(payload)
+  // Get the request body
+  const payload = await req.json();
+  const body = JSON.stringify(payload);
 
-  // Verify webhook signature
-  const wh = new Webhook(WEBHOOK_SECRET)
-  let evt: WebhookEvent
+  // Create a new Svix instance with the webhook secret
+  const wh = new Webhook(WEBHOOK_SECRET);
 
+  let evt: WebhookEvent;
+
+  // Verify the webhook signature
   try {
     evt = wh.verify(body, {
       'svix-id': svix_id,
       'svix-timestamp': svix_timestamp,
       'svix-signature': svix_signature,
-    }) as WebhookEvent
+    }) as WebhookEvent;
   } catch (err) {
-    console.error('Error verifying webhook:', err)
-    return new Response('Error: Verification failed', { status: 400 })
+    console.error('Error verifying webhook signature:', err);
+    return new Response('Error: Verification failed', {
+      status: 400
+    });
   }
 
-  // Handle webhook events
-  const { type } = evt
-  const eventId = 'id' in evt ? evt.id : 'unknown'
-  console.log(`Webhook ${eventId} received: ${type}`)
-
-  const supabase = await createClient()
+  // Handle different event types
+  const eventType = evt.type;
+  console.log(`Received webhook event: ${eventType}`);
 
   try {
-    if (type === 'user.created') {
-      const { id, email_addresses, first_name, last_name } = evt.data as any
+    switch (eventType) {
+      case 'user.created': {
+        const { id, email_addresses, first_name, last_name, public_metadata } = evt.data;
 
-      const primaryEmail = email_addresses.find(
-        (email: any) => email.id === (evt.data as any).primary_email_address_id
-      )
+        // Extract primary email
+        const email = email_addresses[0]?.email_address;
+        if (!email) {
+          console.error('No email address found for user:', id);
+          return new Response('Error: No email address', { status: 400 });
+        }
 
-      // Insert new user into iso_agents table
-      const { error } = await supabase.from('iso_agents').insert({
-        clerk_user_id: id,
-        email: primaryEmail?.email_address || '',
-        full_name: `${first_name || ''} ${last_name || ''}`.trim() || null,
-        role: 'broker', // Default role
-        margin_type: 'percentage', // Default margin type
-        margin_value: 10, // Default 10% margin
-        is_active: true,
-      })
+        // Get role from public_metadata or default to 'sales_rep'
+        const metadata = public_metadata as Record<string, unknown>;
+        const proposedRole = metadata?.role;
 
-      if (error) {
-        console.error('Error creating user in Supabase:', error)
-        return new Response('Error: Database sync failed', { status: 500 })
+        const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
+        let userRole: typeof VALID_ROLES[number] = 'sales_rep';
+
+        if (typeof proposedRole === 'string' && VALID_ROLES.includes(proposedRole as any)) {
+          userRole = proposedRole as typeof VALID_ROLES[number];
+        } else if (proposedRole) {
+          console.warn(`[WEBHOOK] Invalid role "${proposedRole}" from Clerk for user ${id}, defaulting to sales_rep`);
+        }
+
+        // Create user in Supabase users table
+        const { data, error } = await supabase
+          .from('users')
+          .insert({
+            clerk_user_id: id,
+            email: email,
+            full_name: `${first_name || ''} ${last_name || ''}`.trim() || email,
+            role: userRole,
+            timezone: 'UTC',
+            preferences: {},
+            is_active: true,
+            last_login_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating user in Supabase:', error);
+          return new Response('Error: Database sync failed', {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        console.log('Successfully created user in Supabase:', data);
+        break;
       }
 
-      console.log(`User ${id} created in Supabase`)
-    }
+      case 'user.updated': {
+        const { id, email_addresses, first_name, last_name, public_metadata } = evt.data;
 
-    if (type === 'user.updated') {
-      const { id, email_addresses, first_name, last_name } = evt.data as any
+        // Extract primary email
+        const email = email_addresses[0]?.email_address;
 
-      const primaryEmail = email_addresses.find(
-        (email: any) => email.id === (evt.data as any).primary_email_address_id
-      )
+        // Get role from public_metadata if provided
+        const updateData: Record<string, unknown> = {
+          email: email,
+          full_name: `${first_name || ''} ${last_name || ''}`.trim() || email,
+          updated_at: new Date().toISOString(),
+        };
 
-      // Update user in iso_agents table
-      const { error } = await supabase
-        .from('iso_agents')
-        .update({
-          email: primaryEmail?.email_address || '',
-          full_name: `${first_name || ''} ${last_name || ''}`.trim() || null,
-        })
-        .eq('clerk_user_id', id)
+        // Update role if provided in metadata
+        const metadata = public_metadata as Record<string, unknown>;
+        const proposedRole = metadata?.role;
 
-      if (error) {
-        console.error('Error updating user in Supabase:', error)
-        return new Response('Error: Database update failed', { status: 500 })
+        if (typeof proposedRole === 'string') {
+          const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
+          if (VALID_ROLES.includes(proposedRole as any)) {
+            updateData.role = proposedRole;
+            console.log(`[WEBHOOK] Updated role to "${proposedRole}" for user ${id}`);
+          } else {
+            console.warn(`[WEBHOOK] Invalid role "${proposedRole}" ignored for user ${id}`);
+          }
+        }
+
+        // Update user in Supabase
+        const { data, error } = await supabase
+          .from('users')
+          .update(updateData)
+          .eq('clerk_user_id', id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error updating user in Supabase:', error);
+          return new Response('Error: Database update failed', {
+            status: 500
+          });
+        }
+
+        console.log('Successfully updated user in Supabase:', data);
+        break;
       }
 
-      console.log(`User ${id} updated in Supabase`)
-    }
+      case 'user.deleted': {
+        const { id } = evt.data;
 
-    if (type === 'user.deleted') {
-      const { id } = evt.data
+        // Soft delete: mark user as inactive instead of deleting
+        const { data, error } = await supabase
+          .from('users')
+          .update({
+            is_active: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('clerk_user_id', id)
+          .select()
+          .single();
 
-      // Soft delete: set is_active to false
-      const { error } = await supabase
-        .from('iso_agents')
-        .update({ is_active: false })
-        .eq('clerk_user_id', id)
+        if (error) {
+          console.error('Error soft-deleting user in Supabase:', error);
+          return new Response('Error: Database deletion failed', {
+            status: 500
+          });
+        }
 
-      if (error) {
-        console.error('Error deleting user in Supabase:', error)
-        return new Response('Error: Database delete failed', { status: 500 })
+        console.log('Successfully soft-deleted user in Supabase:', data);
+        break;
       }
 
-      console.log(`User ${id} deleted (soft) in Supabase`)
+      default:
+        console.log(`Unhandled event type: ${eventType}`);
     }
 
-    return new Response('Success', { status: 200 })
+    return new Response('Webhook processed successfully', {
+      status: 200
+    });
   } catch (error) {
-    console.error('Webhook handler error:', error)
-    return new Response('Error: Internal server error', { status: 500 })
+    console.error('Error processing webhook:', error);
+    return new Response('Error: Internal server error', {
+      status: 500
+    });
   }
 }

@@ -14,13 +14,13 @@ export async function GET(request: NextRequest) {
     const requestId = searchParams.get('request_id');
     const status = searchParams.get('status');
 
-    const { data: isoAgent } = await supabase.from('iso_agents').select('id').eq('clerk_user_id', userId).single();
-    if (!isoAgent) return NextResponse.json({ error: 'ISO agent not found' }, { status: 404 });
+    const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     let query = supabase
       .from('quotes')
-      .select('*, request:requests!inner(id, departure_airport, arrival_airport, iso_agent_id)')
-      .eq('request.iso_agent_id', isoAgent.id);
+      .select('*, request:requests!inner(id, departure_airport, arrival_airport, user_id)')
+      .eq('request.user_id', user.id);
 
     if (requestId) query = query.eq('request_id', requestId);
     if (status) query = query.eq('status', status);
@@ -42,8 +42,8 @@ export async function PATCH(request: NextRequest) {
     const { quote_id, status, notes } = await request.json();
     if (!quote_id || !status) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
 
-    const { data: isoAgent } = await supabase.from('iso_agents').select('id').eq('clerk_user_id', userId).single();
-    if (!isoAgent) return NextResponse.json({ error: 'ISO agent not found' }, { status: 404 });
+    const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { data: updatedQuote, error } = await supabase
       .from('quotes')

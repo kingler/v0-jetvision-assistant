@@ -76,12 +76,12 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
@@ -134,12 +134,12 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
@@ -197,12 +197,12 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
@@ -251,12 +251,12 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
@@ -297,12 +297,12 @@ describe('GET /api/workflows', () => {
     });
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
@@ -358,12 +358,12 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
@@ -406,12 +406,12 @@ describe('GET /api/workflows', () => {
     });
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'iso-agent-123' },
+                data: { id: 'user-123' },
                 error: null,
               }),
             }),
