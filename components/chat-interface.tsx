@@ -343,7 +343,7 @@ export function ChatInterface({
                     <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
                       <Plane className="w-3 h-3 text-white" />
                     </div>
-                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">JetVision Agent</span>
+                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Jetvision Agent</span>
                   </div>
                 )}
                 <p className="text-sm leading-relaxed">{message.content}</p>
@@ -396,7 +396,7 @@ export function ChatInterface({
                   <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
                     <Plane className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">JetVision Agent</span>
+                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Jetvision Agent</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Loader2 className="w-4 h-4 animate-spin text-blue-600" />

@@ -1,6 +1,6 @@
-# Claude Code Guide - JetVision Multi-Agent System
+# Claude Code Guide - Jetvision Multi-Agent System
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Architecture**: Multi-Agent System with OpenAI Agent SDK + MCP
 **Stack**: Next.js 14, TypeScript, Supabase, BullMQ + Redis
 

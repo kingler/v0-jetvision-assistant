@@ -234,7 +234,7 @@ export async function POST(req: NextRequest) {
  * Build system prompt based on intent
  */
 function buildSystemPrompt(intent?: string): string {
-  const basePrompt = `You are JetVision AI Assistant, a helpful agent for booking private jet flights.
+  const basePrompt = `You are Jetvision AI Assistant, a helpful agent for booking private jet flights.
 
 Your capabilities:
 - Create and manage RFPs (Request for Proposals)
