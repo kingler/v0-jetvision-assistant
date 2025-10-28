@@ -1,3 +1,5 @@
+import type { ChatSession } from '@/components/chat-sidebar'
+
 export interface Operator {
   id: string
   name: string
@@ -212,7 +214,7 @@ export const generateProposal = (
   }
 }
 
-export const useCaseChats = [
+export const useCaseChats: ChatSession[] = [
   {
     id: "1",
     route: "TEB → VNY",

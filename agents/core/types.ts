@@ -6,6 +6,16 @@
 import { OpenAI } from 'openai'
 
 /**
+ * GPT-5 Reasoning Effort Levels
+ */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high'
+
+/**
+ * GPT-5 Text Verbosity Levels
+ */
+export type TextVerbosity = 'low' | 'medium' | 'high'
+
+/**
  * Agent Type Enum
  */
 export enum AgentType {
@@ -35,8 +45,20 @@ export interface AgentConfig {
   type: AgentType
   name: string
   model?: string
+
+  // GPT-5 Responses API parameters (recommended for gpt-5*)
+  reasoning?: {
+    effort?: ReasoningEffort
+  }
+  text?: {
+    verbosity?: TextVerbosity
+  }
+  maxOutputTokens?: number
+
+  // Legacy Chat Completions API parameters (deprecated for GPT-5)
   temperature?: number
   maxTokens?: number
+
   tools?: AgentTool[]
   systemPrompt?: string
   metadata?: Record<string, unknown>

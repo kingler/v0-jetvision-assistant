@@ -6,6 +6,20 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, MessageSquare, CheckCircle, Clock, Loader2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+export interface Quote {
+  id: string
+  operatorName: string
+  aircraftType: string
+  price: number
+  aiScore: number
+  rank: number
+  operatorRating: number
+  departureTime: string
+  arrivalTime: string
+  flightDuration: string
+  isRecommended: boolean
+}
+
 export interface ChatSession {
   id: string
   route: string
@@ -18,6 +32,16 @@ export interface ChatSession {
   operator?: string
   quotesReceived?: number
   quotesTotal?: number
+  basePrice?: number
+  totalPrice?: number
+  margin?: number
+  quotes?: Quote[]
+  selectedQuoteId?: string
+  customer?: {
+    name: string
+    isReturning: boolean
+    preferences: Record<string, string>
+  }
   messages: Array<{
     id: string
     type: "user" | "agent"
@@ -26,6 +50,8 @@ export interface ChatSession {
     showWorkflow?: boolean
     showProposal?: boolean
     showQuoteStatus?: boolean
+    showCustomerPreferences?: boolean
+    showQuotes?: boolean
   }>
 }
 
