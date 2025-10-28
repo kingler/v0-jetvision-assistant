@@ -1,34 +1,36 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `app/` contains App Router segments; colocate each segment’s `loading.tsx`, `error.tsx`, and data loader (see `app/(dashboard)/requests/` for the pattern).
-- UI primitives live in `components/`; feature wrappers like `components/workflow-visualization.tsx` compose them, and shared providers stay near the directory root.
-- Shared logic and API clients sit in `lib/`, reusable hooks in `hooks/`, and MCP adapters in `mcp-servers/`.
-- Keep static assets in `public/`, styling in `styles/`, docs in `docs/`, and reserve `__tests__/unit|integration|e2e/` for automated coverage.
+- `app/` hosts the Next.js 14 App Router; chat flows sit in `app/(chat)` with colocated loading and error states.
+- Shared UI, data helpers, and hooks live in `components/`, `lib/`, and `hooks/`; feature wrappers compose primitives from here.
+- `agents/`, `mcp-servers/`, `scripts/`, and `tasks/` cover agent configs, hosted MCP connectors, task CLIs, and TaskMaster briefs.
+- Tests reside in `__tests__/`, `tests/`, and `test-results/`; docs live in `docs/`, and static assets stay under `public/`.
 
 ## Build, Test, and Development Commands
-- Install dependencies with `pnpm install`; keep the checked-in `pnpm-lock.yaml` authoritative.
-- `pnpm dev` serves the app at `http://localhost:3000`; load env defaults from `.env.local` using keys listed in `docs/PREREQUISITES_CHECKLIST.md`.
-- `pnpm lint` executes the Next.js ESLint/Tailwind suite and doubles as the formatting gate.
-- `pnpm build` compiles and type-checks; run `pnpm start` afterwards for a production smoke test.
+- Install dependencies with `pnpm install`; keep `pnpm-lock.yaml` authoritative.
+- `pnpm dev` runs the app plus MCP dev servers; populate `.env.local` using `docs/PREREQUISITES_CHECKLIST.md`.
+- `pnpm lint`, `pnpm type-check`, and `pnpm build` guard formatting, types, and production bundles; finish with `pnpm start` for smoke tests.
+- Use focused Vitest suites: `pnpm test`, `pnpm test:unit`, `pnpm test:integration`, `pnpm test:agents`, and `pnpm test:coverage`.
 
 ## Coding Style & Naming Conventions
-- Stick to TypeScript, React function components, and 2-space indentation (see `app/layout.tsx`). Prefer server components until client-only APIs are needed.
-- Use kebab-case filenames for single-export components (`components/chat-interface.tsx`) and PascalCase identifiers inside the file.
-- Name hooks and utilities in camelCase, prefixing hooks with `use`; extract repeated Tailwind strings into helpers within `lib/`.
-- Run `pnpm lint` before committing—CI relies on it for both linting and formatting.
+- Use TypeScript, 2-space indentation, and Prettier defaults; prefer server components until client hooks are required.
+- Name files in kebab-case (`chat-interface.tsx`, `operator-availability.ts`) and export PascalCase components with explicit `Props` types.
+- Route handlers belong in `app/api/**/route.ts`; suffix platform-specific helpers with `.server.ts` or `.client.ts`.
+- Reuse existing Tailwind utility patterns; extract repeat styling into helpers in `lib/`.
 
 ## Testing Guidelines
-- Scaffolds under `__tests__/unit`, `__tests__/integration`, and `__tests__/e2e` mirror the future Jest and Playwright setup defined in `docs/IMPLEMENTATION_PLAN.md`.
-- Until automation ships, record manual validation steps in PRs (scenarios run, feature flags, env vars).
-- Align with the documented coverage goals—agents ≥85%, API routes ≥80%, UI ≥70%—once runners are in place, starting with logic in `lib/`.
+- Place unit and integration specs beside code or within `__tests__/unit|integration`; mirror folder structure for discoverability.
+- Mock Responses API streams and hosted MCP tools; commit deterministic fixtures under `tests/`.
+- Track coverage goals (agents ≥85%, API routes ≥80%, UI ≥70%) and verify via `pnpm test:coverage`.
 
 ## Commit & Pull Request Guidelines
-- Current history shows short, sentence-case subjects (`Initialized repository for project JetVision Agent`); keep using imperative, ≤72-character summaries with optional bodies.
-- Each PR needs its purpose, linked issue, UI screenshots/GIFs when relevant, env callouts, and the commands run (`pnpm lint`, `pnpm build`).
-- Rebase on `main` before opening a PR and avoid committing generated artifacts beyond the curated `pnpm-lock.yaml`.
+- Follow Conventional Commits (`feat(scope): summary`) or ticket-scoped variants (`fix(ONEK-49): ...`); keep subjects imperative and ≤72 characters.
+- Group logical changes into focused commits; avoid mixing infra, UI, and data migrations.
+- PRs must describe the change, list validation commands, and attach UI evidence when applicable.
+- Link TaskMaster briefs or issues, and document env or MCP configuration impacts before reviewers approve.
 
 ## Security & Configuration Notes
-- Store secrets in `.env.local` and sync required keys from `docs/PREREQUISITES_CHECKLIST.md`; never commit them.
-- Sentry configs (`sentry.*.config.ts`) auto-initialize—confirm DSNs per environment and strip PII before logging.
-- MCP connectors in `mcp-servers/` hit external systems; mock them in tests and guard new endpoints with feature flags.
+- Keep secrets in `.env.local`; never expose API keys in client bundles or commit histories.
+- Hosted MCP connectors should log tool names/args server-side only; sanitize inputs and rate-limit per session.
+- Sentry configs live in `sentry.*.config.ts`; confirm DSNs per environment and strip PII before logging.
+- Update `tasks/` or `docs/` whenever Responses API, Agents SDK, or security decisions change so future agents inherit context.

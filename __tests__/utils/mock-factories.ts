@@ -63,31 +63,50 @@ export const mockAgentMetrics = (overrides = {}) => ({
  * Database-related mock factories
  */
 
-export const mockISOAgent = (overrides = {}) => ({
+export const mockUser = (overrides = {}) => ({
   id: randomUUID(),
-  name: `Test ISO Agent ${randomString(5)}`,
-  api_key: `key_${randomString(32)}`,
+  clerk_user_id: `user_${randomString(24)}`,
+  email: `${randomString(8)}@example.com`,
+  full_name: `${randomString(6)} ${randomString(8)}`,
+  role: 'sales_rep' as const,
+  avatar_url: null,
+  phone: `+1${randomInt(1000000000, 9999999999)}`,
+  timezone: 'America/New_York',
+  preferences: {
+    emailNotifications: true,
+    theme: 'light',
+  },
+  margin_type: 'percentage' as const,
+  margin_value: 10,
   is_active: true,
+  last_login_at: new Date().toISOString(),
   metadata: {
-    description: 'Test ISO agent for automated testing',
+    description: 'Test user for automated testing',
   },
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...overrides,
 });
 
+/**
+ * @deprecated Use mockUser instead. Kept for backward compatibility during migration.
+ */
+export const mockISOAgent = mockUser;
+
 export const mockClientProfile = (overrides = {}) => ({
   id: randomUUID(),
-  iso_agent_id: randomUUID(),
+  user_id: randomUUID(),
   company_name: `${randomString(8)} Corporation`,
   contact_name: `${randomString(6)} ${randomString(8)}`,
-  contact_email: `${randomString(8)}@example.com`,
-  contact_phone: `+1${randomInt(1000000000, 9999999999)}`,
+  email: `${randomString(8)}@example.com`,
+  phone: `+1${randomInt(1000000000, 9999999999)}`,
   preferences: {
     preferredAircraft: ['Citation X', 'Gulfstream G650'],
     budgetRange: { min: 50000, max: 150000 },
     emailFormat: 'detailed',
   },
+  notes: null,
+  is_active: true,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...overrides,
@@ -95,15 +114,17 @@ export const mockClientProfile = (overrides = {}) => ({
 
 export const mockRFPRequest = (overrides = {}) => ({
   id: randomUUID(),
-  iso_agent_id: randomUUID(),
+  user_id: randomUUID(),
   client_profile_id: randomUUID(),
   departure_airport: 'KJFK',
   arrival_airport: 'KLAX',
   departure_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   return_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
   passengers: randomInt(4, 12),
-  status: 'draft',
-  workflow_state: 'created',
+  aircraft_type: null,
+  budget: null,
+  special_requirements: null,
+  status: 'draft' as const,
   metadata: {
     notes: 'Test RFP request',
   },
@@ -115,15 +136,28 @@ export const mockRFPRequest = (overrides = {}) => ({
 export const mockQuote = (overrides = {}) => ({
   id: randomUUID(),
   request_id: randomUUID(),
-  iso_agent_id: randomUUID(),
+  operator_id: randomUUID(),
   operator_name: `${randomString(8)} Aviation`,
+  base_price: randomInt(40000, 100000),
+  fuel_surcharge: randomInt(5000, 15000),
+  taxes: randomInt(2000, 8000),
+  fees: randomInt(1000, 5000),
+  total_price: randomInt(50000, 150000),
   aircraft_type: 'Citation X',
-  price: randomInt(50000, 150000),
-  ai_score: Math.random() * 100,
-  response_data: {
-    tailNumber: `N${randomInt(100, 999)}XX`,
-    availability: 'confirmed',
+  aircraft_tail_number: `N${randomInt(100, 999)}XX`,
+  aircraft_details: {
+    manufacturer: 'Cessna',
+    model: 'Citation X',
+    year: 2020,
+    seats: 12,
   },
+  availability_confirmed: true,
+  valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  score: Math.random() * 100,
+  ranking: randomInt(1, 10),
+  analysis_notes: null,
+  status: 'received' as const,
+  metadata: {},
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...overrides,
@@ -223,12 +257,19 @@ export const mockSupabaseError = (message = 'Database error', overrides = {}) =>
  * Authentication-related mock factories
  */
 
-export const mockUser = (overrides = {}) => ({
-  id: randomUUID(),
-  email: `${randomString(8)}@example.com`,
-  name: `${randomString(6)} ${randomString(8)}`,
-  role: 'user',
-  createdAt: new Date().toISOString(),
+export const mockClerkUser = (overrides = {}) => ({
+  id: `user_${randomString(24)}`,
+  email_addresses: [{
+    id: randomUUID(),
+    email_address: `${randomString(8)}@example.com`,
+  }],
+  first_name: randomString(6),
+  last_name: randomString(8),
+  image_url: null,
+  public_metadata: { role: 'sales_rep' },
+  private_metadata: {},
+  created_at: Date.now(),
+  updated_at: Date.now(),
   ...overrides,
 });
 
