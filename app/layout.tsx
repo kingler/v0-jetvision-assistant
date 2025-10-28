@@ -7,7 +7,7 @@ import Script from "next/script"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "JetVision Agent",
+  title: "Jetvision Agent",
   description: "AI-powered private jet booking assistant",
   generator: "v0.app",
 }

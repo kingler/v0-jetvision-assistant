@@ -16,7 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 
 type View = "landing" | "chat" | "workflow" | "settings"
 
-export default function JetVisionAgent() {
+export default function JetvisionAgent() {
   const { user, isLoaded } = useUser()
   const router = useRouter()
 
@@ -143,7 +143,7 @@ export default function JetVisionAgent() {
                 </Button>
                 <Image
                   src="/images/jetvision-logo.png"
-                  alt="JetVision"
+                  alt="Jetvision"
                   width={120}
                   height={32}
                   className="h-6 sm:h-7 w-auto flex-shrink-0"

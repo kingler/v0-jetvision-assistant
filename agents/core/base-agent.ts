@@ -332,7 +332,7 @@ export abstract class BaseAgent implements IAgent {
   protected getSystemPrompt(): string {
     return (
       this.config.systemPrompt ||
-      `You are ${this.name}, a specialized AI agent for the JetVision system.`
+      `You are ${this.name}, a specialized AI agent for the Jetvision system.`
     )
   }
 }

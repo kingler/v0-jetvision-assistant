@@ -24,7 +24,7 @@ const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
 });
 
 async function seedDatabase() {
-  console.log('🌱 Seeding JetVision database...\n');
+  console.log('🌱 Seeding Jetvision database...\n');
 
   try {
     // 1. Seed ISO Agents
@@ -42,7 +42,7 @@ async function seedDatabase() {
           margin_value: 15.0,
           is_active: true,
           metadata: {
-            company: 'JetVision West',
+            company: 'Jetvision West',
             territory: 'US-West',
             preferred_operators: ['NetJets', 'VistaJet'],
           },
@@ -57,7 +57,7 @@ async function seedDatabase() {
           margin_value: 5000.0,
           is_active: true,
           metadata: {
-            company: 'JetVision East',
+            company: 'Jetvision East',
             territory: 'US-East',
             preferred_operators: ['FlexJet', 'Wheels Up'],
           },
@@ -72,7 +72,7 @@ async function seedDatabase() {
           margin_value: 0.0,
           is_active: true,
           metadata: {
-            company: 'JetVision HQ',
+            company: 'Jetvision HQ',
             access_level: 'full',
           },
         },

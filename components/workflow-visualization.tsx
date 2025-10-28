@@ -125,7 +125,7 @@ export function WorkflowVisualization({
     {
       id: "5",
       title: "Generate Proposal",
-      description: "Creating JetVision branded quote",
+      description: "Creating Jetvision branded quote",
       status: getStepStatus("5"),
       icon: <FileText className="w-5 h-5" />,
       isExpanded: false,
@@ -242,7 +242,7 @@ export function WorkflowVisualization({
           if (stepStatus === "completed" && stepData && stepData.proposalGenerated) {
             return [
               "Applied margin settings",
-              "Created JetVision branded quote",
+              "Created Jetvision branded quote",
               "Proposal ready for client"
             ]
           }
