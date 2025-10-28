@@ -17,6 +17,8 @@ export default function SignInPage() {
             elements: {
               rootBox: 'mx-auto',
               card: 'shadow-xl',
+              headerTitle: 'hidden',
+              headerSubtitle: 'hidden',
             },
           }}
           routing="path"

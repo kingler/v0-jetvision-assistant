@@ -17,6 +17,8 @@ export default function SignUpPage() {
             elements: {
               rootBox: 'mx-auto',
               card: 'shadow-xl',
+              headerTitle: 'hidden',
+              headerSubtitle: 'hidden',
             },
           }}
           routing="path"
