@@ -195,3 +195,11 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
     </div>
   )
 }
+
+// Re-export types for backward compatibility
+export type {
+  ChatSession,
+  ChatMessage,
+  ChatSessionStatus,
+  Customer,
+} from '@/lib/types'

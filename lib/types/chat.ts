@@ -12,7 +12,7 @@ export interface Customer {
   phone?: string;
   company?: string;
   isReturning?: boolean;
-  preferences?: Record<string, any>;
+  preferences?: Record<string, unknown>;
 }
 
 /**
