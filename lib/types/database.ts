@@ -36,9 +36,12 @@ export enum QuoteStatus {
 }
 
 export enum UserRole {
-  ISO_AGENT = 'iso_agent',
+  SALES_REP = 'sales_rep',
   ADMIN = 'admin',
+  CUSTOMER = 'customer',
   OPERATOR = 'operator',
+  // Legacy - kept for migration compatibility
+  ISO_AGENT = 'iso_agent',
 }
 
 export enum MarginType {
@@ -68,10 +71,11 @@ export enum AgentType {
 // ============================================================================
 
 /**
- * ISO Agent (User Profile)
+ * User Profile
  * Synced from Clerk authentication service
+ * Supports multiple roles: sales_rep, admin, customer, operator
  */
-export interface ISOAgent {
+export interface User {
   id: string;
   clerk_user_id: string;
   email: string;
@@ -80,18 +84,29 @@ export interface ISOAgent {
   margin_type: MarginType | null;
   margin_value: number | null;
   is_active: boolean;
-  metadata: Record<string, any>;
+  avatar_url: string | null;
+  phone: string | null;
+  timezone: string;
+  preferences: Record<string, unknown>;
+  last_login_at: string | null;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
 
 /**
+ * @deprecated Use User interface instead
+ * Legacy type alias for backward compatibility during migration
+ */
+export type ISOAgent = User;
+
+/**
  * Client Profile
- * Client information managed by ISO agents
+ * Client information managed by users (sales reps)
  */
 export interface ClientProfile {
   id: string;
-  iso_agent_id: string;
+  user_id: string; // Updated from iso_agent_id
   company_name: string;
   contact_name: string;
   email: string;
@@ -119,11 +134,11 @@ export interface ClientPreferences {
 
 /**
  * Flight Request (RFP)
- * Flight requests submitted by ISO agents
+ * Flight requests submitted by users (sales reps or customers)
  */
 export interface Request {
   id: string;
-  iso_agent_id: string;
+  user_id: string; // Updated from iso_agent_id
   client_profile_id: string | null;
   departure_airport: string;
   arrival_airport: string;
@@ -406,7 +421,11 @@ export interface Database {
     };
     Views: {};
     Functions: {
-      get_current_iso_agent_id: {
+      get_current_user_id: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      get_current_iso_agent_id: { // @deprecated - use get_current_user_id
         Args: Record<string, never>;
         Returns: string;
       };
@@ -414,8 +433,16 @@ export interface Database {
         Args: Record<string, never>;
         Returns: boolean;
       };
+      is_sales_rep: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      is_customer: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
       owns_resource: {
-        Args: { resource_agent_id: string };
+        Args: { resource_user_id: string };
         Returns: boolean;
       };
     };
@@ -496,7 +523,7 @@ export function isRequest(obj: any): obj is Request {
     typeof obj === 'object' &&
     obj !== null &&
     typeof obj.id === 'string' &&
-    typeof obj.iso_agent_id === 'string' &&
+    typeof obj.user_id === 'string' && // Updated from iso_agent_id
     typeof obj.departure_airport === 'string' &&
     Object.values(RequestStatus).includes(obj.status)
   );
