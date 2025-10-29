@@ -19,7 +19,7 @@ import {
  * - Service role bypass (for system operations)
  */
 
-describe('RLS Policies - iso_agents Table', () => {
+describe('RLS Policies - users Table', () => {
   let serviceClient: TestSupabaseClient
   let anonClient: TestSupabaseClient
   let testUser1ClerkId: string
@@ -52,9 +52,9 @@ describe('RLS Policies - iso_agents Table', () => {
     await cleanupTestData(serviceClient, testUser2ClerkId)
   })
 
-  it('should prevent anon client from reading iso_agents without auth', async () => {
+  it('should prevent anon client from reading users without auth', async () => {
     const { data, error } = await anonClient
-      .from('iso_agents')
+      .from('users')
       .select('*')
       .eq('id', testUser1Id)
 
@@ -62,13 +62,14 @@ describe('RLS Policies - iso_agents Table', () => {
     expect(data).toEqual([]) // Empty array or null
   })
 
-  it('should prevent anon client from inserting into iso_agents', async () => {
+  it('should prevent anon client from inserting into users', async () => {
     const { error } = await anonClient
-      .from('iso_agents')
+      .from('users')
       .insert({
         clerk_user_id: `test_anon_insert_${Date.now()}`,
         email: `anon@test.com`,
-        role: 'broker',
+        full_name: 'Test User',
+        role: 'sales_rep',
       })
 
     // Should be rejected by RLS
@@ -76,7 +77,7 @@ describe('RLS Policies - iso_agents Table', () => {
   })
 })
 
-describe('RLS Policies - iso_flight_requests Table', () => {
+describe('RLS Policies - requests Table', () => {
   let serviceClient: TestSupabaseClient
   let user1Client: TestSupabaseClient
   let user2Client: TestSupabaseClient

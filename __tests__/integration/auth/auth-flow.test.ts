@@ -24,7 +24,7 @@ describe('Clerk + Supabase User Synchronization', () => {
 
       const supabase = await createClient()
       const { data: user, error } = await supabase
-        .from('iso_agents')
+        .from('users')
         .select('*')
         .eq('clerk_user_id', userId)
         .single()
@@ -33,7 +33,7 @@ describe('Clerk + Supabase User Synchronization', () => {
       expect(user).toBeDefined()
       expect(user?.clerk_user_id).toBe(userId)
       expect(user?.email).toBeDefined()
-      expect(user?.role).toBe('broker')
+      expect(user?.role).toBe('sales_rep')
     })
 
     it('should create user with correct default values', async () => {
@@ -41,12 +41,12 @@ describe('Clerk + Supabase User Synchronization', () => {
       const supabase = await createClient()
 
       const { data: user } = await supabase
-        .from('iso_agents')
+        .from('users')
         .select('*')
         .eq('clerk_user_id', userId)
         .single()
 
-      expect(user?.role).toBe('broker')
+      expect(user?.role).toBe('sales_rep')
       expect(user?.margin_type).toBe('percentage')
       expect(user?.margin_value).toBeGreaterThanOrEqual(0)
       expect(user?.is_active).toBe(true)
@@ -59,7 +59,7 @@ describe('Clerk + Supabase User Synchronization', () => {
       const supabase = await createClient()
 
       const { data: user } = await supabase
-        .from('iso_agents')
+        .from('users')
         .select('*')
         .eq('clerk_user_id', userId)
         .single()
@@ -85,7 +85,7 @@ describe('Clerk + Supabase User Synchronization', () => {
 
       // Update in Supabase (this would happen via webhook)
       const { data: updated } = await supabase
-        .from('iso_agents')
+        .from('users')
         .update({
           email: updatedEmail,
           full_name: updatedName,
@@ -119,7 +119,7 @@ describe('Clerk + Supabase User Synchronization', () => {
 
       // Soft delete or mark inactive
       const { data: deleted } = await supabase
-        .from('iso_agents')
+        .from('users')
         .update({ is_active: false })
         .eq('clerk_user_id', testUserId)
         .select()
@@ -308,7 +308,7 @@ describe('Webhook Handler', () => {
       // Verify user was created in Supabase
       const supabase = await createClient()
       const { data: user } = await supabase
-        .from('iso_agents')
+        .from('users')
         .select('*')
         .eq('clerk_user_id', 'user_test123')
         .single()
@@ -370,7 +370,7 @@ describe('Webhook Handler', () => {
       // Verify user was soft-deleted
       const supabase = await createClient()
       const { data: user } = await supabase
-        .from('iso_agents')
+        .from('users')
         .select('*')
         .eq('clerk_user_id', 'user_test123')
         .single()
@@ -392,7 +392,7 @@ describe('Row Level Security (RLS)', () => {
 
       // All requests should belong to current user
       requests?.forEach(request => {
-        expect(request.iso_agent_id).toBe(userId)
+        expect(request.user_id).toBe(userId)
       })
     })
 
@@ -406,7 +406,7 @@ describe('Row Level Security (RLS)', () => {
       const { data, error } = await supabase
         .from('requests')
         .select('*')
-        .eq('iso_agent_id', otherUserId)
+        .eq('user_id', otherUserId)
 
       // Should return empty array due to RLS
       expect(data).toEqual([])

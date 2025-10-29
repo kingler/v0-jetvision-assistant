@@ -8,7 +8,7 @@ import { createTestClient, TestSupabaseClient, tableExists } from '@tests/utils/
  * Expected behavior: Tests will FAIL until schema is deployed
  *
  * Coverage areas:
- * - Table existence (7 tables)
+ * - Table existence (6 core tables)
  * - Column structure and types
  * - Indexes and constraints
  * - Foreign key relationships
@@ -21,52 +21,52 @@ describe('Database Schema - Table Existence', () => {
     supabase = await createTestClient()
   })
 
-  it('should have iso_agents table', async () => {
-    const exists = await tableExists(supabase, 'iso_agents')
+  it('should have users table', async () => {
+    const exists = await tableExists(supabase, 'users')
     expect(exists).toBe(true)
   })
 
-  it('should have iso_clients table', async () => {
-    const exists = await tableExists(supabase, 'iso_clients')
+  it('should have client_profiles table', async () => {
+    const exists = await tableExists(supabase, 'client_profiles')
     expect(exists).toBe(true)
   })
 
-  it('should have iso_flight_requests table', async () => {
-    const exists = await tableExists(supabase, 'iso_flight_requests')
+  it('should have requests table', async () => {
+    const exists = await tableExists(supabase, 'requests')
     expect(exists).toBe(true)
   })
 
-  it('should have iso_quotes table', async () => {
-    const exists = await tableExists(supabase, 'iso_quotes')
+  it('should have quotes table', async () => {
+    const exists = await tableExists(supabase, 'quotes')
     expect(exists).toBe(true)
   })
 
-  it('should have iso_proposals table', async () => {
-    const exists = await tableExists(supabase, 'iso_proposals')
+  it('should have proposals table', async () => {
+    const exists = await tableExists(supabase, 'proposals')
     expect(exists).toBe(true)
   })
 
-  it('should have iso_communications table', async () => {
-    const exists = await tableExists(supabase, 'iso_communications')
+  it('should have workflow_states table', async () => {
+    const exists = await tableExists(supabase, 'workflow_states')
     expect(exists).toBe(true)
   })
 
-  it('should have iso_workflow_history table', async () => {
-    const exists = await tableExists(supabase, 'iso_workflow_history')
+  it('should have agent_executions table', async () => {
+    const exists = await tableExists(supabase, 'agent_executions')
     expect(exists).toBe(true)
   })
 })
 
-describe('Database Schema - iso_agents Table', () => {
+describe('Database Schema - users Table', () => {
   let supabase: TestSupabaseClient
 
   beforeAll(async () => {
     supabase = await createTestClient()
   })
 
-  it('should have correct columns in iso_agents table', async () => {
+  it('should have correct columns in users table', async () => {
     const { data, error } = await supabase
-      .from('iso_agents')
+      .from('users')
       .select('*')
       .limit(1)
 
@@ -75,11 +75,12 @@ describe('Database Schema - iso_agents Table', () => {
     // If table is empty, insert a test row to get schema
     if (!data || data.length === 0) {
       const { data: inserted } = await supabase
-        .from('iso_agents')
+        .from('users')
         .insert({
           clerk_user_id: 'test_schema_check',
           email: 'schema@test.com',
-          role: 'broker',
+          full_name: 'Test User',
+          role: 'sales_rep',
         })
         .select()
         .single()
@@ -87,7 +88,7 @@ describe('Database Schema - iso_agents Table', () => {
       const schema = Object.keys(inserted || {})
 
       // Clean up
-      await supabase.from('iso_agents').delete().eq('clerk_user_id', 'test_schema_check')
+      await supabase.from('users').delete().eq('clerk_user_id', 'test_schema_check')
 
       expect(schema).toContain('id')
       expect(schema).toContain('clerk_user_id')
@@ -97,6 +98,11 @@ describe('Database Schema - iso_agents Table', () => {
       expect(schema).toContain('margin_type')
       expect(schema).toContain('margin_value')
       expect(schema).toContain('is_active')
+      expect(schema).toContain('avatar_url')
+      expect(schema).toContain('phone')
+      expect(schema).toContain('timezone')
+      expect(schema).toContain('preferences')
+      expect(schema).toContain('last_login_at')
       expect(schema).toContain('created_at')
       expect(schema).toContain('updated_at')
     } else {
@@ -112,29 +118,31 @@ describe('Database Schema - iso_agents Table', () => {
 
     // Insert first record
     const { error: error1 } = await supabase
-      .from('iso_agents')
+      .from('users')
       .insert({
         clerk_user_id: testId,
         email: `${testId}@test.com`,
-        role: 'broker',
+        full_name: 'Test User',
+        role: 'sales_rep',
       })
 
     expect(error1).toBeNull()
 
     // Try to insert duplicate clerk_user_id
     const { error: error2 } = await supabase
-      .from('iso_agents')
+      .from('users')
       .insert({
         clerk_user_id: testId,
         email: `${testId}_2@test.com`,
-        role: 'broker',
+        full_name: 'Test User 2',
+        role: 'sales_rep',
       })
 
     expect(error2).toBeDefined()
     expect(error2?.code).toBe('23505') // unique_violation
 
     // Cleanup
-    await supabase.from('iso_agents').delete().eq('clerk_user_id', testId)
+    await supabase.from('users').delete().eq('clerk_user_id', testId)
   })
 
   it('should enforce unique constraint on email', async () => {
@@ -142,42 +150,44 @@ describe('Database Schema - iso_agents Table', () => {
 
     // Insert first record
     const { error: error1 } = await supabase
-      .from('iso_agents')
+      .from('users')
       .insert({
         clerk_user_id: `test1_${Date.now()}`,
         email: testEmail,
-        role: 'broker',
+        full_name: 'Test User 1',
+        role: 'sales_rep',
       })
 
     expect(error1).toBeNull()
 
     // Try to insert duplicate email
     const { error: error2 } = await supabase
-      .from('iso_agents')
+      .from('users')
       .insert({
         clerk_user_id: `test2_${Date.now()}`,
         email: testEmail,
-        role: 'broker',
+        full_name: 'Test User 2',
+        role: 'sales_rep',
       })
 
     expect(error2).toBeDefined()
     expect(error2?.code).toBe('23505') // unique_violation
 
     // Cleanup
-    await supabase.from('iso_agents').delete().eq('email', testEmail)
+    await supabase.from('users').delete().eq('email', testEmail)
   })
 })
 
-describe('Database Schema - iso_clients Table', () => {
+describe('Database Schema - client_profiles Table', () => {
   let supabase: TestSupabaseClient
 
   beforeAll(async () => {
     supabase = await createTestClient()
   })
 
-  it('should have correct columns in iso_clients table', async () => {
+  it('should have correct columns in client_profiles table', async () => {
     const { data, error } = await supabase
-      .from('iso_clients')
+      .from('client_profiles')
       .select('*')
       .limit(1)
 
@@ -187,7 +197,7 @@ describe('Database Schema - iso_clients Table', () => {
     if (data && data.length > 0) {
       const schema = Object.keys(data[0])
       expect(schema).toContain('id')
-      expect(schema).toContain('agent_id')
+      expect(schema).toContain('user_id')
       expect(schema).toContain('company_name')
       expect(schema).toContain('contact_name')
       expect(schema).toContain('email')
@@ -195,27 +205,28 @@ describe('Database Schema - iso_clients Table', () => {
     }
   })
 
-  it('should have foreign key relationship to iso_agents', async () => {
+  it('should have foreign key relationship to users', async () => {
     const testUserId = `test_fk_${Date.now()}`
 
     // Create test user
     const { data: user } = await supabase
-      .from('iso_agents')
+      .from('users')
       .insert({
         clerk_user_id: testUserId,
         email: `${testUserId}@test.com`,
-        role: 'broker',
+        full_name: 'Test User',
+        role: 'sales_rep',
       })
       .select('id')
       .single()
 
     expect(user).toBeDefined()
 
-    // Try to create client with invalid agent_id (should fail)
+    // Try to create client with invalid user_id (should fail)
     const { error } = await supabase
-      .from('iso_clients')
+      .from('client_profiles')
       .insert({
-        agent_id: '00000000-0000-0000-0000-000000000000', // Invalid UUID
+        user_id: '00000000-0000-0000-0000-000000000000', // Invalid UUID
         company_name: 'Test Company',
         contact_name: 'Test Contact',
         email: 'test@company.com',
@@ -225,20 +236,20 @@ describe('Database Schema - iso_clients Table', () => {
     expect(error?.code).toBe('23503') // foreign_key_violation
 
     // Cleanup
-    await supabase.from('iso_agents').delete().eq('clerk_user_id', testUserId)
+    await supabase.from('users').delete().eq('clerk_user_id', testUserId)
   })
 })
 
-describe('Database Schema - iso_flight_requests Table', () => {
+describe('Database Schema - requests Table', () => {
   let supabase: TestSupabaseClient
 
   beforeAll(async () => {
     supabase = await createTestClient()
   })
 
-  it('should have correct columns in iso_flight_requests table', async () => {
+  it('should have correct columns in requests table', async () => {
     const { data, error } = await supabase
-      .from('iso_flight_requests')
+      .from('requests')
       .select('*')
       .limit(1)
 
@@ -247,15 +258,14 @@ describe('Database Schema - iso_flight_requests Table', () => {
     if (data && data.length > 0) {
       const schema = Object.keys(data[0])
       expect(schema).toContain('id')
-      expect(schema).toContain('agent_id')
-      expect(schema).toContain('client_id')
+      expect(schema).toContain('user_id')
+      expect(schema).toContain('client_profile_id')
       expect(schema).toContain('departure_airport')
       expect(schema).toContain('arrival_airport')
       expect(schema).toContain('departure_date')
       expect(schema).toContain('return_date')
       expect(schema).toContain('passengers')
       expect(schema).toContain('status')
-      expect(schema).toContain('workflow_state')
     }
   })
 
@@ -264,45 +274,46 @@ describe('Database Schema - iso_flight_requests Table', () => {
 
     // Create test user
     const { data: user } = await supabase
-      .from('iso_agents')
+      .from('users')
       .insert({
         clerk_user_id: testUserId,
         email: `${testUserId}@test.com`,
-        role: 'broker',
+        full_name: 'Test User',
+        role: 'sales_rep',
       })
       .select('id')
       .single()
 
-    // Try to create flight request with invalid status
+    // Try to create request with invalid status
     const { error } = await supabase
-      .from('iso_flight_requests')
+      .from('requests')
       .insert({
-        agent_id: user!.id,
+        user_id: user!.id,
         departure_airport: 'TEB',
         arrival_airport: 'VNY',
         departure_date: '2025-12-01',
         passengers: 4,
-        status: 'invalid_status', // Should fail if CHECK constraint exists
+        status: 'invalid_status', // Should fail if enum constraint exists
       })
 
-    // Note: This test depends on CHECK constraint implementation
+    // Note: This test depends on enum constraint implementation
     // May pass if constraint isn't strict
 
     // Cleanup
-    await supabase.from('iso_agents').delete().eq('clerk_user_id', testUserId)
+    await supabase.from('users').delete().eq('clerk_user_id', testUserId)
   })
 })
 
-describe('Database Schema - iso_quotes Table', () => {
+describe('Database Schema - quotes Table', () => {
   let supabase: TestSupabaseClient
 
   beforeAll(async () => {
     supabase = await createTestClient()
   })
 
-  it('should have correct columns in iso_quotes table', async () => {
+  it('should have correct columns in quotes table', async () => {
     const { data, error } = await supabase
-      .from('iso_quotes')
+      .from('quotes')
       .select('*')
       .limit(1)
 
@@ -311,24 +322,28 @@ describe('Database Schema - iso_quotes Table', () => {
     if (data && data.length > 0) {
       const schema = Object.keys(data[0])
       expect(schema).toContain('id')
-      expect(schema).toContain('flight_request_id')
+      expect(schema).toContain('request_id')
       expect(schema).toContain('operator_name')
       expect(schema).toContain('aircraft_type')
-      expect(schema).toContain('price')
-      expect(schema).toContain('currency')
+      expect(schema).toContain('base_price')
+      expect(schema).toContain('total_price')
     }
   })
 
-  it('should have foreign key to iso_flight_requests', async () => {
-    // Try to insert quote with non-existent flight_request_id
+  it('should have foreign key to requests', async () => {
+    // Try to insert quote with non-existent request_id
     const { error } = await supabase
-      .from('iso_quotes')
+      .from('quotes')
       .insert({
-        flight_request_id: '00000000-0000-0000-0000-000000000000',
+        request_id: '00000000-0000-0000-0000-000000000000',
+        operator_id: 'test-operator',
         operator_name: 'Test Operator',
         aircraft_type: 'Citation X',
-        price: 25000,
-        currency: 'USD',
+        base_price: 25000,
+        fuel_surcharge: 0,
+        taxes: 0,
+        fees: 0,
+        total_price: 25000,
       })
 
     expect(error).toBeDefined()
@@ -336,16 +351,16 @@ describe('Database Schema - iso_quotes Table', () => {
   })
 })
 
-describe('Database Schema - iso_proposals Table', () => {
+describe('Database Schema - proposals Table', () => {
   let supabase: TestSupabaseClient
 
   beforeAll(async () => {
     supabase = await createTestClient()
   })
 
-  it('should have correct columns in iso_proposals table', async () => {
+  it('should have correct columns in proposals table', async () => {
     const { data, error } = await supabase
-      .from('iso_proposals')
+      .from('proposals')
       .select('*')
       .limit(1)
 
@@ -354,7 +369,7 @@ describe('Database Schema - iso_proposals Table', () => {
     if (data && data.length > 0) {
       const schema = Object.keys(data[0])
       expect(schema).toContain('id')
-      expect(schema).toContain('flight_request_id')
+      expect(schema).toContain('request_id')
       expect(schema).toContain('ranked_quotes')
       expect(schema).toContain('selected_quote_id')
       expect(schema).toContain('margin_applied')
@@ -362,16 +377,16 @@ describe('Database Schema - iso_proposals Table', () => {
   })
 })
 
-describe('Database Schema - iso_communications Table', () => {
+describe('Database Schema - workflow_states Table', () => {
   let supabase: TestSupabaseClient
 
   beforeAll(async () => {
     supabase = await createTestClient()
   })
 
-  it('should have correct columns in iso_communications table', async () => {
+  it('should have correct columns in workflow_states table', async () => {
     const { data, error } = await supabase
-      .from('iso_communications')
+      .from('workflow_states')
       .select('*')
       .limit(1)
 
@@ -380,26 +395,25 @@ describe('Database Schema - iso_communications Table', () => {
     if (data && data.length > 0) {
       const schema = Object.keys(data[0])
       expect(schema).toContain('id')
-      expect(schema).toContain('flight_request_id')
-      expect(schema).toContain('direction')
-      expect(schema).toContain('recipient')
-      expect(schema).toContain('subject')
-      expect(schema).toContain('body')
-      expect(schema).toContain('sent_at')
+      expect(schema).toContain('request_id')
+      expect(schema).toContain('current_state')
+      expect(schema).toContain('previous_state')
+      expect(schema).toContain('state_entered_at')
+      expect(schema).toContain('metadata')
     }
   })
 })
 
-describe('Database Schema - iso_workflow_history Table', () => {
+describe('Database Schema - agent_executions Table', () => {
   let supabase: TestSupabaseClient
 
   beforeAll(async () => {
     supabase = await createTestClient()
   })
 
-  it('should have correct columns in iso_workflow_history table', async () => {
+  it('should have correct columns in agent_executions table', async () => {
     const { data, error } = await supabase
-      .from('iso_workflow_history')
+      .from('agent_executions')
       .select('*')
       .limit(1)
 
@@ -408,10 +422,11 @@ describe('Database Schema - iso_workflow_history Table', () => {
     if (data && data.length > 0) {
       const schema = Object.keys(data[0])
       expect(schema).toContain('id')
-      expect(schema).toContain('flight_request_id')
-      expect(schema).toContain('from_state')
-      expect(schema).toContain('to_state')
-      expect(schema).toContain('transitioned_at')
+      expect(schema).toContain('request_id')
+      expect(schema).toContain('agent_type')
+      expect(schema).toContain('agent_id')
+      expect(schema).toContain('status')
+      expect(schema).toContain('started_at')
       expect(schema).toContain('metadata')
     }
   })
