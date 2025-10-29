@@ -9,4 +9,5 @@ export type {
   ChatMessage,
   ChatSessionStatus,
   Customer,
+  CustomerPreferences,
 } from './chat';

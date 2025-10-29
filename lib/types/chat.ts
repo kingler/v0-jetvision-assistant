@@ -4,6 +4,17 @@
  */
 
 /**
+ * Customer preferences for flight services
+ */
+export interface CustomerPreferences {
+  catering?: string;
+  groundTransport?: string;
+  aircraftType?: string;
+  dietaryRestrictions?: string[];
+  [key: string]: unknown; // Allow additional preferences
+}
+
+/**
  * Customer information for personalization
  */
 export interface Customer {
@@ -12,7 +23,7 @@ export interface Customer {
   phone?: string;
   company?: string;
   isReturning?: boolean;
-  preferences?: Record<string, unknown>;
+  preferences?: CustomerPreferences;
 }
 
 /**

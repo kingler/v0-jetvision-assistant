@@ -202,4 +202,5 @@ export type {
   ChatMessage,
   ChatSessionStatus,
   Customer,
+  CustomerPreferences,
 } from '@/lib/types'
