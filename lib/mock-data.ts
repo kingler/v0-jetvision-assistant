@@ -1,4 +1,4 @@
-import type { ChatSession } from '@/lib/types';
+import type { ChatSession } from '@/components/chat-sidebar'
 
 export interface Operator {
   id: string

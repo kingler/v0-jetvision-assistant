@@ -1,4 +1,4 @@
-# JetVision AI Assistant
+# Jetvision AI Assistant
 
 **AI-Powered Private Jet Booking RFP Automation System**
 
@@ -54,11 +54,14 @@ OpenAI model configuration:
 - Agent-specific configurations
 - Rate limiting and retry logic
 
+### 🤝 [**AGENTS.md**](./AGENTS.md)
+Contributor playbook covering project layout, build/test commands, coding style, and MCP/Responses integration notes for new collaborators.
+
 ---
 
 ## 🌟 Overview
 
-**JetVision AI Assistant** is a production-ready multi-agent AI system for automating private jet booking RFP (Request for Proposal) workflows. The system uses 6 specialized AI agents powered by OpenAI GPT-5 to intelligently orchestrate the entire booking process from initial client request to final proposal delivery.
+**Jetvision AI Assistant** is a production-ready multi-agent AI system for automating private jet booking RFP (Request for Proposal) workflows. The system uses 6 specialized AI agents powered by OpenAI GPT-5 to intelligently orchestrate the entire booking process from initial client request to final proposal delivery.
 
 ### Key Features
 

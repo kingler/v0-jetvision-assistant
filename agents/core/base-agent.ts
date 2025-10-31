@@ -129,9 +129,99 @@ export abstract class BaseAgent implements IAgent {
   }
 
   /**
-   * Create a chat completion with OpenAI
+   * Create a response with GPT-5 Responses API (Recommended)
+   *
+   * Use this method for all GPT-5 model interactions.
+   * Automatically falls back to Chat Completions for non-GPT-5 models.
+   *
+   * @param input - The input prompt or query
+   * @param context - Optional agent context with metadata
+   * @returns Response from GPT-5 or Chat Completions API
    */
-  protected async createChatCompletion(
+  protected async createResponse(
+    input: string,
+    context?: AgentContext
+  ): Promise<any> {
+    this._status = AgentStatus.RUNNING
+    const startTime = Date.now()
+
+    try {
+      const model = this.config.model || 'gpt-5'
+      const isGPT5 = model.startsWith('gpt-5')
+
+      let response: any
+
+      if (isGPT5) {
+        // Use Responses API for GPT-5 models
+        const requestParams: any = {
+          model,
+          input,
+          reasoning: {
+            effort: this.config.reasoning?.effort || 'medium',
+          },
+          text: {
+            verbosity: this.config.text?.verbosity || 'medium',
+          },
+          max_output_tokens: this.config.maxOutputTokens || 4096,
+          tools: this.getToolDefinitions().length > 0
+            ? this.getToolDefinitions()
+            : undefined,
+        }
+
+        // Chain of thought: pass previous response ID if available
+        if (context?.metadata?.previousResponseId) {
+          requestParams.previous_response_id = context.metadata.previousResponseId
+        }
+
+        response = await (this.openai as any).responses.create(requestParams)
+      } else {
+        // Fallback to Chat Completions for non-GPT-5 models
+        const messages: AgentMessage[] = [
+          {
+            role: 'system',
+            content: this.getSystemPrompt(),
+            timestamp: new Date(),
+          },
+          {
+            role: 'user',
+            content: input,
+            timestamp: new Date(),
+          },
+        ]
+        response = await this.createChatCompletionLegacy(messages, context)
+      }
+
+      // Update metrics
+      const executionTime = Date.now() - startTime
+      this.metrics.totalExecutions++
+      this.metrics.successfulExecutions++
+      this.metrics.averageExecutionTime =
+        (this.metrics.averageExecutionTime * (this.metrics.totalExecutions - 1) +
+          executionTime) /
+        this.metrics.totalExecutions
+
+      if (response.usage) {
+        this.metrics.totalTokensUsed += response.usage.total_tokens
+      }
+
+      this.metrics.lastExecutionAt = new Date()
+      this._status = AgentStatus.COMPLETED
+
+      return response
+    } catch (error) {
+      this.metrics.failedExecutions++
+      this._status = AgentStatus.ERROR
+      throw error
+    }
+  }
+
+  /**
+   * Create a chat completion with OpenAI (Legacy)
+   *
+   * @deprecated Use createResponse() for GPT-5 models
+   * This method is kept for backward compatibility with GPT-4 and earlier models.
+   */
+  protected async createChatCompletionLegacy(
     messages: AgentMessage[],
     context?: AgentContext
   ): Promise<OpenAI.Chat.ChatCompletion> {
@@ -143,13 +233,27 @@ export abstract class BaseAgent implements IAgent {
       const response = await this.openai.chat.completions.create({
         model: this.config.model || 'gpt-4-turbo-preview',
         messages: messages.map((msg) => {
-          const message: any = {
+          const baseMessage: OpenAI.Chat.ChatCompletionMessageParam = {
             role: msg.role,
             content: msg.content,
-          };
-          if (msg.name) message.name = msg.name;
-          if (msg.toolCallId) message.tool_call_id = msg.toolCallId;
-          return message;
+          } as OpenAI.Chat.ChatCompletionMessageParam;
+
+          if (msg.role === 'tool' && msg.toolCallId) {
+            return {
+              role: 'tool',
+              content: msg.content,
+              tool_call_id: msg.toolCallId,
+            } as OpenAI.Chat.ChatCompletionToolMessageParam;
+          }
+
+          if (msg.name) {
+            return {
+              ...baseMessage,
+              name: msg.name,
+            } as OpenAI.Chat.ChatCompletionMessageParam;
+          }
+
+          return baseMessage;
         }),
         tools: this.getToolDefinitions(),
         temperature: this.config.temperature ?? 0.7,
@@ -178,6 +282,17 @@ export abstract class BaseAgent implements IAgent {
       this._status = AgentStatus.ERROR
       throw error
     }
+  }
+
+  /**
+   * Create a chat completion with OpenAI
+   * @deprecated Use createResponse() for GPT-5 or createChatCompletionLegacy() for older models
+   */
+  protected async createChatCompletion(
+    messages: AgentMessage[],
+    context?: AgentContext
+  ): Promise<OpenAI.Chat.ChatCompletion> {
+    return this.createChatCompletionLegacy(messages, context)
   }
 
   /**
@@ -217,7 +332,7 @@ export abstract class BaseAgent implements IAgent {
   protected getSystemPrompt(): string {
     return (
       this.config.systemPrompt ||
-      `You are ${this.name}, a specialized AI agent for the JetVision system.`
+      `You are ${this.name}, a specialized AI agent for the Jetvision system.`
     )
   }
 }

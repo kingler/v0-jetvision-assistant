@@ -5,7 +5,55 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, MessageSquare, CheckCircle, Clock, Loader2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ChatSession } from "@/lib/types"
+
+export interface Quote {
+  id: string
+  operatorName: string
+  aircraftType: string
+  price: number
+  aiScore: number
+  rank: number
+  operatorRating: number
+  departureTime: string
+  arrivalTime: string
+  flightDuration: string
+  isRecommended: boolean
+}
+
+export interface ChatSession {
+  id: string
+  route: string
+  passengers: number
+  date: string
+  status: "proposal_ready" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"
+  currentStep: number
+  totalSteps: number
+  aircraft?: string
+  operator?: string
+  quotesReceived?: number
+  quotesTotal?: number
+  basePrice?: number
+  totalPrice?: number
+  margin?: number
+  quotes?: Quote[]
+  selectedQuoteId?: string
+  customer?: {
+    name: string
+    isReturning: boolean
+    preferences: Record<string, string>
+  }
+  messages: Array<{
+    id: string
+    type: "user" | "agent"
+    content: string
+    timestamp: Date
+    showWorkflow?: boolean
+    showProposal?: boolean
+    showQuoteStatus?: boolean
+    showCustomerPreferences?: boolean
+    showQuotes?: boolean
+  }>
+}
 
 interface ChatSidebarProps {
   chatSessions: ChatSession[]
@@ -122,6 +170,16 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
                   : "hover:bg-gray-50 dark:hover:bg-gray-800",
               )}
               onClick={() => onSelectChat(session.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelectChat(session.id)
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={`Flight Request ${session.id}: ${session.route}, ${session.passengers} passengers, ${session.date}`}
+              aria-pressed={activeChatId === session.id}
             >
               <CardContent className="p-2 sm:p-3">
                 <div className="flex items-start justify-between mb-2">
