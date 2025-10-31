@@ -103,10 +103,10 @@ export async function createQuote(
  * Type-safe helper for syncing user from Clerk
  */
 export async function syncUserFromClerk(
-  user: Database['public']['Tables']['iso_agents']['Insert']
+  user: Database['public']['Tables']['users']['Insert']
 ) {
   const { data, error } = await supabaseAdmin
-    .from('iso_agents')
+    .from('users')
     .upsert(user, {
       onConflict: 'clerk_user_id',
     })
