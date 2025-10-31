@@ -31,6 +31,12 @@ coverage/
 *.lcov
 test-results/
 playwright-report/
+.playwright-mcp/
+
+# backup files
+*.bak
+*.backup
+*~
 
 # MCP servers - ignore generated files
 **/node_modules/
@@ -40,3 +46,4 @@ playwright-report/
 # IDE
 .cursor/
 .obsidian/workspace.json
+.DS_Store

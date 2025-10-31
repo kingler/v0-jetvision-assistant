@@ -39,7 +39,7 @@ describe('GET /api/quotes', () => {
     expect(data.error).toBe('Unauthorized');
   });
 
-  it('should return 404 if ISO agent not found', async () => {
+  it('should return 404 if user not found', async () => {
     vi.mocked(auth).mockResolvedValue({
       userId: 'user-123',
       sessionId: 'session-123',
@@ -66,7 +66,7 @@ describe('GET /api/quotes', () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toContain('ISO agent not found');
+    expect(data.error).toContain('User not found');
   });
 
   it('should return all quotes for authenticated user', async () => {
@@ -79,8 +79,7 @@ describe('GET /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
-    const mockRequests = [{ id: 'req-1', iso_agent_id: 'iso-agent-123' }];
+    const mockUser = { id: 'user-123' };
     const mockQuotes = [
       {
         id: 'quote-1',
@@ -102,37 +101,24 @@ describe('GET /api/quotes', () => {
       },
     ];
 
-    let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1 && table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
-            }),
-          }),
-        };
-      } else if (callCount === 2 && table === 'requests') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              data: mockRequests,
-              error: null,
             }),
           }),
         };
       } else if (table === 'quotes') {
         return {
           select: vi.fn().mockReturnValue({
-            in: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockQuotes,
-                error: null,
-              }),
+            eq: vi.fn().mockResolvedValue({
+              data: mockQuotes,
+              error: null,
             }),
           }),
         };
@@ -160,7 +146,7 @@ describe('GET /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockQuotes = [
       {
         id: 'quote-1',
@@ -170,25 +156,23 @@ describe('GET /api/quotes', () => {
       },
     ];
 
-    let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
           }),
         };
-      } else {
+      } else if (table === 'quotes') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
+              eq: vi.fn().mockResolvedValue({
                 data: mockQuotes,
                 error: null,
               }),
@@ -218,8 +202,7 @@ describe('GET /api/quotes', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
-    const mockRequests = [{ id: 'req-1' }];
+    const mockUser = { id: 'user-123' };
     const mockQuotes = [
       {
         id: 'quote-1',
@@ -228,35 +211,23 @@ describe('GET /api/quotes', () => {
       },
     ];
 
-    let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
           }),
         };
-      } else if (callCount === 2) {
+      } else if (table === 'quotes') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              data: mockRequests,
-              error: null,
-            }),
-          }),
-        };
-      } else {
-        return {
-          select: vi.fn().mockReturnValue({
-            in: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
+              eq: vi.fn().mockResolvedValue({
                 data: mockQuotes,
                 error: null,
               }),
@@ -310,6 +281,7 @@ describe('PATCH /api/quotes', () => {
       debug: () => null
     });
 
+    const mockUser = { id: 'user-123' };
     const mockUpdatedQuote = {
       id: 'quote-1',
       request_id: 'req-1',
@@ -318,17 +290,41 @@ describe('PATCH /api/quotes', () => {
       updated_at: new Date().toISOString(),
     };
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockUpdatedQuote,
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockUser,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      } else if (table === 'quotes') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: mockUpdatedQuote,
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      } else if (table === 'requests') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: { id: 'req-1', status: 'completed' },
               error: null,
             }),
           }),
-        }),
-      }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -358,6 +354,7 @@ describe('PATCH /api/quotes', () => {
       debug: () => null
     });
 
+    const mockUser = { id: 'user-123' };
     const mockUpdatedQuote = {
       id: 'quote-1',
       status: 'rejected',
@@ -365,17 +362,32 @@ describe('PATCH /api/quotes', () => {
       updated_at: new Date().toISOString(),
     };
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockUpdatedQuote,
-              error: null,
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockUser,
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'quotes') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: mockUpdatedQuote,
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -406,6 +418,7 @@ describe('PATCH /api/quotes', () => {
       debug: () => null
     });
 
+    const mockUser = { id: 'user-123' };
     const mockUpdatedQuote = {
       id: 'quote-1',
       request_id: 'req-1',
@@ -415,7 +428,18 @@ describe('PATCH /api/quotes', () => {
     let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       callCount++;
-      if (callCount === 1 && table === 'quotes') {
+      if (callCount === 1 && table === 'users') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockUser,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      } else if (callCount === 2 && table === 'quotes') {
         return {
           update: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -469,17 +493,33 @@ describe('PATCH /api/quotes', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockUser = { id: 'user-123' };
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'Database error' },
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockUser,
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'quotes') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: { message: 'Database error' },
+                }),
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 

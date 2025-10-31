@@ -36,7 +36,7 @@ export function ProposalPreview({
         margin: 7500,
         totalPrice: 32500,
         agentCommission: 1500,
-        jetVisionNet: 6000,
+        jetvisionNet: 6000,
       }
     } else if (chatData?.id === "2") {
       // MIA → ASE use case
@@ -53,7 +53,7 @@ export function ProposalPreview({
         margin: 5400,
         totalPrice: 23400,
         agentCommission: 1080,
-        jetVisionNet: 4320,
+        jetvisionNet: 4320,
       }
     } else if (chatData?.id === "4") {
       return {
@@ -69,7 +69,7 @@ export function ProposalPreview({
         margin: 2700,
         totalPrice: 11200,
         agentCommission: 540,
-        jetVisionNet: 2160,
+        jetvisionNet: 2160,
         customer: chatData.customer,
       }
     } else {
@@ -87,7 +87,7 @@ export function ProposalPreview({
         margin: 3600,
         totalPrice: 15600,
         agentCommission: 720,
-        jetVisionNet: 2880,
+        jetvisionNet: 2880,
       }
     }
   }
@@ -103,7 +103,7 @@ export function ProposalPreview({
               <span className="text-white font-bold text-xs">JV</span>
             </div>
             <div>
-              <h4 className="font-semibold text-sm">JetVision Group</h4>
+              <h4 className="font-semibold text-sm">Jetvision Group</h4>
               <p className="text-xs text-gray-600 dark:text-gray-400">Executive Proposal</p>
             </div>
           </div>
@@ -176,7 +176,7 @@ export function ProposalPreview({
               <span>${proposal.basePrice.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span>JetVision Margin (30%):</span>
+              <span>Jetvision Margin (30%):</span>
               <span>+ ${proposal.margin.toLocaleString()}</span>
             </div>
             <Separator />
@@ -190,8 +190,8 @@ export function ProposalPreview({
                 <span className="text-green-600">${proposal.agentCommission.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span>JetVision Net (80%):</span>
-                <span>${proposal.jetVisionNet.toLocaleString()}</span>
+                <span>Jetvision Net (80%):</span>
+                <span>${proposal.jetvisionNet.toLocaleString()}</span>
               </div>
             </div>
           </div>

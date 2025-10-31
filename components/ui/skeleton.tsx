@@ -1,13 +1,8 @@
-import { cn } from "@/lib/utils"
+/**
+ * Skeleton Component Stub
+ * TODO: Implement full skeleton component or install from shadcn/ui
+ */
 
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="skeleton"
-      className={cn("bg-accent animate-pulse rounded-md", className)}
-      {...props}
-    />
-  )
-}
-
-export { Skeleton }
+export const Skeleton = ({ className, ...props }: any) => (
+  <div className={`animate-pulse bg-gray-200 rounded ${className}`} {...props} />
+)

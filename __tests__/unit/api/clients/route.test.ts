@@ -39,7 +39,7 @@ describe('GET /api/clients', () => {
     expect(data.error).toBe('Unauthorized');
   });
 
-  it('should return 404 if ISO agent not found', async () => {
+  it('should return 404 if user not found', async () => {
     vi.mocked(auth).mockResolvedValue({
       userId: 'user-123',
       sessionId: 'session-123',
@@ -66,7 +66,7 @@ describe('GET /api/clients', () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toContain('ISO agent not found');
+    expect(data.error).toContain('User not found');
   });
 
   it('should return all clients for authenticated user', async () => {
@@ -79,35 +79,33 @@ describe('GET /api/clients', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockClients = [
       {
         id: 'client-1',
-        iso_agent_id: 'iso-agent-123',
+        user_id: 'user-123',
         company_name: 'Acme Corp',
         contact_name: 'John Doe',
-        contact_email: 'john@acme.com',
+        email: 'john@acme.com',
         created_at: '2025-01-01T00:00:00Z',
       },
       {
         id: 'client-2',
-        iso_agent_id: 'iso-agent-123',
+        user_id: 'user-123',
         company_name: 'Tech Inc',
         contact_name: 'Jane Smith',
-        contact_email: 'jane@tech.com',
+        email: 'jane@tech.com',
         created_at: '2025-01-02T00:00:00Z',
       },
     ];
 
-    let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1 && table === 'iso_agents') {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -116,11 +114,9 @@ describe('GET /api/clients', () => {
       } else if (table === 'client_profiles') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockClients,
-                error: null,
-              }),
+            eq: vi.fn().mockResolvedValue({
+              data: mockClients,
+              error: null,
             }),
           }),
         };
@@ -135,7 +131,7 @@ describe('GET /api/clients', () => {
     expect(response.status).toBe(200);
     expect(data.clients).toHaveLength(2);
     expect(data.clients[0].company_name).toBe('Acme Corp');
-    expect(data.clients[1].contact_email).toBe('jane@tech.com');
+    expect(data.clients[1].email).toBe('jane@tech.com');
   });
 
   it('should return a specific client by client_id', async () => {
@@ -148,34 +144,31 @@ describe('GET /api/clients', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockClient = {
       id: 'client-specific',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'user-123',
       company_name: 'Specific Corp',
       contact_name: 'Bob Johnson',
-      contact_email: 'bob@specific.com',
+      email: 'bob@specific.com',
     };
 
-    let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
+      if (table === 'users') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
           }),
         };
-      } else {
+      } else if (table === 'client_profiles') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
+            eq: vi.fn().mockResolvedValue({
               data: [mockClient],
               error: null,
             }),
@@ -209,7 +202,7 @@ describe('POST /api/clients', () => {
       body: JSON.stringify({
         company_name: 'New Corp',
         contact_name: 'Alice Brown',
-        contact_email: 'alice@newcorp.com',
+        email: 'alice@newcorp.com',
       }),
     });
 
@@ -230,13 +223,13 @@ describe('POST /api/clients', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockNewClient = {
       id: 'new-client-123',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'user-123',
       company_name: 'New Corp',
       contact_name: 'Alice Brown',
-      contact_email: 'alice@newcorp.com',
+      email: 'alice@newcorp.com',
       created_at: new Date().toISOString(),
     };
 
@@ -248,7 +241,7 @@ describe('POST /api/clients', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -274,7 +267,7 @@ describe('POST /api/clients', () => {
       body: JSON.stringify({
         company_name: 'New Corp',
         contact_name: 'Alice Brown',
-        contact_email: 'alice@newcorp.com',
+        email: 'alice@newcorp.com',
       }),
     });
 
@@ -296,16 +289,16 @@ describe('POST /api/clients', () => {
       debug: () => null
     });
 
-    const mockISOAgent = { id: 'iso-agent-123' };
+    const mockUser = { id: 'user-123' };
     const mockNewClient = {
       id: 'new-client-456',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'user-123',
       company_name: 'Full Corp',
       contact_name: 'Charlie Davis',
-      contact_email: 'charlie@full.com',
-      contact_phone: '+1234567890',
-      address: '123 Main St',
+      email: 'charlie@full.com',
+      phone: '+1234567890',
       preferences: { vip: true },
+      notes: 'VIP client',
     };
 
     let callCount = 0;
@@ -316,7 +309,7 @@ describe('POST /api/clients', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
-                data: mockISOAgent,
+                data: mockUser,
                 error: null,
               }),
             }),
@@ -342,10 +335,10 @@ describe('POST /api/clients', () => {
       body: JSON.stringify({
         company_name: 'Full Corp',
         contact_name: 'Charlie Davis',
-        contact_email: 'charlie@full.com',
-        contact_phone: '+1234567890',
-        address: '123 Main St',
+        email: 'charlie@full.com',
+        phone: '+1234567890',
         preferences: { vip: true },
+        notes: 'VIP client',
       }),
     });
 
@@ -353,8 +346,7 @@ describe('POST /api/clients', () => {
     const data = await response.json();
 
     expect(response.status).toBe(201);
-    expect(data.client.contact_phone).toBe('+1234567890');
-    expect(data.client.address).toBe('123 Main St');
+    expect(data.client.phone).toBe('+1234567890');
     expect(data.client.preferences).toEqual({ vip: true });
   });
 });
@@ -394,24 +386,38 @@ describe('PATCH /api/clients', () => {
 
     const mockUpdatedClient = {
       id: 'client-1',
-      iso_agent_id: 'iso-agent-123',
+      user_id: 'user-123',
       company_name: 'Updated Corp',
       contact_name: 'John Doe',
-      contact_email: 'john@updated.com',
+      email: 'john@updated.com',
       updated_at: new Date().toISOString(),
     };
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockUpdatedClient,
-              error: null,
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'user-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'client_profiles') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockUpdatedClient,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -420,7 +426,7 @@ describe('PATCH /api/clients', () => {
       body: JSON.stringify({
         client_id: 'client-1',
         company_name: 'Updated Corp',
-        contact_email: 'john@updated.com',
+        email: 'john@updated.com',
       }),
     });
 
@@ -429,7 +435,7 @@ describe('PATCH /api/clients', () => {
 
     expect(response.status).toBe(200);
     expect(data.client.company_name).toBe('Updated Corp');
-    expect(data.client.contact_email).toBe('john@updated.com');
+    expect(data.client.email).toBe('john@updated.com');
   });
 
   it('should update client preferences', async () => {
@@ -448,17 +454,31 @@ describe('PATCH /api/clients', () => {
       updated_at: new Date().toISOString(),
     };
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockUpdatedClient,
-              error: null,
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'user-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'client_profiles') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockUpdatedClient,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -487,17 +507,31 @@ describe('PATCH /api/clients', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
           select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'Database error' },
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'user-123' },
+                error: null,
+              }),
             }),
           }),
-        }),
-      }),
+        };
+      } else if (table === 'client_profiles') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Database error' },
+              }),
+            }),
+          }),
+        };
+      }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
@@ -513,6 +547,6 @@ describe('PATCH /api/clients', () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toContain('Failed to update client');
+    expect(data.error).toBe('Failed to update client');
   });
 });

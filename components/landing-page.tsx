@@ -9,10 +9,12 @@ import { Send, Plane, DollarSign, Calendar } from "lucide-react"
 
 interface LandingPageProps {
   onStartChat: (message: string) => void
+  userName?: string
 }
 
-export function LandingPage({ onStartChat }: LandingPageProps) {
+export function LandingPage({ onStartChat, userName }: LandingPageProps) {
   const [message, setMessage] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -23,8 +25,31 @@ export function LandingPage({ onStartChat }: LandingPageProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (message.trim()) {
-      onStartChat(message.trim())
+    setError(null)
+
+    const trimmedMessage = message.trim()
+
+    // Form validation
+    if (!trimmedMessage) {
+      setError("Please enter a message to start a chat")
+      return
+    }
+
+    if (trimmedMessage.length < 3) {
+      setError("Message must be at least 3 characters long")
+      return
+    }
+
+    if (trimmedMessage.length > 500) {
+      setError("Message must be less than 500 characters")
+      return
+    }
+
+    try {
+      onStartChat(trimmedMessage)
+    } catch (err) {
+      setError("Failed to start chat. Please try again.")
+      console.error("Error starting chat:", err)
     }
   }
 
@@ -56,13 +81,18 @@ export function LandingPage({ onStartChat }: LandingPageProps) {
         {/* Greeting */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-            {getGreeting()}, Adrian
+            {getGreeting()}{userName ? `, ${userName}` : ''}
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300">How can I help you today?</p>
         </div>
 
         {/* Main Input */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-800 dark:text-red-300">
+              {error}
+            </div>
+          )}
           <div className="relative">
             <Input
               value={message}
@@ -75,6 +105,7 @@ export function LandingPage({ onStartChat }: LandingPageProps) {
               size="sm"
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-cyan-600 hover:bg-cyan-700"
               disabled={!message.trim()}
+              aria-label="Send message"
             >
               <Send className="w-4 h-4" />
             </Button>

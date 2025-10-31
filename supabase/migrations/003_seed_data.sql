@@ -28,7 +28,7 @@ INSERT INTO iso_agents (
   'percentage',
   15.00,
   true,
-  '{"company": "JetVision West", "territory": "US-West", "preferred_operators": ["NetJets", "VistaJet"]}'::jsonb
+  '{"company": "Jetvision West", "territory": "US-West", "preferred_operators": ["NetJets", "VistaJet"]}'::jsonb
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- Test ISO Agent 2
@@ -51,7 +51,7 @@ INSERT INTO iso_agents (
   'fixed',
   5000.00,
   true,
-  '{"company": "JetVision East", "territory": "US-East", "preferred_operators": ["FlexJet", "Wheels Up"]}'::jsonb
+  '{"company": "Jetvision East", "territory": "US-East", "preferred_operators": ["FlexJet", "Wheels Up"]}'::jsonb
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- Test Admin User
@@ -74,7 +74,7 @@ INSERT INTO iso_agents (
   'percentage',
   0.00,
   true,
-  '{"company": "JetVision HQ", "access_level": "full"}'::jsonb
+  '{"company": "Jetvision HQ", "access_level": "full"}'::jsonb
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- ============================================================================

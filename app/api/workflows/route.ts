@@ -13,13 +13,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const requestId = searchParams.get('request_id');
 
-    const { data: isoAgent } = await supabase.from('iso_agents').select('id').eq('clerk_user_id', userId).single();
-    if (!isoAgent) return NextResponse.json({ error: 'ISO agent not found' }, { status: 404 });
+    const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     let query = supabase
       .from('workflow_history')
-      .select('*, request:requests!inner(id, iso_agent_id)')
-      .eq('request.iso_agent_id', isoAgent.id)
+      .select('*, request:requests!inner(id, user_id)')
+      .eq('request.user_id', user.id)
       .order('transitioned_at', { ascending: false });
 
     if (requestId) query = query.eq('request_id', requestId);

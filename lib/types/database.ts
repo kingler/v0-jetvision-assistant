@@ -30,9 +30,11 @@ export type QuoteStatus =
   | 'expired';
 
 export type UserRole =
-  | 'iso_agent'
+  | 'sales_rep'
   | 'admin'
-  | 'operator';
+  | 'customer'
+  | 'operator'
+  | 'iso_agent'; // Legacy - deprecated, use sales_rep instead
 
 export type MarginType =
   | 'percentage'
@@ -57,23 +59,33 @@ export type AgentType =
 // TABLE TYPES
 // ============================================================================
 
-export interface IsoAgent {
+export interface User {
   id: string;
   clerk_user_id: string;
   email: string;
   full_name: string;
   role: UserRole;
+  avatar_url: string | null;
+  phone: string | null;
+  timezone: string;
+  preferences: Record<string, any>;
   margin_type: MarginType | null;
   margin_value: number | null;
   is_active: boolean;
+  last_login_at: string | null;
   metadata: Record<string, any>;
   created_at: string;
   updated_at: string;
 }
 
+/**
+ * @deprecated Use User instead. This type is kept for backward compatibility during migration.
+ */
+export type IsoAgent = User;
+
 export interface ClientProfile {
   id: string;
-  iso_agent_id: string;
+  user_id: string;
   company_name: string;
   contact_name: string;
   email: string;
@@ -87,7 +99,7 @@ export interface ClientProfile {
 
 export interface Request {
   id: string;
-  iso_agent_id: string;
+  user_id: string;
   client_profile_id: string | null;
   departure_airport: string;
   arrival_airport: string;
@@ -166,6 +178,18 @@ export interface AgentExecution {
 export interface Database {
   public: {
     Tables: {
+      users: {
+        Row: User;
+        Insert: Omit<User, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      /**
+       * @deprecated Use 'users' table instead. Kept for backward compatibility.
+       */
       iso_agents: {
         Row: IsoAgent;
         Insert: Omit<IsoAgent, 'id' | 'created_at' | 'updated_at'> & {

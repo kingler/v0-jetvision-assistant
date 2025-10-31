@@ -1,4 +1,4 @@
-import { withSentryConfig } from "@sentry/nextjs";
+// import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -11,11 +11,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    instrumentationHook: true,
-  },
 }
 
+export default nextConfig;
+
+/* Temporarily disabled Sentry
 export default withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
@@ -54,3 +54,4 @@ export default withSentryConfig(nextConfig, {
   // https://vercel.com/docs/cron-jobs
   automaticVercelMonitors: true,
 });
+*/
