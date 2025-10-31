@@ -1,5 +1,6 @@
-# Exclude MCP servers from Vercel deployment
-mcp-servers/
+# MCP servers are needed during build for pnpm workspace resolution
+# but not served by Vercel (Next.js app only)
+# mcp-servers/
 
 # Exclude test files
 __tests__/
