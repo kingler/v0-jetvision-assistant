@@ -26,3 +26,25 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# testing
+coverage/
+*.lcov
+test-results/
+playwright-report/
+.playwright-mcp/
+
+# backup files
+*.bak
+*.backup
+*~
+
+# MCP servers - ignore generated files
+**/node_modules/
+**/pnpm-lock.yaml
+**/coverage/
+
+# IDE
+.cursor/
+.obsidian/workspace.json
+.DS_Store
