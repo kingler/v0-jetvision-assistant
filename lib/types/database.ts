@@ -295,6 +295,12 @@ export type ISOAgentInsert = Omit<ISOAgent, 'id' | 'created_at' | 'updated_at'> 
   updated_at?: string;
 };
 
+export type UserInsert = Omit<User, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type ClientProfileInsert = Omit<ClientProfile, 'id' | 'created_at' | 'updated_at'> & {
   id?: string;
   created_at?: string;
@@ -328,6 +334,8 @@ export type AgentExecutionInsert = Omit<AgentExecution, 'id' | 'created_at'> & {
 // ============================================================================
 
 export type ISOAgentUpdate = Partial<Omit<ISOAgent, 'id' | 'clerk_user_id' | 'created_at' | 'updated_at'>>;
+
+export type UserUpdate = Partial<Omit<User, 'id' | 'clerk_user_id' | 'created_at' | 'updated_at'>>;
 
 export type ClientProfileUpdate = Partial<Omit<ClientProfile, 'id' | 'created_at' | 'updated_at'>>;
 
@@ -388,7 +396,13 @@ export interface ISOAgentWithRelations extends ISOAgent {
 export interface Database {
   public: {
     Tables: {
+      users: {
+        Row: User;
+        Insert: UserInsert;
+        Update: UserUpdate;
+      };
       iso_agents: {
+        // @deprecated Use 'users' table instead
         Row: ISOAgent;
         Insert: ISOAgentInsert;
         Update: ISOAgentUpdate;
