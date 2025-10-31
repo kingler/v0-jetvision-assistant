@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { UserRole } from '@/lib/types/database';
-import { hasPermission, type Resource, type Action } from '@/lib/middleware/rbac';
+import { hasPermission, type Resource, type Action } from '@/lib/rbac/permissions';
 
 export interface UseUserRoleReturn {
   role: UserRole | null;
