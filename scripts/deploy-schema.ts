@@ -14,7 +14,7 @@ import path from 'path'
 config({ path: path.join(process.cwd(), '.env.local') })
 
 async function deploySchema() {
-  console.log('🚀 JetVision Database Schema Deployment\n')
+  console.log('🚀 Jetvision Database Schema Deployment\n')
 
   // Check environment variables
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

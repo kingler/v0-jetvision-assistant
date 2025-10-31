@@ -21,7 +21,7 @@ Build comprehensive agent infrastructure including BaseAgent abstract class, too
 **So that** I can quickly build specialized agents without duplicating code
 
 ### Business Value
-Agent tools and helpers provide the foundation for all AI agents in the JetVision system. By abstracting common patterns (tool registration, MCP client management, error handling, logging), this infrastructure enables rapid development of the 6 specialized agents while ensuring consistency, maintainability, and reliability. This is a critical multiplier for development velocity.
+Agent tools and helpers provide the foundation for all AI agents in the Jetvision system. By abstracting common patterns (tool registration, MCP client management, error handling, logging), this infrastructure enables rapid development of the 6 specialized agents while ensuring consistency, maintainability, and reliability. This is a critical multiplier for development velocity.
 
 ---
 

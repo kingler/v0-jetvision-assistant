@@ -8,7 +8,7 @@
 
 ## Overview
 
-Implemented a chat-based quote comparison interface that allows users to view, compare, and select flight quotes directly within the conversational chat interface. This implementation aligns with the original JetVision design philosophy of a **chat-first interface** rather than a traditional dashboard.
+Implemented a chat-based quote comparison interface that allows users to view, compare, and select flight quotes directly within the conversational chat interface. This implementation aligns with the original Jetvision design philosophy of a **chat-first interface** rather than a traditional dashboard.
 
 ## Key Features
 
@@ -214,7 +214,7 @@ const sampleQuotes: Quote[] = [
 
 ### Chat-First Philosophy ✅
 
-This implementation adheres to the original JetVision design documented in `docs/ORIGINAL_UI_DESIGN.md`:
+This implementation adheres to the original Jetvision design documented in `docs/ORIGINAL_UI_DESIGN.md`:
 
 1. **Primary interaction through natural conversation** ✅
    - Quotes appear inline within chat messages
@@ -310,7 +310,7 @@ v0-jetvision-assistant/
 - Quote comparison happens inline within chat messages
 - No navigation away from conversation
 - Natural, conversational selection process
-- Fully aligned with original JetVision design philosophy
+- Fully aligned with original Jetvision design philosophy
 - Reusable components for future dashboard integration
 
 **Key Achievement**: Maintained chat-first experience while adding sophisticated quote comparison functionality.

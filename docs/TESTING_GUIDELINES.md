@@ -4,7 +4,7 @@
 **Last Updated**: 2025-10-22
 **Status**: 🟢 Active
 
-This document provides comprehensive guidelines for writing, organizing, and maintaining tests in the JetVision Multi-Agent System.
+This document provides comprehensive guidelines for writing, organizing, and maintaining tests in the Jetvision Multi-Agent System.
 
 ---
 

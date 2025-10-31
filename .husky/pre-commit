@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# JetVision Multi-Agent Code Review - Pre-commit Hook
+# Jetvision Multi-Agent Code Review - Pre-commit Hook
 # Uses morpheus-validator for automated code quality checks
 
 echo "🔍 Running Morpheus Validator pre-commit checks..."

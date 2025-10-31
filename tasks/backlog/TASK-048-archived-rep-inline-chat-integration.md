@@ -19,7 +19,7 @@ Remove the separate "Archived Dashboard" page view and integrate archived REP (R
 
 ### Current State
 - Archived dashboard exists at `app/_archived/dashboard/` (not in active routing)
-- All JetVision features (search, RFQ, proposals) work within chat
+- All Jetvision features (search, RFQ, proposals) work within chat
 - Archived REPs are not currently accessible through chat
 - REPs with terminal status (`completed`, `cancelled`, `failed`) are considered archived
 
@@ -1274,7 +1274,7 @@ const tools = [
 Update system prompt:
 
 ```typescript
-const systemPrompt = `You are JetVision AI Assistant...
+const systemPrompt = `You are Jetvision AI Assistant...
 
 ... existing capabilities ...
 

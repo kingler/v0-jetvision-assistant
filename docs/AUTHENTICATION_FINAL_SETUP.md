@@ -1,4 +1,4 @@
-# JetVision Authentication - Final Correct Setup
+# Jetvision Authentication - Final Correct Setup
 
 **Date**: 2025-10-23
 **Status**: ✅ Configured Correctly
@@ -174,7 +174,7 @@ The setup is correct if:
 - [ ] Visiting `/` when not logged in → redirects to `/sign-in`
 - [ ] After login → lands on `/` (chat interface)
 - [ ] Chat interface shows:
-  - [ ] JetVision logo in header
+  - [ ] Jetvision logo in header
   - [ ] Settings button
   - [ ] UserButton (avatar) for logout
   - [ ] Chat sidebar with sessions

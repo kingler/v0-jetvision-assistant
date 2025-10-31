@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Implement global state management for workflow status tracking, step progression display, real-time state synchronization, and optimistic updates using Zustand or React Context API for the JetVision AI Assistant.
+Implement global state management for workflow status tracking, step progression display, real-time state synchronization, and optimistic updates using Zustand or React Context API for the Jetvision AI Assistant.
 
 ### User Story
 **As an** ISO agent

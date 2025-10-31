@@ -1,7 +1,7 @@
 /**
  * RFP Orchestrator Agent
  *
- * The brain of the JetVision system. Coordinates the entire RFP workflow:
+ * The brain of the Jetvision system. Coordinates the entire RFP workflow:
  * - Analyzes flight requests using OpenAI
  * - Manages workflow state machine
  * - Coordinates with other specialized agents

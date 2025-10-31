@@ -8,7 +8,7 @@
 
 ## Overview
 
-This guide walks through setting up the Avinode API integration for JetVision's flight search and RFQ workflow. The Avinode API provides access to:
+This guide walks through setting up the Avinode API integration for Jetvision's flight search and RFQ workflow. The Avinode API provides access to:
 
 - **RFQ Management**: Create and manage Request for Quotes
 - **Flight Search**: Query operator databases for available aircraft
@@ -36,7 +36,7 @@ This guide walks through setting up the Avinode API integration for JetVision's 
 #### Contact Avinode Group
 
 Reach out to your Avinode Group representative to:
-1. **Define your use case**: Explain JetVision's RFQ workflow and trip search requirements
+1. **Define your use case**: Explain Jetvision's RFQ workflow and trip search requirements
 2. **Request sandbox environment access**: Requires Avinode membership or launch customer affiliation
 3. **Provide email addresses**: For each user who needs sandbox access
 
@@ -44,7 +44,7 @@ Reach out to your Avinode Group representative to:
 
 #### Use Cases to Request
 
-For JetVision, request access to these API capabilities:
+For Jetvision, request access to these API capabilities:
 
 - ✅ **RFQ Management**: Create, update, and track RFQs
 - ✅ **Trip Search**: Search for available flights for end clients
@@ -100,7 +100,7 @@ export const AVINODE_CONFIG = {
     : process.env.AVINODE_PRODUCTION_URL || 'https://api.avinode.com',
   apiToken: process.env.AVINODE_API_TOKEN,
   bearerToken: process.env.AVINODE_BEARER_TOKEN,
-  product: 'JetVision/1.0.0',
+  product: 'Jetvision/1.0.0',
   apiVersion: 'v1.0',
 };
 
@@ -539,14 +539,14 @@ Track these metrics in production:
 - **Sandbox Guide**: https://developer.avinodegroup.com/docs/sandbox
 - **Introduction**: https://developer.avinodegroup.com/docs/introduction
 
-### JetVision Documentation
+### Jetvision Documentation
 - **Workflow Integration**: `docs/implementation/WORKFLOW-AVINODE-INTEGRATION.md`
 - **Quote Data Integration**: `docs/implementation/QUOTE-DATA-INTEGRATION.md`
 - **MCP Server**: `mcp-servers/avinode-mcp-server/README.md`
 
 ### Support
 - **Avinode Support**: Contact through developer portal
-- **JetVision Team**: See project README for contact info
+- **Jetvision Team**: See project README for contact info
 
 ---
 

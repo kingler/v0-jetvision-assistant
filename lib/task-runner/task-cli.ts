@@ -21,7 +21,7 @@ const orchestrator = createTaskOrchestrator()
 // ============================================
 
 async function listTasks(status?: TaskStatus) {
-  console.log('\n📋 JetVision Task List\n')
+  console.log('\n📋 Jetvision Task List\n')
 
   const tasks = status
     ? await orchestrator.getTasksByStatus(status)
@@ -313,7 +313,7 @@ async function main() {
 
       case 'help':
       default:
-        console.log('\n📋 JetVision Task Management CLI\n')
+        console.log('\n📋 Jetvision Task Management CLI\n')
         console.log('Commands:')
         console.log('  list [status]     List all tasks (optionally filter by status)')
         console.log('  next              Show next recommended task')

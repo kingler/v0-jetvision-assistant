@@ -21,7 +21,7 @@ Build a robust, reusable base infrastructure for Model Context Protocol (MCP) se
 **So that** I can quickly implement specialized MCP servers (Avinode, Gmail, Sheets) without duplicating infrastructure code
 
 ### Business Value
-The MCP base infrastructure is the foundation for all external integrations in the JetVision system. This reusable abstraction enables rapid development of specialized MCP servers while ensuring consistency, maintainability, and reliability across all integrations. Without this infrastructure, each MCP server would require custom transport, error handling, and connection logic.
+The MCP base infrastructure is the foundation for all external integrations in the Jetvision system. This reusable abstraction enables rapid development of specialized MCP servers while ensuring consistency, maintainability, and reliability across all integrations. Without this infrastructure, each MCP server would require custom transport, error handling, and connection logic.
 
 ---
 

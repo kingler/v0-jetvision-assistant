@@ -1,4 +1,4 @@
-# JetVision AI Assistant - System Architecture
+# Jetvision AI Assistant - System Architecture
 
 ## Comprehensive System Architecture Diagram
 
@@ -507,4 +507,4 @@ flowchart TB
 
 **Document Version**: 1.0
 **Last Updated**: October 20, 2025
-**Maintained By**: JetVision Development Team
+**Maintained By**: Jetvision Development Team

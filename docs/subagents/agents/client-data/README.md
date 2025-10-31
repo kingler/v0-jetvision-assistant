@@ -33,7 +33,7 @@ import { OPENAI_CONFIG } from '@/lib/config/openai-config'
 export const clientDataAgent = new Agent({
   name: 'Client Data Manager',
   model: OPENAI_CONFIG.AGENT_MODELS.clientData, // gpt-5
-  instructions: `You are the Client Data Manager for JetVision AI Assistant.
+  instructions: `You are the Client Data Manager for Jetvision AI Assistant.
 
 Your role is to manage all client-related data by:
 1. Analyzing client profiles and extracting relevant information

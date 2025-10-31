@@ -14,7 +14,7 @@
 ### Step 1: Get Your Webhook Secret from Clerk
 
 1. Go to [Clerk Dashboard](https://dashboard.clerk.com/)
-2. Select your **JetVision** application
+2. Select your **Jetvision** application
 3. Click **Webhooks** in the left sidebar
 4. Click **Add Endpoint**
 

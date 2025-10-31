@@ -12,7 +12,7 @@ test.describe('Authentication Flow', () => {
     expect(page.url()).toContain('/sign-in');
 
     // Verify sign-in page content
-    await expect(page.getByText('Welcome to JetVision')).toBeVisible();
+    await expect(page.getByText('Welcome to Jetvision')).toBeVisible();
     await expect(page.getByText('AI-powered private jet booking assistant')).toBeVisible();
   });
 
@@ -20,7 +20,7 @@ test.describe('Authentication Flow', () => {
     await page.goto('http://localhost:3000/sign-in');
 
     // Check page loads
-    await expect(page.getByText('Welcome to JetVision')).toBeVisible();
+    await expect(page.getByText('Welcome to Jetvision')).toBeVisible();
 
     // Check Clerk form is present (look for email input or sign-in button)
     const clerkForm = page.locator('[data-clerk-element]').first();
@@ -31,7 +31,7 @@ test.describe('Authentication Flow', () => {
     await page.goto('http://localhost:3000/sign-up');
 
     // Check page loads
-    await expect(page.getByText('Join JetVision')).toBeVisible();
+    await expect(page.getByText('Join Jetvision')).toBeVisible();
     await expect(page.getByText('Create your account')).toBeVisible();
 
     // Check Clerk form is present
@@ -43,6 +43,6 @@ test.describe('Authentication Flow', () => {
     await page.goto('http://localhost:3000/sign-in');
 
     // Check page title
-    await expect(page).toHaveTitle('JetVision Agent');
+    await expect(page).toHaveTitle('Jetvision Agent');
   });
 });

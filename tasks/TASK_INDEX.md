@@ -1,6 +1,6 @@
-# JetVision AI Assistant - Master Task Index
+# Jetvision AI Assistant - Master Task Index
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Timeline**: October 20 - December 1, 2025 (6 weeks)
 **Last Updated**: October 21, 2025
 **Overall Completion**: 3% (1/37 tasks)

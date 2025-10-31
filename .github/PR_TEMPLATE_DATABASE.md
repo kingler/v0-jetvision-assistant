@@ -2,7 +2,7 @@
 
 ## 📋 Summary
 
-Complete **Supabase database schema** implementation with comprehensive **Row Level Security (RLS)** policies for the JetVision Multi-Agent System. This PR establishes the production-ready database foundation supporting multi-agent RFP automation workflows.
+Complete **Supabase database schema** implementation with comprehensive **Row Level Security (RLS)** policies for the Jetvision Multi-Agent System. This PR establishes the production-ready database foundation supporting multi-agent RFP automation workflows.
 
 ---
 

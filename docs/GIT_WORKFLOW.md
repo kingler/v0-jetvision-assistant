@@ -1,5 +1,5 @@
 # Git Workflow Guidelines
-# JetVision AI Assistant
+# Jetvision AI Assistant
 
 **Document Version**: 1.0
 **Last Updated**: October 20, 2025
@@ -23,7 +23,7 @@
 
 ## Overview
 
-This document defines the Git workflow for the JetVision AI Assistant project. We follow a **feature branch workflow** with strict code review requirements and Test-Driven Development (TDD) practices.
+This document defines the Git workflow for the Jetvision AI Assistant project. We follow a **feature branch workflow** with strict code review requirements and Test-Driven Development (TDD) practices.
 
 ### Core Principles
 

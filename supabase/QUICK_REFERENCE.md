@@ -1,6 +1,6 @@
 # Database Quick Reference Guide
 
-Quick reference for common database operations in the JetVision AI Assistant.
+Quick reference for common database operations in the Jetvision AI Assistant.
 
 ## Table Relationships
 

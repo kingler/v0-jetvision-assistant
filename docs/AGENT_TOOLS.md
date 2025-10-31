@@ -2,7 +2,7 @@
 
 **Version**: 1.0.0
 **Last Updated**: October 20, 2025
-**Author**: JetVision AI Development Team
+**Author**: Jetvision AI Development Team
 
 ---
 
@@ -69,7 +69,7 @@ Without tools, AI agents can only generate text. With tools, agents become **aut
 
 ## Tool Types
 
-JetVision uses two types of agent tools:
+Jetvision uses two types of agent tools:
 
 ### 1. MCP Tools (Model Context Protocol)
 
@@ -852,7 +852,7 @@ describe('Agent with PDF tool integration', () => {
 
 ## Summary
 
-**Agent Tools** are the foundation of autonomous AI agents in JetVision. They transform agents from text generators into action-taking systems capable of:
+**Agent Tools** are the foundation of autonomous AI agents in Jetvision. They transform agents from text generators into action-taking systems capable of:
 
 - Generating PDFs
 - Searching flights

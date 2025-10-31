@@ -1,6 +1,6 @@
 # Code Review Integration Guide
 
-Complete guide to using **morpheus-validator** and **code-review-coordinator** agents in the JetVision Multi-Agent System.
+Complete guide to using **morpheus-validator** and **code-review-coordinator** agents in the Jetvision Multi-Agent System.
 
 ---
 
@@ -197,7 +197,7 @@ npm run review:tdd
 ```bash
 $ npm run review:tdd
 
-🔄 JetVision TDD Workflow with Code Review
+🔄 Jetvision TDD Workflow with Code Review
 
 Current phase (RED/GREEN/REFACTOR): RED
 
@@ -709,4 +709,4 @@ Edit `.github/workflows/code-review.yml`:
 ---
 
 **Last Updated**: 2025-10-26
-**Maintained By**: JetVision Development Team
+**Maintained By**: Jetvision Development Team

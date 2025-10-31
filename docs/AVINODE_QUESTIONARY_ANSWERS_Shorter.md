@@ -1,7 +1,7 @@
-# Avinode API Application Questionnaire - JetVision
+# Avinode API Application Questionnaire - Jetvision
 
 **COMPANY INFORMATION**
-- Company name: JetVision
+- Company name: Jetvision
 - Company type: ☑ Broker
 - Commercial contact: [Ofra to fill in name and email]
 - Technical contact: [Ofra to fill in name and email]
@@ -12,7 +12,7 @@
 
 *Your solution description:*
 
-JetVision is developing an internal broker operations platform to streamline aircraft search, RFQ management, and booking workflows. Our solution uses an AI Agent that serves as a single connection point to Avinode APIs, allowing multiple JetVision brokers to access Avinode functionality through a simple chat interface.
+Jetvision is developing an internal broker operations platform to streamline aircraft search, RFQ management, and booking workflows. Our solution uses an AI Agent that serves as a single connection point to Avinode APIs, allowing multiple Jetvision brokers to access Avinode functionality through a simple chat interface.
 
 This architecture means we only need one Avinode API connection. Our broker team (10-15 users initially, growing to 30-50) will interact with the system by typing requests in natural language (e.g., "Search for Citation X from Teterboro to Miami tomorrow"), and the AI Agent translates these into the appropriate Avinode API calls.
 
@@ -33,7 +33,7 @@ Prototype demo: https://v0-jet-vision-agent.vercel.app (using dummy data)
 
 **Step 1: Aircraft Search**
 - Broker receives customer inquiry (phone/email)
-- Broker types search request into JetVision chat interface: "Find Gulfstream G550 NYC to LAX, March 15, 6 passengers"
+- Broker types search request into Jetvision chat interface: "Find Gulfstream G550 NYC to LAX, March 15, 6 passengers"
 - AI Agent calls Avinode POST /searches API
 - Results displayed to broker in conversational format
 - Broker reviews options with customer

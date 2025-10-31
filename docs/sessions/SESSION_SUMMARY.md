@@ -1,4 +1,4 @@
-# JetVision Database Deployment & Testing - Session Summary
+# Jetvision Database Deployment & Testing - Session Summary
 
 **Date**: 2025-10-21
 **Branch**: feat/PHASE-2-mcp-servers
@@ -43,7 +43,7 @@
 
 **Configuration:**
 - Project-specific `.mcp.json`
-- Connected to JetVision Supabase instance
+- Connected to Jetvision Supabase instance
 - Service role authentication (bypasses RLS)
 - Environment variables from `.env.local`
 - stdio transport for Claude Code integration

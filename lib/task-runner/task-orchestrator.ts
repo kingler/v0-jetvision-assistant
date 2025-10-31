@@ -1,5 +1,5 @@
 /**
- * Task Orchestrator for JetVision AI Assistant
+ * Task Orchestrator for Jetvision AI Assistant
  *
  * Semi-automated task execution system that:
  * - Monitors tasks directory for new tasks

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# JetVision - Database Schema Validation Script
+# Jetvision - Database Schema Validation Script
 # This script validates the SQL syntax of migration files
 
 set -e

@@ -31,7 +31,7 @@ class TDDWorkflow {
   }
 
   async run(): Promise<void> {
-    console.log('🔄 JetVision TDD Workflow with Code Review\n');
+    console.log('🔄 Jetvision TDD Workflow with Code Review\n');
     console.log('This workflow enforces proper TDD practices:\n');
     console.log('  1. RED   - Write a failing test');
     console.log('  2. GREEN - Make the test pass');

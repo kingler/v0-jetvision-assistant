@@ -1,4 +1,4 @@
--- JetVision AI Assistant - Initial Database Schema
+-- Jetvision AI Assistant - Initial Database Schema
 -- Migration: 001_initial_schema.sql
 -- Description: Core tables for multi-tenant RFP management system
 -- Created: 2025-10-21
@@ -394,7 +394,7 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
--- JetVision AI Assistant - Row Level Security Policies
+-- Jetvision AI Assistant - Row Level Security Policies
 -- Migration: 002_rls_policies.sql
 -- Description: Multi-tenant data isolation with RLS policies
 -- Created: 2025-10-21
@@ -710,7 +710,7 @@ COMMENT ON FUNCTION owns_resource(UUID) IS
 -- FROM pg_policies
 -- WHERE schemaname = 'public'
 -- ORDER BY tablename, policyname;
--- JetVision AI Assistant - Seed Data
+-- Jetvision AI Assistant - Seed Data
 -- Migration: 003_seed_data.sql
 -- Description: Development and testing seed data
 -- Created: 2025-10-21
@@ -740,7 +740,7 @@ INSERT INTO iso_agents (
   'percentage',
   15.00,
   true,
-  '{"company": "JetVision West", "territory": "US-West", "preferred_operators": ["NetJets", "VistaJet"]}'::jsonb
+  '{"company": "Jetvision West", "territory": "US-West", "preferred_operators": ["NetJets", "VistaJet"]}'::jsonb
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- Test ISO Agent 2
@@ -763,7 +763,7 @@ INSERT INTO iso_agents (
   'fixed',
   5000.00,
   true,
-  '{"company": "JetVision East", "territory": "US-East", "preferred_operators": ["FlexJet", "Wheels Up"]}'::jsonb
+  '{"company": "Jetvision East", "territory": "US-East", "preferred_operators": ["FlexJet", "Wheels Up"]}'::jsonb
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- Test Admin User
@@ -786,7 +786,7 @@ INSERT INTO iso_agents (
   'percentage',
   0.00,
   true,
-  '{"company": "JetVision HQ", "access_level": "full"}'::jsonb
+  '{"company": "Jetvision HQ", "access_level": "full"}'::jsonb
 ) ON CONFLICT (clerk_user_id) DO NOTHING;
 
 -- ============================================================================

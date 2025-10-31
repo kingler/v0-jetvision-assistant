@@ -1,4 +1,4 @@
-# JetVision Multi-Agent System - Deployment Status
+# Jetvision Multi-Agent System - Deployment Status
 
 **Last Updated**: 2025-10-22
 **Current Phase**: Phase 4 Complete - Frontend MVP Deployed

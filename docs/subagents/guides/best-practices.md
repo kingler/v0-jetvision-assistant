@@ -7,7 +7,7 @@
 
 ## 📋 Overview
 
-This guide covers best practices for developing, testing, and deploying JetVision AI Assistant agents and services.
+This guide covers best practices for developing, testing, and deploying Jetvision AI Assistant agents and services.
 
 ---
 

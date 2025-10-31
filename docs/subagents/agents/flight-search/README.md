@@ -34,7 +34,7 @@ import { OPENAI_CONFIG } from '@/lib/config/openai-config'
 export const flightSearchAgent = new Agent({
   name: 'Flight Search Agent',
   model: OPENAI_CONFIG.AGENT_MODELS.flightSearch, // gpt-5
-  instructions: `You are the Flight Search Agent for JetVision AI Assistant.
+  instructions: `You are the Flight Search Agent for Jetvision AI Assistant.
 
 Your role is to search for private jet flights and create RFPs using the Avinode platform:
 

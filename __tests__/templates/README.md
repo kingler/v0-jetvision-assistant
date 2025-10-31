@@ -1,6 +1,6 @@
 # Test Templates
 
-This directory contains templates for creating different types of tests in the JetVision project.
+This directory contains templates for creating different types of tests in the Jetvision project.
 
 ## Available Templates
 

@@ -1,6 +1,6 @@
 # AI Agents
 
-This directory contains all AI agent implementations for the JetVision Assistant system.
+This directory contains all AI agent implementations for the Jetvision Assistant system.
 
 ## Agent Files
 

@@ -1,8 +1,8 @@
-# Vercel Deployment Instructions for JetVision AI Assistant
+# Vercel Deployment Instructions for Jetvision AI Assistant
 
 ## Quick Start
 
-This document contains step-by-step instructions for deploying the JetVision AI Assistant to Vercel.
+This document contains step-by-step instructions for deploying the Jetvision AI Assistant to Vercel.
 
 **Important**: You must configure environment variables in Vercel for the application to work.
 
@@ -12,7 +12,7 @@ This document contains step-by-step instructions for deploying the JetVision AI 
 
 1. Go to [https://vercel.com/dashboard](https://vercel.com/dashboard)
 2. Log in to your Vercel account
-3. Find and click on your **JetVision** project
+3. Find and click on your **Jetvision** project
 4. Click the **Settings** tab at the top
 5. Click **Environment Variables** in the left sidebar
 
@@ -143,7 +143,7 @@ The `CLERK_WEBHOOK_SECRET` needs to be obtained from Clerk Dashboard:
 
 1. Go to [https://dashboard.clerk.com/](https://dashboard.clerk.com/)
 2. Log in to Clerk
-3. Select your **JetVision** application
+3. Select your **Jetvision** application
 4. Click **Webhooks** in the left sidebar
 5. Click **Add Endpoint** (or edit existing endpoint)
 6. For the **Endpoint URL**, enter:
@@ -186,7 +186,7 @@ After adding ALL environment variables:
 ### Check 1: App Loads
 
 1. Visit your Vercel deployment URL
-2. You should see the JetVision sign-in page
+2. You should see the Jetvision sign-in page
 3. **If you see an error**, check the build logs in Vercel
 
 ### Check 2: Sign Up Works

@@ -1,4 +1,4 @@
-# JetVision Project MCP Configuration
+# Jetvision Project MCP Configuration
 
 **Project-Scoped MCP Setup for Team Collaboration**
 

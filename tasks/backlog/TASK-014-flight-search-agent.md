@@ -21,7 +21,7 @@ Implement the Flight Search Agent using OpenAI GPT-4/5 to search for available a
 **So that** I can send RFPs to the best-matched operators without manual research
 
 ### Business Value
-The Flight Search Agent is critical to the JetVision workflow as it connects client requirements to available aircraft inventory. It searches across multiple operators via Avinode, applies intelligent filtering based on route, passenger count, and client preferences, and selects the most suitable operators for RFP distribution. This agent directly impacts proposal quality and quote conversion rates.
+The Flight Search Agent is critical to the Jetvision workflow as it connects client requirements to available aircraft inventory. It searches across multiple operators via Avinode, applies intelligent filtering based on route, passenger count, and client preferences, and selects the most suitable operators for RFP distribution. This agent directly impacts proposal quality and quote conversion rates.
 
 ---
 

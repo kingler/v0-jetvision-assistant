@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Implement a PDF generation service using jsPDF or Puppeteer to create professional flight proposals, develop a template system for consistent formatting, implement dynamic data population from quote data, apply JetVision branding and styling, and integrate with cloud storage (S3 or Supabase Storage) for PDF persistence.
+Implement a PDF generation service using jsPDF or Puppeteer to create professional flight proposals, develop a template system for consistent formatting, implement dynamic data population from quote data, apply Jetvision branding and styling, and integrate with cloud storage (S3 or Supabase Storage) for PDF persistence.
 
 ### User Story
 **As an** ISO agent
@@ -21,7 +21,7 @@ Implement a PDF generation service using jsPDF or Puppeteer to create profession
 **So that** I can send clients polished, branded proposals that enhance our company image
 
 ### Business Value
-Professional PDF proposals differentiate JetVision from competitors by providing a consistent, high-quality customer experience. Well-designed proposals improve quote acceptance rates, build trust with clients, and reinforce brand identity. Automated generation eliminates manual document creation, saving hours per request.
+Professional PDF proposals differentiate Jetvision from competitors by providing a consistent, high-quality customer experience. Well-designed proposals improve quote acceptance rates, build trust with clients, and reinforce brand identity. Automated generation eliminates manual document creation, saving hours per request.
 
 ---
 
@@ -36,7 +36,7 @@ Professional PDF proposals differentiate JetVision from competitors by providing
 - Ensure consistent page sizing (Letter/A4)
 
 **FR-2**: System SHALL provide template system
-- Header with JetVision branding and logo
+- Header with Jetvision branding and logo
 - Flight details summary section
 - Proposal options table (top 3 aircraft)
 - Aircraft specifications and amenities
@@ -52,7 +52,7 @@ Professional PDF proposals differentiate JetVision from competitors by providing
 - Custom notes and special requirements
 
 **FR-4**: System SHALL apply branding and styling
-- JetVision logo and color scheme (Black, Cyan, Gray)
+- Jetvision logo and color scheme (Black, Cyan, Gray)
 - Professional typography (consistent fonts and sizes)
 - High-quality aircraft images (when available)
 - Proper spacing, alignment, margins
@@ -171,12 +171,12 @@ describe('PDFGeneratorService', () => {
       expect(pageCount).toBeGreaterThanOrEqual(2)
     })
 
-    it('should include JetVision branding', async () => {
+    it('should include Jetvision branding', async () => {
       const result = await pdfService.generateProposal(mockProposalData)
 
       const pdfText = await pdfService.extractText(result.pdf_path)
 
-      expect(pdfText).toContain('JetVision')
+      expect(pdfText).toContain('Jetvision')
       // Verify logo image is embedded
       const hasLogo = await pdfService.hasEmbeddedImage(result.pdf_path, 'logo')
       expect(hasLogo).toBe(true)
@@ -614,7 +614,7 @@ export class PDFGeneratorService {
       doc.setFontSize(8)
       doc.setTextColor(128, 128, 128)
 
-      const footerText = data.footer_text || 'JetVision - Premium Private Aviation'
+      const footerText = data.footer_text || 'Jetvision - Premium Private Aviation'
       doc.text(footerText, 10, 285)
 
       // Page number
@@ -642,7 +642,7 @@ export class PDFGeneratorService {
 - [ ] TASK-002 (Database) completed
 - [ ] TASK-005 (Supabase Client) completed
 - [ ] Supabase Storage bucket created
-- [ ] JetVision logo and branding assets available
+- [ ] Jetvision logo and branding assets available
 
 ### Step-by-Step Implementation
 

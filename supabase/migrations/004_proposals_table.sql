@@ -1,4 +1,4 @@
--- JetVision AI Assistant - Proposals Table
+-- Jetvision AI Assistant - Proposals Table
 -- Migration: 004_proposals_table.sql
 -- Description: Add proposals table for storing generated PDF proposals
 -- Created: 2025-10-24

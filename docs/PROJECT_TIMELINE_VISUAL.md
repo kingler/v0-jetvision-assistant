@@ -1,4 +1,4 @@
-# JetVision AI - Visual Project Timeline
+# Jetvision AI - Visual Project Timeline
 
 **8-Week Implementation Schedule | Oct 20 - Dec 14, 2025**
 

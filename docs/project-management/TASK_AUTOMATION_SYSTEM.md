@@ -1,5 +1,5 @@
 # Task Automation System
-# JetVision AI Assistant
+# Jetvision AI Assistant
 
 **Created**: October 20, 2025
 **Status**: Production Ready ✅

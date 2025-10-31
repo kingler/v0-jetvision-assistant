@@ -1,5 +1,5 @@
 /**
- * JetVision AI Assistant - Database Types
+ * Jetvision AI Assistant - Database Types
  * Auto-generated TypeScript types for Supabase schema
  * Created: 2025-10-21
  *

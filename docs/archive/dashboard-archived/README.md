@@ -87,7 +87,7 @@ This directory contains the complete dashboard implementation that was temporari
 ## Why Archived?
 
 ### Business Decision
-The JetVision AI Assistant is designed as a **conversational, chat-first application**. The dashboard was added during development but created a friction point in the user experience:
+The Jetvision AI Assistant is designed as a **conversational, chat-first application**. The dashboard was added during development but created a friction point in the user experience:
 
 **Original Flow** (with dashboard):
 ```

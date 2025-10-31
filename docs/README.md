@@ -1,6 +1,6 @@
-# JetVision AI Assistant Documentation
+# Jetvision AI Assistant Documentation
 
-Welcome to the comprehensive documentation for the JetVision AI Assistant project. This documentation is organized by category to help you quickly find the information you need.
+Welcome to the comprehensive documentation for the Jetvision AI Assistant project. This documentation is organized by category to help you quickly find the information you need.
 
 ## Quick Start
 
@@ -154,6 +154,6 @@ When adding new documentation:
 ---
 
 **Last Updated**: 2025-10-26
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Architecture**: Multi-Agent System with OpenAI Agent SDK + MCP
 **Stack**: Next.js 14, TypeScript, Supabase, BullMQ + Redis

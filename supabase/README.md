@@ -1,12 +1,12 @@
 # Supabase Database Schema Documentation
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Version**: 1.0.0
 **Last Updated**: 2025-10-21
 
 ## Overview
 
-The JetVision database schema is designed for a multi-tenant RFP management system for private jet charter bookings. It supports a complete workflow from request creation through quote analysis and proposal generation, with comprehensive audit trails and multi-agent coordination tracking.
+The Jetvision database schema is designed for a multi-tenant RFP management system for private jet charter bookings. It supports a complete workflow from request creation through quote analysis and proposal generation, with comprehensive audit trails and multi-agent coordination tracking.
 
 ## Architecture Principles
 

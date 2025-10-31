@@ -10,7 +10,7 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-console.log('✅ JetVision Database - Deployment Verification\n');
+console.log('✅ Jetvision Database - Deployment Verification\n');
 console.log('='.repeat(60));
 
 const tables = [

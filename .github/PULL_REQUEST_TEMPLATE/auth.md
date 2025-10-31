@@ -2,7 +2,7 @@
 
 ## 📋 Summary
 
-Complete implementation of **Clerk authentication** integrated with **Next.js 14 App Router** and **Supabase**. This PR establishes the foundation for secure user authentication and session management across the JetVision Multi-Agent System.
+Complete implementation of **Clerk authentication** integrated with **Next.js 14 App Router** and **Supabase**. This PR establishes the foundation for secure user authentication and session management across the Jetvision Multi-Agent System.
 
 ---
 

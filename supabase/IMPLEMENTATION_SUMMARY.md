@@ -7,7 +7,7 @@
 
 ## Overview
 
-Implemented a complete PostgreSQL database schema for the JetVision AI Assistant multi-tenant RFP management system, with comprehensive Row Level Security (RLS) policies for data isolation.
+Implemented a complete PostgreSQL database schema for the Jetvision AI Assistant multi-tenant RFP management system, with comprehensive Row Level Security (RLS) policies for data isolation.
 
 ## Deliverables
 

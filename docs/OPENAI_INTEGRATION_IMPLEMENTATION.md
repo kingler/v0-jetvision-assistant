@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-This document summarizes the implementation of OpenAI's modern AI technologies into the JetVision Assistant project:
+This document summarizes the implementation of OpenAI's modern AI technologies into the Jetvision Assistant project:
 
 1. **Responses API with Streaming**: Real-time token-by-token AI responses using Server-Sent Events
 2. **Tool Call Indicators**: Visual progress tracking for MCP server and function invocations
@@ -48,7 +48,7 @@ This document summarizes the implementation of OpenAI's modern AI technologies i
 - **Tracing**: Built-in observability
 - **MCP Native**: First-class Model Context Protocol support
 
-**Compatibility**: Works alongside existing JetVision BaseAgent architecture
+**Compatibility**: Works alongside existing Jetvision BaseAgent architecture
 
 ### 3. OpenAI ChatKit (React)
 
@@ -243,7 +243,7 @@ interface AgentConfig {
 2. Create Agent Builder workflow (get workflow_id)
 3. Create `/api/chatkit/session` endpoint
 4. Integrate `<ChatKit />` component
-5. Custom theming for JetVision brand
+5. Custom theming for Jetvision brand
 6. Feature flag for A/B testing
 
 **Endpoint Structure**:
@@ -280,7 +280,7 @@ export function ChatInterfaceChatKit() {
       },
     },
     theme: {
-      primaryColor: '#0066cc', // JetVision blue
+      primaryColor: '#0066cc', // Jetvision blue
       borderRadius: '12px',
     },
   });

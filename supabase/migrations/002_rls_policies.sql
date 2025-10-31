@@ -1,4 +1,4 @@
--- JetVision AI Assistant - Row Level Security Policies
+-- Jetvision AI Assistant - Row Level Security Policies
 -- Migration: 002_rls_policies.sql
 -- Description: Multi-tenant data isolation with RLS policies
 -- Created: 2025-10-21
