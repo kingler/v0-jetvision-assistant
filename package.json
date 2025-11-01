@@ -51,6 +51,8 @@
     "workflow:update": "tsx scripts/workflow/update-workflow.ts",
     "workflow:validate": "tsx scripts/workflow/validate-compliance.ts",
     "workflow:status": "cat .workflow-state.yml 2>/dev/null || echo 'No active workflow'",
+    "env:verify": "tsx scripts/verify-environment.ts",
+    "env:setup": "cp .env.example .env.local && echo '✅ Created .env.local - Please fill in your values'",
     "prepare": "husky install || true"
   },
   "dependencies": {
