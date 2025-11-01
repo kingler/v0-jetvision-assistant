@@ -1,12 +1,14 @@
 /**
  * Streaming Chat Response API Route
  * Uses OpenAI Responses API with Server-Sent Events (SSE) for real-time streaming
- * Supports hosted MCP servers and tool call indicators
+ * Supports MCP servers via stdio transport (ONEK-79)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { auth } from '@clerk/nextjs/server';
+import { MCPServerManager } from '@/lib/services/mcp-server-manager';
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -16,6 +18,17 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   organization: process.env.OPENAI_ORGANIZATION_ID,
 });
+
+// Get MCPServerManager singleton
+const mcpManager = MCPServerManager.getInstance();
+
+// MCP server configuration from environment
+const MCP_SERVER_CONFIG = {
+  name: 'avinode-mcp',
+  command: process.env.MCP_AVINODE_COMMAND || 'node',
+  args: (process.env.MCP_AVINODE_ARGS || 'mcp-servers/avinode-mcp-server/dist/mcp-servers/avinode-mcp-server/src/index.js').split(','),
+  timeout: parseInt(process.env.MCP_SERVER_TIMEOUT || '10000', 10),
+};
 
 /**
  * Request body schema
@@ -111,8 +124,8 @@ export async function POST(req: NextRequest) {
             },
           ];
 
-          // Configure hosted MCP tools (if available)
-          const tools = buildMCPTools();
+          // Initialize MCP server connection and fetch tool definitions
+          const tools = await initializeMCPAndGetTools();
 
           // Create streaming response using Responses API
           const response = await openai.chat.completions.create({
@@ -259,20 +272,65 @@ Always be professional, concise, and helpful. When creating RFPs, extract all re
 }
 
 /**
- * Build MCP tool configurations
- * NOTE: This will be updated to use hosted MCP servers in Phase 3
+ * Initialize MCP server connection and fetch tool definitions
+ * Uses lazy initialization - spawns server on first request
+ * ONEK-79: stdio Transport Connection
  */
-function buildMCPTools(): Array<OpenAI.Chat.Completions.ChatCompletionTool> {
-  // For now, return standard function tools
-  // Phase 3 will convert to hosted MCP tool format:
-  // {
-  //   type: 'mcp',
-  //   mcp: {
-  //     server: 'supabase-mcp',
-  //     connector: { url: 'https://...', headers: {...} }
-  //   }
-  // }
+async function initializeMCPAndGetTools(): Promise<Array<OpenAI.Chat.Completions.ChatCompletionTool>> {
+  try {
+    console.log('[ChatRespond] Initializing MCP server connection...');
 
+    // Check if server is already running
+    const serverState = mcpManager.getServerState(MCP_SERVER_CONFIG.name);
+
+    if (serverState === 'stopped' || serverState === 'failed' || serverState === 'crashed') {
+      console.log(`[ChatRespond] Spawning MCP server: ${MCP_SERVER_CONFIG.name}`);
+
+      // Spawn server with timeout from config
+      await mcpManager.spawnServer(
+        MCP_SERVER_CONFIG.name,
+        MCP_SERVER_CONFIG.command,
+        MCP_SERVER_CONFIG.args,
+        { spawnTimeout: MCP_SERVER_CONFIG.timeout }
+      );
+
+      console.log(`[ChatRespond] MCP server spawned successfully`);
+    } else {
+      console.log(`[ChatRespond] Reusing existing MCP server (state: ${serverState})`);
+    }
+
+    // Get MCP client
+    const mcpClient: Client = await mcpManager.getClient(MCP_SERVER_CONFIG.name);
+
+    // List available tools from MCP server
+    const toolsResponse = await mcpClient.listTools();
+    console.log(`[ChatRespond] Fetched ${toolsResponse.tools?.length || 0} tools from MCP server`);
+
+    // Convert MCP tools to OpenAI function tools format
+    const tools: Array<OpenAI.Chat.Completions.ChatCompletionTool> = (toolsResponse.tools || []).map((tool) => ({
+      type: 'function' as const,
+      function: {
+        name: tool.name,
+        description: tool.description || '',
+        parameters: tool.inputSchema || { type: 'object', properties: {} },
+      },
+    }));
+
+    return tools;
+  } catch (error) {
+    console.error('[ChatRespond] Failed to initialize MCP server:', error);
+
+    // Fall back to hardcoded tools if MCP server fails
+    console.warn('[ChatRespond] Falling back to hardcoded tool definitions');
+    return buildFallbackTools();
+  }
+}
+
+/**
+ * Fallback tool definitions (used if MCP server fails)
+ * Matches the original buildMCPTools() implementation
+ */
+function buildFallbackTools(): Array<OpenAI.Chat.Completions.ChatCompletionTool> {
   return [
     {
       type: 'function',
