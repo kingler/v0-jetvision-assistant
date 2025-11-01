@@ -1,135 +1,130 @@
 /**
- * QuoteCard Component
- * Displays individual flight quote with operator details, pricing, and AI scoring
- * Can be used inline in chat or in dashboard views
+ * Quote Card Component
+ * Displays flight quote with price, operator, and ranking information
  */
 
 import type React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Star, Clock, Plane, TrendingUp, Check } from 'lucide-react'
-import { PriceDisplay } from './price-display'
+import { Progress } from '@/components/ui/progress'
+import { DollarSign, Star, Plane, Clock } from 'lucide-react'
 
 export interface QuoteCardProps {
-  id?: string
   operatorName: string
   aircraftType: string
   price: number
-  aiScore: number
-  rank: number
-  totalQuotes: number
-  operatorRating: number
-  departureTime: string
-  arrivalTime: string
-  flightDuration: string
+  currency?: string
+  score?: number
+  ranking?: number
+  totalQuotes?: number
+  departureTime?: string
+  arrivalTime?: string
+  flightDuration?: string
+  operatorRating?: number
   isRecommended?: boolean
-  isSelected?: boolean
   onSelect?: () => void
-  compact?: boolean
+  className?: string
 }
 
 export function QuoteCard({
   operatorName,
   aircraftType,
   price,
-  aiScore,
-  rank,
+  currency = 'USD',
+  score,
+  ranking,
   totalQuotes,
-  operatorRating,
   departureTime,
   arrivalTime,
   flightDuration,
+  operatorRating,
   isRecommended = false,
-  isSelected = false,
   onSelect,
-  compact = false,
+  className,
 }: QuoteCardProps) {
-  return (
-    <Card
-      className={`
-        relative transition-all
-        ${isSelected ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'}
-        ${isRecommended ? 'border-green-500' : ''}
-      `}
-    >
-      {isRecommended && (
-        <div className="absolute -top-2 -right-2">
-          <Badge className="bg-green-500 text-white shadow-md">
-            <TrendingUp className="w-3 h-3 mr-1" />
-            AI Recommended
-          </Badge>
-        </div>
-      )}
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
 
-      <CardHeader className={compact ? 'pb-3' : ''}>
+  return (
+    <Card className={className}>
+      <CardHeader>
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle className={compact ? 'text-base' : 'text-lg'}>{operatorName}</CardTitle>
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              <Plane className="w-3 h-3" />
-              <span>{aircraftType}</span>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg">{operatorName}</CardTitle>
+              {isRecommended && (
+                <Badge variant="default" className="bg-accent">
+                  Recommended
+                </Badge>
+              )}
+              {ranking && (
+                <Badge variant="secondary">
+                  #{ranking} of {totalQuotes}
+                </Badge>
+              )}
             </div>
+            <CardDescription className="mt-1 flex items-center gap-1">
+              <Plane className="h-3 w-3" />
+              {aircraftType}
+            </CardDescription>
           </div>
           <div className="text-right">
-            <div className="flex items-center space-x-1 text-amber-500">
-              <Star className="w-4 h-4 fill-current" />
-              <span className="text-sm font-medium">{operatorRating.toFixed(1)}</span>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Rank #{rank} of {totalQuotes}
-            </div>
+            <div className="text-2xl font-bold text-primary">{formatPrice(price)}</div>
+            {operatorRating && (
+              <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                {operatorRating.toFixed(1)}
+              </div>
+            )}
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Price Display */}
-        <div className="flex items-baseline justify-between">
-          <PriceDisplay amount={price} size={compact ? 'sm' : 'lg'} />
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">AI Score</div>
-            <div className="text-lg font-bold text-blue-600">{aiScore}/100</div>
-          </div>
-        </div>
-
-        {/* Flight Times */}
-        {!compact && (
-          <div className="flex items-center justify-between text-sm">
-            <div>
-              <div className="text-xs text-muted-foreground">Departure</div>
-              <div className="font-medium">{departureTime}</div>
+      <CardContent className="space-y-3">
+        {score !== undefined && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">AI Score</span>
+              <span className="font-medium">{score}/100</span>
             </div>
-            <div className="flex items-center text-muted-foreground">
-              <Clock className="w-4 h-4 mr-1" />
-              <span>{flightDuration}</span>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-muted-foreground">Arrival</div>
-              <div className="font-medium">{arrivalTime}</div>
-            </div>
+            <Progress value={score} className="h-2" />
           </div>
         )}
 
-        {/* Action Button */}
-        {onSelect && (
-          <Button
-            onClick={onSelect}
-            variant={isSelected ? 'default' : 'outline'}
-            className="w-full"
-            size={compact ? 'sm' : 'default'}
-          >
-            {isSelected ? (
-              <>
-                <Check className="w-4 h-4 mr-2" />
-                Selected
-              </>
-            ) : (
-              'Select This Quote'
+        {(departureTime || arrivalTime || flightDuration) && (
+          <div className="flex items-center justify-between rounded-lg bg-muted p-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div>
+                {departureTime && <div className="font-medium">{departureTime}</div>}
+                {flightDuration && (
+                  <div className="text-xs text-muted-foreground">{flightDuration}</div>
+                )}
+              </div>
+            </div>
+            {arrivalTime && (
+              <div className="text-right">
+                <div className="font-medium">{arrivalTime}</div>
+              </div>
             )}
-          </Button>
+          </div>
         )}
       </CardContent>
+
+      {onSelect && (
+        <CardFooter>
+          <Button onClick={onSelect} className="w-full" variant={isRecommended ? "default" : "outline"}>
+            Select Quote
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   )
 }
