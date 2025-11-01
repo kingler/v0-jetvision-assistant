@@ -421,6 +421,99 @@ function buildFallbackTools(): Array<OpenAI.Chat.Completions.ChatCompletionTool>
 }
 
 /**
+ * Execute MCP tool and emit SSE progress events
+ * ONEK-81: Implement executeTool() Function for MCP Tool Invocation
+ *
+ * @param toolName - Name of the MCP tool to execute
+ * @param toolArgs - Arguments to pass to the tool
+ * @param mcpClient - MCP client instance
+ * @param encoder - TextEncoder for SSE messages
+ * @param controller - ReadableStream controller for SSE
+ * @returns Stringified tool result for GPT-4o context
+ * @throws Error if tool execution fails
+ */
+export async function executeTool(
+  toolName: string,
+  toolArgs: Record<string, any>,
+  mcpClient: Client,
+  encoder: TextEncoder,
+  controller: ReadableStreamDefaultController
+): Promise<string> {
+  // Validate required parameters
+  if (!toolName || toolName.trim() === '') {
+    throw new Error('Tool name is required');
+  }
+
+  if (!mcpClient) {
+    throw new Error('MCP client is required');
+  }
+
+  if (!encoder) {
+    throw new Error('TextEncoder is required');
+  }
+
+  if (!controller) {
+    throw new Error('ReadableStream controller is required');
+  }
+
+  // Helper to send SSE event
+  const sendSSE = (type: string, data: any) => {
+    const message = `data: ${JSON.stringify({ type, data })}\n\n`;
+    controller.enqueue(encoder.encode(message));
+  };
+
+  try {
+    // Log tool invocation
+    console.log(`[executeTool] Executing MCP tool: ${toolName}`, toolArgs);
+
+    // Emit tool_call_start event
+    sendSSE('tool_call_start', {
+      toolName,
+      arguments: toolArgs,
+    });
+
+    // Execute tool via MCP client
+    const result = await mcpClient.callTool({
+      name: toolName,
+      arguments: toolArgs,
+    });
+
+    // Extract text content from MCP response
+    let resultText = '';
+    if (result.content && Array.isArray(result.content)) {
+      for (const item of result.content) {
+        if (item.type === 'text') {
+          resultText += item.text;
+        }
+      }
+    }
+
+    // Emit tool_call_result event
+    sendSSE('tool_call_result', {
+      toolName,
+      result: resultText,
+    });
+
+    console.log(`[executeTool] Tool execution successful: ${toolName}`);
+
+    // Return stringified result for GPT-4o context
+    return resultText;
+  } catch (error) {
+    // Log error with context
+    console.error(`[executeTool] Tool execution error: ${toolName}`, error);
+
+    // Emit tool_call_error event
+    sendSSE('tool_call_error', {
+      toolName,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    // Re-throw error to allow caller to handle
+    throw error;
+  }
+}
+
+/**
  * OPTIONS handler for CORS preflight
  */
 export async function OPTIONS() {
