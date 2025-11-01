@@ -19,6 +19,7 @@
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit",
+    "type-check:build": "tsc --project tsconfig.build.json --noEmit",
     "agents:create": "tsx scripts/agents/create-agent.ts",
     "agents:list": "tsx scripts/agents/list-agents.ts",
     "mcp:create": "tsx scripts/mcp/create-mcp-server.ts",
