@@ -7,7 +7,7 @@
 
 ## 📋 Overview
 
-This document covers the supporting services and technologies used in JetVision: Clerk, Supabase, Google APIs, Next.js, and Vercel.
+This document covers the supporting services and technologies used in Jetvision: Clerk, Supabase, Google APIs, Next.js, and Vercel.
 
 ---
 

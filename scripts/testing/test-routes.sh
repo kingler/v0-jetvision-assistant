@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Testing JetVision Routes..."
+echo "Testing Jetvision Routes..."
 echo "=============================="
 echo ""
 

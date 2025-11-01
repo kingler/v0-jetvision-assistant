@@ -6,7 +6,7 @@ export default function SignInPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-            Welcome to JetVision
+            Welcome to Jetvision
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
             Sign in to your account to continue

@@ -2,7 +2,7 @@
 
 ## Summary
 
-Successfully completed a comprehensive reorganization of the JetVision AI Assistant project structure following **Next.js 14 App Router best practices** and **2025 scalability patterns**.
+Successfully completed a comprehensive reorganization of the Jetvision AI Assistant project structure following **Next.js 14 App Router best practices** and **2025 scalability patterns**.
 
 ## Objectives Achieved
 

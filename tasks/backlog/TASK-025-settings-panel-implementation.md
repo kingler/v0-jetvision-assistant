@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Implement user settings panel with profile settings page, notification preferences, API key management (if applicable), markup configuration, and theme preferences for the JetVision AI Assistant.
+Implement user settings panel with profile settings page, notification preferences, API key management (if applicable), markup configuration, and theme preferences for the Jetvision AI Assistant.
 
 ### User Story
 **As an** ISO agent

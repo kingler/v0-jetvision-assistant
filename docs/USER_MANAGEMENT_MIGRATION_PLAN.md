@@ -1,6 +1,6 @@
 # User Management System Migration Plan
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Task**: Migrate from `iso_agents` to `users` table with multi-role support
 **Author**: Claude Code
 **Date**: October 25, 2025
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This document outlines a comprehensive plan to migrate the JetVision AI Assistant application from a single-role ISO agent system to a flexible multi-role user management system. The migration involves:
+This document outlines a comprehensive plan to migrate the Jetvision AI Assistant application from a single-role ISO agent system to a flexible multi-role user management system. The migration involves:
 
 1. **Database restructuring** - Rename `iso_agents` → `users` table
 2. **Role expansion** - Support for `sales_rep`, `admin`, and `customer` roles

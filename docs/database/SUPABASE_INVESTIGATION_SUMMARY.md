@@ -36,7 +36,7 @@
 
 ### 1. ✅ `iso_agents` - User Profiles (Sales Reps & Admin)
 
-**Purpose**: Stores JetVision Group's sales representatives and admin staff members
+**Purpose**: Stores Jetvision Group's sales representatives and admin staff members
 
 **Key Features**:
 - Linked to Clerk authentication via `clerk_user_id`

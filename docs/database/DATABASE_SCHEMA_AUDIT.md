@@ -11,7 +11,7 @@
 ### 1. `iso_agents` - Sales Representatives & Admin Staff
 **Status**: ✅ **EXISTS** (4 rows)
 
-**Purpose**: Stores user profiles for JetVision Group's sales representatives and admin staff members
+**Purpose**: Stores user profiles for Jetvision Group's sales representatives and admin staff members
 
 **Key Columns**:
 - `id` - UUID primary key

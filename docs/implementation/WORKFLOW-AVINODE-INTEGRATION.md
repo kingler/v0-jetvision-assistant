@@ -43,7 +43,7 @@ Step 4: Analyzing Options
   └─ Scoring and ranking quotes
 
 Step 5: Generate Proposal
-  └─ Creating JetVision branded quote
+  └─ Creating Jetvision branded quote
 ```
 
 ## New Features
@@ -292,7 +292,7 @@ async execute(context: AgentContext): Promise<AgentResult> {
 ```
 Step 5: Generate Proposal [Completed]
   • Applied margin settings
-  • Created JetVision branded quote
+  • Created Jetvision branded quote
   • Proposal ready for client
 ```
 
@@ -532,7 +532,7 @@ const headers = {
   'Authorization': `Bearer ${process.env.AVINODE_BEARER_TOKEN}`,
   'X-Avinode-SentTimestamp': new Date().toISOString(), // ISO-8601 UTC (must be within 5 minutes)
   'X-Avinode-ApiVersion': 'v1.0',
-  'X-Avinode-Product': 'JetVision/1.0.0',
+  'X-Avinode-Product': 'Jetvision/1.0.0',
   'Accept-Encoding': 'gzip', // Optional, for compression
 }
 ```
@@ -602,7 +602,7 @@ async function makeAvinodeRequest(endpoint: string, options: RequestInit = {}) {
     'Authorization': `Bearer ${AVINODE_BEARER_TOKEN}`,
     'X-Avinode-SentTimestamp': new Date().toISOString(),
     'X-Avinode-ApiVersion': 'v1.0',
-    'X-Avinode-Product': 'JetVision/1.0.0',
+    'X-Avinode-Product': 'Jetvision/1.0.0',
     'Accept-Encoding': 'gzip',
     ...options.headers,
   };

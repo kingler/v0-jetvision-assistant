@@ -5,7 +5,7 @@
 ### Step 1: Go to Vercel Environment Variables
 
 1. Go to https://vercel.com/dashboard
-2. Click your **JetVision** project
+2. Click your **Jetvision** project
 3. Click **Settings** → **Environment Variables**
 
 ### Step 2: Add These Variables

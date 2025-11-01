@@ -16,7 +16,7 @@
 **Verification Points:**
 - [ ] URL changes from `/` to `/sign-in`
 - [ ] Sign-in page displays with Clerk UI
-- [ ] Page shows "Welcome to JetVision" heading
+- [ ] Page shows "Welcome to Jetvision" heading
 - [ ] Page shows "AI-powered private jet booking assistant" description
 - [ ] Clerk sign-in form is visible
 - [ ] "Don't have an account? Sign up" link is present
@@ -32,7 +32,7 @@
 **Verification Points:**
 - [ ] URL changes to `/sign-up`
 - [ ] Sign-up page displays with Clerk UI
-- [ ] Page shows "Join JetVision" heading
+- [ ] Page shows "Join Jetvision" heading
 - [ ] Page shows "Create your account to start booking private jets with AI" description
 - [ ] Clerk sign-up form is visible
 - [ ] "Already have an account? Sign in" link is present
@@ -55,7 +55,7 @@
 - [ ] Chat interface loads
 - [ ] Landing page shows (with "Start Chat" button)
 - [ ] Sidebar is visible with chat sessions
-- [ ] Header shows JetVision logo
+- [ ] Header shows Jetvision logo
 - [ ] Settings button is visible
 - [ ] **UserButton (avatar) is visible** in header next to Settings
 - [ ] No redirect loop occurs
@@ -209,7 +209,7 @@ Use this for rapid verification:
 ```
 ┌─────────────────────────────────────┐
 │                                     │
-│         Welcome to JetVision        │
+│         Welcome to Jetvision        │
 │   AI-powered private jet booking    │
 │                                     │
 │  ┌───────────────────────────────┐  │
@@ -231,7 +231,7 @@ Use this for rapid verification:
 ### Chat Interface (After Login)
 ```
 ┌──────────────────────────────────────────────────┐
-│ [☰] [JetVision Logo] AI-powered Private Jet...   │
+│ [☰] [Jetvision Logo] AI-powered Private Jet...   │
 │                         [Settings] [👤 Avatar]   │
 ├──────────────────────────────────────────────────┤
 │ [Sidebar]  │  [Main Chat Interface]              │

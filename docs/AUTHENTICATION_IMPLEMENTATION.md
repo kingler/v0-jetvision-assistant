@@ -1,7 +1,7 @@
 # Authentication Implementation Summary
 
 ## Overview
-JetVision now has a complete authentication system using **Clerk** for user authentication and login/signup UI, with **Supabase** configured for session management and data storage.
+Jetvision now has a complete authentication system using **Clerk** for user authentication and login/signup UI, with **Supabase** configured for session management and data storage.
 
 ## Architecture
 

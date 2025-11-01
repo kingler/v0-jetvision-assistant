@@ -1,5 +1,5 @@
 # Task Management System
-# JetVision AI Assistant
+# Jetvision AI Assistant
 
 **Version**: 1.0
 **Last Updated**: October 20, 2025
@@ -8,7 +8,7 @@
 
 ## Overview
 
-This directory contains the task management system for the JetVision AI Assistant project. Each task is a self-contained document that guides implementation using Test-Driven Development (TDD), proper Git workflow, and code review best practices.
+This directory contains the task management system for the Jetvision AI Assistant project. Each task is a self-contained document that guides implementation using Test-Driven Development (TDD), proper Git workflow, and code review best practices.
 
 ---
 

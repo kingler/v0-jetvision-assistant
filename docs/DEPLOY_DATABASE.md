@@ -1,4 +1,4 @@
-# Database Deployment Guide - JetVision
+# Database Deployment Guide - Jetvision
 
 ## Status: ⚠️ Migrations Need to be Deployed
 

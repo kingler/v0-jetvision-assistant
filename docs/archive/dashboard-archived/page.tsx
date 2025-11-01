@@ -119,7 +119,7 @@ export default function DashboardPage() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">JetVision Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Jetvision Dashboard</h1>
               <p className="text-sm text-gray-600">Multi-Agent RFP Processing System</p>
             </div>
             <div className="flex items-center gap-4">

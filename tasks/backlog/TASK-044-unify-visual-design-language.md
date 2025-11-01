@@ -17,7 +17,7 @@ Unify the visual design language across the application by adopting the chat int
 
 ### User Story
 ```
-As a user of JetVision
+As a user of Jetvision
 I want a consistent visual experience throughout the application
 So that it feels like a unified, professional product
 ```
@@ -119,7 +119,7 @@ File: `app/globals.css`
 @layer base {
   :root {
     /* ========================================
-       JetVision Design System - Dark Theme
+       Jetvision Design System - Dark Theme
        ======================================== */
 
     /* Brand Colors */
@@ -467,11 +467,11 @@ export function Input({ className, variant, 'aria-invalid': ariaInvalid, ...prop
 File: `docs/DESIGN_SYSTEM.md`
 
 ```markdown
-# JetVision Design System
+# Jetvision Design System
 
 ## Overview
 
-The JetVision design system is built around a modern, dark-first aesthetic that emphasizes our AI-powered conversational interface.
+The Jetvision design system is built around a modern, dark-first aesthetic that emphasizes our AI-powered conversational interface.
 
 ## Principles
 

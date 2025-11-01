@@ -1,6 +1,6 @@
 # Task Dependency Mapping & Execution Strategy
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Version**: 1.0
 **Last Updated**: October 21, 2025
 **Total Tasks**: 37

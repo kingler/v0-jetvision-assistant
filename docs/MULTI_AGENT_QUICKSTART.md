@@ -1,6 +1,6 @@
 # 🚀 Multi-Agent System - Quick Start Guide
 
-**Welcome to the JetVision Multi-Agent System!**
+**Welcome to the Jetvision Multi-Agent System!**
 
 This guide will get you up and running with the new multi-agent architecture.
 

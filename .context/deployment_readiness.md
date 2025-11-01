@@ -1,6 +1,6 @@
 # Deployment Readiness Assessment
 
-**Project**: JetVision AI Assistant  
+**Project**: Jetvision AI Assistant  
 **Assessment Date**: October 27, 2025  
 **Readiness Verdict**: ❌ **Not Ready for Production** – core user experience still relies on mocks, automated coverage is below acceptable thresholds, and infrastructure dependencies are unvalidated.
 

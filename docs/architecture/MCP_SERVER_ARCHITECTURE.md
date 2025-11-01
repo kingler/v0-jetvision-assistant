@@ -1,6 +1,6 @@
 # MCP Server Architecture Plan - Week 2 Implementation
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Phase**: Week 2 - MCP Server Infrastructure
 **Planning Date**: October 21, 2025
 **Execution Window**: October 27 - November 2, 2025
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This document defines the comprehensive architecture and implementation plan for all Model Context Protocol (MCP) servers in the JetVision system. The MCP infrastructure provides the bridge between AI agents and external services (Avinode, Gmail, Google Sheets), enabling tool-based AI interactions.
+This document defines the comprehensive architecture and implementation plan for all Model Context Protocol (MCP) servers in the Jetvision system. The MCP infrastructure provides the bridge between AI agents and external services (Avinode, Gmail, Google Sheets), enabling tool-based AI interactions.
 
 **Week 2 delivers 4 MCP servers**:
 1. **MCP Base Infrastructure** (TASK-007 / DES-84)
@@ -49,7 +49,7 @@ Model Context Protocol (MCP) is a standardized protocol for AI agents to interac
 - **Error handling** conventions
 - **Tool discovery** mechanisms
 
-### Why MCP for JetVision?
+### Why MCP for Jetvision?
 
 1. **Decouples agents from services**: Agents don't need API-specific code
 2. **Enables tool reuse**: Same MCP server can serve multiple agents
@@ -57,7 +57,7 @@ Model Context Protocol (MCP) is a standardized protocol for AI agents to interac
 4. **Standardizes interface**: Consistent tool calling across all agents
 5. **Scales independently**: MCP servers can be deployed separately
 
-### MCP in JetVision Architecture
+### MCP in Jetvision Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

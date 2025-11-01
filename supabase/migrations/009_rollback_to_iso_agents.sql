@@ -1,4 +1,4 @@
--- JetVision AI Assistant - ROLLBACK Migration
+-- Jetvision AI Assistant - ROLLBACK Migration
 -- Migration: 008_rollback_to_iso_agents.sql
 -- Description: EMERGENCY ROLLBACK - Reverses migrations 004-007 if needed
 -- Created: 2025-10-25

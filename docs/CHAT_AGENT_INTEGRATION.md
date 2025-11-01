@@ -20,7 +20,7 @@
 
 ## Overview
 
-The chat-agent integration provides a natural language interface for users to interact with the JetVision multi-agent system. Instead of filling out forms, users can simply describe their flight requirements in plain language, and the AI agents handle the rest.
+The chat-agent integration provides a natural language interface for users to interact with the Jetvision multi-agent system. Instead of filling out forms, users can simply describe their flight requirements in plain language, and the AI agents handle the rest.
 
 ### Key Features
 

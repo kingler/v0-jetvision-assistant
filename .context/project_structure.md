@@ -1,7 +1,7 @@
 # Project Structure Analysis
 
 **Analysis Date**: October 27, 2025  
-**Project**: JetVision AI Assistant  
+**Project**: Jetvision AI Assistant  
 **Approx. File Count**: ~1,700 tracked files (excludes `node_modules/`)  
 **TypeScript Sources**: 177 (`.ts`/`.tsx`)  
 **Test Suites**: 38 Vitest specs under `__tests__/`

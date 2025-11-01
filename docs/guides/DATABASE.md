@@ -1,4 +1,4 @@
-# JetVision Database - Quick Reference
+# Jetvision Database - Quick Reference
 
 ## 📊 Database Status: ✅ **FULLY OPERATIONAL**
 

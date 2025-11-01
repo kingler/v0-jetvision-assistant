@@ -1,4 +1,4 @@
-# JetVision Database Schema Diagram
+# Jetvision Database Schema Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐

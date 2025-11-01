@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Create a typed API client library with comprehensive error handling, retry logic, and custom React hooks for data fetching (useRequests, useQuotes, useProposals) with loading states, error states, and optimistic updates for the JetVision application.
+Create a typed API client library with comprehensive error handling, retry logic, and custom React hooks for data fetching (useRequests, useQuotes, useProposals) with loading states, error states, and optimistic updates for the Jetvision application.
 
 ### User Story
 **As a** frontend developer

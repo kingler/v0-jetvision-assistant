@@ -1,4 +1,4 @@
-# JetVision Multi-Agent System Architecture
+# Jetvision Multi-Agent System Architecture
 
 **Version**: 2.0
 **Last Updated**: October 20, 2025
@@ -20,7 +20,7 @@
 
 ## Overview
 
-The JetVision Multi-Agent System is a production-ready AI architecture built on:
+The Jetvision Multi-Agent System is a production-ready AI architecture built on:
 
 - **OpenAI Agent SDK (JavaScript/TypeScript)** - For AI agent capabilities
 - **Model Context Protocol (MCP)** - For external service integration
@@ -555,7 +555,7 @@ console.log(`Time in ANALYZING: ${timings[WorkflowState.ANALYZING]}ms`)
 
 ---
 
-**Maintained by**: JetVision Development Team
+**Maintained by**: Jetvision Development Team
 **Contact**: See [GETTING_STARTED.md](../GETTING_STARTED.md) for support
 **Related Docs**:
 - [MCP Integration Guide](./MCP_INTEGRATION.md)

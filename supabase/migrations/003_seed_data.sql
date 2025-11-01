@@ -1,4 +1,4 @@
--- JetVision AI Assistant - Seed Data
+-- Jetvision AI Assistant - Seed Data
 -- Migration: 003_seed_data.sql
 -- Description: Development and testing seed data
 -- Created: 2025-10-21

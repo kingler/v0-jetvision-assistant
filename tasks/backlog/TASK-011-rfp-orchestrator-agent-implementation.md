@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Implement the RFP Orchestrator Agent - the first AI agent in the JetVision system - using OpenAI GPT-4/5 with tool use capabilities, workflow state machine management, database integration, and BullMQ job processing for the complete flight request workflow.
+Implement the RFP Orchestrator Agent - the first AI agent in the Jetvision system - using OpenAI GPT-4/5 with tool use capabilities, workflow state machine management, database integration, and BullMQ job processing for the complete flight request workflow.
 
 ### User Story
 **As an** ISO agent
@@ -21,7 +21,7 @@ Implement the RFP Orchestrator Agent - the first AI agent in the JetVision syste
 **So that** I can process client requests in minutes instead of hours with minimal manual intervention
 
 ### Business Value
-The RFP Orchestrator Agent is the brain of the JetVision system. It analyzes incoming flight requests, determines priority and complexity, coordinates other specialized agents (Client Data Manager, Flight Search, Proposal Analysis, Communication Manager), manages workflow state transitions, and ensures smooth end-to-end automation. This is the most critical agent as it orchestrates all other components and directly impacts the 85% efficiency improvement goal.
+The RFP Orchestrator Agent is the brain of the Jetvision system. It analyzes incoming flight requests, determines priority and complexity, coordinates other specialized agents (Client Data Manager, Flight Search, Proposal Analysis, Communication Manager), manages workflow state transitions, and ensures smooth end-to-end automation. This is the most critical agent as it orchestrates all other components and directly impacts the 85% efficiency improvement goal.
 
 ---
 

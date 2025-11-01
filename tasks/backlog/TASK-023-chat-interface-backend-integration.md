@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Connect the existing chat UI to API routes, implement message streaming with Server-Sent Events (SSE), integrate workflow visualization updates, proposal display, and replace all mock data with real API calls for the JetVision AI Assistant.
+Connect the existing chat UI to API routes, implement message streaming with Server-Sent Events (SSE), integrate workflow visualization updates, proposal display, and replace all mock data with real API calls for the Jetvision AI Assistant.
 
 ### User Story
 **As an** ISO agent

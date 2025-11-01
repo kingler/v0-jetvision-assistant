@@ -227,7 +227,7 @@ yarn install
    - Go to: https://dashboard.clerk.com
    - Sign up or log in
    - Click **"Create Application"**
-   - Name it: "JetVision AI Assistant"
+   - Name it: "Jetvision AI Assistant"
    - Choose authentication methods: Email, Google (recommended)
 
 2. **Get API Keys**

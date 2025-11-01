@@ -1,9 +1,9 @@
 # PRODUCT REQUIREMENTS DOCUMENT (PRD)
-# JetVision AI Assistant - Multi-Agent RFP Automation System
+# Jetvision AI Assistant - Multi-Agent RFP Automation System
 
 **Document Version**: 1.0
 **Last Updated**: October 20, 2025
-**Product Owner**: JetVision Development Team
+**Product Owner**: Jetvision Development Team
 **Target Audience**: Developers, Product Managers, QA Engineers
 
 ---
@@ -11,7 +11,7 @@
 ## 1. INTRODUCTION / OVERVIEW
 
 ### Product Name
-JetVision AI Assistant
+Jetvision AI Assistant
 
 ### Problem Statement
 Private jet charter brokers (ISO agents) manually process flight requests through a time-consuming workflow that involves:
@@ -732,7 +732,7 @@ Transform flight request processing for private jet charter brokers by providing
 
 ### Branding
 
-- JetVision logo in header
+- Jetvision logo in header
 - Brand colors: Black (#000000), Cyan (#06B6D4), Gray (#6B7280)
 - Professional aviation-themed visuals
 - Consistent typography (system fonts)
@@ -841,7 +841,7 @@ Transform flight request processing for private jet charter brokers by providing
 
 ## 11. ACCEPTANCE CRITERIA SUMMARY
 
-The JetVision AI Assistant SHALL be considered complete when:
+The Jetvision AI Assistant SHALL be considered complete when:
 
 1. ISO agents can submit flight requests via chat interface
 2. System automatically fetches returning client profiles from Google Sheets
@@ -861,6 +861,6 @@ The JetVision AI Assistant SHALL be considered complete when:
 
 ---
 
-**Document Prepared By**: AI Analysis of JetVision Codebase
+**Document Prepared By**: AI Analysis of Jetvision Codebase
 **Review Status**: Ready for Developer Review
 **Next Steps**: Begin Phase 2 implementation (MCP servers and agent implementations)

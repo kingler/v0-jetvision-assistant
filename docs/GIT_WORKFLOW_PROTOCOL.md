@@ -1,6 +1,6 @@
 # Git Workflow Protocol - Multi-Agent Development
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Version**: 1.0
 **Last Updated**: October 21, 2025
 **Status**: ✅ ACTIVE & ENFORCED
@@ -21,7 +21,7 @@
 
 ## Overview
 
-This document defines the **mandatory** Git workflow for all development work on the JetVision AI Assistant project. This workflow ensures:
+This document defines the **mandatory** Git workflow for all development work on the Jetvision AI Assistant project. This workflow ensures:
 
 - ✅ Main branch remains stable and deployable
 - ✅ All changes are reviewed before merging

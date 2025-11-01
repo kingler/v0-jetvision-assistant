@@ -1,4 +1,4 @@
-# JetVision AI Assistant - Project Structure
+# Jetvision AI Assistant - Project Structure
 
 This document describes the complete project directory structure and organization.
 
@@ -341,5 +341,5 @@ Last reviewed: October 20, 2025
 
 ---
 
-**Maintained by**: JetVision Development Team
+**Maintained by**: Jetvision Development Team
 **Questions**: See [GETTING_STARTED.md](./docs/GETTING_STARTED.md) for support

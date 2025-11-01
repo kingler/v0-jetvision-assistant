@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document explains how user authentication data is synchronized from Clerk to Supabase in the JetVision AI Assistant application.
+This document explains how user authentication data is synchronized from Clerk to Supabase in the Jetvision AI Assistant application.
 
 ## Architecture
 

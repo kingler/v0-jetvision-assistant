@@ -1,6 +1,6 @@
-# JetVision AI - Project Schedule Overview
+# Jetvision AI - Project Schedule Overview
 
-**Project**: JetVision AI Agent System
+**Project**: Jetvision AI Agent System
 **Timeline**: October 20, 2025 - December 14, 2025 (8 weeks)
 **Status**: Planning Phase
 **Document Version**: 1.0
@@ -10,7 +10,7 @@
 
 ## 📊 Executive Summary
 
-JetVision AI is a comprehensive 8-week project to deliver an intelligent RFP (Request for Proposal) automation system for private jet charter services. The system leverages AI agents to automate flight search, proposal generation, client communication, and workflow management.
+Jetvision AI is a comprehensive 8-week project to deliver an intelligent RFP (Request for Proposal) automation system for private jet charter services. The system leverages AI agents to automate flight search, proposal generation, client communication, and workflow management.
 
 **Key Metrics**:
 - **Total Duration**: 56 days (8 weeks)

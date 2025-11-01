@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Implement all remaining API endpoints for the JetVision application including flight request CRUD operations, quote retrieval, proposal management, agent execution endpoints, webhook handlers, input validation with Zod, comprehensive error handling, and rate limiting for API protection.
+Implement all remaining API endpoints for the Jetvision application including flight request CRUD operations, quote retrieval, proposal management, agent execution endpoints, webhook handlers, input validation with Zod, comprehensive error handling, and rate limiting for API protection.
 
 ### User Story
 **As a** frontend developer

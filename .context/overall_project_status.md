@@ -1,6 +1,6 @@
 # Overall Project Status Report
 
-**Project**: JetVision AI Assistant  
+**Project**: Jetvision AI Assistant  
 **Analysis Date**: October 27, 2025  
 **Analyst**: Codex Codebase Review Agent
 

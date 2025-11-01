@@ -9,7 +9,7 @@
 
 ## 📋 Overview
 
-The RFP Orchestrator Agent is the central coordinator of the JetVision AI Assistant system. It manages the entire RFP workflow from initial client request to final proposal delivery by delegating tasks to specialized agents and maintaining workflow state.
+The RFP Orchestrator Agent is the central coordinator of the Jetvision AI Assistant system. It manages the entire RFP workflow from initial client request to final proposal delivery by delegating tasks to specialized agents and maintaining workflow state.
 
 ### Responsibilities
 
@@ -33,7 +33,7 @@ import { OPENAI_CONFIG } from '@/lib/config/openai-config'
 export const orchestratorAgent = new Agent({
   name: 'RFP Orchestrator',
   model: OPENAI_CONFIG.AGENT_MODELS.orchestrator, // gpt-5
-  instructions: `You are the RFP Orchestrator for JetVision AI Assistant.
+  instructions: `You are the RFP Orchestrator for Jetvision AI Assistant.
 
 Your role is to coordinate the private jet booking workflow by:
 1. Analyzing incoming client requests

@@ -174,7 +174,7 @@ scripts/launch-verification.sh
 
 set -e
 
-echo "🎯 JetVision AI Assistant - Final QA Test Suite"
+echo "🎯 Jetvision AI Assistant - Final QA Test Suite"
 echo "================================================"
 echo ""
 
@@ -567,7 +567,7 @@ _________________
 
 set -e
 
-echo "🚀 JetVision AI Assistant - Production Deployment"
+echo "🚀 Jetvision AI Assistant - Production Deployment"
 echo "=================================================="
 echo ""
 

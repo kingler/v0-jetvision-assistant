@@ -38,8 +38,8 @@ test.describe('User Management - UI Regression Tests', () => {
     await page.goto('http://localhost:3001/sign-in');
 
     // Check page loads successfully
-    await expect(page).toHaveTitle('JetVision Agent');
-    await expect(page.getByText('Welcome to JetVision')).toBeVisible();
+    await expect(page).toHaveTitle('Jetvision Agent');
+    await expect(page.getByText('Welcome to Jetvision')).toBeVisible();
 
     // Verify Clerk sign-in form loads
     const clerkForm = page.locator('[data-clerk-element]').first();
@@ -50,7 +50,7 @@ test.describe('User Management - UI Regression Tests', () => {
     await page.goto('http://localhost:3001/sign-up');
 
     // Check page loads successfully
-    await expect(page.getByText('Join JetVision')).toBeVisible();
+    await expect(page.getByText('Join Jetvision')).toBeVisible();
 
     // Verify Clerk sign-up form loads
     const clerkForm = page.locator('[data-clerk-element]').first();

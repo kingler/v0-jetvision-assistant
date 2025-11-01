@@ -239,7 +239,7 @@ File: `app/layout.tsx`
 ```tsx
 // Ensure root metadata emphasizes chat
 export const metadata: Metadata = {
-  title: 'JetVision AI Assistant - Conversational Flight Booking',
+  title: 'Jetvision AI Assistant - Conversational Flight Booking',
   description: 'Submit flight requests through natural language conversation',
 }
 ```
@@ -274,7 +274,7 @@ describe('Dashboard Flow', () => { /* ... */ })
 describe('Chat Flow', () => {
   it('should load chat interface at root', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('text=JetVision AI Assistant')).toBeVisible()
+    await expect(page.locator('text=Jetvision AI Assistant')).toBeVisible()
     await expect(page.locator('textarea[placeholder*="Type your request"]')).toBeVisible()
   })
 

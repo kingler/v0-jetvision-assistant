@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# JetVision Multi-Agent Code Review - Pre-push Hook
+# Jetvision Multi-Agent Code Review - Pre-push Hook
 # Comprehensive validation before pushing to remote
 
 echo "🚀 Running pre-push validation..."

@@ -12,12 +12,12 @@
 ## 1. Task Overview
 
 ### Objective
-Integrate Clerk authentication into the JetVision AI Assistant application to enable secure user authentication, session management, and user profile synchronization with Supabase.
+Integrate Clerk authentication into the Jetvision AI Assistant application to enable secure user authentication, session management, and user profile synchronization with Supabase.
 
 ### User Story
 ```
 As a broker user
-I want to securely log in to the JetVision AI Assistant
+I want to securely log in to the Jetvision AI Assistant
 So that I can access my private flight requests and client data
 ```
 
@@ -549,7 +549,7 @@ Related to: TASK-001"
 
 ### Step 1: Environment Setup
 - [ ] Create Clerk account at clerk.com
-- [ ] Create new application "JetVision AI Assistant"
+- [ ] Create new application "Jetvision AI Assistant"
 - [ ] Copy publishable key and secret key
 - [ ] Add keys to `.env.local`
 - [ ] Enable Google OAuth in Clerk dashboard

@@ -1,4 +1,4 @@
-# JetVision AI Assistant - Subagents Documentation
+# Jetvision AI Assistant - Subagents Documentation
 
 **Version**: 1.0.0
 **Last Updated**: October 20, 2025
@@ -9,13 +9,13 @@
 
 ## 📚 Documentation Overview
 
-This directory contains comprehensive documentation for all AI subagents and their supporting technologies in the JetVision AI Assistant system. The documentation is organized to help developers understand, implement, and maintain each component effectively.
+This directory contains comprehensive documentation for all AI subagents and their supporting technologies in the Jetvision AI Assistant system. The documentation is organized to help developers understand, implement, and maintain each component effectively.
 
 ---
 
 ## 🤖 AI Agents Documentation
 
-The JetVision system uses 6 specialized AI agents, each with specific responsibilities:
+The Jetvision system uses 6 specialized AI agents, each with specific responsibilities:
 
 ### Core Agents
 

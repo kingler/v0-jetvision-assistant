@@ -125,8 +125,8 @@ The middleware correctly identifies unauthenticated requests and applies protect
 
 **Results - Sign-In Page**:
 ```
-✅ Title: "JetVision Agent"
-✅ Heading: "Welcome to JetVision"
+✅ Title: "Jetvision Agent"
+✅ Heading: "Welcome to Jetvision"
 ✅ Description: "AI-powered private jet booking assistant"
 ✅ Clerk SignIn component present
 ✅ Redirect URLs configured correctly
@@ -141,7 +141,7 @@ The middleware correctly identifies unauthenticated requests and applies protect
 **Evidence**:
 ```html
 <h1 class="text-3xl font-bold text-slate-900 dark:text-slate-50">
-  Welcome to JetVision
+  Welcome to Jetvision
 </h1>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
   AI-powered private jet booking assistant

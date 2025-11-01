@@ -1,4 +1,4 @@
--- JetVision AI Assistant - Update RLS Functions and Policies for Users Table
+-- Jetvision AI Assistant - Update RLS Functions and Policies for Users Table
 -- Migration: 007_update_rls_for_users.sql
 -- Description: Update Row Level Security helper functions and policies to use new table/column names
 -- Created: 2025-10-25

@@ -7,7 +7,7 @@
 
 ## 📋 Overview
 
-This guide covers common integration patterns used in the JetVision AI Assistant system, including agent communication, MCP integration, database access, and error handling.
+This guide covers common integration patterns used in the Jetvision AI Assistant system, including agent communication, MCP integration, database access, and error handling.
 
 ---
 

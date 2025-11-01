@@ -1,4 +1,4 @@
--- JetVision AI Assistant - Update User Roles
+-- Jetvision AI Assistant - Update User Roles
 -- Migration: 004_update_user_roles.sql
 -- Description: Add new role values for multi-role support (sales_rep, customer)
 -- Created: 2025-10-25

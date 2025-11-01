@@ -1,10 +1,10 @@
-# Avinode API Application Questionnaire - JetVision
+# Avinode API Application Questionnaire - Jetvision
 
 ---
 
 ## **Company Information**
 
-**Company name:** JetVision
+**Company name:** Jetvision
 
 **Company type:** ☑ Broker
 
@@ -22,23 +22,23 @@
 
 **Your solution description:**
 
-JetVision is an AI-powered private aviation platform that streamlines how brokers search for aircraft, manage RFQs (Requests for Quote), and complete bookings. Our solution combines intelligent search capabilities, personalized customer experience management, and automated quote workflows to improve operational efficiency and service quality.
+Jetvision is an AI-powered private aviation platform that streamlines how brokers search for aircraft, manage RFQs (Requests for Quote), and complete bookings. Our solution combines intelligent search capabilities, personalized customer experience management, and automated quote workflows to improve operational efficiency and service quality.
 
 **Unique Architecture - AI Agent as Single API Access Point:**
 
-JetVision employs an innovative MCP (Model Context Protocol) server/client architecture where an AI Agent serves as the **sole access point** to all Avinode APIs. This centralized approach provides:
+Jetvision employs an innovative MCP (Model Context Protocol) server/client architecture where an AI Agent serves as the **sole access point** to all Avinode APIs. This centralized approach provides:
 
 - **Single API Connection**: One Avinode API connection managed exclusively by the AI Agent MCP server
-- **Multi-User Access**: JetVision manages multiple broker users through a chat-based frontend interface
+- **Multi-User Access**: Jetvision manages multiple broker users through a chat-based frontend interface
 - **Intelligent Request Routing**: AI Agent interprets natural language requests from users and translates them into appropriate Avinode API calls
 - **Centralized Security**: All API credentials, rate limiting, and compliance controls managed at the MCP server level
 - **Unified Audit Trail**: Complete logging of all API interactions through single integration point
 
 **Platform Architecture:**
 ```
-[Multiple JetVision Users] 
+[Multiple Jetvision Users] 
     ↓ (Chat Interface)
-[JetVision Frontend Application]
+[Jetvision Frontend Application]
     ↓ (MCP Client Protocol)
 [AI Agent MCP Server] ← **SINGLE AVINODE API CONNECTION**
     ↓ (REST API Calls)
@@ -52,7 +52,7 @@ JetVision employs an innovative MCP (Model Context Protocol) server/client archi
 - **Automated Quote Management**: AI-assisted RFQ responses with pricing and proposal generation
 - **Booking Workflow**: Streamlined booking process from search through confirmation
 
-JetVision serves as the operational hub for our broker team, enabling efficient aircraft search, quote management, and booking operations through an intuitive chat interface.
+Jetvision serves as the operational hub for our broker team, enabling efficient aircraft search, quote management, and booking operations through an intuitive chat interface.
 
 **Links to solution examples:**
 - Prototype: https://v0-jet-vision-agent.vercel.app
@@ -67,14 +67,14 @@ JetVision serves as the operational hub for our broker team, enabling efficient 
 ### **Step-by-Step User Workflow:**
 
 **IMPORTANT ARCHITECTURAL NOTE:** 
-All Avinode API interactions flow through a **single AI Agent MCP server**. Multiple JetVision users (brokers, sales team, customer service) access Avinode functionality through a unified chat interface, but only the AI Agent MCP server holds the Avinode API credentials and makes direct API calls.
+All Avinode API interactions flow through a **single AI Agent MCP server**. Multiple Jetvision users (brokers, sales team, customer service) access Avinode functionality through a unified chat interface, but only the AI Agent MCP server holds the Avinode API credentials and makes direct API calls.
 
 ---
 
 **1. Customer Inquiry & Aircraft Search**
-- Customer contacts JetVision broker with trip requirements
+- Customer contacts Jetvision broker with trip requirements
 - Broker receives inquiry (phone, email, or in-person)
-- **JetVision Broker Chat Interaction:** Broker asks AI Agent: "Search for Citation X from Teterboro to Miami, departing March 15th at 2 PM, 6 passengers"
+- **Jetvision Broker Chat Interaction:** Broker asks AI Agent: "Search for Citation X from Teterboro to Miami, departing March 15th at 2 PM, 6 passengers"
 
 **AI Agent MCP Server Processing:**
 - Parses natural language request into structured parameters
@@ -96,7 +96,7 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
   - Preliminary pricing
   - Operator information
   - Aircraft amenities
-- **JetVision Broker Chat Interaction:** "Show me full details for option 1"
+- **Jetvision Broker Chat Interaction:** "Show me full details for option 1"
 
 **AI Agent MCP Server Processing:**
 - Retrieves additional aircraft details if needed
@@ -109,7 +109,7 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
 
 **3. RFQ Creation & Submission**
 - Broker needs to submit formal RFQ for selected aircraft
-- **JetVision Broker Chat Interaction:** "Create RFQ for tail N123AB, KTEB to KMIA, March 15 at 14:00, 6 passengers, customer is John Smith, john@example.com"
+- **Jetvision Broker Chat Interaction:** "Create RFQ for tail N123AB, KTEB to KMIA, March 15 at 14:00, 6 passengers, customer is John Smith, john@example.com"
 
 **AI Agent MCP Server Processing:**
 - Structures RFQ parameters
@@ -129,7 +129,7 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
 
 **AI Agent Alert to Broker:** "Update on RFQ-12345: 3 new quotes received from operators"
 
-**JetVision Broker Chat Interaction:** "Show me quotes for RFQ-12345"
+**Jetvision Broker Chat Interaction:** "Show me quotes for RFQ-12345"
 
 **AI Agent MCP Server Processing:**
 - **Avinode API Call:** `GET /quotes/{id}` for each quote
@@ -142,7 +142,7 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
 
 **5. Quote Preparation & Counter-Offer**
 - Broker reviews operator quotes and determines pricing strategy
-- **JetVision Broker Chat Interaction:** "Submit our quote for RFQ-12345: $32,000 total, includes ground transport and catering, using our standard terms"
+- **Jetvision Broker Chat Interaction:** "Submit our quote for RFQ-12345: $32,000 total, includes ground transport and catering, using our standard terms"
 
 **AI Agent MCP Server Processing:**
 - Validates quote parameters
@@ -169,14 +169,14 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
 
 **AI Agent Alert to Broker:** "Message from customer on RFQ-12345: 'Can we adjust departure time to 4 PM?'"
 
-**JetVision Broker Chat Interaction:** "Reply: 'Yes, we can accommodate 4 PM departure. Price remains the same.'"
+**Jetvision Broker Chat Interaction:** "Reply: 'Yes, we can accommodate 4 PM departure. Price remains the same.'"
 
 **AI Agent MCP Server Processing:**
 - **Avinode API Call:** `POST /tripmsgs/{requestId}/sendMessage`
 - Sends message to customer via Avinode
 
 **Alternatively, if quote revision needed:**
-- **JetVision Broker Chat Interaction:** "Update quote for RFQ-12345: change departure time to 16:00, price now $32,500"
+- **Jetvision Broker Chat Interaction:** "Update quote for RFQ-12345: change departure time to 16:00, price now $32,500"
 
 **AI Agent MCP Server Processing:**
 - **Avinode API Call:** `POST /tripmsgs/{requestId}/submitQuote` (updated quote)
@@ -200,7 +200,7 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
 ---
 
 **8. Post-Booking Follow-up**
-- **JetVision Broker Chat Interaction:** "Show me booking details for RFQ-12345"
+- **Jetvision Broker Chat Interaction:** "Show me booking details for RFQ-12345"
 
 **AI Agent MCP Server Processing:**
 - **Avinode API Call:** `GET /rfqs/{id}` with relevant sparse fields
@@ -210,7 +210,7 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
 ---
 
 **9. Historical Analysis & Reporting**
-- **JetVision Manager Chat Interaction:** "Show me all bookings from last month"
+- **Jetvision Manager Chat Interaction:** "Show me all bookings from last month"
 
 **AI Agent MCP Server Processing:**
 - Queries historical RFQ data
@@ -230,14 +230,14 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
 - **Customer Service**: "What's the status of booking for customer John Smith?"
 
 **All requests flow through the same AI Agent MCP server, which:**
-1. Authenticates user via JetVision internal auth
+1. Authenticates user via Jetvision internal auth
 2. Determines appropriate Avinode API call(s)
 3. Executes API calls using single API connection
 4. Returns formatted results via chat interface
 5. Logs all interactions for audit trail
 
 **Security & Access Control:**
-- User permissions managed within JetVision platform
+- User permissions managed within Jetvision platform
 - AI Agent enforces role-based access (e.g., junior brokers can't see all pricing)
 - Single Avinode API token secured at MCP server level
 - No user has direct access to Avinode credentials
@@ -248,18 +248,18 @@ All Avinode API interactions flow through a **single AI Agent MCP server**. Mult
 
 **CRM System (Salesforce/HubSpot):**
 - Stage: After booking confirmation - Customer booking information synchronized
-- **Note:** CRM receives processed data from JetVision, never directly accesses Avinode APIs
+- **Note:** CRM receives processed data from Jetvision, never directly accesses Avinode APIs
 
 **Communication Platform (Email/SMS):**
 - Stage: Post-booking - Confirmations and itinerary delivery
-- **Note:** Uses JetVision-formatted data, no direct Avinode access
+- **Note:** Uses Jetvision-formatted data, no direct Avinode access
 
 **Accounting/Payment Platform:**
 - Stage: Post-booking - Invoice generation and payment processing
-- **Note:** Receives booking financial data from JetVision
+- **Note:** Receives booking financial data from Jetvision
 
 **CRITICAL ARCHITECTURAL PRINCIPLE:** 
-Only the AI Agent MCP server has Avinode API credentials. No third-party system, no JetVision user, and no frontend application directly accesses Avinode APIs. This ensures:
+Only the AI Agent MCP server has Avinode API credentials. No third-party system, no Jetvision user, and no frontend application directly accesses Avinode APIs. This ensures:
 - Single point of rate limiting compliance
 - Unified security and credential management
 - Complete audit trail of all API usage
@@ -273,10 +273,10 @@ Only the AI Agent MCP server has Avinode API credentials. No third-party system,
 
 ### **MCP Server Architecture - Single API Integration Point**
 
-**IMPORTANT:** JetVision implements a Model Context Protocol (MCP) server/client architecture where:
+**IMPORTANT:** Jetvision implements a Model Context Protocol (MCP) server/client architecture where:
 
 - **One Avinode API Connection**: The AI Agent MCP server holds the single API connection to Avinode
-- **Multiple Human Users**: JetVision manages 10-50+ broker and staff users internally
+- **Multiple Human Users**: Jetvision manages 10-50+ broker and staff users internally
 - **Chat Interface Frontend**: All users interact via conversational interface
 - **AI Agent as Proxy**: The AI Agent interprets requests and executes appropriate Avinode API calls
 - **No Direct User Access**: Individual users never access Avinode APIs directly
@@ -365,7 +365,7 @@ Only the AI Agent MCP server has Avinode API credentials. No third-party system,
 ```
 [Broker types in chat]: "Search for Global 6000 LAX to Cabo tomorrow"
          ↓
-[JetVision Frontend] → [MCP Client Protocol] 
+[Jetvision Frontend] → [MCP Client Protocol] 
          ↓
 [AI Agent MCP Server]:
   - Authenticates broker
@@ -394,8 +394,8 @@ Only the AI Agent MCP server has Avinode API credentials. No third-party system,
 **SECURITY MODEL:**
 - API Token: Hard-coded in MCP server, never exposed to clients
 - Bearer Token: Secured at MCP server level
-- User Authentication: Managed by JetVision (separate from Avinode)
-- Role-Based Access: AI Agent enforces JetVision user permissions
+- User Authentication: Managed by Jetvision (separate from Avinode)
+- Role-Based Access: AI Agent enforces Jetvision user permissions
 - Audit Logging: Complete trail of which user triggered which API call
 
 ---
@@ -420,7 +420,7 @@ Only the AI Agent MCP server has Avinode API credentials. No third-party system,
 - Corporate travel departments
 
 **Your intended application purpose:**
-☑ **Inhouse purpose** - JetVision is our proprietary broker platform for internal sales and operations team use
+☑ **Inhouse purpose** - Jetvision is our proprietary broker platform for internal sales and operations team use
 
 **User Scale:**
 - Initial: 10-15 broker/sales users accessing via chat interface

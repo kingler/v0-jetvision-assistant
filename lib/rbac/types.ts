@@ -2,19 +2,19 @@
  * RBAC (Role-Based Access Control) Type Definitions
  * 
  * This module defines the core types and enums for implementing
- * role-based access control in the JetVision application.
+ * role-based access control in the Jetvision application.
  * 
  * @fileoverview Comprehensive RBAC type system for multi-role access control
  */
 
 /**
- * User roles in the JetVision system
+ * User roles in the Jetvision system
  * Each role has specific permissions and access levels
  */
 export enum UserRole {
   /** System administrator with full access to all features */
   ADMIN = 'admin',
-  /** JetVision agent who can manage client requests and quotes */
+  /** Jetvision agent who can manage client requests and quotes */
   AGENT = 'agent',
   /** Client who can submit requests and view quotes */
   CLIENT = 'client',

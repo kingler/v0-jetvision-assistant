@@ -1,60 +1,72 @@
-Task ID,Task Name,Start Date,End Date,Duration (Days),Phase,Owner/Team,Milestone,Dependencies,Status,Completion %,Key Deliverables
-1.0,PROJECT KICKOFF,2025-10-20,2025-10-20,1,Initiation,Project Team,Yes,,Planned,0%,Project charter and team alignment
-2.0,PHASE 1: FOUNDATION & INFRASTRUCTURE,2025-10-20,2025-10-26,7,Foundation,Development Team,Yes,,Planned,0%,Secure platform foundation
-2.1,User Authentication System,2025-10-20,2025-10-22,3,Foundation,Backend Team,No,,Planned,0%,"Clerk authentication, user management"
-2.2,Database Setup & Security,2025-10-22,2025-10-23,2,Foundation,System Architect,No,2.1,Planned,0%,Supabase database with security policies
-2.3,API Security & Middleware,2025-10-24,2025-10-25,2,Foundation,Backend Team,No,2.2,Planned,0%,Protected API endpoints
-2.4,Core Agent Framework,2025-10-25,2025-10-26,2,Foundation,Backend Team,No,2.3,Planned,0%,Base AI agent architecture
-2.5,Phase 1 Testing & Validation,2025-10-26,2025-10-26,1,Foundation,QA Team,No,2.4,Planned,0%,Authentication and security validation
-3.0,PHASE 1 MILESTONE: SECURE FOUNDATION COMPLETE,2025-10-26,2025-10-26,1,Foundation,Project Manager,Yes,2.5,Planned,0%,✓ Authentication working ✓ Database secured
-4.0,PHASE 2: AI AGENTS & INTEGRATIONS,2025-10-27,2025-11-02,7,Core Development,Development Team,Yes,3.0,Planned,0%,Operational AI agent system
-4.1,External Service Integrations,2025-10-27,2025-10-29,3,Core Development,Integration Team,No,3.0,Planned,0%,"Avinode, Gmail, Google Sheets APIs"
-4.2,RFP Orchestrator Agent,2025-10-30,2025-10-30,1,Core Development,Backend Team,No,4.1,Planned,0%,Main workflow coordinator
-4.3,Client Data Manager Agent,2025-10-31,2025-10-31,1,Core Development,Backend Team,No,4.1,Planned,0%,Client profile and history management
-4.4,Flight Search Agent,2025-11-01,2025-11-01,1,Core Development,Backend Team,No,4.1,Planned,0%,Aircraft search and availability
-4.5,Phase 2 Integration Testing,2025-11-02,2025-11-02,1,Core Development,QA Team,No,"4.2,4.3,4.4",Planned,0%,Agent communication validation
-5.0,PHASE 2 MILESTONE: CORE AI AGENTS OPERATIONAL,2025-11-02,2025-11-02,1,Core Development,Project Manager,Yes,4.5,Planned,0%,✓ 3 agents working ✓ External integrations live
-6.0,PHASE 3: ADVANCED WORKFLOW & AUTOMATION,2025-11-03,2025-11-09,7,Advanced Development,Development Team,Yes,5.0,Planned,0%,Complete automated RFP workflow
-6.1,Proposal Analysis Agent,2025-11-03,2025-11-03,1,Advanced Development,Backend Team,No,5.0,Planned,0%,Intelligent proposal scoring
-6.2,Communication Manager Agent,2025-11-04,2025-11-04,1,Advanced Development,Backend Team,No,5.0,Planned,0%,Automated client communications
-6.3,Error Monitoring Agent,2025-11-05,2025-11-05,1,Advanced Development,Backend Team,No,5.0,Planned,0%,Self-healing error detection
-6.4,Workflow Orchestration System,2025-11-06,2025-11-06,1,Advanced Development,System Architect,No,"6.1,6.2,6.3",Planned,0%,State machine and task coordination
-6.5,Background Job Processing,2025-11-07,2025-11-07,1,Advanced Development,DevOps Team,No,6.4,Planned,0%,Scalable async task processing
-6.6,End-to-End Workflow Testing,2025-11-08,2025-11-09,2,Advanced Development,QA Team,No,6.5,Planned,0%,Complete RFP flow validation
-7.0,PHASE 3 MILESTONE: COMPLETE AI SYSTEM LIVE,2025-11-09,2025-11-09,1,Advanced Development,Project Manager,Yes,6.6,Planned,0%,✓ All 6 agents working ✓ Full automation ready
-8.0,PHASE 4: USER INTERFACE & EXPERIENCE,2025-11-10,2025-11-16,7,Frontend Development,Frontend Team,Yes,7.0,Planned,0%,Complete user-facing application
-8.1,Authenticated User Interface,2025-11-10,2025-11-11,2,Frontend Development,Frontend Team,No,7.0,Planned,0%,Secure login and user dashboard
-8.2,Real-time Status Updates,2025-11-11,2025-11-12,2,Frontend Development,Frontend Team,No,8.1,Planned,0%,Live quote and request tracking
-8.3,Request Submission Workflow,2025-11-12,2025-11-13,2,Frontend Development,Frontend Team,No,8.2,Planned,0%,User-friendly RFP creation
-8.4,Quote Review & PDF Generation,2025-11-13,2025-11-14,2,Frontend Development,Full Stack Team,No,8.3,Planned,0%,Proposal viewing with PDF download
-8.5,UI/UX Polish & Accessibility,2025-11-15,2025-11-16,2,Frontend Development,Frontend Team,No,8.4,Planned,0%,Professional interface and WCAG compliance
-8.6,Frontend Testing Suite,2025-11-15,2025-11-16,2,Frontend Development,QA Team,No,8.4,Planned,0%,Automated UI testing with Playwright
-9.0,PHASE 4 MILESTONE: USER INTERFACE COMPLETE,2025-11-16,2025-11-16,1,Frontend Development,Project Manager,Yes,"8.5,8.6",Planned,0%,✓ Full UI functional ✓ PDF generation ready
-10.0,PHASE 5: QUALITY ASSURANCE & OPTIMIZATION,2025-11-17,2025-11-23,7,Testing & QA,QA Team,Yes,9.0,Planned,0%,Production-ready quality
-10.1,Comprehensive Test Coverage,2025-11-17,2025-11-18,2,Testing & QA,QA Team,No,9.0,Planned,0%,80%+ unit and integration test coverage
-10.2,Load & Performance Testing,2025-11-19,2025-11-19,1,Testing & QA,QA Team,No,10.1,Planned,0%,100+ concurrent user validation
-10.3,API Performance Optimization,2025-11-20,2025-11-20,1,Testing & QA,Backend Team,No,10.2,Planned,0%,Sub-2 second response times
-10.4,Database Query Optimization,2025-11-21,2025-11-21,1,Testing & QA,Backend Team,No,10.3,Planned,0%,Efficient data access patterns
-10.5,Security Audit & Penetration Testing,2025-11-22,2025-11-22,1,Testing & QA,Security Team,No,10.4,Planned,0%,Vulnerability assessment and fixes
-10.6,Bug Fix Sprint,2025-11-23,2025-11-23,1,Testing & QA,All Teams,No,10.5,Planned,0%,Issue resolution from testing
-11.0,PHASE 5 MILESTONE: PRODUCTION-READY QUALITY,2025-11-23,2025-11-23,1,Testing & QA,Project Manager,Yes,10.6,Planned,0%,✓ Performance optimized ✓ Security validated
-12.0,PHASE 6: PRODUCTION DEPLOYMENT PREP,2025-11-24,2025-11-30,7,Deployment,DevOps Team,Yes,11.0,Planned,0%,Launch-ready infrastructure
-12.1,Monitoring & Alerting Setup,2025-11-24,2025-11-25,2,Deployment,DevOps Team,No,11.0,Planned,0%,Sentry error tracking and dashboards
-12.2,CI/CD Pipeline Configuration,2025-11-26,2025-11-26,1,Deployment,DevOps Team,No,12.1,Planned,0%,Automated deployment workflows
-12.3,Staging Environment Deployment,2025-11-27,2025-11-27,1,Deployment,DevOps Team,No,12.2,Planned,0%,Pre-production environment setup
-12.4,User Acceptance Testing (UAT),2025-11-28,2025-11-28,1,Deployment,Business Team,No,12.3,Planned,0%,Stakeholder validation on staging
-12.5,Production Deployment Preparation,2025-11-29,2025-11-29,1,Deployment,DevOps Team,No,12.4,Planned,0%,Final environment configuration
-12.6,Pre-Launch Checklist & Validation,2025-11-30,2025-11-30,1,Deployment,All Teams,No,12.5,Planned,0%,Go/no-go decision gate
-13.0,PHASE 6 MILESTONE: READY FOR LAUNCH,2025-11-30,2025-11-30,1,Deployment,Project Manager,Yes,12.6,Planned,0%,✓ Monitoring live ✓ UAT passed
-14.0,PHASE 7: PRODUCTION LAUNCH,2025-12-01,2025-12-07,7,Launch,All Teams,Yes,13.0,Planned,0%,System live in production
-14.1,Production Deployment,2025-12-01,2025-12-01,1,Launch,DevOps Team,No,13.0,Planned,0%,Go-live to production environment
-14.2,Launch Day Monitoring,2025-12-01,2025-12-01,1,Launch,All Teams,No,14.1,Planned,0%,24/7 team coverage
-14.3,Early User Onboarding,2025-12-02,2025-12-04,3,Launch,Support Team,No,14.2,Planned,0%,Pilot user group activation
-14.4,Performance Monitoring & Tuning,2025-12-02,2025-12-07,6,Launch,DevOps Team,No,14.2,Planned,0%,Real-world optimization
-14.5,User Feedback Collection,2025-12-05,2025-12-07,3,Launch,Product Team,No,14.3,Planned,0%,Gather early user insights
-14.6,Issue Triage & Hot Fixes,2025-12-01,2025-12-07,7,Launch,Development Team,No,14.1,Planned,0%,Rapid response to production issues
-15.0,PROJECT MILESTONE: PRODUCTION LAUNCH COMPLETE,2025-12-07,2025-12-07,1,Launch,Project Manager,Yes,"14.4,14.5,14.6",Planned,0%,✓ System live ✓ Users onboarded ✓ Stable operation
-16.0,POST-LAUNCH SUPPORT & ITERATION,2025-12-08,2025-12-14,7,Post-Launch,All Teams,No,15.0,Planned,0%,Continuous improvement
-16.1,Week 1 Performance Review,2025-12-08,2025-12-14,7,Post-Launch,All Teams,No,15.0,Planned,0%,Metrics analysis and optimization
-16.2,Feature Enhancement Planning,2025-12-08,2025-12-14,7,Post-Launch,Product Team,No,15.0,Planned,0%,Roadmap for future iterations
-17.0,PROJECT COMPLETION & HANDOFF,2025-12-14,2025-12-14,1,Closure,Project Manager,Yes,"16.1,16.2",Planned,0%,✓ Handoff to operations team
+Task ID,Task Name,Start Date,End Date,Duration (Days),Phase,Owner/Team,Milestone,Dependencies,Linear ID,Status,Completion %,Key Deliverables
+1.0,PROJECT KICKOFF,2025-10-20,2025-10-20,1,Initiation,Project Team,Yes,,,Completed,100%,Project charter and team alignment
+2.0,PHASE 1: FOUNDATION & INFRASTRUCTURE,2025-10-20,2025-10-26,7,Foundation,Development Team,Yes,,,Completed,100%,Secure platform foundation
+2.1,User Authentication System,2025-10-20,2025-10-22,3,Foundation,Backend Team,No,,,Completed,100%,"Clerk authentication, user management"
+2.2,Database Setup & Security,2025-10-22,2025-10-23,2,Foundation,System Architect,No,2.1,,Completed,100%,Supabase database with security policies
+2.3,API Security & Middleware,2025-10-24,2025-10-25,2,Foundation,Backend Team,No,2.2,,Completed,100%,Protected API endpoints
+2.4,Core Agent Framework,2025-10-25,2025-10-26,2,Foundation,Backend Team,No,2.3,,Completed,100%,Base AI agent architecture
+2.5,Phase 1 Testing & Validation,2025-10-26,2025-10-26,1,Foundation,QA Team,No,2.4,,Completed,100%,Authentication and security validation
+3.0,PHASE 1 MILESTONE: SECURE FOUNDATION COMPLETE,2025-10-26,2025-10-26,1,Foundation,Project Manager,Yes,2.5,,Completed,100%,✓ Authentication working ✓ Database secured
+4.0,PHASE 2: CONVERSATIONAL RFP WORKFLOW,2025-11-01,2025-11-18,18,Chat Integration,Development Team,Yes,3.0,DES-226,In Progress,15%,Complete conversational AI workflow for RFP submission
+4.1,DES-227: Mock Data Infrastructure,2025-11-01,2025-11-06,5,Chat Integration,Backend Team,No,3.0,DES-227,Todo,0%,20+ aircraft database and API response mocks
+4.1.1,DES-231: Create Aircraft Database,2025-11-01,2025-11-01,1,Chat Integration,Backend Team,No,4.1,DES-231,Todo,0%,20+ aircraft with specifications across 4 categories
+4.1.2,DES-232: Create Avinode API Response Mocks,2025-11-04,2025-11-05,2,Chat Integration,Backend Team,No,4.1.1,DES-232,Todo,0%,Mock responses for search_flights, create_rfp, get_quotes
+4.1.3,DES-233: Implement Mock/Real API Toggle,2025-11-06,2025-11-06,1,Chat Integration,Backend Team,No,4.1.2,DES-233,Todo,0%,USE_MOCK_AVINODE environment variable toggle
+4.2,DES-228: stdio Process Spawning for MCP,2025-11-07,2025-11-11,3,Chat Integration,Backend Team,No,4.1,DES-228,Todo,0%,MCP server connection via stdio transport
+4.2.1,DES-234: Create MCPServerManager Singleton,2025-11-07,2025-11-07,1,Chat Integration,Backend Team,No,4.1,DES-234,Todo,0%,Process lifecycle manager for MCP servers
+4.2.2,DES-235: Implement stdio Transport in API,2025-11-08,2025-11-08,1,Chat Integration,Backend Team,No,4.2.1,DES-235,Todo,0%,Connect API route to MCP server
+4.2.3,DES-236: Add MCP Health Check Endpoint,2025-11-11,2025-11-11,0.5,Chat Integration,Backend Team,No,4.2.1,DES-236,Todo,0%,/api/mcp/health monitoring endpoint
+4.3,DES-229: GPT-4o Tool Calling with MCP,2025-11-12,2025-11-14,3,Chat Integration,Backend Team,No,4.2,DES-229,Todo,0%,Execute MCP tools via GPT-4o function calling
+4.3.1,DES-237: Implement executeTool() Function,2025-11-12,2025-11-12,1,Chat Integration,Backend Team,No,4.2.2,DES-237,Todo,0%,Core tool execution with SSE events
+4.3.2,DES-238: Add Retry Logic and Error Handling,2025-11-13,2025-11-13,1,Chat Integration,Backend Team,No,4.3.1,DES-238,Todo,0%,Exponential backoff and error classification
+4.3.3,DES-239: Integrate Tool Execution into Streaming,2025-11-14,2025-11-14,1,Chat Integration,Backend Team,No,"4.3.1,4.3.2",DES-239,Todo,0%,Multi-turn tool calling in OpenAI streaming loop
+4.4,DES-230: Chat Interface Real API Integration,2025-11-15,2025-11-16,2,Chat Integration,Frontend Team,No,"4.1,4.2,4.3",DES-230,Todo,0%,Replace simulation with real SSE streaming
+4.5,PHASE 2 MILESTONE: CONVERSATIONAL RFP COMPLETE,2025-11-18,2025-11-18,1,Chat Integration,Project Manager,Yes,"4.1,4.2,4.3,4.4",DES-226,Planned,0%,✓ Chat interface working ✓ Tool execution live ✓ Mock data operational
+5.0,PHASE 3: ADVANCED WORKFLOW & AUTOMATION,2025-11-19,2025-11-25,7,Advanced Development,Development Team,Yes,4.5,,Planned,0%,Complete automated RFP workflow
+5.1,Proposal Analysis Agent,2025-11-19,2025-11-19,1,Advanced Development,Backend Team,No,4.5,,Planned,0%,Intelligent proposal scoring
+5.2,Communication Manager Agent,2025-11-20,2025-11-20,1,Advanced Development,Backend Team,No,4.5,,Planned,0%,Automated client communications
+5.3,Error Monitoring Agent,2025-11-21,2025-11-21,1,Advanced Development,Backend Team,No,4.5,,Planned,0%,Self-healing error detection
+5.4,Workflow Orchestration System,2025-11-22,2025-11-22,1,Advanced Development,System Architect,No,"5.1,5.2,5.3",,Planned,0%,State machine and task coordination
+5.5,Background Job Processing,2025-11-23,2025-11-23,1,Advanced Development,DevOps Team,No,5.4,,Planned,0%,Scalable async task processing
+5.6,End-to-End Workflow Testing,2025-11-24,2025-11-25,2,Advanced Development,QA Team,No,5.5,,Planned,0%,Complete RFP flow validation
+6.0,PHASE 3 MILESTONE: COMPLETE AI SYSTEM LIVE,2025-11-25,2025-11-25,1,Advanced Development,Project Manager,Yes,5.6,,Planned,0%,✓ All 6 agents working ✓ Full automation ready
+7.0,PHASE 4: USER INTERFACE & EXPERIENCE,2025-11-26,2025-12-02,7,Frontend Development,Frontend Team,Yes,6.0,,Planned,0%,Complete user-facing application
+7.1,Authenticated User Interface,2025-11-26,2025-11-27,2,Frontend Development,Frontend Team,No,6.0,,Planned,0%,Secure login and user dashboard
+7.2,Real-time Status Updates,2025-11-27,2025-11-28,2,Frontend Development,Frontend Team,No,7.1,,Planned,0%,Live quote and request tracking
+7.3,Request Submission Workflow,2025-11-28,2025-11-29,2,Frontend Development,Frontend Team,No,7.2,,Planned,0%,User-friendly RFP creation
+7.4,Quote Review & PDF Generation,2025-11-29,2025-11-30,2,Frontend Development,Full Stack Team,No,7.3,,Planned,0%,Proposal viewing with PDF download
+7.5,UI/UX Polish & Accessibility,2025-12-01,2025-12-02,2,Frontend Development,Frontend Team,No,7.4,,Planned,0%,Professional interface and WCAG compliance
+7.6,Frontend Testing Suite,2025-12-01,2025-12-02,2,Frontend Development,QA Team,No,7.4,,Planned,0%,Automated UI testing with Playwright
+8.0,PHASE 4 MILESTONE: USER INTERFACE COMPLETE,2025-12-02,2025-12-02,1,Frontend Development,Project Manager,Yes,"7.5,7.6",,Planned,0%,✓ Full UI functional ✓ PDF generation ready
+9.0,PHASE 5: QUALITY ASSURANCE & OPTIMIZATION,2025-12-03,2025-12-09,7,Testing & QA,QA Team,Yes,8.0,,Planned,0%,Production-ready quality
+9.1,Comprehensive Test Coverage,2025-12-03,2025-12-04,2,Testing & QA,QA Team,No,8.0,,Planned,0%,80%+ unit and integration test coverage
+9.2,Load & Performance Testing,2025-12-05,2025-12-05,1,Testing & QA,QA Team,No,9.1,,Planned,0%,100+ concurrent user validation
+9.3,API Performance Optimization,2025-12-06,2025-12-06,1,Testing & QA,Backend Team,No,9.2,,Planned,0%,Sub-2 second response times
+9.4,Database Query Optimization,2025-12-07,2025-12-07,1,Testing & QA,Backend Team,No,9.3,,Planned,0%,Efficient data access patterns
+9.5,Security Audit & Penetration Testing,2025-12-08,2025-12-08,1,Testing & QA,Security Team,No,9.4,,Planned,0%,Vulnerability assessment and fixes
+9.6,Bug Fix Sprint,2025-12-09,2025-12-09,1,Testing & QA,All Teams,No,9.5,,Planned,0%,Issue resolution from testing
+10.0,PHASE 5 MILESTONE: PRODUCTION-READY QUALITY,2025-12-09,2025-12-09,1,Testing & QA,Project Manager,Yes,9.6,,Planned,0%,✓ Performance optimized ✓ Security validated
+11.0,PHASE 6: PRODUCTION DEPLOYMENT PREP,2025-12-10,2025-12-16,7,Deployment,DevOps Team,Yes,10.0,,Planned,0%,Launch-ready infrastructure
+11.1,Monitoring & Alerting Setup,2025-12-10,2025-12-11,2,Deployment,DevOps Team,No,10.0,,Planned,0%,Sentry error tracking and dashboards
+11.2,CI/CD Pipeline Configuration,2025-12-12,2025-12-12,1,Deployment,DevOps Team,No,11.1,,Planned,0%,Automated deployment workflows
+11.3,Staging Environment Deployment,2025-12-13,2025-12-13,1,Deployment,DevOps Team,No,11.2,,Planned,0%,Pre-production environment setup
+11.4,User Acceptance Testing (UAT),2025-12-14,2025-12-14,1,Deployment,Business Team,No,11.3,,Planned,0%,Stakeholder validation on staging
+11.5,Production Deployment Preparation,2025-12-15,2025-12-15,1,Deployment,DevOps Team,No,11.4,,Planned,0%,Final environment configuration
+11.6,Pre-Launch Checklist & Validation,2025-12-16,2025-12-16,1,Deployment,All Teams,No,11.5,,Planned,0%,Go/no-go decision gate
+12.0,PHASE 6 MILESTONE: READY FOR LAUNCH,2025-12-16,2025-12-16,1,Deployment,Project Manager,Yes,11.6,,Planned,0%,✓ Monitoring live ✓ UAT passed
+13.0,PHASE 7: PRODUCTION LAUNCH,2025-12-17,2025-12-23,7,Launch,All Teams,Yes,12.0,,Planned,0%,System live in production
+13.1,Production Deployment,2025-12-17,2025-12-17,1,Launch,DevOps Team,No,12.0,,Planned,0%,Go-live to production environment
+13.2,Launch Day Monitoring,2025-12-17,2025-12-17,1,Launch,All Teams,No,13.1,,Planned,0%,24/7 team coverage
+13.3,Early User Onboarding,2025-12-18,2025-12-20,3,Launch,Support Team,No,13.2,,Planned,0%,Pilot user group activation
+13.4,Performance Monitoring & Tuning,2025-12-18,2025-12-23,6,Launch,DevOps Team,No,13.2,,Planned,0%,Real-world optimization
+13.5,User Feedback Collection,2025-12-21,2025-12-23,3,Launch,Product Team,No,13.3,,Planned,0%,Gather early user insights
+13.6,Issue Triage & Hot Fixes,2025-12-17,2025-12-23,7,Launch,Development Team,No,13.1,,Planned,0%,Rapid response to production issues
+14.0,PROJECT MILESTONE: PRODUCTION LAUNCH COMPLETE,2025-12-23,2025-12-23,1,Launch,Project Manager,Yes,"13.4,13.5,13.6",,Planned,0%,✓ System live ✓ Users onboarded ✓ Stable operation
+15.0,POST-LAUNCH SUPPORT & ITERATION,2025-12-24,2025-12-30,7,Post-Launch,All Teams,No,14.0,,Planned,0%,Continuous improvement
+15.1,Week 1 Performance Review,2025-12-24,2025-12-30,7,Post-Launch,All Teams,No,14.0,,Planned,0%,Metrics analysis and optimization
+15.2,Feature Enhancement Planning,2025-12-24,2025-12-30,7,Post-Launch,Product Team,No,14.0,,Planned,0%,Roadmap for future iterations
+16.0,PROJECT COMPLETION & HANDOFF,2025-12-30,2025-12-30,1,Closure,Project Manager,Yes,"15.1,15.2",,Planned,0%,✓ Handoff to operations team
+BACKLOG.1,DES-212: Prompt Detail Drawer Component,,,2,Backlog,Frontend Team,No,,DES-212,In Progress,80%,Markdown editor with dual mode view
+BACKLOG.2,DES-213: Comprehensive Testing Suite,,,12,Backlog,QA Team,No,,DES-213,In Progress,60%,85%+ test coverage for dynamic variables
+BACKLOG.3,DES-214: Variable Dependencies System,,,8,Backlog,Frontend Team,No,,DES-214,In Progress,50%,Conditional display logic for template variables
+BACKLOG.4,DES-220: Prompt Detail Drawer - LLM Nav,,,1,Backlog,Frontend Team,No,DES-212,DES-220,In Progress,90%,LLM navigation and 500ms auto-save

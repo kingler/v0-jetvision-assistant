@@ -1,4 +1,4 @@
--- JetVision AI Assistant - Rename iso_agents to users
+-- Jetvision AI Assistant - Rename iso_agents to users
 -- Migration: 005_rename_iso_agents_to_users.sql
 -- Description: Rename iso_agents table to users and add enhanced user profile columns
 -- Created: 2025-10-25

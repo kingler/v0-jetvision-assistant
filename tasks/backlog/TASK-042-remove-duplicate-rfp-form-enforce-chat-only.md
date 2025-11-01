@@ -371,7 +371,7 @@ File: `docs/GETTING_STARTED.md`
 
 ### Why Chat-Only?
 
-Per our Product Requirements Document (PRD), JetVision is designed as a
+Per our Product Requirements Document (PRD), Jetvision is designed as a
 conversational AI assistant. This eliminates the need for complex forms
 and makes the booking process more natural and efficient.
 

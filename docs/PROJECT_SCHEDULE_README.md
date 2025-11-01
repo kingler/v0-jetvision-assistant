@@ -265,7 +265,7 @@ GO-LIVE                       Dec 1     [TBD]     ⏳
 Copy this template for weekly updates:
 
 ```markdown
-# JetVision AI - Week [X] Status Report
+# Jetvision AI - Week [X] Status Report
 **Date**: [Date]
 **Reporting Period**: [Start] - [End]
 **Overall Status**: 🟢 On Track / 🟡 At Risk / 🔴 Delayed
@@ -565,7 +565,7 @@ Quality Gate:       ❌ FAILED (77 TS errors)
 - [DES-127: QA Testing Complete](https://linear.app/designthru-ai/issue/DES-127)
 - [DES-128: TypeScript Errors](https://linear.app/designthru-ai/issue/DES-128)
 - [DES-78: Clerk Authentication](https://linear.app/designthru-ai/issue/DES-78)
-- [Project: JetVision Assistant v1](https://linear.app/designthru-ai/project/jetvision-assistant-v1-8dc142d9fa78)
+- [Project: Jetvision Assistant v1](https://linear.app/designthru-ai/project/jetvision-assistant-v1-8dc142d9fa78)
 
 **Development**:
 - Development Server: http://localhost:3000 ✅ RUNNING

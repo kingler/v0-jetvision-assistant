@@ -1,6 +1,6 @@
-# Getting Started with JetVision AI Assistant
+# Getting Started with Jetvision AI Assistant
 
-Welcome to the JetVision AI Assistant project! This guide will help you get started with the implementation.
+Welcome to the Jetvision AI Assistant project! This guide will help you get started with the implementation.
 
 ## 📚 Documentation Overview
 

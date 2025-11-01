@@ -1,6 +1,6 @@
 # Feature Checklist & Completion Status
 
-**Project**: JetVision AI Assistant  
+**Project**: Jetvision AI Assistant  
 **Analysis Date**: October 27, 2025  
 **Scale**: ✅ Complete · 🟢 Mostly Done · 🟡 In Progress · 🔴 Not Started
 

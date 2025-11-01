@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the JetVision AI Assistant project will be documented in this file.
+All notable changes to the Jetvision AI Assistant project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -214,6 +214,6 @@ Following Conventional Commits:
 
 ---
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Repository**: [GitHub URL]
-**Maintainer**: JetVision Team
+**Maintainer**: Jetvision Team

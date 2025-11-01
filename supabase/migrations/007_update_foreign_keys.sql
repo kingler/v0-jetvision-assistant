@@ -1,4 +1,4 @@
--- JetVision AI Assistant - Update Foreign Key Constraints
+-- Jetvision AI Assistant - Update Foreign Key Constraints
 -- Migration: 006_update_foreign_keys.sql
 -- Description: Rename iso_agent_id to user_id in all dependent tables
 -- Created: 2025-10-25

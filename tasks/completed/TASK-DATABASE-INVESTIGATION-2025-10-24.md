@@ -12,7 +12,7 @@
 ## Task Overview
 
 ### Objective
-Investigate the Supabase database instance to ensure all necessary tables were created for the JetVision AI Assistant application, including user profiles, customer data, flight bookings, RFQs, and PDF proposal storage.
+Investigate the Supabase database instance to ensure all necessary tables were created for the Jetvision AI Assistant application, including user profiles, customer data, flight bookings, RFQs, and PDF proposal storage.
 
 ### User Story
 ```
