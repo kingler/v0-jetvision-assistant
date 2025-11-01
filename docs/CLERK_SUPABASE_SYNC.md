@@ -32,7 +32,7 @@ This document explains how user authentication data is synchronized from Clerk t
 
 1. **user.created** - When a new user signs up
    - Creates a new record in `iso_agents` table
-   - Sets default role to `iso_agent`
+   - Sets default role to `sales_rep`
    - Marks user as active
 
 2. **user.updated** - When user updates their profile
@@ -138,11 +138,14 @@ The webhook syncs data to the `iso_agents` table:
 ```sql
 CREATE TABLE iso_agents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  clerk_user_id TEXT UNIQUE NOT NULL,          -- Clerk user ID
-  email TEXT UNIQUE NOT NULL,                   -- User email
-  full_name TEXT NOT NULL,                      -- Full name
-  role user_role NOT NULL DEFAULT 'iso_agent', -- User role
-  is_active BOOLEAN DEFAULT true,               -- Soft delete flag
+  clerk_user_id TEXT UNIQUE NOT NULL,            -- Clerk user ID
+  email TEXT UNIQUE NOT NULL,                     -- User email
+  full_name TEXT NOT NULL,                        -- Full name
+  role user_role NOT NULL DEFAULT 'sales_rep',   -- User role (sales_rep, admin, customer, operator)
+  margin_type margin_type DEFAULT 'percentage',  -- Margin calculation type
+  margin_value DECIMAL(10, 2) DEFAULT 0.00,      -- Margin value
+  is_active BOOLEAN DEFAULT true,                 -- Soft delete flag
+  metadata JSONB DEFAULT '{}'::jsonb,            -- Additional user metadata
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -192,7 +195,40 @@ For production, consider using a logging service like:
 - **Datadog**
 - **Sentry**
 
-## Testing
+## Testing & Utilities
+
+### Testing Webhook Locally
+
+Use the provided script to test the webhook without creating a real user:
+
+```bash
+# Test webhook with a simulated user.created event
+tsx scripts/clerk/test-webhook.ts
+```
+
+This will:
+- Generate a valid webhook signature
+- Send a test user.created event to your local endpoint
+- Verify the response
+- Show you where to check in Supabase
+
+### Syncing Existing Users
+
+If you have existing users in Clerk that aren't in Supabase, sync them:
+
+```bash
+# Dry run (shows what would be synced)
+tsx scripts/clerk/sync-users.ts --dry-run
+
+# Actually sync the users
+tsx scripts/clerk/sync-users.ts
+```
+
+This will:
+- Fetch all users from Clerk
+- Create missing users in Supabase
+- Update existing users if data changed
+- Show a summary of changes
 
 ### Unit Tests
 
