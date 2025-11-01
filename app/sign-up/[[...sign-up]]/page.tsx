@@ -21,11 +21,8 @@ export default function SignUpPage() {
               headerSubtitle: 'hidden',
             },
           }}
-          routing="path"
-          path="/sign-up"
-          signInUrl="/sign-in"
-          forceRedirectUrl="/"
-          fallbackRedirectUrl="/"
+          afterSignInUrl="/"
+          afterSignUpUrl="/"
         />
       </div>
     </div>
