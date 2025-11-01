@@ -424,13 +424,60 @@ function buildFallbackTools(): Array<OpenAI.Chat.Completions.ChatCompletionTool>
  * Execute MCP tool and emit SSE progress events
  * ONEK-81: Implement executeTool() Function for MCP Tool Invocation
  *
- * @param toolName - Name of the MCP tool to execute
- * @param toolArgs - Arguments to pass to the tool
- * @param mcpClient - MCP client instance
- * @param encoder - TextEncoder for SSE messages
- * @param controller - ReadableStream controller for SSE
- * @returns Stringified tool result for GPT-4o context
- * @throws Error if tool execution fails
+ * This function serves as the bridge between GPT-4o function calling and MCP server tool execution.
+ * It handles the complete lifecycle of tool execution with real-time SSE event streaming.
+ *
+ * **Flow**:
+ * 1. Validates all required parameters
+ * 2. Emits `tool_call_start` SSE event
+ * 3. Executes tool via MCP client.callTool()
+ * 4. Extracts text content from MCP response
+ * 5. Emits `tool_call_result` SSE event
+ * 6. Returns stringified result for GPT-4o message history
+ *
+ * **Error Handling**:
+ * - Emits `tool_call_error` SSE event before throwing
+ * - Logs errors with full context
+ * - Re-throws error for caller to handle retry logic
+ *
+ * @param toolName - Name of the MCP tool to execute (e.g., "search_flights", "create_rfp")
+ * @param toolArgs - Arguments object matching tool's input schema
+ * @param mcpClient - MCP client instance connected to stdio transport
+ * @param encoder - TextEncoder for encoding SSE messages
+ * @param controller - ReadableStream controller for enqueuing SSE events
+ * @returns Stringified tool result for inclusion in GPT-4o context
+ *
+ * @throws {Error} If tool name is empty
+ * @throws {Error} If required parameters (mcpClient, encoder, controller) are missing
+ * @throws {Error} If MCP tool execution fails
+ *
+ * @example
+ * ```typescript
+ * const result = await executeTool(
+ *   'search_flights',
+ *   {
+ *     departureAirport: 'KJFK',
+ *     arrivalAirport: 'KLAX',
+ *     departureDate: '2025-11-15',
+ *     passengers: 4
+ *   },
+ *   mcpClient,
+ *   encoder,
+ *   controller
+ * );
+ * // Returns: '[{"id":"flight-1","operator":{"name":"NetJets"},...}]'
+ * // Emits: tool_call_start, tool_call_result events
+ * ```
+ *
+ * @example Error Handling
+ * ```typescript
+ * try {
+ *   await executeTool('invalid_tool', {}, mcpClient, encoder, controller);
+ * } catch (error) {
+ *   // tool_call_error event already emitted
+ *   // Implement retry logic here
+ * }
+ * ```
  */
 export async function executeTool(
   toolName: string,
