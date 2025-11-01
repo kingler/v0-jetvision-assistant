@@ -29,20 +29,25 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run morpheus-validator
         id: validator
         run: |
           echo "Running code validation..."
-          npm run review:validate 2>&1 | tee validation-report.txt
+          pnpm run review:validate 2>&1 | tee validation-report.txt
           VALIDATION_EXIT_CODE=${PIPESTATUS[0]}
           echo "validation_exit_code=$VALIDATION_EXIT_CODE" >> $GITHUB_OUTPUT
         continue-on-error: true
@@ -51,7 +56,7 @@ jobs:
         id: type_check
         run: |
           echo "Running TypeScript type checking..."
-          npm run type-check 2>&1 | tee type-check-report.txt
+          pnpm run type-check 2>&1 | tee type-check-report.txt
           TYPE_CHECK_EXIT_CODE=${PIPESTATUS[0]}
           echo "type_check_exit_code=$TYPE_CHECK_EXIT_CODE" >> $GITHUB_OUTPUT
         continue-on-error: true
@@ -60,7 +65,7 @@ jobs:
         id: lint
         run: |
           echo "Running ESLint..."
-          npm run lint 2>&1 | tee lint-report.txt
+          pnpm run lint 2>&1 | tee lint-report.txt
           LINT_EXIT_CODE=${PIPESTATUS[0]}
           echo "lint_exit_code=$LINT_EXIT_CODE" >> $GITHUB_OUTPUT
         continue-on-error: true
@@ -69,7 +74,7 @@ jobs:
         id: unit_tests
         run: |
           echo "Running unit tests..."
-          npm run test:unit 2>&1 | tee unit-test-report.txt
+          pnpm run test:unit 2>&1 | tee unit-test-report.txt
           UNIT_TEST_EXIT_CODE=${PIPESTATUS[0]}
           echo "unit_test_exit_code=$UNIT_TEST_EXIT_CODE" >> $GITHUB_OUTPUT
         continue-on-error: true
@@ -78,7 +83,7 @@ jobs:
         id: coverage
         run: |
           echo "Checking test coverage..."
-          npm run test:coverage 2>&1 | tee coverage-report.txt
+          pnpm run test:coverage 2>&1 | tee coverage-report.txt
           COVERAGE_EXIT_CODE=${PIPESTATUS[0]}
           echo "coverage_exit_code=$COVERAGE_EXIT_CODE" >> $GITHUB_OUTPUT
         continue-on-error: true
@@ -87,7 +92,7 @@ jobs:
         id: generate_report
         run: |
           echo "Generating comprehensive PR review report..."
-          npm run review:pr 2>&1 | tee pr-review-report.txt
+          pnpm run review:pr 2>&1 | tee pr-review-report.txt
           PR_REVIEW_EXIT_CODE=${PIPESTATUS[0]}
           echo "pr_review_exit_code=$PR_REVIEW_EXIT_CODE" >> $GITHUB_OUTPUT
         continue-on-error: true
@@ -327,22 +332,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: Run npm audit
+      - name: Run pnpm audit
         id: npm_audit
         run: |
-          echo "Running npm audit..."
-          npm audit --audit-level=moderate 2>&1 | tee npm-audit-report.txt
-          NPM_AUDIT_EXIT_CODE=${PIPESTATUS[0]}
-          echo "npm_audit_exit_code=$NPM_AUDIT_EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "Running pnpm audit..."
+          pnpm audit --audit-level=moderate 2>&1 | tee npm-audit-report.txt
+          PNPM_AUDIT_EXIT_CODE=${PIPESTATUS[0]}
+          echo "npm_audit_exit_code=$PNPM_AUDIT_EXIT_CODE" >> $GITHUB_OUTPUT
         continue-on-error: true
 
       - name: Scan for secrets
