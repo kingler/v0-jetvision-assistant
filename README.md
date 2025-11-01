@@ -24,6 +24,14 @@ Complete this checklist **BEFORE** starting development:
 - Development tools installation
 - **Time Required**: 4-6 hours
 
+### 🔧 [**ENVIRONMENT_SETUP.md**](./docs/ENVIRONMENT_SETUP.md) ← ESSENTIAL
+Environment variable configuration guide:
+- Quick start: `cp .env.example .env.local`
+- Detailed setup instructions for each service
+- Security best practices
+- Troubleshooting guide
+- **Verification**: `npx tsx scripts/verify-environment.ts`
+
 ### 📁 [**PROJECT_STRUCTURE.md**](./PROJECT_STRUCTURE.md) ← NEW!
 Complete project directory organization:
 - Full directory structure with explanations
