@@ -7,6 +7,9 @@ import { supabase } from '@/lib/supabase/client';
 import { AgentFactory } from '@agents/core';
 import { AgentType } from '@agents/core/types';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();

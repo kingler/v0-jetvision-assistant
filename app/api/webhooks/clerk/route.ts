@@ -16,6 +16,9 @@ import { supabase } from '@/lib/supabase/client';
  * - Default role is 'sales_rep'
  * - Role can be set via Clerk user public metadata: { role: 'admin' | 'sales_rep' | 'customer' | 'operator' }
  */
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   // Get webhook secret from environment
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;

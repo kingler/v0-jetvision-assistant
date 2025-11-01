@@ -11,6 +11,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withRBAC } from '@/lib/middleware/rbac';
 import { createClient } from '@/lib/supabase/server';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/users/me
  * Get current user profile
