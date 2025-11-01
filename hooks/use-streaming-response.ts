@@ -14,6 +14,9 @@ type SSEMessageType =
   | 'tool_call_start'
   | 'tool_call_progress'
   | 'tool_call_complete'
+  | 'tool_call_retry'
+  | 'tool_call_result'
+  | 'tool_call_error'
   | 'workflow_update'
   | 'complete'
   | 'error';
@@ -171,6 +174,51 @@ export function useStreamingResponse(
           if (updatedToolCall && onToolCall) {
             onToolCall({ ...updatedToolCall, status: 'complete' });
           }
+          break;
+        }
+
+        case 'tool_call_retry': {
+          const retryData = message.data as {
+            toolName: string;
+            attempt: number;
+            maxRetries: number;
+            nextRetryDelay: number;
+            error: string;
+          };
+          console.log(
+            `[useStreamingResponse] Tool retry: ${retryData.toolName} (attempt ${retryData.attempt}/${retryData.maxRetries}) in ${retryData.nextRetryDelay}ms`
+          );
+          // Could emit to parent component if needed
+          break;
+        }
+
+        case 'tool_call_result': {
+          const resultData = message.data as {
+            toolName: string;
+            result: string;
+          };
+          console.log(`[useStreamingResponse] Tool result: ${resultData.toolName}`);
+          // Tool result is already handled in tool_call_complete
+          break;
+        }
+
+        case 'tool_call_error': {
+          const errorData = message.data as {
+            toolName: string;
+            error: string;
+          };
+          console.error(`[useStreamingResponse] Tool error: ${errorData.toolName}`, errorData.error);
+          setToolCalls((prev) =>
+            prev.map((tc) =>
+              tc.name === errorData.toolName
+                ? {
+                    ...tc,
+                    status: 'error' as const,
+                    error: errorData.error,
+                  }
+                : tc
+            )
+          );
           break;
         }
 

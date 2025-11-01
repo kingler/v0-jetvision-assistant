@@ -130,83 +130,159 @@ export async function POST(req: NextRequest) {
           // Initialize MCP server connection and fetch tool definitions
           const tools = await initializeMCPAndGetTools();
 
-          // Create streaming response using Responses API
-          const response = await openai.chat.completions.create({
-            model: 'gpt-4o', // Use gpt-4o for now (Responses API uses different endpoint)
-            messages,
-            tools: tools.length > 0 ? tools : undefined,
-            stream: true,
-            max_tokens: 4096,
-            temperature: 0.7,
-          });
+          // Get MCP client for tool execution
+          const mcpClient: Client = await mcpManager.getClient(MCP_SERVER_CONFIG.name);
 
-          let currentToolCall: {
-            id: string;
-            name: string;
-            arguments: string;
-          } | null = null;
+          // Multi-turn conversation loop for tool calling
+          // ONEK-83: Integrate Tool Execution into OpenAI Streaming Loop
+          const MAX_TOOL_DEPTH = 5; // Prevent infinite loops
+          let conversationMessages = [...messages];
+          let toolCallDepth = 0;
 
-          // Stream response chunks
-          for await (const chunk of response) {
-            const delta = chunk.choices[0]?.delta;
+          while (toolCallDepth < MAX_TOOL_DEPTH) {
+            // Create streaming response
+            const response = await openai.chat.completions.create({
+              model: 'gpt-4o',
+              messages: conversationMessages,
+              tools: tools.length > 0 ? tools : undefined,
+              stream: true,
+              max_tokens: 4096,
+              temperature: 0.7,
+            });
 
-            // Handle text tokens
-            if (delta?.content) {
-              sendSSE({
-                type: 'token',
-                data: { token: delta.content },
-              });
-            }
+            let fullContent = '';
+            let toolCalls: Array<{ id: string; name: string; arguments: string }> = [];
+            let currentToolCall: { id: string; name: string; arguments: string } | null = null;
 
-            // Handle tool calls
-            if (delta?.tool_calls) {
-              for (const toolCall of delta.tool_calls) {
-                if (toolCall.function?.name && !currentToolCall) {
-                  // Tool call started
-                  currentToolCall = {
-                    id: toolCall.id || '',
-                    name: toolCall.function.name,
-                    arguments: toolCall.function.arguments || '',
-                  };
+            // Stream response chunks
+            for await (const chunk of response) {
+              const delta = chunk.choices[0]?.delta;
+              const finishReason = chunk.choices[0]?.finish_reason;
 
-                  sendSSE({
-                    type: 'tool_call_start',
-                    data: {
-                      toolCallId: currentToolCall.id,
-                      toolName: currentToolCall.name,
-                    },
-                  });
-                } else if (toolCall.function?.arguments && currentToolCall) {
-                  // Accumulate arguments
-                  currentToolCall.arguments += toolCall.function.arguments;
+              // Handle text tokens
+              if (delta?.content) {
+                fullContent += delta.content;
+                sendSSE({
+                  type: 'token',
+                  data: { token: delta.content },
+                });
+              }
 
-                  sendSSE({
-                    type: 'tool_call_progress',
-                    data: {
-                      toolCallId: currentToolCall.id,
-                      toolName: currentToolCall.name,
-                    },
-                  });
+              // Handle tool calls (streaming)
+              if (delta?.tool_calls) {
+                for (const toolCall of delta.tool_calls) {
+                  const index = toolCall.index ?? 0;
+
+                  if (!toolCalls[index]) {
+                    toolCalls[index] = {
+                      id: toolCall.id || '',
+                      name: toolCall.function?.name || '',
+                      arguments: toolCall.function?.arguments || '',
+                    };
+                    currentToolCall = toolCalls[index];
+
+                    sendSSE({
+                      type: 'tool_call_progress',
+                      data: {
+                        toolCallId: currentToolCall.id,
+                        toolName: currentToolCall.name,
+                      },
+                    });
+                  } else {
+                    // Accumulate arguments
+                    if (toolCall.function?.arguments) {
+                      toolCalls[index].arguments += toolCall.function.arguments;
+                    }
+                    if (toolCall.function?.name) {
+                      toolCalls[index].name = toolCall.function.name;
+                    }
+                  }
                 }
+              }
+
+              // Handle tool call completion
+              if (finishReason === 'tool_calls' && toolCalls.length > 0) {
+                // Add assistant message with tool calls to history
+                conversationMessages.push({
+                  role: 'assistant',
+                  content: fullContent || null,
+                  tool_calls: toolCalls.map((tc) => ({
+                    id: tc.id,
+                    type: 'function' as const,
+                    function: {
+                      name: tc.name,
+                      arguments: tc.arguments,
+                    },
+                  })),
+                });
+
+                // Execute all tool calls
+                for (const toolCall of toolCalls) {
+                  try {
+                    const toolArgs = JSON.parse(toolCall.arguments);
+
+                    sendSSE({
+                      type: 'tool_call_complete',
+                      data: {
+                        toolCallId: toolCall.id,
+                        toolName: toolCall.name,
+                        arguments: toolArgs,
+                      },
+                    });
+
+                    // Execute tool with retry logic
+                    const result = await executeToolWithRetry(
+                      toolCall.name,
+                      toolArgs,
+                      mcpClient,
+                      encoder,
+                      controller
+                    );
+
+                    // Add tool result to conversation
+                    conversationMessages.push({
+                      role: 'tool',
+                      tool_call_id: toolCall.id,
+                      content: result,
+                    });
+                  } catch (error) {
+                    console.error(`[ChatRespond] Tool execution failed: ${toolCall.name}`, error);
+
+                    // Add error result to conversation
+                    conversationMessages.push({
+                      role: 'tool',
+                      tool_call_id: toolCall.id,
+                      content: JSON.stringify({
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        toolName: toolCall.name,
+                      }),
+                    });
+                  }
+                }
+
+                // Increment depth and continue conversation with tool results
+                toolCallDepth++;
+                break; // Exit streaming loop to start next iteration
+              }
+
+              // Handle final completion
+              if (finishReason === 'stop') {
+                sendSSE({
+                  type: 'complete',
+                  data: {
+                    messageId,
+                    sessionId,
+                    finishReason: 'stop',
+                  },
+                });
+
+                controller.close();
+                return; // Exit completely
               }
             }
 
-            // Handle tool call completion
-            if (chunk.choices[0]?.finish_reason === 'tool_calls' && currentToolCall) {
-              sendSSE({
-                type: 'tool_call_complete',
-                data: {
-                  toolCallId: currentToolCall.id,
-                  toolName: currentToolCall.name,
-                  arguments: JSON.parse(currentToolCall.arguments),
-                },
-              });
-
-              currentToolCall = null;
-            }
-
-            // Handle completion
-            if (chunk.choices[0]?.finish_reason === 'stop') {
+            // If no tool calls were made, we're done
+            if (toolCalls.length === 0) {
               sendSSE({
                 type: 'complete',
                 data: {
@@ -215,7 +291,17 @@ export async function POST(req: NextRequest) {
                   finishReason: 'stop',
                 },
               });
+              controller.close();
+              return;
             }
+          }
+
+          // Max tool depth reached
+          if (toolCallDepth >= MAX_TOOL_DEPTH) {
+            sendSSE({
+              type: 'error',
+              data: { error: 'Maximum tool call depth exceeded (5 levels)' },
+            });
           }
 
           controller.close();
