@@ -47,6 +47,13 @@
     "review:tdd": "tsx scripts/code-review/tdd-workflow.ts",
     "review:fix": "npm run lint -- --fix",
     "review:automated": "./scripts/pr-review-automation.sh",
+    "workflow:init": "tsx scripts/workflow/init-workflow.ts",
+    "workflow:update": "tsx scripts/workflow/update-workflow.ts",
+    "workflow:validate": "tsx scripts/workflow/validate-compliance.ts",
+    "workflow:status": "cat .workflow-state.yml 2>/dev/null || echo 'No active workflow'",
+    "env:verify": "tsx scripts/verify-environment.ts",
+    "env:setup": "cp .env.example .env.local && echo '✅ Created .env.local - Please fill in your values'",
+    "db:test": "tsx scripts/test-db-connection.ts",
     "prepare": "husky install || true"
   },
   "dependencies": {
