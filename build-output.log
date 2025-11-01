@@ -1,0 +1,115 @@
+ WARN  The "workspaces" field in package.json is not supported by pnpm. Create a "pnpm-workspace.yaml" file instead.
+
+> jetvision-multi-agent@0.1.0 build /Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant
+> next build
+
+ ⚠ You are using a non-standard "NODE_ENV" value in your environment. This creates inconsistencies in the project and is strongly advised against. Read more: https://nextjs.org/docs/messages/non-standard-node-env
+  ▲ Next.js 14.2.25
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (176kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+
+[2m[1063.15ms][22m [@tailwindcss/postcss] app/globals.css
+[2m[   0.02ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 134.35ms][22m  [2m ↳ [22mSetup compiler
+[2m[   0.17ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 134.18ms][22m    [2m ↳ [22mCreate compiler
+[2m[   0.08ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[   0.71ms][22m  [2m ↳ [22mSetup scanner
+[2m[ 860.64ms][22m  [2m ↳ [22mScan for candidates
+[2m[  35.88ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[  26.52ms][22m  [2m ↳ [22mBuild utilities
+[2m[   2.98ms][22m  [2m ↳ [22mTransform Tailwind CSS AST into PostCSS AST
+[2m[   1.78ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+ ✓ Compiled successfully
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+(node:58839) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:58842) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:58843) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:58838) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:58836) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:58840) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:58841) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+   Generating static pages (0/16) ...
+   Generating static pages (4/16) 
+(node:58837) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+   Generating static pages (8/16) 
+(node:58846) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:58845) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:58844) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Error: <Html> should not be imported outside of pages/_document.
+Read more: https://nextjs.org/docs/messages/no-document-import-in-page
+    at Q (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/next@14.2.25_@babel+core@7.28.5_@opentelemetry+api@1.9.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js:16:5430)
+    at I (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/.next/server/chunks/5.js:6:1263)
+    at renderWithHooks (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5658:16)
+    at renderIndeterminateComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5732:15)
+    at renderElement (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5957:7)
+    at renderNodeDestructiveImpl (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6115:11)
+    at renderNodeDestructive (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6087:14)
+    at finishClassComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5688:3)
+    at renderClassComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5696:3)
+    at renderElement (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5954:7)
+
+Error occurred prerendering page "/500". Read more: https://nextjs.org/docs/messages/prerender-error
+
+Error: <Html> should not be imported outside of pages/_document.
+Read more: https://nextjs.org/docs/messages/no-document-import-in-page
+    at Q (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/next@14.2.25_@babel+core@7.28.5_@opentelemetry+api@1.9.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js:16:5430)
+    at I (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/.next/server/chunks/5.js:6:1263)
+    at renderWithHooks (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5658:16)
+    at renderIndeterminateComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5732:15)
+    at renderElement (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5957:7)
+    at renderNodeDestructiveImpl (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6115:11)
+    at renderNodeDestructive (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6087:14)
+    at finishClassComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5688:3)
+    at renderClassComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5696:3)
+    at renderElement (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5954:7)
+Error: <Html> should not be imported outside of pages/_document.
+Read more: https://nextjs.org/docs/messages/no-document-import-in-page
+    at Q (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/next@14.2.25_@babel+core@7.28.5_@opentelemetry+api@1.9.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js:16:5430)
+    at I (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/.next/server/chunks/5.js:6:1263)
+    at renderWithHooks (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5658:16)
+    at renderIndeterminateComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5732:15)
+    at renderElement (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5957:7)
+    at renderNodeDestructiveImpl (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6115:11)
+    at renderNodeDestructive (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6087:14)
+    at finishClassComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5688:3)
+    at renderClassComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5696:3)
+    at renderElement (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5954:7)
+
+Error occurred prerendering page "/404". Read more: https://nextjs.org/docs/messages/prerender-error
+
+Error: <Html> should not be imported outside of pages/_document.
+Read more: https://nextjs.org/docs/messages/no-document-import-in-page
+    at Q (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/next@14.2.25_@babel+core@7.28.5_@opentelemetry+api@1.9.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js:16:5430)
+    at I (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/.next/server/chunks/5.js:6:1263)
+    at renderWithHooks (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5658:16)
+    at renderIndeterminateComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5732:15)
+    at renderElement (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5957:7)
+    at renderNodeDestructiveImpl (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6115:11)
+    at renderNodeDestructive (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6087:14)
+    at finishClassComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5688:3)
+    at renderClassComponent (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5696:3)
+    at renderElement (/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5954:7)
+   Generating static pages (12/16) 
+ ✓ Generating static pages (16/16)
+
+> Export encountered errors on following paths:
+	/_error: /404
+	/_error: /500
+ ELIFECYCLE  Command failed with exit code 1.
