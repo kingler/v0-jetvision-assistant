@@ -1,257 +1,320 @@
 /**
  * Database Type Definitions
- * Generated from Supabase schema
+ *
+ * TASK-002: Supabase Database Schema
+ * Generated types for the Jetvision AI Assistant database schema
+ *
+ * To regenerate after schema changes:
+ * npx supabase gen types typescript --project-id <your-project-ref> > lib/types/database.ts
  */
 
-// ============================================================================
-// ENUMS
-// ============================================================================
-
-export type RequestStatus =
-  | 'draft'
-  | 'pending'
-  | 'analyzing'
-  | 'fetching_client_data'
-  | 'searching_flights'
-  | 'awaiting_quotes'
-  | 'analyzing_proposals'
-  | 'generating_email'
-  | 'sending_proposal'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
-
-export type QuoteStatus =
-  | 'pending'
-  | 'received'
-  | 'analyzed'
-  | 'accepted'
-  | 'rejected'
-  | 'expired';
-
-export type UserRole =
-  | 'sales_rep'
-  | 'admin'
-  | 'customer'
-  | 'operator'
-  | 'iso_agent'; // Legacy - deprecated, use sales_rep instead
-
-export type MarginType =
-  | 'percentage'
-  | 'fixed';
-
-export type ExecutionStatus =
-  | 'pending'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'timeout';
-
-export type AgentType =
-  | 'orchestrator'
-  | 'client_data'
-  | 'flight_search'
-  | 'proposal_analysis'
-  | 'communication'
-  | 'error_monitor';
-
-// ============================================================================
-// TABLE TYPES
-// ============================================================================
-
-export interface User {
-  id: string;
-  clerk_user_id: string;
-  email: string;
-  full_name: string;
-  role: UserRole;
-  avatar_url: string | null;
-  phone: string | null;
-  timezone: string;
-  preferences: Record<string, any>;
-  margin_type: MarginType | null;
-  margin_value: number | null;
-  is_active: boolean;
-  last_login_at: string | null;
-  metadata: Record<string, any>;
-  created_at: string;
-  updated_at: string;
-}
-
-/**
- * @deprecated Use User instead. This type is kept for backward compatibility during migration.
- */
-export type IsoAgent = User;
-
-export interface ClientProfile {
-  id: string;
-  user_id: string;
-  company_name: string;
-  contact_name: string;
-  email: string;
-  phone: string | null;
-  preferences: Record<string, any>;
-  notes: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Request {
-  id: string;
-  user_id: string;
-  client_profile_id: string | null;
-  departure_airport: string;
-  arrival_airport: string;
-  departure_date: string;
-  return_date: string | null;
-  passengers: number;
-  aircraft_type: string | null;
-  budget: number | null;
-  special_requirements: string | null;
-  status: RequestStatus;
-  metadata: Record<string, any>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Quote {
-  id: string;
-  request_id: string;
-  operator_id: string;
-  operator_name: string;
-  base_price: number;
-  fuel_surcharge: number;
-  taxes: number;
-  fees: number;
-  total_price: number;
-  aircraft_type: string;
-  aircraft_tail_number: string | null;
-  aircraft_details: Record<string, any>;
-  availability_confirmed: boolean;
-  valid_until: string | null;
-  score: number | null;
-  ranking: number | null;
-  analysis_notes: string | null;
-  status: QuoteStatus;
-  metadata: Record<string, any>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface WorkflowState {
-  id: string;
-  request_id: string;
-  current_state: RequestStatus;
-  previous_state: RequestStatus | null;
-  agent_id: string | null;
-  metadata: Record<string, any>;
-  error_message: string | null;
-  retry_count: number;
-  state_entered_at: string;
-  state_duration_ms: number | null;
-  created_at: string;
-}
-
-export interface AgentExecution {
-  id: string;
-  request_id: string | null;
-  agent_type: AgentType;
-  agent_id: string;
-  input_data: Record<string, any> | null;
-  output_data: Record<string, any> | null;
-  execution_time_ms: number | null;
-  status: ExecutionStatus;
-  error_message: string | null;
-  error_stack: string | null;
-  retry_count: number;
-  metadata: Record<string, any>;
-  started_at: string;
-  completed_at: string | null;
-  created_at: string;
-}
-
-// ============================================================================
-// DATABASE SCHEMA TYPE
-// ============================================================================
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export interface Database {
   public: {
     Tables: {
       users: {
-        Row: User;
-        Insert: Omit<User, 'id' | 'created_at' | 'updated_at'> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>;
-      };
-      /**
-       * @deprecated Use 'users' table instead. Kept for backward compatibility.
-       */
-      iso_agents: {
-        Row: IsoAgent;
-        Insert: Omit<IsoAgent, 'id' | 'created_at' | 'updated_at'> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Omit<IsoAgent, 'id' | 'created_at' | 'updated_at'>>;
-      };
-      client_profiles: {
-        Row: ClientProfile;
-        Insert: Omit<ClientProfile, 'id' | 'created_at' | 'updated_at'> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Omit<ClientProfile, 'id' | 'created_at' | 'updated_at'>>;
-      };
-      requests: {
-        Row: Request;
-        Insert: Omit<Request, 'id' | 'created_at' | 'updated_at'> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Omit<Request, 'id' | 'created_at' | 'updated_at'>>;
-      };
+        Row: {
+          id: string
+          clerk_user_id: string
+          email: string
+          full_name: string | null
+          role: 'iso_agent' | 'admin'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          clerk_user_id: string
+          email: string
+          full_name?: string | null
+          role?: 'iso_agent' | 'admin'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          clerk_user_id?: string
+          email?: string
+          full_name?: string | null
+          role?: 'iso_agent' | 'admin'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      clients: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          email: string | null
+          phone: string | null
+          preferences: Json
+          is_returning: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          preferences?: Json
+          is_returning?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          preferences?: Json
+          is_returning?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      flight_requests: {
+        Row: {
+          id: string
+          user_id: string
+          client_id: string | null
+          departure_airport: string
+          arrival_airport: string
+          passengers: number
+          departure_date: string
+          return_date: string | null
+          status:
+            | 'new'
+            | 'analyzing'
+            | 'searching'
+            | 'quotes_received'
+            | 'proposal_ready'
+            | 'sent'
+            | 'accepted'
+            | 'completed'
+            | 'cancelled'
+          current_step: number
+          total_steps: number
+          metadata: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          client_id?: string | null
+          departure_airport: string
+          arrival_airport: string
+          passengers: number
+          departure_date: string
+          return_date?: string | null
+          status?:
+            | 'new'
+            | 'analyzing'
+            | 'searching'
+            | 'quotes_received'
+            | 'proposal_ready'
+            | 'sent'
+            | 'accepted'
+            | 'completed'
+            | 'cancelled'
+          current_step?: number
+          total_steps?: number
+          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          client_id?: string | null
+          departure_airport?: string
+          arrival_airport?: string
+          passengers?: number
+          departure_date?: string
+          return_date?: string | null
+          status?:
+            | 'new'
+            | 'analyzing'
+            | 'searching'
+            | 'quotes_received'
+            | 'proposal_ready'
+            | 'sent'
+            | 'accepted'
+            | 'completed'
+            | 'cancelled'
+          current_step?: number
+          total_steps?: number
+          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
       quotes: {
-        Row: Quote;
-        Insert: Omit<Quote, 'id' | 'created_at' | 'updated_at'> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Omit<Quote, 'id' | 'created_at' | 'updated_at'>>;
-      };
-      workflow_states: {
-        Row: WorkflowState;
-        Insert: Omit<WorkflowState, 'id' | 'created_at'> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: Partial<Omit<WorkflowState, 'id' | 'created_at'>>;
-      };
-      agent_executions: {
-        Row: AgentExecution;
-        Insert: Omit<AgentExecution, 'id' | 'created_at'> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: Partial<Omit<AgentExecution, 'id' | 'created_at'>>;
-      };
-    };
-    Views: {};
-    Functions: {};
+        Row: {
+          id: string
+          request_id: string
+          operator_name: string
+          aircraft_type: string
+          base_price: number
+          response_time: number | null
+          specifications: Json
+          rating: number | null
+          score: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          operator_name: string
+          aircraft_type: string
+          base_price: number
+          response_time?: number | null
+          specifications?: Json
+          rating?: number | null
+          score?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          request_id?: string
+          operator_name?: string
+          aircraft_type?: string
+          base_price?: number
+          response_time?: number | null
+          specifications?: Json
+          rating?: number | null
+          score?: number | null
+          created_at?: string
+        }
+      }
+      proposals: {
+        Row: {
+          id: string
+          request_id: string
+          quote_id: string
+          markup_type: 'fixed' | 'percentage'
+          markup_value: number
+          total_price: number
+          status: 'draft' | 'sent' | 'accepted' | 'rejected'
+          sent_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          quote_id: string
+          markup_type: 'fixed' | 'percentage'
+          markup_value: number
+          total_price: number
+          status?: 'draft' | 'sent' | 'accepted' | 'rejected'
+          sent_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          request_id?: string
+          quote_id?: string
+          markup_type?: 'fixed' | 'percentage'
+          markup_value?: number
+          total_price?: number
+          status?: 'draft' | 'sent' | 'accepted' | 'rejected'
+          sent_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      communications: {
+        Row: {
+          id: string
+          request_id: string
+          type: 'email' | 'sms'
+          recipient: string
+          subject: string | null
+          body: string
+          attachments: Json
+          status: 'queued' | 'sent' | 'delivered' | 'failed'
+          error_message: string | null
+          sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          type: 'email' | 'sms'
+          recipient: string
+          subject?: string | null
+          body: string
+          attachments?: Json
+          status?: 'queued' | 'sent' | 'delivered' | 'failed'
+          error_message?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          request_id?: string
+          type?: 'email' | 'sms'
+          recipient?: string
+          subject?: string | null
+          body?: string
+          attachments?: Json
+          status?: 'queued' | 'sent' | 'delivered' | 'failed'
+          error_message?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+      }
+      workflow_history: {
+        Row: {
+          id: string
+          request_id: string
+          from_state: string | null
+          to_state: string
+          triggered_by: string
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          from_state?: string | null
+          to_state: string
+          triggered_by: string
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          request_id?: string
+          from_state?: string | null
+          to_state?: string
+          triggered_by?: string
+          metadata?: Json
+          created_at?: string
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
     Enums: {
-      request_status: RequestStatus;
-      quote_status: QuoteStatus;
-      user_role: UserRole;
-      margin_type: MarginType;
-      execution_status: ExecutionStatus;
-      agent_type: AgentType;
-    };
-  };
+      [_ in never]: never
+    }
+  }
 }
