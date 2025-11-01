@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase/client';
  *
  * This endpoint receives webhook events from Clerk and syncs user data to Supabase.
  * Events handled:
- * - user.created: Creates a new user record in Supabase users table
+ * - user.created: Creates a new user record in Supabase iso_agents table
  * - user.updated: Updates existing user record in Supabase
  * - user.deleted: Soft deletes user record in Supabase
  *
@@ -96,18 +96,15 @@ export async function POST(req: Request) {
           console.warn(`[WEBHOOK] Invalid role "${proposedRole}" from Clerk for user ${id}, defaulting to sales_rep`);
         }
 
-        // Create user in Supabase users table
+        // Create user in Supabase iso_agents table
         const { data, error } = await supabase
-          .from('users')
+          .from('iso_agents')
           .insert({
             clerk_user_id: id,
             email: email,
             full_name: `${first_name || ''} ${last_name || ''}`.trim() || email,
             role: userRole,
-            timezone: 'UTC',
-            preferences: {},
             is_active: true,
-            last_login_at: new Date().toISOString(),
           })
           .select()
           .single();
@@ -153,7 +150,7 @@ export async function POST(req: Request) {
 
         // Update user in Supabase
         const { data, error } = await supabase
-          .from('users')
+          .from('iso_agents')
           .update(updateData)
           .eq('clerk_user_id', id)
           .select()
@@ -175,7 +172,7 @@ export async function POST(req: Request) {
 
         // Soft delete: mark user as inactive instead of deleting
         const { data, error } = await supabase
-          .from('users')
+          .from('iso_agents')
           .update({
             is_active: false,
             updated_at: new Date().toISOString(),
