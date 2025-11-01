@@ -18,8 +18,14 @@ import { MCPServerManager, ServerState } from '@/lib/services/mcp-server-manager
 
 /**
  * Format uptime in milliseconds to human-readable string
+ *
  * @param ms - Uptime in milliseconds
- * @returns Formatted uptime string (e.g., "2m 5s", "1h 23m 45s")
+ * @returns Formatted uptime string (e.g., "2m 5s", "1h 23m 45s", "2d 5h 30m")
+ *
+ * @example
+ * formatUptime(125000)  // Returns "2m 5s"
+ * formatUptime(3661000) // Returns "1h 1m 1s"
+ * formatUptime(90061000) // Returns "1d 1h 1m 1s"
  */
 function formatUptime(ms: number): string {
   const seconds = Math.floor(ms / 1000);
@@ -39,8 +45,18 @@ function formatUptime(ms: number): string {
 
 /**
  * Check if a server state is considered unhealthy
- * @param state - Server state
- * @returns True if server is unhealthy
+ *
+ * A server is considered unhealthy if it has crashed or failed.
+ * Transitional states (starting, stopping) are not considered unhealthy.
+ *
+ * @param state - Server state from ServerState enum
+ * @returns True if server is in CRASHED or FAILED state
+ *
+ * @example
+ * isUnhealthy(ServerState.RUNNING)  // Returns false
+ * isUnhealthy(ServerState.CRASHED)  // Returns true
+ * isUnhealthy(ServerState.STARTING) // Returns false
+ * isUnhealthy(ServerState.FAILED)   // Returns true
  */
 function isUnhealthy(state: ServerState): boolean {
   return state === ServerState.CRASHED || state === ServerState.FAILED;
@@ -48,7 +64,51 @@ function isUnhealthy(state: ServerState): boolean {
 
 /**
  * GET /api/mcp/health
- * Returns health status of all MCP servers
+ * Returns health status of all registered MCP servers
+ *
+ * @param request - Next.js request object
+ * @returns JSON response with health status
+ *
+ * @example Response (200 - Healthy):
+ * ```json
+ * {
+ *   "status": "healthy",
+ *   "timestamp": "2025-11-01T15:00:00.000Z",
+ *   "serverCount": 1,
+ *   "servers": {
+ *     "avinode": {
+ *       "name": "avinode",
+ *       "state": "running",
+ *       "uptime": 125000,
+ *       "uptimeFormatted": "2m 5s",
+ *       "restartCount": 0,
+ *       "pid": 12345
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * @example Response (503 - Unhealthy):
+ * ```json
+ * {
+ *   "status": "unhealthy",
+ *   "timestamp": "2025-11-01T15:00:00.000Z",
+ *   "serverCount": 1,
+ *   "servers": {
+ *     "avinode": {
+ *       "name": "avinode",
+ *       "state": "crashed",
+ *       "uptime": 5000,
+ *       "uptimeFormatted": "5s",
+ *       "restartCount": 2
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * @throws 401 - Unauthorized (not authenticated)
+ * @throws 503 - Service Unavailable (one or more servers unhealthy)
+ * @throws 500 - Internal Server Error
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
