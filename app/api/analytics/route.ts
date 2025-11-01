@@ -12,6 +12,9 @@ import {
   ErrorResponses,
 } from '@/lib/utils/api';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 /**
  * Metric configuration mapping metrics to RPC functions
  */

@@ -15,6 +15,9 @@ import {
   ErrorResponses,
 } from '@/lib/utils/api';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/email
  * Retrieve email history for the authenticated user's requests
