@@ -10,19 +10,16 @@ const isPublicRoute = createRouteMatcher([
 export default clerkMiddleware((auth, request) => {
   const { userId } = auth()
 
-  // If user is not authenticated and trying to access a protected route
-  if (!userId && !isPublicRoute(request)) {
-    const signInUrl = new URL('/sign-in', request.url)
-    signInUrl.searchParams.set('redirect_url', request.url)
-    return NextResponse.redirect(signInUrl)
-  }
-
-  // If user is authenticated and trying to access sign-in/sign-up, redirect to home
+  // Redirect authenticated users away from auth pages to home
   if (userId && (request.nextUrl.pathname.startsWith('/sign-in') || request.nextUrl.pathname.startsWith('/sign-up'))) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  return NextResponse.next()
+  // Protect all routes except public routes using Clerk's built-in redirect
+  // This integrates properly with Clerk's OAuth callback flow
+  if (!isPublicRoute(request)) {
+    auth.protect()
+  }
 })
 
 export const config = {
