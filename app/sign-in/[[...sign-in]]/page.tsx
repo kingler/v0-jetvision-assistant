@@ -19,6 +19,11 @@ export default function SignInPage() {
               card: "shadow-xl border-slate-200 dark:border-slate-700",
             },
           }}
+          routing="path"
+          path="/sign-in"
+          signUpUrl="/sign-up"
+          forceRedirectUrl="/"
+          fallbackRedirectUrl="/"
         />
       </div>
     </div>
