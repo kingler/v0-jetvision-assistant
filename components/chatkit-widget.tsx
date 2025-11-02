@@ -35,15 +35,7 @@ export function ChatKitWidget({ sessionId, metadata, onWorkflowAction, className
     [metadata, sessionId],
   )
 
-  if (!chatkitEnabled) {
-    return (
-      <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-6 text-sm text-gray-600 dark:text-gray-300">
-        ChatKit embed disabled. Set <code className="font-mono">NEXT_PUBLIC_CHATKIT_ENABLED=true</code> to enable the
-        hosted assistant for this environment.
-      </div>
-    )
-  }
-
+  // Initialize ChatKit hook BEFORE any conditional returns (React Rules of Hooks)
   const { control } = useChatKit({
     api: {
       async getClientSecret(existingClientSecret) {
