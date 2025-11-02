@@ -288,41 +288,41 @@ describe('RBAC Middleware - Permission Matrix', () => {
       roles.forEach((role) => {
         resources.forEach((resource) => {
           expect(PERMISSIONS[role]).toHaveProperty(resource);
-          expect(Array.isArray(PERMISSIONS[role][resource])).toBe(true);
+          expect(Array.isArray(PERMISSIONS[role]![resource])).toBe(true);
         });
       });
     });
 
     it('should have correct permissions for sales_rep', () => {
-      expect(PERMISSIONS.sales_rep.clients).toEqual(['create', 'read', 'update', 'delete']);
-      expect(PERMISSIONS.sales_rep.requests).toEqual(['create', 'read', 'update', 'delete']);
-      expect(PERMISSIONS.sales_rep.quotes).toEqual(['read', 'update']);
-      expect(PERMISSIONS.sales_rep.users).toEqual(['read_own']);
-      expect(PERMISSIONS.sales_rep.analytics).toEqual(['read_own']);
+      expect(PERMISSIONS.sales_rep!.clients).toEqual(['create', 'read', 'update', 'delete']);
+      expect(PERMISSIONS.sales_rep!.requests).toEqual(['create', 'read', 'update', 'delete']);
+      expect(PERMISSIONS.sales_rep!.quotes).toEqual(['read', 'update']);
+      expect(PERMISSIONS.sales_rep!.users).toEqual(['read_own']);
+      expect(PERMISSIONS.sales_rep!.analytics).toEqual(['read_own']);
     });
 
     it('should have correct permissions for admin', () => {
-      expect(PERMISSIONS.admin.clients).toEqual(['create', 'read', 'update', 'delete']);
-      expect(PERMISSIONS.admin.requests).toEqual(['create', 'read', 'update', 'delete']);
-      expect(PERMISSIONS.admin.quotes).toEqual(['create', 'read', 'update', 'delete']);
-      expect(PERMISSIONS.admin.users).toEqual(['create', 'read', 'update', 'delete']);
-      expect(PERMISSIONS.admin.analytics).toEqual(['read_all']);
+      expect(PERMISSIONS.admin!.clients).toEqual(['create', 'read', 'update', 'delete']);
+      expect(PERMISSIONS.admin!.requests).toEqual(['create', 'read', 'update', 'delete']);
+      expect(PERMISSIONS.admin!.quotes).toEqual(['create', 'read', 'update', 'delete']);
+      expect(PERMISSIONS.admin!.users).toEqual(['create', 'read', 'update', 'delete']);
+      expect(PERMISSIONS.admin!.analytics).toEqual(['read_all']);
     });
 
     it('should have correct permissions for customer', () => {
-      expect(PERMISSIONS.customer.clients).toEqual([]);
-      expect(PERMISSIONS.customer.requests).toEqual(['read_own']);
-      expect(PERMISSIONS.customer.quotes).toEqual(['read_own']);
-      expect(PERMISSIONS.customer.users).toEqual(['read_own']);
-      expect(PERMISSIONS.customer.analytics).toEqual([]);
+      expect(PERMISSIONS.customer!.clients).toEqual([]);
+      expect(PERMISSIONS.customer!.requests).toEqual(['read_own']);
+      expect(PERMISSIONS.customer!.quotes).toEqual(['read_own']);
+      expect(PERMISSIONS.customer!.users).toEqual(['read_own']);
+      expect(PERMISSIONS.customer!.analytics).toEqual([]);
     });
 
     it('should have correct permissions for operator', () => {
-      expect(PERMISSIONS.operator.clients).toEqual(['read']);
-      expect(PERMISSIONS.operator.requests).toEqual(['read', 'update']);
-      expect(PERMISSIONS.operator.quotes).toEqual(['create', 'read', 'update']);
-      expect(PERMISSIONS.operator.users).toEqual(['read']);
-      expect(PERMISSIONS.operator.analytics).toEqual(['read_all']);
+      expect(PERMISSIONS.operator!.clients).toEqual(['read']);
+      expect(PERMISSIONS.operator!.requests).toEqual(['read', 'update']);
+      expect(PERMISSIONS.operator!.quotes).toEqual(['create', 'read', 'update']);
+      expect(PERMISSIONS.operator!.users).toEqual(['read']);
+      expect(PERMISSIONS.operator!.analytics).toEqual(['read_all']);
     });
   });
 });
@@ -489,7 +489,7 @@ describe('RBAC Middleware - Route Protection', () => {
       expect(response.status).toBe(200);
       expect(mockHandler).toHaveBeenCalled();
       expect(mockHandler.mock.calls[0][0]).toBe(request);
-      expect(mockHandler.mock.calls[0][1]).toEqual({ userId: 'user_123', role: 'admin' });
+      expect((mockHandler.mock.calls[0] as any)[1]).toEqual({ userId: 'user_123', role: 'admin' });
     });
 
     it('should pass user info to handler context', async () => {

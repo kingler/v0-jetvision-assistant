@@ -204,9 +204,9 @@ describe('RFP Form Validation Schemas', () => {
       const result = preferencesSchema.safeParse(minimalData)
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data.cateringPreference).toBe('none')
-        expect(result.data.groundTransport).toBe(false)
-        expect(result.data.flexibleDates).toBe(false)
+        expect((result.data as any).cateringPreference).toBe('none')
+        expect((result.data as any).groundTransport).toBe(false)
+        expect((result.data as any).flexibleDates).toBe(false)
       }
     })
 

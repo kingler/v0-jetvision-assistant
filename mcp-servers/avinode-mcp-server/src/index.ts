@@ -274,37 +274,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     switch (name) {
       case 'search_flights': {
-        const params = args as FlightSearchParams;
+        const params = args as unknown as FlightSearchParams;
         result = await searchFlights(params);
         break;
       }
 
       case 'search_empty_legs': {
-        const params = args as EmptyLegSearchParams;
+        const params = args as unknown as EmptyLegSearchParams;
         result = await searchEmptyLegs(params);
         break;
       }
 
       case 'create_rfp': {
-        const params = args as CreateRFPParams;
+        const params = args as unknown as CreateRFPParams;
         result = await createRFP(params);
         break;
       }
 
       case 'get_rfp_status': {
-        const params = args as GetRFPStatusParams;
+        const params = args as unknown as GetRFPStatusParams;
         result = await getRFPStatus(params);
         break;
       }
 
       case 'create_watch': {
-        const params = args as CreateWatchParams;
+        const params = args as unknown as CreateWatchParams;
         result = await createWatch(params);
         break;
       }
 
       case 'search_airports': {
-        const params = args as SearchAirportsParams;
+        const params = args as unknown as SearchAirportsParams;
         result = await searchAirports(params);
         break;
       }

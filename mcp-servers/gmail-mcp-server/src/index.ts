@@ -220,7 +220,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'send_email': {
-        const params = args as SendEmailParams;
+        const params = args as unknown as SendEmailParams;
         const result = await sendEmail(params);
         return {
           content: [
@@ -233,7 +233,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'search_emails': {
-        const params = args as SearchEmailsParams;
+        const params = args as unknown as SearchEmailsParams;
         const result = await searchEmails(params);
         return {
           content: [
@@ -246,7 +246,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_email': {
-        const params = args as GetEmailParams;
+        const params = args as unknown as GetEmailParams;
         const result = await getEmail(params);
         return {
           content: [
