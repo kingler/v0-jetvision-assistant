@@ -21,17 +21,16 @@ describe('ChatKit Installation Verification (ONEK-84)', () => {
       expect(chatkitModule).toBeDefined();
     });
 
-    it('should be able to import @openai/chatkit core package', async () => {
-      const chatkitCore = await import('@openai/chatkit');
-      expect(chatkitCore).toBeDefined();
-    });
+    // Note: @openai/chatkit is a types-only package loaded via CDN at runtime
+    // No runtime import test needed - types are verified in TypeScript compilation
   });
 
   describe('Main Exports', () => {
     it('should export ChatKit component', async () => {
       const { ChatKit } = await import('@openai/chatkit-react');
       expect(ChatKit).toBeDefined();
-      expect(typeof ChatKit).toBe('function');
+      // ChatKit can be a React component (object or function)
+      expect(['function', 'object']).toContain(typeof ChatKit);
     });
 
     it('should export useChatKit hook', async () => {

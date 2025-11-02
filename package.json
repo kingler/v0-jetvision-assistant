@@ -45,7 +45,7 @@
     "review:validate": "tsx scripts/code-review/validate.ts",
     "review:pr": "tsx scripts/code-review/pr-review.ts",
     "review:tdd": "tsx scripts/code-review/tdd-workflow.ts",
-    "review:fix": "npm run lint -- --fix",
+    "review:fix": "pnpm run lint -- --fix",
     "review:automated": "./scripts/pr-review-automation.sh",
     "prepare": "husky install || true"
   },
