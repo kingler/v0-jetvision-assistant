@@ -86,27 +86,27 @@ describe('ErrorMonitorAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect(result.data.errorAnalysis).toBeDefined();
+      expect((result.data as any).errorAnalysis).toBeDefined();
     });
 
     it('should extract error message', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.errorAnalysis.message).toBe('Connection timeout');
+      expect((result.data as any).errorAnalysis.message).toBe('Connection timeout');
     });
 
     it('should identify error source agent', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.errorAnalysis.source).toBe('FlightSearchAgent');
+      expect((result.data as any).errorAnalysis.source).toBe('FlightSearchAgent');
     });
 
     it('should categorize error severity', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.errorAnalysis.severity).toBeDefined();
+      expect((result.data as any).errorAnalysis.severity).toBeDefined();
       expect(['low', 'medium', 'high', 'critical']).toContain(
-        result.data.errorAnalysis.severity
+        (result.data as any).errorAnalysis.severity
       );
     });
 
@@ -135,8 +135,8 @@ describe('ErrorMonitorAgent', () => {
     it('should determine if retry is recommended', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.shouldRetry).toBeDefined();
-      expect(typeof result.data.shouldRetry).toBe('boolean');
+      expect((result.data as any).shouldRetry).toBeDefined();
+      expect(typeof (result.data as any).shouldRetry).toBe('boolean');
     });
 
     it('should recommend retry for transient errors', async () => {
@@ -155,7 +155,7 @@ describe('ErrorMonitorAgent', () => {
 
       const result: AgentResult = await agent.execute(transientContext);
 
-      expect(result.data.shouldRetry).toBe(true);
+      expect((result.data as any).shouldRetry).toBe(true);
     });
 
     it('should not recommend retry after max attempts', async () => {
@@ -170,16 +170,16 @@ describe('ErrorMonitorAgent', () => {
 
       const result: AgentResult = await agent.execute(maxAttemptsContext);
 
-      expect(result.data.shouldRetry).toBe(false);
-      expect(result.data.reason.toLowerCase()).toContain('max');
+      expect((result.data as any).shouldRetry).toBe(false);
+      expect((result.data as any).reason.toLowerCase()).toContain('max');
     });
 
     it('should calculate retry delay with backoff', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if (result.data.shouldRetry) {
-        expect(result.data.retryDelay).toBeDefined();
-        expect(result.data.retryDelay).toBeGreaterThan(0);
+      if ((result.data as any).shouldRetry) {
+        expect((result.data as any).retryDelay).toBeDefined();
+        expect((result.data as any).retryDelay).toBeGreaterThan(0);
       }
     });
 
@@ -224,7 +224,7 @@ describe('ErrorMonitorAgent', () => {
 
       const result: AgentResult = await agent.execute(networkError);
 
-      expect(result.data.errorAnalysis.isTransient).toBe(true);
+      expect((result.data as any).errorAnalysis.isTransient).toBe(true);
     });
 
     it('should classify validation errors as non-transient', async () => {
@@ -242,14 +242,14 @@ describe('ErrorMonitorAgent', () => {
 
       const result: AgentResult = await agent.execute(validationError);
 
-      expect(result.data.errorAnalysis.isTransient).toBe(false);
+      expect((result.data as any).errorAnalysis.isTransient).toBe(false);
     });
 
     it('should identify error type', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.errorAnalysis.errorType).toBeDefined();
-      expect(typeof result.data.errorAnalysis.errorType).toBe('string');
+      expect((result.data as any).errorAnalysis.errorType).toBeDefined();
+      expect(typeof (result.data as any).errorAnalysis.errorType).toBe('string');
     });
   });
 
@@ -265,15 +265,15 @@ describe('ErrorMonitorAgent', () => {
     it('should provide recovery suggestions', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.recoverySuggestions).toBeDefined();
-      expect(Array.isArray(result.data.recoverySuggestions)).toBe(true);
+      expect((result.data as any).recoverySuggestions).toBeDefined();
+      expect(Array.isArray((result.data as any).recoverySuggestions)).toBe(true);
     });
 
     it('should suggest retry for transient errors', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if (result.data.errorAnalysis.isTransient && result.data.shouldRetry) {
-        const suggestionsLower = result.data.recoverySuggestions.map((s: string) => s.toLowerCase());
+      if ((result.data as any).errorAnalysis.isTransient && (result.data as any).shouldRetry) {
+        const suggestionsLower = (result.data as any).recoverySuggestions.map((s: string) => s.toLowerCase());
         expect(suggestionsLower.some((s: string) => s.includes('retry'))).toBe(true);
       }
     });
@@ -293,7 +293,7 @@ describe('ErrorMonitorAgent', () => {
 
       const result: AgentResult = await agent.execute(validationError);
 
-      expect(result.data.recoverySuggestions.length).toBeGreaterThan(0);
+      expect((result.data as any).recoverySuggestions.length).toBeGreaterThan(0);
     });
   });
 
@@ -309,21 +309,21 @@ describe('ErrorMonitorAgent', () => {
     it('should log error details', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.logged).toBe(true);
+      expect((result.data as any).logged).toBe(true);
     });
 
     it('should include timestamp in log', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.logEntry.timestamp).toBeDefined();
-      expect(result.data.logEntry.timestamp).toBeInstanceOf(Date);
+      expect((result.data as any).logEntry.timestamp).toBeDefined();
+      expect((result.data as any).logEntry.timestamp).toBeInstanceOf(Date);
     });
 
     it('should track error count for patterns', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.errorCount).toBeDefined();
-      expect(typeof result.data.errorCount).toBe('number');
+      expect((result.data as any).errorCount).toBeDefined();
+      expect(typeof (result.data as any).errorCount).toBe('number');
     });
   });
 
@@ -339,8 +339,8 @@ describe('ErrorMonitorAgent', () => {
     it('should determine if alert is needed', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.alertRequired).toBeDefined();
-      expect(typeof result.data.alertRequired).toBe('boolean');
+      expect((result.data as any).alertRequired).toBeDefined();
+      expect(typeof (result.data as any).alertRequired).toBe('boolean');
     });
 
     it('should trigger alert for critical errors', async () => {
@@ -359,7 +359,7 @@ describe('ErrorMonitorAgent', () => {
 
       const result: AgentResult = await agent.execute(criticalError);
 
-      expect(result.data.alertRequired).toBe(true);
+      expect((result.data as any).alertRequired).toBe(true);
     });
 
     it('should not alert for low severity errors', async () => {
@@ -378,7 +378,7 @@ describe('ErrorMonitorAgent', () => {
 
       const result: AgentResult = await agent.execute(lowSeverityError);
 
-      expect(result.data.alertRequired).toBe(false);
+      expect((result.data as any).alertRequired).toBe(false);
     });
   });
 
@@ -394,20 +394,20 @@ describe('ErrorMonitorAgent', () => {
     it('should preserve request ID', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.requestId).toBe(mockContext.requestId);
+      expect((result.data as any).requestId).toBe(mockContext.requestId);
     });
 
     it('should include session ID', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.sessionId).toBe(mockContext.sessionId);
+      expect((result.data as any).sessionId).toBe(mockContext.sessionId);
     });
 
     it('should specify recovery agent if needed', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if (result.data.shouldRetry) {
-        expect(result.data.nextAgent).toBeDefined();
+      if ((result.data as any).shouldRetry) {
+        expect((result.data as any).nextAgent).toBeDefined();
       }
     });
   });

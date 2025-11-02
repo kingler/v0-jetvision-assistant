@@ -116,8 +116,8 @@ describe('ProposalAnalysisAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect(result.data.analyzedQuotes).toBeDefined();
-      expect(result.data.analyzedQuotes.length).toBe(3);
+      expect((result.data as any).analyzedQuotes).toBeDefined();
+      expect((result.data as any).analyzedQuotes.length).toBe(3);
     });
 
     it('should validate required fields - quotes', async () => {
@@ -160,8 +160,8 @@ describe('ProposalAnalysisAgent', () => {
       const result: AgentResult = await agent.execute(emptyContext);
 
       expect(result.success).toBe(true);
-      expect(result.data.analyzedQuotes).toHaveLength(0);
-      expect(result.data.recommendation).toBeNull();
+      expect((result.data as any).analyzedQuotes).toHaveLength(0);
+      expect((result.data as any).recommendation).toBeNull();
     });
   });
 
@@ -177,7 +177,7 @@ describe('ProposalAnalysisAgent', () => {
     it('should calculate score for each quote', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      result.data.analyzedQuotes.forEach((quote: any) => {
+      (result.data as any).analyzedQuotes.forEach((quote: any) => {
         expect(quote.score).toBeDefined();
         expect(quote.score).toBeGreaterThanOrEqual(0);
         expect(quote.score).toBeLessThanOrEqual(100);
@@ -187,7 +187,7 @@ describe('ProposalAnalysisAgent', () => {
     it('should include score breakdown', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      result.data.analyzedQuotes.forEach((quote: any) => {
+      (result.data as any).analyzedQuotes.forEach((quote: any) => {
         expect(quote.scoreBreakdown).toBeDefined();
         expect(quote.scoreBreakdown.priceScore).toBeDefined();
         expect(quote.scoreBreakdown.qualityScore).toBeDefined();
@@ -199,10 +199,10 @@ describe('ProposalAnalysisAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       // Lowest price quote should have higher score
-      const lowestPriceQuote = result.data.analyzedQuotes.find(
+      const lowestPriceQuote = (result.data as any).analyzedQuotes.find(
         (q: any) => q.price === 42000
       );
-      const highestPriceQuote = result.data.analyzedQuotes.find(
+      const highestPriceQuote = (result.data as any).analyzedQuotes.find(
         (q: any) => q.price === 48000
       );
 
@@ -214,10 +214,10 @@ describe('ProposalAnalysisAgent', () => {
     it('should consider operator rating in quality score', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const highRatingQuote = result.data.analyzedQuotes.find(
+      const highRatingQuote = (result.data as any).analyzedQuotes.find(
         (q: any) => q.operatorRating === 4.9
       );
-      const lowRatingQuote = result.data.analyzedQuotes.find(
+      const lowRatingQuote = (result.data as any).analyzedQuotes.find(
         (q: any) => q.operatorRating === 4.5
       );
 
@@ -229,10 +229,10 @@ describe('ProposalAnalysisAgent', () => {
     it('should consider aircraft age in quality score', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const newAircraftQuote = result.data.analyzedQuotes.find(
+      const newAircraftQuote = (result.data as any).analyzedQuotes.find(
         (q: any) => q.aircraftAge === 1
       );
-      const oldAircraftQuote = result.data.analyzedQuotes.find(
+      const oldAircraftQuote = (result.data as any).analyzedQuotes.find(
         (q: any) => q.aircraftAge === 5
       );
 
@@ -254,7 +254,7 @@ describe('ProposalAnalysisAgent', () => {
     it('should rank quotes by score', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const scores = result.data.analyzedQuotes.map((q: any) => q.score);
+      const scores = (result.data as any).analyzedQuotes.map((q: any) => q.score);
       const sortedScores = [...scores].sort((a, b) => b - a);
 
       expect(scores).toEqual(sortedScores);
@@ -263,7 +263,7 @@ describe('ProposalAnalysisAgent', () => {
     it('should assign rank to each quote', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      result.data.analyzedQuotes.forEach((quote: any, index: number) => {
+      (result.data as any).analyzedQuotes.forEach((quote: any, index: number) => {
         expect(quote.rank).toBe(index + 1);
       });
     });
@@ -271,19 +271,19 @@ describe('ProposalAnalysisAgent', () => {
     it('should identify top recommendation', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.recommendation).toBeDefined();
-      expect(result.data.recommendation.quoteId).toBe(
-        result.data.analyzedQuotes[0].quoteId
+      expect((result.data as any).recommendation).toBeDefined();
+      expect((result.data as any).recommendation.quoteId).toBe(
+        (result.data as any).analyzedQuotes[0].quoteId
       );
-      expect(result.data.recommendation.rank).toBe(1);
+      expect((result.data as any).recommendation.rank).toBe(1);
     });
 
     it('should include recommendation reasoning', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.recommendation.reasoning).toBeDefined();
-      expect(typeof result.data.recommendation.reasoning).toBe('string');
-      expect(result.data.recommendation.reasoning.length).toBeGreaterThan(0);
+      expect((result.data as any).recommendation.reasoning).toBeDefined();
+      expect(typeof (result.data as any).recommendation.reasoning).toBe('string');
+      expect((result.data as any).recommendation.reasoning.length).toBeGreaterThan(0);
     });
   });
 
@@ -311,7 +311,7 @@ describe('ProposalAnalysisAgent', () => {
 
       const result: AgentResult = await agent.execute(overBudgetContext);
 
-      result.data.analyzedQuotes.forEach((quote: any) => {
+      (result.data as any).analyzedQuotes.forEach((quote: any) => {
         expect(quote.overBudget).toBe(true);
       });
     });
@@ -319,7 +319,7 @@ describe('ProposalAnalysisAgent', () => {
     it('should identify quotes within budget', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      result.data.analyzedQuotes.forEach((quote: any) => {
+      (result.data as any).analyzedQuotes.forEach((quote: any) => {
         expect(quote.overBudget).toBe(false);
       });
     });
@@ -327,7 +327,7 @@ describe('ProposalAnalysisAgent', () => {
     it('should calculate budget variance', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      result.data.analyzedQuotes.forEach((quote: any) => {
+      (result.data as any).analyzedQuotes.forEach((quote: any) => {
         expect(quote.budgetVariance).toBeDefined();
         expect(typeof quote.budgetVariance).toBe('number');
       });
@@ -346,24 +346,24 @@ describe('ProposalAnalysisAgent', () => {
     it('should calculate price range', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.analysis).toBeDefined();
-      expect(result.data.analysis.priceRange).toBeDefined();
-      expect(result.data.analysis.priceRange.min).toBe(42000);
-      expect(result.data.analysis.priceRange.max).toBe(48000);
+      expect((result.data as any).analysis).toBeDefined();
+      expect((result.data as any).analysis.priceRange).toBeDefined();
+      expect((result.data as any).analysis.priceRange.min).toBe(42000);
+      expect((result.data as any).analysis.priceRange.max).toBe(48000);
     });
 
     it('should calculate average price', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.analysis.averagePrice).toBeDefined();
-      expect(result.data.analysis.averagePrice).toBe(45000); // (45000 + 42000 + 48000) / 3
+      expect((result.data as any).analysis.averagePrice).toBeDefined();
+      expect((result.data as any).analysis.averagePrice).toBe(45000); // (45000 + 42000 + 48000) / 3
     });
 
     it('should identify best value quote', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.analysis.bestValue).toBeDefined();
-      expect(result.data.analysis.bestValue.quoteId).toBeDefined();
+      expect((result.data as any).analysis.bestValue).toBeDefined();
+      expect((result.data as any).analysis.bestValue.quoteId).toBeDefined();
     });
   });
 
@@ -379,25 +379,25 @@ describe('ProposalAnalysisAgent', () => {
     it('should preserve request ID', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.requestId).toBe(mockContext.requestId);
+      expect((result.data as any).requestId).toBe(mockContext.requestId);
     });
 
     it('should include session ID for handoff', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.sessionId).toBe(mockContext.sessionId);
+      expect((result.data as any).sessionId).toBe(mockContext.sessionId);
     });
 
     it('should set next agent to Communication', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.nextAgent).toBe(AgentType.COMMUNICATION);
+      expect((result.data as any).nextAgent).toBe(AgentType.COMMUNICATION);
     });
 
     it('should include RFP ID in result', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.rfpId).toBe('rfp-123');
+      expect((result.data as any).rfpId).toBe('rfp-123');
     });
   });
 
@@ -491,7 +491,7 @@ describe('ProposalAnalysisAgent', () => {
     it('should track number of quotes analyzed', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.quotesAnalyzed).toBe(3);
+      expect((result.data as any).quotesAnalyzed).toBe(3);
     });
   });
 });

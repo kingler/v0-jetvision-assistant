@@ -95,21 +95,21 @@ describe('OrchestratorAgent', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data.analysis).toBeDefined();
-      expect(result.data.analysis.departure).toBe('KTEB');
-      expect(result.data.analysis.arrival).toBe('KMIA');
-      expect(result.data.analysis.passengers).toBe(6);
-      expect(result.data.analysis.clientName).toBe('John Smith');
+      expect((result.data as any).analysis).toBeDefined();
+      expect((result.data as any).analysis.departure).toBe('KTEB');
+      expect((result.data as any).analysis.arrival).toBe('KMIA');
+      expect((result.data as any).analysis.passengers).toBe(6);
+      expect((result.data as any).analysis.clientName).toBe('John Smith');
     });
 
     it('should identify required next steps', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect(result.data.nextSteps).toBeDefined();
-      expect(Array.isArray(result.data.nextSteps)).toBe(true);
-      expect(result.data.nextSteps).toContain('fetch_client_data');
-      expect(result.data.nextSteps).toContain('search_flights');
+      expect((result.data as any).nextSteps).toBeDefined();
+      expect(Array.isArray((result.data as any).nextSteps)).toBe(true);
+      expect((result.data as any).nextSteps).toContain('fetch_client_data');
+      expect((result.data as any).nextSteps).toContain('search_flights');
     });
 
     it('should validate RFP has required fields - departure', async () => {
@@ -182,7 +182,7 @@ describe('OrchestratorAgent', () => {
       const result: AgentResult = await agent.execute(urgentContext);
 
       expect(result.success).toBe(true);
-      expect(result.data.priority).toBe('urgent');
+      expect((result.data as any).priority).toBe('urgent');
     });
   });
 
@@ -199,16 +199,16 @@ describe('OrchestratorAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect(result.data.workflowId).toBeDefined();
-      expect(result.data.workflowId).toBe(mockContext.requestId);
+      expect((result.data as any).workflowId).toBeDefined();
+      expect((result.data as any).workflowId).toBe(mockContext.requestId);
     });
 
     it('should set initial workflow state', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect(result.data.workflowState).toBeDefined();
-      expect(result.data.workflowState).toBe('ANALYZING');
+      expect((result.data as any).workflowState).toBeDefined();
+      expect((result.data as any).workflowState).toBe('ANALYZING');
     });
   });
 
@@ -225,15 +225,15 @@ describe('OrchestratorAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect(result.data.tasks).toBeDefined();
-      expect(Array.isArray(result.data.tasks)).toBe(true);
-      expect(result.data.tasks.length).toBeGreaterThan(0);
+      expect((result.data as any).tasks).toBeDefined();
+      expect(Array.isArray((result.data as any).tasks)).toBe(true);
+      expect((result.data as any).tasks.length).toBeGreaterThan(0);
     });
 
     it('should create client data fetch task', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const clientDataTask = result.data.tasks?.find(
+      const clientDataTask = (result.data as any).tasks?.find(
         (t: any) => t.type === 'fetch_client_data'
       );
 
@@ -247,7 +247,7 @@ describe('OrchestratorAgent', () => {
     it('should create flight search task', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const flightSearchTask = result.data.tasks?.find(
+      const flightSearchTask = (result.data as any).tasks?.find(
         (t: any) => t.type === 'search_flights'
       );
 
@@ -263,7 +263,7 @@ describe('OrchestratorAgent', () => {
     it('should set task priority based on urgency', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const tasks = result.data.tasks || [];
+      const tasks = (result.data as any).tasks || [];
       tasks.forEach((task: any) => {
         expect(task.priority).toBeDefined();
         expect(['urgent', 'high', 'normal', 'low']).toContain(task.priority);
@@ -379,13 +379,13 @@ describe('OrchestratorAgent', () => {
     it('should preserve request ID in result', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect(result.data.requestId).toBe(mockContext.requestId);
+      expect((result.data as any).requestId).toBe(mockContext.requestId);
     });
 
     it('should preserve session ID in tasks', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const tasks = result.data.tasks || [];
+      const tasks = (result.data as any).tasks || [];
       tasks.forEach((task: any) => {
         expect(task.payload.sessionId).toBe(mockContext.sessionId);
       });
@@ -394,7 +394,7 @@ describe('OrchestratorAgent', () => {
     it('should include original RFP data in tasks', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const tasks = result.data.tasks || [];
+      const tasks = (result.data as any).tasks || [];
       tasks.forEach((task: any) => {
         expect(task.payload.rfpData).toBeDefined();
       });
