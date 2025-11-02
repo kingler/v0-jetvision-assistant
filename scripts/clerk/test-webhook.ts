@@ -60,18 +60,30 @@ async function testWebhook() {
   console.log();
 
   try {
+    // Type guard to ensure WEBHOOK_SECRET is defined
+    if (!WEBHOOK_SECRET) {
+      throw new Error('WEBHOOK_SECRET is not defined');
+    }
+
     // Create Svix webhook instance
     const wh = new Webhook(WEBHOOK_SECRET);
 
     // Generate webhook signature
     const payload = JSON.stringify(testUserEvent);
-    const headers = wh.sign('webhook_test_' + Date.now(), payload);
+    const timestamp = new Date();
+    const msgId = 'webhook_test_' + Date.now();
+    const signatureHeader = wh.sign(msgId, timestamp, payload);
+
+    // Svix sign() returns the signature header value
+    const svixId = msgId;
+    const svixTimestamp = Math.floor(timestamp.getTime() / 1000).toString();
+    const svixSignature = signatureHeader as string;
 
     console.log('📝 Generated webhook signature');
     console.log('Headers:', {
-      'svix-id': headers['svix-id'],
-      'svix-timestamp': headers['svix-timestamp'],
-      'svix-signature': headers['svix-signature'].substring(0, 20) + '...',
+      'svix-id': svixId,
+      'svix-timestamp': svixTimestamp,
+      'svix-signature': svixSignature.substring(0, 20) + '...',
     });
     console.log();
 
@@ -81,9 +93,9 @@ async function testWebhook() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'svix-id': headers['svix-id'],
-        'svix-timestamp': headers['svix-timestamp'],
-        'svix-signature': headers['svix-signature'],
+        'svix-id': svixId,
+        'svix-timestamp': svixTimestamp,
+        'svix-signature': svixSignature,
       },
       body: payload,
     });

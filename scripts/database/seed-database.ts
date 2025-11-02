@@ -6,7 +6,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
-import type { Database } from '@/lib/types/database';
 
 // Load environment variables
 config({ path: resolve(process.cwd(), '.env.local') });
@@ -19,7 +18,7 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
-const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
+const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
@@ -76,7 +75,8 @@ async function seedDatabase() {
             access_level: 'full',
           },
         },
-      ], { onConflict: 'clerk_user_id' });
+      ])
+      .select();
 
     if (agentsError) throw agentsError;
     console.log('   ✓ Inserted 3 ISO agents\n');
@@ -130,7 +130,8 @@ async function seedDatabase() {
           notes: 'Budget-conscious client. Prefers competitive pricing.',
           is_active: true,
         },
-      ], { onConflict: 'id' });
+      ])
+      .select();
 
     if (clientsError) throw clientsError;
     console.log('   ✓ Inserted 3 client profiles\n');
@@ -186,7 +187,8 @@ async function seedDatabase() {
             pets: 1,
           },
         },
-      ], { onConflict: 'id' });
+      ])
+      .select();
 
     if (requestsError) throw requestsError;
     console.log('   ✓ Inserted 3 requests\n');
