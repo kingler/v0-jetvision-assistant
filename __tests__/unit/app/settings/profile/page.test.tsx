@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ProfilePage from '@/app/settings/profile/page';
-import { UserRole } from '@/lib/types/database';
+import { useUser } from '@clerk/nextjs';
+import { useUserRole } from '@/lib/hooks/use-user-role';
+import { toast } from 'sonner';
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
@@ -44,16 +47,14 @@ describe('ProfilePage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    const { useUser } = require('@clerk/nextjs');
-    const { useUserRole } = require('@/lib/hooks/use-user-role');
 
-    useUser.mockReturnValue({
+    vi.mocked(useUser).mockReturnValue({
       user: mockUser,
       isLoaded: true,
-    });
+    } as any);
 
-    useUserRole.mockReturnValue({
-      role: UserRole.SALES_REP,
+    vi.mocked(useUserRole).mockReturnValue({
+      role: 'sales_rep',
       loading: false,
       isSalesRep: true,
       isAdmin: false,
@@ -64,8 +65,7 @@ describe('ProfilePage', () => {
   });
 
   it('should render loading state initially', () => {
-    const { useUserRole } = require('@/lib/hooks/use-user-role');
-    useUserRole.mockReturnValue({
+    vi.mocked(useUserRole).mockReturnValue({
       role: null,
       loading: true,
       isSalesRep: false,
@@ -85,7 +85,7 @@ describe('ProfilePage', () => {
       clerk_id: 'clerk-123',
       email: 'test@example.com',
       name: 'John Doe',
-      role: UserRole.SALES_REP,
+      role: 'sales_rep',
       phone: '+1234567890',
       timezone: 'America/New_York',
       avatar_url: '/avatar.jpg',
@@ -113,7 +113,7 @@ describe('ProfilePage', () => {
       clerk_id: 'clerk-123',
       email: 'test@example.com',
       name: 'John Doe',
-      role: UserRole.SALES_REP,
+      role: 'sales_rep',
       phone: '+1234567890',
       timezone: 'America/New_York',
       avatar_url: '/avatar.jpg',
@@ -140,13 +140,12 @@ describe('ProfilePage', () => {
   });
 
   it('should handle profile update successfully', async () => {
-    const { toast } = require('sonner');
     const mockUserData = {
       id: 'user-123',
       clerk_id: 'clerk-123',
       email: 'test@example.com',
       name: 'John Doe',
-      role: UserRole.SALES_REP,
+      role: 'sales_rep',
       phone: '+1234567890',
       timezone: 'America/New_York',
       avatar_url: '/avatar.jpg',
@@ -182,13 +181,12 @@ describe('ProfilePage', () => {
   });
 
   it('should handle profile update error', async () => {
-    const { toast } = require('sonner');
     const mockUserData = {
       id: 'user-123',
       clerk_id: 'clerk-123',
       email: 'test@example.com',
       name: 'John Doe',
-      role: UserRole.SALES_REP,
+      role: 'sales_rep',
       phone: '+1234567890',
       timezone: 'America/New_York',
       avatar_url: '/avatar.jpg',
@@ -229,7 +227,7 @@ describe('ProfilePage', () => {
       clerk_id: 'clerk-123',
       email: 'test@example.com',
       name: 'John Doe',
-      role: UserRole.SALES_REP,
+      role: 'sales_rep',
       phone: '+1234567890',
       timezone: 'America/New_York',
       avatar_url: '/avatar.jpg',
@@ -251,9 +249,8 @@ describe('ProfilePage', () => {
   });
 
   it('should show preferences for customer role', async () => {
-    const { useUserRole } = require('@/lib/hooks/use-user-role');
-    useUserRole.mockReturnValue({
-      role: UserRole.CUSTOMER,
+    vi.mocked(useUserRole).mockReturnValue({
+      role: 'customer',
       loading: false,
       isSalesRep: false,
       isAdmin: false,
@@ -267,7 +264,7 @@ describe('ProfilePage', () => {
       clerk_id: 'clerk-123',
       email: 'test@example.com',
       name: 'John Doe',
-      role: UserRole.CUSTOMER,
+      role: 'customer',
       phone: '+1234567890',
       timezone: 'America/New_York',
       avatar_url: '/avatar.jpg',
@@ -293,13 +290,12 @@ describe('ProfilePage', () => {
   });
 
   it('should handle avatar upload', async () => {
-    const { toast } = require('sonner');
     const mockUserData = {
       id: 'user-123',
       clerk_id: 'clerk-123',
       email: 'test@example.com',
       name: 'John Doe',
-      role: UserRole.SALES_REP,
+      role: 'sales_rep',
       phone: '+1234567890',
       timezone: 'America/New_York',
       avatar_url: '/avatar.jpg',
@@ -346,7 +342,7 @@ describe('ProfilePage', () => {
       clerk_id: 'clerk-123',
       email: 'test@example.com',
       name: 'John Doe',
-      role: UserRole.SALES_REP,
+      role: 'sales_rep',
       phone: '+1234567890',
       timezone: 'America/New_York',
       avatar_url: '/avatar.jpg',
