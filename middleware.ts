@@ -7,18 +7,19 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks(.*)',
 ])
 
-export default clerkMiddleware((auth, request) => {
-  const { userId } = auth()
+export default clerkMiddleware(async (auth, request) => {
+  const { userId } = await auth()
 
   // Redirect authenticated users away from auth pages to home
   if (userId && (request.nextUrl.pathname.startsWith('/sign-in') || request.nextUrl.pathname.startsWith('/sign-up'))) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Protect all routes except public routes using Clerk's built-in redirect
-  // This integrates properly with Clerk's OAuth callback flow
-  if (!isPublicRoute(request)) {
-    auth.protect()
+  // Protect all routes except public routes - redirect to sign-in if not authenticated
+  if (!isPublicRoute(request) && !userId) {
+    const signInUrl = new URL('/sign-in', request.url)
+    signInUrl.searchParams.set('redirect_url', request.url)
+    return NextResponse.redirect(signInUrl)
   }
 })
 
