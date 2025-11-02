@@ -100,6 +100,10 @@ describe('executeToolWithRetry()', () => {
           content: [{ type: 'text', text: '{}' }],
         });
 
+      // Mock Math.random to remove jitter (always return 0)
+      const originalMathRandom = Math.random;
+      Math.random = vi.fn(() => 0);
+
       // Mock setTimeout to track delays
       const originalSetTimeout = global.setTimeout;
       global.setTimeout = vi.fn((fn: any, delay: number) => {
@@ -111,6 +115,7 @@ describe('executeToolWithRetry()', () => {
       await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
       global.setTimeout = originalSetTimeout;
+      Math.random = originalMathRandom;
 
       expect(delays).toHaveLength(2); // 2 retries = 2 delays
       expect(delays[0]).toBe(1000); // 1s
@@ -124,8 +129,14 @@ describe('executeToolWithRetry()', () => {
           content: [{ type: 'text', text: '{}' }],
         });
 
+      // Mock Math.random to remove jitter (always return 0)
+      const originalMathRandom = Math.random;
+      Math.random = vi.fn(() => 0);
+
       const executeToolWithRetry = (await import('@/app/api/chat/respond/route')).executeToolWithRetry;
       await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
+
+      Math.random = originalMathRandom;
 
       const retryEvent = mockController.enqueue.mock.calls.find((call) => {
         const data = new TextDecoder().decode(call[0]);
@@ -284,13 +295,14 @@ describe('executeToolWithRetry()', () => {
         executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
       ).rejects.toThrow();
 
+      // Check for retry log messages (format: "[executeToolWithRetry] Retrying search_flights (attempt 1/3) after 1000ms")
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Retrying'),
-        expect.stringContaining('attempt 1/3')
+        expect.stringContaining('[executeToolWithRetry] Retrying search_flights (attempt 1/3)'),
+        expect.anything()
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Retrying'),
-        expect.stringContaining('attempt 2/3')
+        expect.stringContaining('[executeToolWithRetry] Retrying search_flights (attempt 2/3)'),
+        expect.anything()
       );
 
       consoleSpy.mockRestore();
@@ -323,6 +335,10 @@ describe('executeToolWithRetry()', () => {
         .mockRejectedValueOnce(new Error('Timeout'))
         .mockResolvedValueOnce({ content: [{ type: 'text', text: '{}' }] });
 
+      // Mock Math.random to remove jitter (always return 0)
+      const originalMathRandom = Math.random;
+      Math.random = vi.fn(() => 0);
+
       const originalSetTimeout = global.setTimeout;
       global.setTimeout = vi.fn((fn: any, delay: number) => {
         delays.push(delay);
@@ -340,6 +356,7 @@ describe('executeToolWithRetry()', () => {
       );
 
       global.setTimeout = originalSetTimeout;
+      Math.random = originalMathRandom;
 
       expect(delays[0]).toBe(500); // Custom base delay
     });

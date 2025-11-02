@@ -44,7 +44,8 @@ describe('/api/mcp/health', () => {
       const request = new NextRequest('http://localhost:3000/api/mcp/health');
       const response = await GET(request);
 
-      expect(response.status).toBeOneOf([200, 503]);
+      // Health check can return 200 (healthy) or 503 (unhealthy)
+      expect([200, 503]).toContain(response.status);
     });
   });
 
