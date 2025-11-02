@@ -219,7 +219,34 @@ export async function POST(req: NextRequest) {
                 // Execute all tool calls
                 for (const toolCall of toolCalls) {
                   try {
-                    const toolArgs = JSON.parse(toolCall.arguments);
+                    // Parse tool arguments with error handling
+                    let toolArgs: Record<string, any>;
+                    try {
+                      toolArgs = JSON.parse(toolCall.arguments);
+                    } catch (parseError) {
+                      const errorMsg = parseError instanceof Error ? parseError.message : 'Invalid JSON';
+                      console.error(`[ChatRespond] Failed to parse tool arguments for ${toolCall.name}:`, errorMsg);
+
+                      sendSSE({
+                        type: 'tool_call_error',
+                        data: {
+                          toolCallId: toolCall.id,
+                          toolName: toolCall.name,
+                          error: `Failed to parse tool arguments: ${errorMsg}`,
+                        },
+                      });
+
+                      // Add error to conversation and continue
+                      conversationMessages.push({
+                        role: 'tool',
+                        tool_call_id: toolCall.id,
+                        content: JSON.stringify({
+                          error: `Invalid tool arguments: ${errorMsg}`,
+                          toolName: toolCall.name,
+                        }),
+                      });
+                      continue;
+                    }
 
                     sendSSE({
                       type: 'tool_call_complete',
@@ -302,6 +329,8 @@ export async function POST(req: NextRequest) {
               type: 'error',
               data: { error: 'Maximum tool call depth exceeded (5 levels)' },
             });
+            controller.close();
+            return;
           }
 
           controller.close();
@@ -551,6 +580,12 @@ export async function executeTool(
       for (const item of result.content) {
         if (item.type === 'text') {
           resultText += item.text;
+        } else {
+          // Log unsupported content types for future extensibility
+          console.warn(
+            `[executeTool] Unsupported tool result content type encountered: ${item.type}`,
+            item
+          );
         }
       }
     }
@@ -664,8 +699,11 @@ export async function executeToolWithRetry(
         throw lastError;
       }
 
-      // Calculate delay with exponential backoff
-      const delay = baseDelay * Math.pow(2, attempt);
+      // Calculate delay with exponential backoff and jitter
+      // Jitter prevents thundering herd by adding randomness
+      const baseBackoff = baseDelay * Math.pow(2, attempt);
+      const jitter = Math.random() * baseBackoff * 0.1; // 10% jitter
+      const delay = Math.floor(baseBackoff + jitter);
 
       console.log(
         `[executeToolWithRetry] Retrying ${toolName} (attempt ${attempt + 1}/${maxRetries}) after ${delay}ms`,
