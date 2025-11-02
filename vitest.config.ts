@@ -4,8 +4,8 @@ import path from 'path'
 export default defineConfig({
   test: {
     globals: true,
-    // Use jsdom for React component tests, node for others
-    environment: 'jsdom',
+    // Default to node environment, React tests will specify jsdom per-file
+    environment: 'node',
     setupFiles: ['./__tests__/helpers/setup.ts'],
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['node_modules', '.next', 'dist', 'build'],
