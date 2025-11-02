@@ -172,6 +172,13 @@ jobs:
         run: pnpm install
 
       - name: Build Application
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+          CLERK_SECRET_KEY: sk_test_placeholder
+          OPENAI_API_KEY: sk-placeholder
         run: pnpm run build
 
       - name: Analyze Bundle Size
