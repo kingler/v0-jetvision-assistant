@@ -38,15 +38,17 @@ const __dirname = dirname(__filename);
 // Load environment variables from project root
 config({ path: resolve(__dirname, '../../../.env.local') });
 
-// Validate environment variables
+// Validate environment variables (only for real API mode)
+const useMock = process.env.USE_MOCK_AVINODE === 'true';
 const apiKey = process.env.AVINODE_API_KEY;
 
-if (!apiKey) {
+if (!useMock && !apiKey) {
   console.error('Error: Missing AVINODE_API_KEY in .env.local');
+  console.error('Set USE_MOCK_AVINODE=true to use mock data instead.');
   process.exit(1);
 }
 
-// Get Avinode client
+// Get Avinode client (will use mock or real API based on environment)
 const avinodeClient = getAvinodeClient();
 
 // Define MCP tools

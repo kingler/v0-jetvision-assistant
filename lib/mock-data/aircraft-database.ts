@@ -689,27 +689,53 @@ export const AIRCRAFT_BY_CATEGORY = {
 
 /**
  * Get aircraft by ID
+ * @param id - The aircraft ID (e.g., 'AC-001')
+ * @returns The aircraft object or undefined if not found
+ * @example
+ * const aircraft = getAircraftById('AC-001');
+ * if (aircraft) {
+ *   console.log(aircraft.model); // 'Citation CJ3+'
+ * }
  */
 export function getAircraftById(id: string): Aircraft | undefined {
   return MOCK_AIRCRAFT.find((ac) => ac.id === id);
 }
 
 /**
- * Get aircraft by operator
+ * Get all aircraft operated by a specific operator
+ * @param operatorId - The operator ID (e.g., 'OP-002')
+ * @returns Array of aircraft operated by the specified operator
+ * @example
+ * const netJetsFleet = getAircraftByOperator('OP-002');
+ * console.log(netJetsFleet.length); // Number of NetJets aircraft
  */
 export function getAircraftByOperator(operatorId: string): Aircraft[] {
   return MOCK_AIRCRAFT.filter((ac) => ac.operatorId === operatorId);
 }
 
 /**
- * Get operator by ID
+ * Get operator details by ID
+ * @param operatorId - The operator ID (e.g., 'OP-002')
+ * @returns The operator object or undefined if not found
+ * @example
+ * const operator = getOperatorById('OP-002');
+ * if (operator) {
+ *   console.log(operator.name); // 'NetJets'
+ *   console.log(operator.rating); // 4.8
+ * }
  */
 export function getOperatorById(operatorId: string): Operator | undefined {
   return MOCK_OPERATORS.find((op) => op.id === operatorId);
 }
 
 /**
- * Filter aircraft by capacity and range
+ * Filter aircraft by minimum passenger capacity and range requirements
+ * @param minCapacity - Minimum passenger capacity required
+ * @param minRange - Minimum range in nautical miles
+ * @returns Array of aircraft matching both criteria
+ * @example
+ * // Find aircraft for 8+ passengers with 2000+ NM range
+ * const longRangeAircraft = filterAircraft(8, 2000);
  */
 export function filterAircraft(minCapacity: number, minRange: number): Aircraft[] {
   return MOCK_AIRCRAFT.filter(
@@ -718,14 +744,24 @@ export function filterAircraft(minCapacity: number, minRange: number): Aircraft[
 }
 
 /**
- * Filter aircraft by hourly rate budget
+ * Filter aircraft by maximum hourly rate budget
+ * @param maxHourlyRate - Maximum hourly rate in USD
+ * @returns Array of aircraft with minimum hourly rate at or below budget
+ * @example
+ * // Find aircraft within $5000/hour budget
+ * const affordableJets = filterAircraftByBudget(5000);
  */
 export function filterAircraftByBudget(maxHourlyRate: number): Aircraft[] {
   return MOCK_AIRCRAFT.filter((ac) => ac.pricing.hourlyRateMin <= maxHourlyRate);
 }
 
 /**
- * Get aircraft by category
+ * Get all aircraft in a specific category
+ * @param category - Aircraft category: 'light', 'midsize', 'super-midsize', 'heavy', or 'ultra-long-range'
+ * @returns Array of aircraft in the specified category
+ * @example
+ * const heavyJets = getAircraftByCategory('heavy');
+ * console.log(heavyJets[0].capacity); // Typically 12-16 passengers
  */
 export function getAircraftByCategory(
   category: 'light' | 'midsize' | 'super-midsize' | 'heavy' | 'ultra-long-range'
@@ -734,7 +770,14 @@ export function getAircraftByCategory(
 }
 
 /**
- * Get random aircraft matching criteria
+ * Get random aircraft matching minimum capacity and range requirements
+ * @param minCapacity - Minimum passenger capacity required
+ * @param minRange - Minimum range in nautical miles
+ * @param count - Number of random aircraft to return (default: 5)
+ * @returns Array of randomly selected aircraft matching criteria
+ * @example
+ * // Get 3 random aircraft for 6+ passengers with 1500+ NM range
+ * const randomOptions = getRandomAircraft(6, 1500, 3);
  */
 export function getRandomAircraft(
   minCapacity: number,
