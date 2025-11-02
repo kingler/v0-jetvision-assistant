@@ -1,33 +1,25 @@
-import { createBrowserClient } from '@supabase/ssr'
-import { Database } from '@/lib/types/database'
-
 /**
- * Create a Supabase client for browser/client-side use
- *
- * This client:
- * - Runs in the browser
- * - Automatically handles authentication with Clerk
- * - Enforces Row Level Security (RLS) policies
- * - Should be used in React components and client-side code
- *
- * @example
- * ```tsx
- * import { createClient } from '@/lib/supabase/client'
- *
- * export default function MyComponent() {
- *   const supabase = createClient()
- *
- *   const { data, error } = await supabase
- *     .from('flight_requests')
- *     .select('*')
- *
- *   // ...
- * }
- * ```
+ * Supabase Client for Server-Side API Routes
+ * Use this in API routes and server-side code
  */
-export function createClient() {
-  return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/types/database'
+
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL')
 }
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Missing env.SUPABASE_SERVICE_ROLE_KEY')
+}
+
+export const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+)
