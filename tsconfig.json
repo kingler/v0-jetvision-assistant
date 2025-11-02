@@ -22,9 +22,11 @@
       "@/*": ["./*"],
       "@agents/*": ["./agents/*"],
       "@lib/*": ["./lib/*"],
-      "@components/*": ["./components/*"]
+      "@components/*": ["./components/*"],
+      "@tests/*": ["./__tests__/*"],
+      "@mcp-servers/*": ["./mcp-servers/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "__tests__/e2e/**"]
+  "exclude": ["node_modules", "__tests__/e2e/**", "__tests__/templates/**"]
 }
