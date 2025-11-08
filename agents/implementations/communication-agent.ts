@@ -89,9 +89,10 @@ export class CommunicationAgent extends BaseAgent {
       this.validateQuotes(quotes);
 
       // Generate email content
+      // After validation, we know these are defined
       const emailContent = this.generateEmailContent(
         clientData,
-        recommendation,
+        recommendation!,
         quotes,
         rfpData
       );

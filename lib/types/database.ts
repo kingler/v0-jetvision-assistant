@@ -8,63 +8,56 @@
  */
 
 // ============================================================================
-// ENUMS
+// TYPE DEFINITIONS (String Unions for Supabase compatibility)
 // ============================================================================
 
-export enum RequestStatus {
-  DRAFT = 'draft',
-  PENDING = 'pending',
-  ANALYZING = 'analyzing',
-  FETCHING_CLIENT_DATA = 'fetching_client_data',
-  SEARCHING_FLIGHTS = 'searching_flights',
-  AWAITING_QUOTES = 'awaiting_quotes',
-  ANALYZING_PROPOSALS = 'analyzing_proposals',
-  GENERATING_EMAIL = 'generating_email',
-  SENDING_PROPOSAL = 'sending_proposal',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled',
-}
+export type RequestStatus =
+  | 'draft'
+  | 'pending'
+  | 'analyzing'
+  | 'fetching_client_data'
+  | 'searching_flights'
+  | 'awaiting_quotes'
+  | 'analyzing_proposals'
+  | 'generating_email'
+  | 'sending_proposal'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 
-export enum QuoteStatus {
-  PENDING = 'pending',
-  RECEIVED = 'received',
-  ANALYZED = 'analyzed',
-  ACCEPTED = 'accepted',
-  REJECTED = 'rejected',
-  EXPIRED = 'expired',
-}
+export type QuoteStatus =
+  | 'pending'
+  | 'received'
+  | 'analyzed'
+  | 'accepted'
+  | 'rejected'
+  | 'expired';
 
-export enum UserRole {
-  SALES_REP = 'sales_rep',
-  ADMIN = 'admin',
-  CUSTOMER = 'customer',
-  OPERATOR = 'operator',
-  // Legacy - kept for migration compatibility
-  ISO_AGENT = 'iso_agent',
-}
+export type UserRole =
+  | 'sales_rep'
+  | 'admin'
+  | 'customer'
+  | 'operator'
+  | 'iso_agent'; // Legacy - kept for migration compatibility
 
-export enum MarginType {
-  PERCENTAGE = 'percentage',
-  FIXED = 'fixed',
-}
+export type MarginType =
+  | 'percentage'
+  | 'fixed';
 
-export enum ExecutionStatus {
-  PENDING = 'pending',
-  RUNNING = 'running',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  TIMEOUT = 'timeout',
-}
+export type ExecutionStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'timeout';
 
-export enum AgentType {
-  ORCHESTRATOR = 'orchestrator',
-  CLIENT_DATA = 'client_data',
-  FLIGHT_SEARCH = 'flight_search',
-  PROPOSAL_ANALYSIS = 'proposal_analysis',
-  COMMUNICATION = 'communication',
-  ERROR_MONITOR = 'error_monitor',
-}
+export type AgentType =
+  | 'orchestrator'
+  | 'client_data'
+  | 'flight_search'
+  | 'proposal_analysis'
+  | 'communication'
+  | 'error_monitor';
 
 // ============================================================================
 // TABLE ROW TYPES
@@ -295,10 +288,19 @@ export type ISOAgentInsert = Omit<ISOAgent, 'id' | 'created_at' | 'updated_at'> 
   updated_at?: string;
 };
 
-export type UserInsert = Omit<User, 'id' | 'created_at' | 'updated_at'> & {
+export type UserInsert = Omit<User, 'id' | 'created_at' | 'updated_at' | 'margin_type' | 'margin_value' | 'avatar_url' | 'phone' | 'timezone' | 'preferences' | 'last_login_at' | 'metadata' | 'is_active'> & {
   id?: string;
   created_at?: string;
   updated_at?: string;
+  margin_type?: MarginType | null;
+  margin_value?: number | null;
+  avatar_url?: string | null;
+  phone?: string | null;
+  timezone?: string;
+  preferences?: Record<string, unknown>;
+  last_login_at?: string | null;
+  metadata?: Record<string, unknown>;
+  is_active?: boolean;
 };
 
 export type ClientProfileInsert = Omit<ClientProfile, 'id' | 'created_at' | 'updated_at'> & {
