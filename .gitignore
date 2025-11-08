@@ -50,3 +50,4 @@ playwright-report/
 .DS_Store
 .auth/
 screenshots/
+build-output.log
