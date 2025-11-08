@@ -27,6 +27,117 @@ The workflow visualization component has been enhanced to support:
 2. **Real Avinode data** - Displays actual results from FlightSearchAgent and ProposalAnalysisAgent (when sandbox is configured)
 3. **Sequential display** - Results appear automatically as each workflow step completes
 
+## Master Activity Diagram
+
+The following diagram shows the complete end-to-end Avinode API integration workflow for JetVision's flight search and booking process:
+
+```mermaid
+flowchart TD
+    Start([User Submits Flight Request]) --> Parse[OrchestratorAgent: Parse Request]
+    Parse --> ValidateInput{Valid Input?}
+    ValidateInput -->|No| ErrorInput[Return Validation Error]
+    ValidateInput -->|Yes| InitWorkflow[Initialize Workflow State Machine]
+
+    InitWorkflow --> SearchFlights[FlightSearchAgent: Search Flights]
+    SearchFlights --> AuthAvinode1{Authenticate<br/>with Avinode}
+    AuthAvinode1 -->|401/403| AuthError1[Handle Auth Error]
+    AuthError1 --> RetryAuth1{Retry?}
+    RetryAuth1 -->|Yes| AuthAvinode1
+    RetryAuth1 -->|No| FailWorkflow1[Fail Workflow]
+
+    AuthAvinode1 -->|Success| CallSearchAPI[POST /api/flights/search]
+    CallSearchAPI --> RateLimit1{Rate Limited<br/>429?}
+    RateLimit1 -->|Yes| Backoff1[Exponential Backoff]
+    Backoff1 --> CallSearchAPI
+    RateLimit1 -->|No| ProcessSearch[Process Search Results]
+
+    ProcessSearch --> CheckResults{Aircraft<br/>Found?}
+    CheckResults -->|No| NoResults[Return: No Aircraft Available]
+    CheckResults -->|Yes| FilterAircraft[Filter by Capacity/Range]
+
+    FilterAircraft --> UpdateWorkflow1[Update Workflow: Step 2 Complete]
+    UpdateWorkflow1 --> SelectOperators[Select Top Operators]
+
+    SelectOperators --> CreateRFP[FlightSearchAgent: Create RFP]
+    CreateRFP --> AuthAvinode2{Authenticate<br/>with Avinode}
+    AuthAvinode2 -->|401/403| AuthError2[Handle Auth Error]
+    AuthError2 --> RetryAuth2{Retry?}
+    RetryAuth2 -->|Yes| AuthAvinode2
+    RetryAuth2 -->|No| FailWorkflow2[Fail Workflow]
+
+    AuthAvinode2 -->|Success| CallCreateRFP[POST /api/rfp/create]
+    CallCreateRFP --> RateLimit2{Rate Limited<br/>429?}
+    RateLimit2 -->|Yes| Backoff2[Exponential Backoff]
+    Backoff2 --> CallCreateRFP
+    RateLimit2 -->|No| RFPCreated[RFP Created Successfully]
+
+    RFPCreated --> StoreRFPID[Store RFP ID in Workflow]
+    StoreRFPID --> UpdateWorkflow2[Update Workflow: Step 3 In Progress]
+    UpdateWorkflow2 --> CreateWatch[Create Watch for RFP Updates]
+
+    CreateWatch --> WaitQuotes[Wait for Operator Quotes]
+    WaitQuotes --> CheckQuotes{Check RFP<br/>Status}
+    CheckQuotes --> CallGetStatus[GET /api/rfp/:id/status]
+    CallGetStatus --> RateLimit3{Rate Limited<br/>429?}
+    RateLimit3 -->|Yes| Backoff3[Exponential Backoff]
+    Backoff3 --> CallGetStatus
+
+    RateLimit3 -->|No| QuotesReceived{Quotes<br/>Received?}
+    QuotesReceived -->|No| Timeout{Deadline<br/>Reached?}
+    Timeout -->|No| WaitQuotes
+    Timeout -->|Yes| PartialQuotes[Process Partial Quotes]
+    QuotesReceived -->|Yes| UpdateWorkflow3[Update Workflow: Step 3 Complete]
+
+    PartialQuotes --> UpdateWorkflow3
+    UpdateWorkflow3 --> AnalyzeProposals[ProposalAnalysisAgent: Analyze Quotes]
+
+    AnalyzeProposals --> FetchQuoteDetails[GET /api/rfp/:id/quotes]
+    FetchQuoteDetails --> RateLimit4{Rate Limited<br/>429?}
+    RateLimit4 -->|Yes| Backoff4[Exponential Backoff]
+    Backoff4 --> FetchQuoteDetails
+    RateLimit4 -->|No| ScoreQuotes[Score and Rank Quotes]
+
+    ScoreQuotes --> ApplyAI[Apply AI Scoring Algorithm]
+    ApplyAI --> CompareOptions[Compare Pricing & Features]
+    CompareOptions --> RankProposals[Rank Top 3 Proposals]
+
+    RankProposals --> UpdateWorkflow4[Update Workflow: Step 4 Complete]
+    UpdateWorkflow4 --> UpdateSupabase[Store Quotes in Supabase]
+
+    UpdateSupabase --> GenerateProposal[CommunicationAgent: Generate Proposal]
+    GenerateProposal --> ApplyMargin[Apply JetVision Margin]
+    ApplyMargin --> CreatePDF[Generate PDF Document]
+    CreatePDF --> BrandingCheck{PDF<br/>Valid?}
+    BrandingCheck -->|No| RetryPDF[Regenerate PDF]
+    RetryPDF --> CreatePDF
+    BrandingCheck -->|Yes| UpdateWorkflow5[Update Workflow: Step 5 Complete]
+
+    UpdateWorkflow5 --> NotifyUser[Notify User: Proposal Ready]
+    NotifyUser --> SendEmail{Auto-send<br/>Email?}
+    SendEmail -->|Yes| EmailAgent[CommunicationAgent: Send Email]
+    EmailAgent --> DeliveryStatus{Email<br/>Delivered?}
+    DeliveryStatus -->|No| LogFailure[Log Email Failure]
+    DeliveryStatus -->|Yes| MarkSent[Mark Proposal Sent]
+    SendEmail -->|No| ManualReview[Await Manual Review]
+
+    MarkSent --> Complete([Workflow Complete])
+    ManualReview --> Complete
+    LogFailure --> Complete
+
+    ErrorInput --> End([End])
+    NoResults --> End
+    FailWorkflow1 --> End
+    FailWorkflow2 --> End
+
+    style Start fill:#e1f5e1
+    style Complete fill:#e1f5e1
+    style End fill:#ffe1e1
+    style ErrorInput fill:#ffe1e1
+    style NoResults fill:#fff4e1
+    style FailWorkflow1 fill:#ffe1e1
+    style FailWorkflow2 fill:#ffe1e1
+```
+
 ## 5 Workflow Steps
 
 ```
@@ -82,6 +193,410 @@ Steps automatically update as workflow progresses:
 - Status changes: `pending` → `in-progress` → `completed`
 - Details populate from agent results
 - Progress bar updates in real-time
+
+## Task-Specific API Operation Diagrams
+
+### 1. POST /api/flights/search - Search Available Flights
+
+```mermaid
+sequenceDiagram
+    participant Agent as FlightSearchAgent
+    participant MCP as Avinode MCP Server
+    participant API as Avinode API
+    participant DB as Supabase
+
+    Agent->>MCP: callTool('search_flights', params)
+    activate MCP
+
+    MCP->>MCP: Validate Input Parameters
+    alt Invalid Parameters
+        MCP-->>Agent: Error: Invalid parameters
+    end
+
+    MCP->>MCP: Build Request Headers
+    Note right of MCP: X-Avinode-ApiToken<br/>Authorization: Bearer<br/>X-Avinode-SentTimestamp
+
+    MCP->>API: POST /api/flights/search
+    activate API
+
+    alt Rate Limited (429)
+        API-->>MCP: 429 Too Many Requests
+        MCP->>MCP: Exponential Backoff (2^n seconds)
+        MCP->>API: Retry POST /api/flights/search
+    end
+
+    alt Authentication Error (401/403)
+        API-->>MCP: 401/403 Unauthorized
+        MCP-->>Agent: Error: Authentication failed
+    end
+
+    API->>API: Query Operator Database
+    API->>API: Filter by Criteria
+    API-->>MCP: 200 OK + Search Results
+    deactivate API
+
+    MCP->>MCP: Parse Response
+    MCP->>MCP: Extract Aircraft Data
+    MCP-->>Agent: Success + Results Array
+    deactivate MCP
+
+    Agent->>DB: Store search results
+    Agent->>DB: Update workflow_data.step2
+```
+
+### 2. POST /api/rfp/create - Create Request for Proposal
+
+```mermaid
+sequenceDiagram
+    participant Agent as FlightSearchAgent
+    participant MCP as Avinode MCP Server
+    participant API as Avinode API
+    participant DB as Supabase
+    participant Watch as Watch Service
+
+    Agent->>MCP: callTool('create_rfp', rfpData)
+    activate MCP
+
+    MCP->>MCP: Validate RFP Data
+    alt Missing Required Fields
+        MCP-->>Agent: Error: Invalid RFP data
+    end
+
+    MCP->>MCP: Format Flight Details
+    Note right of MCP: ISO 8601 dates<br/>ISO 4217 currency<br/>ISO 3166 country codes
+
+    MCP->>MCP: Build Request Headers
+    MCP->>API: POST /api/rfp/create
+    activate API
+
+    alt Rate Limited (429)
+        API-->>MCP: 429 + X-Rate-Limit-Reset
+        MCP->>MCP: Wait (reset seconds)
+        MCP->>API: Retry POST
+    end
+
+    alt Validation Error (422)
+        API-->>MCP: 422 Unprocessable Entity
+        API-->>MCP: Validation errors array
+        MCP-->>Agent: Error: Validation failed
+    end
+
+    API->>API: Create RFP Record
+    API->>API: Assign RFP ID
+    API->>API: Notify Selected Operators
+    API-->>MCP: 201 Created + RFP Object
+    deactivate API
+
+    MCP->>MCP: Extract RFP ID
+    MCP-->>Agent: Success + rfp_id
+    deactivate MCP
+
+    Agent->>DB: Store RFP ID
+    Agent->>DB: Update workflow_data.step3
+    Agent->>Watch: Create RFP watch
+    Note right of Watch: Monitor for quote updates
+```
+
+### 3. GET /api/rfp/:id/status - Check RFP Status
+
+```mermaid
+sequenceDiagram
+    participant Agent as ProposalAnalysisAgent
+    participant MCP as Avinode MCP Server
+    participant API as Avinode API
+    participant Cache as Redis Cache
+
+    Agent->>MCP: callTool('get_rfp_status', rfpId)
+    activate MCP
+
+    MCP->>Cache: Check cached status
+    alt Cache Hit (< 30 seconds old)
+        Cache-->>MCP: Cached RFP Status
+        MCP-->>Agent: Success + Cached Data
+    end
+
+    MCP->>MCP: Build Request Headers
+    MCP->>API: GET /api/rfp/{rfp_id}/status
+    activate API
+
+    alt RFP Not Found (404)
+        API-->>MCP: 404 Not Found
+        MCP-->>Agent: Error: RFP not found
+    end
+
+    alt Rate Limited (429)
+        API-->>MCP: 429 Too Many Requests
+        MCP->>MCP: Exponential Backoff
+        MCP->>API: Retry GET
+    end
+
+    API->>API: Fetch RFP Record
+    API->>API: Count Received Quotes
+    API->>API: Calculate Status
+    API-->>MCP: 200 OK + RFP Status
+    deactivate API
+
+    MCP->>MCP: Parse Response
+    MCP->>Cache: Cache status (30s TTL)
+    MCP-->>Agent: Success + Status Object
+    deactivate MCP
+
+    alt Quotes Received
+        Agent->>Agent: Proceed to fetch quotes
+    else Waiting for Quotes
+        Agent->>Agent: Schedule retry
+    end
+```
+
+### 4. GET /api/rfp/:id/quotes - Fetch All Quotes for RFP
+
+```mermaid
+sequenceDiagram
+    participant Agent as ProposalAnalysisAgent
+    participant MCP as Avinode MCP Server
+    participant API as Avinode API
+    participant DB as Supabase
+
+    Agent->>MCP: callTool('get_rfp_status', rfpId)
+    activate MCP
+
+    MCP->>MCP: Build Request Headers
+    MCP->>API: GET /api/rfp/{rfp_id}/quotes
+    activate API
+
+    alt RFP Not Found (404)
+        API-->>MCP: 404 Not Found
+        MCP-->>Agent: Error: RFP not found
+    end
+
+    alt Rate Limited (429)
+        API-->>MCP: 429 Too Many Requests
+        MCP->>MCP: Wait and Retry
+    end
+
+    API->>API: Fetch RFP Record
+    API->>API: Query Related Quotes
+    API->>API: Enrich Quote Data
+    Note right of API: Operator details<br/>Aircraft details<br/>Pricing breakdown
+
+    API-->>MCP: 200 OK + Quotes Array
+    deactivate API
+
+    MCP->>MCP: Parse Quotes
+    MCP->>MCP: Extract Key Fields
+    MCP-->>Agent: Success + Quotes Array
+    deactivate MCP
+
+    Agent->>Agent: Score Each Quote
+    Agent->>Agent: Rank by AI Score
+    Agent->>DB: Store quotes with scores
+    Agent->>DB: Update workflow_data.step4
+```
+
+### 5. POST /api/watch/create - Create RFP Watch
+
+```mermaid
+sequenceDiagram
+    participant Agent as FlightSearchAgent
+    participant MCP as Avinode MCP Server
+    participant API as Avinode API
+    participant Webhook as Webhook Handler
+
+    Agent->>MCP: callTool('create_watch', watchConfig)
+    activate MCP
+
+    MCP->>MCP: Validate Watch Config
+    alt Invalid Webhook URL
+        MCP-->>Agent: Error: Invalid webhook
+    end
+
+    MCP->>MCP: Build Request Body
+    Note right of MCP: type: 'rfp'<br/>rfp_id<br/>notifications config<br/>webhook_url
+
+    MCP->>API: POST /api/watch/create
+    activate API
+
+    alt Rate Limited (429)
+        API-->>MCP: 429 Too Many Requests
+        MCP->>MCP: Exponential Backoff
+        MCP->>API: Retry POST
+    end
+
+    API->>API: Create Watch Record
+    API->>API: Register Webhook
+    API->>API: Assign Watch ID
+    API-->>MCP: 201 Created + Watch Object
+    deactivate API
+
+    MCP->>MCP: Extract Watch ID
+    MCP-->>Agent: Success + watch_id
+    deactivate MCP
+
+    Agent->>Agent: Store Watch ID
+
+    Note over API,Webhook: Later: When quote received...
+    API->>Webhook: POST /api/webhooks/avinode
+    activate Webhook
+    Webhook->>Webhook: Validate Signature
+    Webhook->>Webhook: Process Quote Update
+    Webhook->>Agent: Trigger quote check
+    deactivate Webhook
+```
+
+### 6. GET /api/airports/search - Search Airport Database
+
+```mermaid
+sequenceDiagram
+    participant UI as User Interface
+    participant API as Next.js API Route
+    participant MCP as Avinode MCP Server
+    participant Avinode as Avinode API
+    participant Cache as Redis Cache
+
+    UI->>API: GET /api/airports?q=Teterboro
+    activate API
+
+    API->>Cache: Check cached results
+    alt Cache Hit
+        Cache-->>API: Cached Airport Data
+        API-->>UI: 200 OK + Airports
+    end
+
+    API->>MCP: callTool('search_airports', query)
+    activate MCP
+
+    MCP->>MCP: Build Request Headers
+    MCP->>Avinode: GET /api/airports/search?q=...
+    activate Avinode
+
+    alt Rate Limited (429)
+        Avinode-->>MCP: 429 Too Many Requests
+        MCP->>MCP: Exponential Backoff
+        MCP->>Avinode: Retry GET
+    end
+
+    Avinode->>Avinode: Query Airport Database
+    Avinode->>Avinode: Filter by Country (if provided)
+    Avinode->>Avinode: Sort by Relevance
+    Avinode-->>MCP: 200 OK + Airports Array
+    deactivate Avinode
+
+    MCP->>MCP: Parse Results
+    MCP-->>API: Success + Airports
+    deactivate MCP
+
+    API->>Cache: Cache results (1 hour TTL)
+    API-->>UI: 200 OK + Airports
+    deactivate API
+
+    UI->>UI: Display Airport Options
+```
+
+### 7. Authentication Flow
+
+```mermaid
+flowchart TD
+    Start([MCP Server Starts]) --> LoadEnv[Load Environment Variables]
+    LoadEnv --> CheckTokens{API Token &<br/>Bearer Token<br/>Present?}
+
+    CheckTokens -->|No| ThrowError[Throw: Missing Credentials]
+    CheckTokens -->|Yes| StoreTokens[Store Tokens in Memory]
+
+    StoreTokens --> Ready([Ready for Requests])
+
+    Ready --> Request[Incoming API Request]
+    Request --> BuildHeaders[Build Request Headers]
+
+    BuildHeaders --> AddToken1[Add X-Avinode-ApiToken]
+    AddToken1 --> AddToken2[Add Authorization: Bearer]
+    AddToken2 --> AddTimestamp[Add X-Avinode-SentTimestamp]
+
+    AddTimestamp --> ValidateTime{Timestamp<br/>within 5 min?}
+    ValidateTime -->|No| AdjustClock[Adjust System Clock]
+    AdjustClock --> AddTimestamp
+
+    ValidateTime -->|Yes| AddVersion[Add X-Avinode-ApiVersion]
+    AddVersion --> AddProduct[Add X-Avinode-Product]
+
+    AddProduct --> SendRequest[Send Request to Avinode]
+    SendRequest --> CheckResponse{Response<br/>Status?}
+
+    CheckResponse -->|401| AuthFailed[Authentication Failed]
+    CheckResponse -->|403| PermDenied[Permission Denied]
+    CheckResponse -->|200/201| Success([Success])
+
+    AuthFailed --> LogError1[Log: Invalid token]
+    PermDenied --> LogError2[Log: Insufficient permissions]
+    LogError1 --> ReturnError[Return Error to Agent]
+    LogError2 --> ReturnError
+
+    Success --> ParseResponse[Parse Response Body]
+    ParseResponse --> ReturnData[Return Data to Agent]
+
+    ThrowError --> End([End])
+    ReturnError --> End
+    ReturnData --> Ready
+
+    style Start fill:#e1f5e1
+    style Success fill:#e1f5e1
+    style Ready fill:#e1f5e1
+    style ThrowError fill:#ffe1e1
+    style AuthFailed fill:#ffe1e1
+    style PermDenied fill:#ffe1e1
+```
+
+### 8. Error Handling & Retry Logic
+
+```mermaid
+flowchart TD
+    Start([API Request]) --> MakeRequest[Execute HTTP Request]
+    MakeRequest --> CheckStatus{HTTP<br/>Status?}
+
+    CheckStatus -->|200/201| ParseSuccess[Parse Response]
+    ParseSuccess --> ReturnData([Return Success])
+
+    CheckStatus -->|429| RateLimited[Rate Limit Hit]
+    RateLimited --> GetResetTime[Extract X-Rate-Limit-Reset]
+    GetResetTime --> CalcBackoff[Calculate Backoff Delay]
+    CalcBackoff --> CheckAttempts1{Attempts<br/>< Max?}
+    CheckAttempts1 -->|Yes| Wait1[Wait backoff * 2^attempts]
+    Wait1 --> IncrementAttempts1[Increment Attempts]
+    IncrementAttempts1 --> MakeRequest
+    CheckAttempts1 -->|No| MaxRetries1[Max Retries Exceeded]
+
+    CheckStatus -->|401/403| AuthError[Authentication Error]
+    AuthError --> LogAuth[Log Authentication Failure]
+    LogAuth --> ReturnAuthError([Return Auth Error])
+
+    CheckStatus -->|404| NotFound[Resource Not Found]
+    NotFound --> ReturnNotFound([Return 404 Error])
+
+    CheckStatus -->|422| ValidationError[Validation Failed]
+    ValidationError --> ParseErrors[Parse Error Details]
+    ParseErrors --> ReturnValidation([Return Validation Errors])
+
+    CheckStatus -->|503| ServiceDown[Service Unavailable]
+    ServiceDown --> CheckAttempts2{Attempts<br/>< Max?}
+    CheckAttempts2 -->|Yes| Wait2[Wait 5 seconds]
+    Wait2 --> IncrementAttempts2[Increment Attempts]
+    IncrementAttempts2 --> MakeRequest
+    CheckAttempts2 -->|No| MaxRetries2[Max Retries Exceeded]
+
+    CheckStatus -->|Other| UnexpectedError[Unexpected Error]
+    UnexpectedError --> LogError[Log Error Details]
+    LogError --> ReturnError([Return Error])
+
+    MaxRetries1 --> LogMaxRetries1[Log: Rate limit retries exhausted]
+    MaxRetries2 --> LogMaxRetries2[Log: Service unavailable retries exhausted]
+    LogMaxRetries1 --> ReturnError
+    LogMaxRetries2 --> ReturnError
+
+    style ReturnData fill:#e1f5e1
+    style MaxRetries1 fill:#ffe1e1
+    style MaxRetries2 fill:#ffe1e1
+    style ReturnAuthError fill:#ffe1e1
+    style ReturnError fill:#ffe1e1
+```
 
 ## Integration with Agents
 
