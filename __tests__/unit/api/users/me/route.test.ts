@@ -8,18 +8,24 @@ import { NextRequest } from 'next/server';
 import { GET, PATCH } from '@/app/api/users/me/route';
 import { mockUser } from '../../../../utils/mock-factories';
 
-// Mock Supabase client
+// Mock Supabase client with default resolved values
 const mockSupabaseClient = {
   from: vi.fn(() => ({
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
-        single: vi.fn(),
+        single: vi.fn().mockResolvedValue({
+          data: null,
+          error: null,
+        }),
       })),
     })),
     update: vi.fn(() => ({
       eq: vi.fn(() => ({
         select: vi.fn(() => ({
-          single: vi.fn(),
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: null,
+          }),
         })),
       })),
     })),

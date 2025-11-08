@@ -8,14 +8,17 @@ vi.mock('@clerk/nextjs/server', () => ({
   currentUser: vi.fn(),
 }));
 
-// Mock Supabase
+// Mock Supabase with default resolved value
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
     from: vi.fn(() => ({
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
           select: vi.fn(() => ({
-            single: vi.fn(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'test-user', avatar_url: '/avatars/test.jpg' },
+              error: null,
+            }),
           })),
         })),
       })),

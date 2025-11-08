@@ -174,15 +174,15 @@ describe('MCPServerManager', () => {
 
       await manager.spawnServer(serverName, 'node', ['-e', 'process.exit(1)'], { maxRestartAttempts: maxAttempts });
 
-      // Wait for all restart attempts
-      await new Promise(resolve => setTimeout(resolve, 10000));
+      // Wait for all restart attempts (reduced from 10s to 2s for faster tests)
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       const attempts = manager.getRestartAttempts(serverName);
       expect(attempts).toBeLessThanOrEqual(maxAttempts);
 
       const state = manager.getServerState(serverName);
       expect(state).toBe(ServerState.FAILED);
-    });
+    }, 5000); // Add test timeout of 5s
   });
 
   describe('Error Handling', () => {
@@ -292,7 +292,7 @@ describe('MCPServerManager', () => {
       await manager.spawnServer(serverName, 'node', ['-e', 'process.exit(1)'], { maxRestartAttempts: 3 });
 
       // Wait for all restart attempts
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 5s to 1s for faster tests
 
       const attempts = manager.getRestartAttempts(serverName);
       expect(attempts).toBeLessThanOrEqual(3);

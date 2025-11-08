@@ -1,263 +1,437 @@
 # Environment Setup Guide
 
-## Quick Start
+Complete guide for setting up your local development environment for the JetVision AI Assistant project.
 
-1. **Copy the environment template**:
+## Overview
+
+This guide covers:
+- Prerequisites installation
+- Service configuration (Redis, Supabase, Clerk, OpenAI)
+- Environment variable setup
+- Service verification
+
+**Time Required**: 2-3 hours
+
+## Prerequisites
+
+### Required Software
+
+1. **Node.js 18+**
    ```bash
-   cp .env.example .env.local
+   # Check version
+   node --version  # Should be v18.0.0 or higher
+
+   # Install with nvm (recommended)
+   nvm install 18
+   nvm use 18
    ```
 
-2. **Fill in your credentials** (see sections below for how to obtain each)
-
-3. **Run the verification script**:
+2. **npm or pnpm**
    ```bash
-   npx tsx scripts/verify-environment.ts
+   # npm comes with Node.js
+   npm --version
+
+   # Or use pnpm (faster)
+   npm install -g pnpm
    ```
 
-4. **Start developing** once all checks pass ✅
+3. **Docker Desktop**
+   - Download from https://www.docker.com/products/docker-desktop
+   - Required for running Redis locally
+   - Alternative: Use Upstash Redis (cloud)
 
----
+4. **Git**
+   ```bash
+   git --version
+   ```
 
-## Required Environment Variables
+### Optional Tools
 
-### Clerk Authentication
+- **ngrok** - For testing webhooks locally
+  ```bash
+  brew install ngrok  # macOS
+  # or download from https://ngrok.com
+  ```
 
-**Purpose**: User authentication and session management
+- **Redis CLI** - For debugging Redis
+  ```bash
+  brew install redis  # macOS (cli only, we use Docker for server)
+  ```
 
-**Setup**:
-1. Sign up at https://clerk.com
-2. Create new application "Jetvision Assistant"
-3. Configure domains:
-   - Add `http://localhost:3000` for development
-4. Navigate to **API Keys** and copy:
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-   - `CLERK_SECRET_KEY`
+## Step 1: Clone and Install
 
-**Variables**:
 ```bash
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-CLERK_WEBHOOK_SECRET=whsec_...  # Optional for now
+# Clone repository
+cd /path/to/your/projects
+git clone <repository-url>
+cd v0-jetvision-assistant
+
+# Install dependencies
+npm install
+# or
+pnpm install
 ```
 
----
+## Step 2: Environment Configuration
 
-### Supabase Database
+### 2.1 Create .env.local
 
-**Purpose**: PostgreSQL database with real-time subscriptions
-
-**Setup**:
-1. Sign up at https://supabase.com
-2. Create new project "jetvision-assistant"
-3. Wait for provisioning (~2 minutes)
-4. Navigate to **Project Settings > API**
-5. Copy all three keys
-
-**Variables**:
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJh...
-SUPABASE_SERVICE_KEY=eyJh...  # Keep this secret!
+# Copy the example file
+cp .env.local.example .env.local
 ```
 
----
+### 2.2 Configure Services
 
-### OpenAI API
+You'll need to configure four main services:
 
-**Purpose**: AI agents and language models
+1. **Redis** (Task Queue) - [Quick Setup](#redis-setup)
+2. **OpenAI** (AI Agents) - [Quick Setup](#openai-setup)
+3. **Supabase** (Database) - [Detailed Guide](./SETUP_SUPABASE.md)
+4. **Clerk** (Authentication) - [Detailed Guide](./SETUP_CLERK.md)
 
-**Setup**:
-1. Sign up at https://platform.openai.com
-2. Navigate to **API Keys**
-3. Create new key "Jetvision Assistant"
-4. Set usage limits (recommended: $50/month)
+### Redis Setup
 
-**Variables**:
+**Option A: Docker (Recommended)**
+
 ```bash
-OPENAI_API_KEY=sk-proj-...
-OPENAI_ORGANIZATION_ID=org-...  # Optional
+# Start Redis with Docker Compose
+npm run redis:start
+
+# Verify it's running
+npm run redis:status
 ```
 
----
-
-### Redis
-
-**Purpose**: Job queue and caching for BullMQ
-
-**Option A: Local Redis (Recommended for Development)**
-
-```bash
-# Install via Docker
-docker run -d --name redis-jetvision -p 6379:6379 redis:latest
-
-# Test connection
-docker exec redis-jetvision redis-cli ping
-# Should return: PONG
-```
-
-**Variables**:
-```bash
+Your `.env.local` should have:
+```env
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
 REDIS_URL=redis://localhost:6379
 ```
 
-**Option B: Upstash Redis (Production-like)**
+**Option B: Upstash (Cloud)**
 
 1. Sign up at https://upstash.com
-2. Create new Redis database
-3. Copy the REST URL and token
+2. Create a Redis database
+3. Copy the connection URL
+4. Update `.env.local`:
+   ```env
+   REDIS_URL=rediss://...@...upstash.io:6379
+   ```
 
-**Variables**:
+### OpenAI Setup
+
+1. **Get API Key**
+   - Go to https://platform.openai.com/api-keys
+   - Click "Create new secret key"
+   - Copy the key (starts with `sk-proj-...`)
+
+2. **Update `.env.local`**:
+   ```env
+   OPENAI_API_KEY=sk-proj-...
+   # OPENAI_ORGANIZATION_ID=org-...  # Optional
+   ```
+
+### Supabase Setup
+
+**Quick Setup** (Full guide: [SETUP_SUPABASE.md](./SETUP_SUPABASE.md)):
+
+1. Create project at https://app.supabase.com
+2. Get credentials from Settings → API
+3. Update `.env.local`:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
+   SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
+   SUPABASE_JWT_SECRET=your-jwt-secret
+   ```
+
+### Clerk Setup
+
+**Quick Setup** (Full guide: [SETUP_CLERK.md](./SETUP_CLERK.md)):
+
+1. Create app at https://dashboard.clerk.com
+2. Get API keys from Dashboard → API Keys
+3. Update `.env.local`:
+   ```env
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+   CLERK_SECRET_KEY=sk_test_...
+   NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+   NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+   NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+   NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+   ```
+
+## Step 3: Verify Services
+
+After configuring all services, verify they're working:
+
 ```bash
-UPSTASH_REDIS_REST_URL=https://xxxxx.upstash.io
-UPSTASH_REDIS_REST_TOKEN=xxxxx
+npm run verify-services
 ```
 
----
+Expected output:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  JetVision Service Verification
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## Optional Environment Variables
+Testing services...
+✓ Redis: Connected successfully
+✓ Supabase: Connected successfully
+✓ Clerk: Connected successfully
+✓ OpenAI: Connected successfully
 
-### Google APIs (Gmail + Sheets)
+Results: 4 OK, 0 Errors, 0 Skipped
 
-**Purpose**: Send emails and read client data from Google Sheets
-
-**Setup**:
-1. Go to https://console.cloud.google.com
-2. Create project "jetvision-assistant"
-3. Enable APIs:
-   - Gmail API
-   - Google Sheets API
-4. Create **OAuth 2.0 credentials**:
-   - Type: Web application
-   - Redirect URI: `http://localhost:3000/api/auth/callback/google`
-
-**Variables**:
-```bash
-GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=xxxxx
-GOOGLE_REFRESH_TOKEN=xxxxx  # Generate using OAuth flow
+✅ All services are configured and working!
+You are ready to start development.
 ```
 
----
+## Step 4: Start Development
 
-### Avinode API
-
-**Purpose**: Flight search and RFP creation
-
-**For Development** (use mock):
 ```bash
-AVINODE_API_KEY=mock_key_for_development
-AVINODE_API_URL=http://localhost:3000/api/mock/avinode
+# Start Redis (if using Docker)
+npm run redis:start
+
+# Start Next.js development server
+npm run dev
+
+# Or start both app and MCP servers
+npm run dev  # Uses concurrently
 ```
 
-**For Production** (requires partnership):
-```bash
-AVINODE_API_KEY=your_actual_key
-AVINODE_API_URL=https://api.avinode.com/v1
-```
+Access the app at: http://localhost:3000
 
----
+## Complete .env.local Template
 
-### Sentry Error Tracking
+Here's a minimal working configuration:
 
-**Purpose**: Production error monitoring and alerting
+```env
+# ============================================================================
+# JetVision AI Assistant - Environment Configuration
+# ============================================================================
 
-**Setup**:
-1. Sign up at https://sentry.io
-2. Create project:
-   - Platform: Next.js
-   - Name: jetvision-assistant
-3. Copy DSN from setup wizard
-
-**Variables**:
-```bash
-SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
-SENTRY_ORG=your-org
-SENTRY_PROJECT=jetvision-assistant
-```
-
----
-
-## Application Settings
-
-```bash
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# ----------------------------------------------------------------------------
+# Application
+# ----------------------------------------------------------------------------
 NODE_ENV=development
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# ----------------------------------------------------------------------------
+# OpenAI (REQUIRED)
+# ----------------------------------------------------------------------------
+OPENAI_API_KEY=sk-proj-...
+
+# ----------------------------------------------------------------------------
+# Redis (REQUIRED)
+# ----------------------------------------------------------------------------
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_URL=redis://localhost:6379
+
+# ----------------------------------------------------------------------------
+# Supabase (REQUIRED after DES-78)
+# ----------------------------------------------------------------------------
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
+SUPABASE_JWT_SECRET=...
+
+# ----------------------------------------------------------------------------
+# Clerk (REQUIRED after DES-78)
+# ----------------------------------------------------------------------------
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+CLERK_WEBHOOK_SECRET=whsec_...
+
+# ----------------------------------------------------------------------------
+# Feature Flags
+# ----------------------------------------------------------------------------
+NEXT_PUBLIC_ENABLE_DEBUG_MODE=false
+NEXT_PUBLIC_ENABLE_MOCK_DATA=false
+NEXT_PUBLIC_ENABLE_AGENT_MONITORING=true
 ```
 
----
+## Common Commands
 
-## Security Best Practices
+### Development
+```bash
+npm run dev              # Start dev server
+npm run dev:app          # Start Next.js only
+npm run dev:mcp          # Start MCP servers only
+npm run build            # Build for production
+npm run start            # Start production server
+```
 
-### ✅ DO
+### Redis
+```bash
+npm run redis:start      # Start Redis container
+npm run redis:stop       # Stop Redis container
+npm run redis:status     # Check Redis status
+```
 
-- Keep `.env.local` in `.gitignore`
-- Use different keys for development/production
-- Rotate API keys periodically
-- Set usage limits on paid APIs
-- Use environment-specific Clerk/Supabase projects
+### Testing
+```bash
+npm test                 # Run all tests
+npm run test:unit        # Run unit tests
+npm run test:integration # Run integration tests
+npm run test:coverage    # Generate coverage report
+npm run test:watch       # Watch mode
+```
 
-### ❌ DON'T
-
-- Commit `.env.local` to version control
-- Share API keys in Slack/email
-- Use production keys in development
-- Store secrets in code or comments
-- Give service keys to client-side code
-
----
+### Verification
+```bash
+npm run verify-services  # Test all service connections
+npm run type-check       # TypeScript type checking
+npm run lint             # ESLint
+```
 
 ## Troubleshooting
 
-### "Environment verification failed"
+### "Redis connection failed"
 
-Run the verification script to see which variables are missing:
+**Problem**: Redis not running
+**Solution**:
 ```bash
-npx tsx scripts/verify-environment.ts
+# Check Docker is running
+docker ps
+
+# Start Redis
+npm run redis:start
+
+# Check status
+npm run redis:status
 ```
+
+### "OpenAI API key invalid"
+
+**Problem**: Wrong or expired API key
+**Solution**:
+1. Go to https://platform.openai.com/api-keys
+2. Generate a new key
+3. Update `OPENAI_API_KEY` in `.env.local`
+4. Restart dev server
 
 ### "Supabase connection failed"
 
-1. Check your project URL is correct
-2. Verify the service key has proper permissions
-3. Ensure your IP is allowed (Supabase → Settings → Database → Connection String)
+**Problem**: Wrong URL or keys
+**Solution**:
+1. Go to Supabase Dashboard → Settings → API
+2. Copy URL and anon key exactly
+3. Ensure no trailing spaces or newlines
+4. Restart dev server
 
-### "OpenAI connection failed"
+### "Clerk is not defined"
 
-1. Check API key is valid
-2. Verify you have billing set up
-3. Check usage limits haven't been exceeded
+**Problem**: Missing or wrong Clerk keys
+**Solution**:
+1. Check `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is set
+2. Restart dev server (environment changes require restart)
+3. Clear Next.js cache: `rm -rf .next`
 
-### "Redis connection failed"
+### Port 3000 already in use
 
-**Local Redis**:
+**Solution**:
 ```bash
-# Check if Redis is running
-docker ps | grep redis
+# Find process using port 3000
+lsof -ti:3000
 
-# Start Redis if stopped
-docker start redis-jetvision
+# Kill it
+kill -9 $(lsof -ti:3000)
+
+# Or use a different port
+PORT=3001 npm run dev
 ```
 
-**Upstash**:
-- Verify URL and token are correct
-- Check database isn't paused
+### Docker permission denied
 
----
+**Solution**:
+```bash
+# Add user to docker group (Linux)
+sudo usermod -aG docker $USER
+
+# Restart Docker Desktop (macOS)
+# Then restart terminal
+```
+
+## Security Checklist
+
+Before committing code:
+
+- [ ] `.env.local` is in `.gitignore`
+- [ ] No API keys in code or comments
+- [ ] No hardcoded secrets
+- [ ] Used environment variables for all credentials
+- [ ] Verified `.env.local.example` has no real values
 
 ## Next Steps
 
-Once environment is configured:
+After environment setup:
 
-1. ✅ Run verification: `npx tsx scripts/verify-environment.ts`
-2. ✅ Start development: `npm run dev`
-3. ✅ Continue with [TASK-001: Clerk Authentication](../tasks/backlog/TASK-001-clerk-authentication-integration.md)
+1. **Read Architecture Docs**:
+   - [docs/architecture/MULTI_AGENT_SYSTEM.md](./architecture/MULTI_AGENT_SYSTEM.md)
+   - [docs/SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md)
 
----
+2. **Start Development**:
+   - DES-78: Clerk Authentication Integration
+   - DES-79: Database Schema & Models
+   - DES-80: Clerk-Supabase User Sync
 
-## Additional Resources
+3. **Run Tests**:
+   ```bash
+   npm run test:coverage
+   ```
 
-- [Clerk Documentation](https://clerk.com/docs)
-- [Supabase Documentation](https://supabase.com/docs)
-- [OpenAI API Documentation](https://platform.openai.com/docs)
-- [Google Cloud OAuth](https://developers.google.com/identity/protocols/oauth2)
-- [Sentry Next.js Setup](https://docs.sentry.io/platforms/javascript/guides/nextjs/)
+## Support
+
+If you encounter issues not covered here:
+
+1. Check service-specific guides:
+   - [SETUP_SUPABASE.md](./SETUP_SUPABASE.md)
+   - [SETUP_CLERK.md](./SETUP_CLERK.md)
+
+2. Run diagnostics:
+   ```bash
+   npm run verify-services
+   ```
+
+3. Check logs:
+   ```bash
+   # Next.js logs (in terminal)
+   # Redis logs
+   docker logs jetvision-redis
+   ```
+
+4. Review error messages carefully - they usually indicate exactly what's wrong
+
+## Development Workflow
+
+Recommended workflow:
+
+```bash
+# 1. Start Redis (once per session)
+npm run redis:start
+
+# 2. Verify services (after any config changes)
+npm run verify-services
+
+# 3. Start development server
+npm run dev
+
+# 4. Run tests in watch mode (separate terminal)
+npm run test:watch
+
+# 5. Before committing
+npm run lint
+npm run type-check
+npm run test:coverage
+```
+
+Good luck with development! 🚀

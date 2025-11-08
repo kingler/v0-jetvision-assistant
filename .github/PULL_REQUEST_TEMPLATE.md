@@ -15,10 +15,16 @@
 ### Why are we making this change?
 <!-- Explain the motivation or context -->
 
+### Linear Issue
+**Linear Issue**: [DES-XXX](https://linear.app/designthru-ai/issue/DES-XXX)
+**SubAgent**: [Coder/Reviewer/Tester/Designer/Documenter]
+**Priority**: [Low/Medium/High/Urgent]
+
 ### Related Issues
 <!-- Link to Linear issues, GitHub issues, or tickets -->
 - Fixes: ONEK-XXX
 - Relates to: #XXX
+- Closes: #TASK-XXX (link to task file or GitHub issue)
 
 ---
 
@@ -151,6 +157,14 @@ Will be updated by Code Review Agent after PR creation.
 
 ### Notes
 <!-- Any additional notes for reviewers -->
+
+### Linear Workflow Integration
+<!-- Update Linear issue status as you progress -->
+- [ ] Linear issue updated to "In Review" when PR created
+- [ ] Linear issue linked in PR description
+- [ ] Progress comments added to Linear issue
+- [ ] On approval: Linear issue updated to "Done"
+- [ ] On changes requested: Linear issue updated to "In Progress" and reassigned to Coder
 
 ---
 

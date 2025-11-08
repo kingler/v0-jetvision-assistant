@@ -18,6 +18,7 @@ yarn-error.log*
 
 # env files
 .env*
+!.env.local.example
 
 # vercel
 .vercel
@@ -47,4 +48,5 @@ playwright-report/
 .cursor/
 .obsidian/workspace.json
 .DS_Store
+.auth/
 screenshots/

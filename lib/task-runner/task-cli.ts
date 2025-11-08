@@ -8,13 +8,22 @@
  *   npx tsx lib/task-runner/task-cli.ts list
  *   npx tsx lib/task-runner/task-cli.ts next
  *   npx tsx lib/task-runner/task-cli.ts start TASK-001
- *   npx tsx lib/task-runner/task-cli.ts status
+ *   npx tsx lib/task-runner/task-cli.ts status TASK-001
  *   npx tsx lib/task-runner/task-cli.ts report
+ *   npx tsx lib/task-runner/task-cli.ts analyze
+ *   npx tsx lib/task-runner/task-cli.ts analyze TASK-001
+ *   npx tsx lib/task-runner/task-cli.ts breakdown TASK-001
  */
 
 import { createTaskOrchestrator, displayTask, Task, TaskStatus } from './task-orchestrator'
+import { TaskBreakdownAnalyzer, TaskDecompositionEngine, TaskComplexityAnalyzer } from './task-breakdown-engine'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
 const orchestrator = createTaskOrchestrator()
+const breakdownAnalyzer = new TaskBreakdownAnalyzer()
+const decompositionEngine = new TaskDecompositionEngine()
+const complexityAnalyzer = new TaskComplexityAnalyzer()
 
 // ============================================
 // CLI Commands
@@ -264,6 +273,166 @@ async function completeTask(taskId: string) {
   console.log('')
 }
 
+async function analyzeComplexity(taskId?: string) {
+  console.log('\n🔍 Task Complexity Analysis\n')
+
+  const tasks = await orchestrator.discoverTasks()
+
+  if (taskId) {
+    // Analyze specific task
+    const task = tasks.find(t => t.id === taskId || t.id === `TASK-${taskId}`)
+
+    if (!task) {
+      console.error(`❌ Task not found: ${taskId}`)
+      return
+    }
+
+    console.log(`Analyzing: ${task.id} - ${task.title}\n`)
+
+    const score = await complexityAnalyzer.analyzeComplexity(task)
+
+    // Display score breakdown
+    console.log('📊 Complexity Score Breakdown:\n')
+    console.log(`  Total Score: ${score.total}/100`)
+    console.log(`  Recommendation: ${score.recommendation.toUpperCase().replace(/_/g, ' ')}\n`)
+
+    console.log('  Breakdown:')
+    console.log(`    Line Count:       ${score.breakdown.lineCount}/20 points`)
+    console.log(`    Step Count:       ${score.breakdown.stepCount}/15 points`)
+    console.log(`    Dependencies:     ${score.breakdown.dependencyCount}/10 points`)
+    console.log(`    Estimated Hours:  ${score.breakdown.estimatedHours}/25 points`)
+    console.log(`    Scope Complexity: ${score.breakdown.scopeScore}/20 points`)
+    console.log(`    Test Complexity:  ${score.breakdown.testComplexity}/10 points\n`)
+
+    console.log('  Reasoning:')
+    score.reasoning.forEach(reason => {
+      console.log(`    • ${reason}`)
+    })
+    console.log('')
+
+    if (score.recommendation === 'must_split' || score.recommendation === 'consider_split') {
+      console.log('💡 Recommendation:')
+      console.log(`   This task should be broken down into smaller subtasks.`)
+      console.log(`   Run: npx tsx lib/task-runner/task-cli.ts breakdown ${task.id}`)
+      console.log('')
+    }
+  } else {
+    // Analyze all tasks
+    const result = await breakdownAnalyzer.analyzeAllTasks(tasks)
+
+    console.log(`📊 Analyzed ${result.tasksAnalyzed} tasks\n`)
+    console.log(`🔴 Tasks requiring breakdown: ${result.shouldBreakdown.length}\n`)
+
+    if (result.shouldBreakdown.length > 0) {
+      console.log('Tasks that should be broken down:\n')
+
+      for (const task of result.shouldBreakdown) {
+        const score = await complexityAnalyzer.analyzeComplexity(task)
+        const icon = score.recommendation === 'must_split' ? '🔴' : '🟡'
+        console.log(`  ${icon} ${task.id}: ${task.title}`)
+        console.log(`     Score: ${score.total}/100 | Est: ${task.estimatedHours}h | ${score.recommendation.replace(/_/g, ' ')}`)
+      }
+      console.log('')
+    }
+
+    // Save report to file
+    const reportPath = join(process.cwd(), 'tasks', 'COMPLEXITY_ANALYSIS_REPORT.md')
+    const fs = await import('fs')
+    fs.writeFileSync(reportPath, result.report)
+
+    console.log(`📄 Full report saved to: ${reportPath}`)
+    console.log('')
+
+    if (result.shouldBreakdown.length > 0) {
+      const first = result.shouldBreakdown[0]
+      console.log('💡 To break down a task:')
+      console.log(`   npx tsx lib/task-runner/task-cli.ts breakdown ${first.id}`)
+      console.log('')
+    }
+  }
+}
+
+async function breakdownTask(taskId: string) {
+  if (!taskId) {
+    console.error('❌ Usage: task-cli.ts breakdown TASK-XXX')
+    return
+  }
+
+  const tasks = await orchestrator.discoverTasks()
+  const task = tasks.find(t => t.id === taskId || t.id === `TASK-${taskId}`)
+
+  if (!task) {
+    console.error(`❌ Task not found: ${taskId}`)
+    return
+  }
+
+  console.log('\n🔨 Breaking Down Task\n')
+  displayTask(task)
+
+  // Analyze complexity first
+  console.log('\n📊 Analyzing complexity...\n')
+  const score = await complexityAnalyzer.analyzeComplexity(task)
+
+  console.log(`Complexity Score: ${score.total}/100 (${score.recommendation.replace(/_/g, ' ')})`)
+
+  if (score.recommendation === 'keep') {
+    console.log('\n✅ This task does not need to be broken down.')
+    console.log('   It is already at an appropriate level of granularity.')
+    return
+  }
+
+  console.log('\n🔄 Decomposing task into subtasks...\n')
+
+  const decomposition = await decompositionEngine.decomposeTask(task)
+
+  console.log(`✅ Created ${decomposition.subtasks.length} subtasks using strategy: ${decomposition.strategy}\n`)
+
+  // Display subtasks
+  console.log('📋 Subtasks:\n')
+
+  for (const subtask of decomposition.subtasks) {
+    const depIcon = subtask.dependencies.length > 0 ? '🔗' : '  '
+    console.log(`  ${depIcon} ${subtask.id}: ${subtask.title}`)
+    console.log(`     Est: ${subtask.estimatedHours}h | Priority: ${subtask.priority}`)
+
+    if (subtask.dependencies.length > 0) {
+      console.log(`     Dependencies: ${subtask.dependencies.join(', ')}`)
+    }
+  }
+
+  // Show execution order
+  console.log('\n🔄 Recommended Execution Order:\n')
+
+  decomposition.executionOrder.forEach((id, idx) => {
+    const subtask = decomposition.subtasks.find(st => st.id === id)
+    if (subtask) {
+      console.log(`  ${idx + 1}. ${subtask.id}: ${subtask.title}`)
+    }
+  })
+
+  // Generate subtask files
+  console.log('\n📁 Generating subtask files...\n')
+
+  const outputDir = join(process.cwd(), 'tasks', 'backlog')
+  const filepaths = await decompositionEngine.generateSubtaskFiles(decomposition, outputDir)
+
+  console.log(`✅ Created ${filepaths.length} subtask files in tasks/backlog/:\n`)
+
+  filepaths.forEach(filepath => {
+    const filename = filepath.split('/').pop()
+    console.log(`   - ${filename}`)
+  })
+
+  // Suggest next steps
+  console.log('\n💡 Next Steps:\n')
+  console.log(`1. Review the generated subtask files to ensure they are correct`)
+  console.log(`2. Archive the original task:`)
+  console.log(`   mv ${task.filepath} tasks/archived/`)
+  console.log(`3. Start with the first subtask:`)
+  console.log(`   npx tsx lib/task-runner/task-cli.ts start ${decomposition.subtasks[0].id}`)
+  console.log('')
+}
+
 // ============================================
 // Main CLI Entry Point
 // ============================================
@@ -311,22 +480,39 @@ async function main() {
         await completeTask(param)
         break
 
+      case 'analyze':
+        await analyzeComplexity(param)
+        break
+
+      case 'breakdown':
+        if (!param) {
+          console.error('Usage: task-cli.ts breakdown TASK-001')
+          process.exit(1)
+        }
+        await breakdownTask(param)
+        break
+
       case 'help':
       default:
         console.log('\n📋 Jetvision Task Management CLI\n')
         console.log('Commands:')
-        console.log('  list [status]     List all tasks (optionally filter by status)')
-        console.log('  next              Show next recommended task')
-        console.log('  status TASK-XXX   Show detailed status of a task')
-        console.log('  start TASK-XXX    Start working on a task')
-        console.log('  report            Generate comprehensive status report')
-        console.log('  complete TASK-XXX Mark task as complete')
-        console.log('  help              Show this help message')
+        console.log('  list [status]        List all tasks (optionally filter by status)')
+        console.log('  next                 Show next recommended task')
+        console.log('  status TASK-XXX      Show detailed status of a task')
+        console.log('  start TASK-XXX       Start working on a task')
+        console.log('  report               Generate comprehensive status report')
+        console.log('  complete TASK-XXX    Mark task as complete')
+        console.log('  analyze [TASK-XXX]   Analyze task complexity (all or specific task)')
+        console.log('  breakdown TASK-XXX   Break down complex task into subtasks')
+        console.log('  help                 Show this help message')
         console.log('\nExamples:')
         console.log('  npx tsx lib/task-runner/task-cli.ts list')
         console.log('  npx tsx lib/task-runner/task-cli.ts next')
         console.log('  npx tsx lib/task-runner/task-cli.ts start TASK-001')
         console.log('  npx tsx lib/task-runner/task-cli.ts report')
+        console.log('  npx tsx lib/task-runner/task-cli.ts analyze              # Analyze all tasks')
+        console.log('  npx tsx lib/task-runner/task-cli.ts analyze TASK-001     # Analyze specific task')
+        console.log('  npx tsx lib/task-runner/task-cli.ts breakdown TASK-001   # Break down task')
         console.log('')
         break
     }

@@ -106,9 +106,10 @@ function filterAircraftByParams(params: FlightSearchParams): Aircraft[] {
   }
 
   // Filter by max budget
+  // Use hourlyRateMax since actual pricing can vary between min and max
   if (params.max_budget && params.max_budget > 0) {
     filtered = filtered.filter(
-      (aircraft) => aircraft.pricing && aircraft.pricing.hourlyRateMin <= params.max_budget!
+      (aircraft) => aircraft.pricing && aircraft.pricing.hourlyRateMax <= params.max_budget!
     );
   }
 
