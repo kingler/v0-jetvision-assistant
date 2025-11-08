@@ -1,11 +1,2 @@
-# pnpm workspace configuration
-# https://pnpm.io/pnpm-workspace_yaml
-
 packages:
-  # Include all MCP server packages
   - 'mcp-servers/*'
-
-  # Exclude node_modules and build artifacts
-  - '!**/node_modules/**'
-  - '!**/.next/**'
-  - '!**/dist/**'

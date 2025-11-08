@@ -23,8 +23,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -33,11 +31,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
-      - name: Run Type Check (Production Code)
-        run: pnpm run type-check:build
-        continue-on-error: true
+      - name: Run Type Check
+        run: pnpm run type-check
 
       - name: Run Linting
         run: pnpm run lint
@@ -97,11 +94,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Run Security Audit
         run: pnpm audit --audit-level=moderate
         continue-on-error: true
@@ -126,8 +118,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -136,7 +126,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Check Architecture Compliance
         run: |
@@ -144,20 +134,20 @@ jobs:
 
           # Check that agent files extend BaseAgent
           echo "Checking agent implementations..."
-          find agents/implementations -name "*.ts" ! -name "index.ts" 2>/dev/null | while read file; do
+          find agents/implementations -name "*.ts" ! -name "index.ts" | while read file; do
             if grep -q "class" "$file" && ! grep -q "extends BaseAgent" "$file"; then
               echo "❌ $file does not extend BaseAgent"
               exit 1
             fi
-          done || true
+          done
 
           # Check API routes have error handling
           echo "Checking API routes..."
-          find app/api -name "route.ts" 2>/dev/null | while read file; do
+          find app/api -name "route.ts" | while read file; do
             if ! grep -q "try" "$file" || ! grep -q "catch" "$file"; then
               echo "⚠️  $file missing try/catch error handling"
             fi
-          done || true
+          done
 
           echo "✅ Architecture compliance check complete"
 
@@ -171,8 +161,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -181,7 +169,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build Application
         run: pnpm run build
@@ -189,7 +177,7 @@ jobs:
       - name: Analyze Bundle Size
         run: |
           echo "📦 Bundle size analysis..."
-          du -sh .next/ 2>/dev/null || echo "Build output not found"
+          du -sh .next/
 
           # Check for large dependencies
           pnpm dlx depcheck

@@ -71,12 +71,14 @@ export class ErrorMonitorAgent extends BaseAgent {
       // Extract and validate error data
       const errorData = this.extractErrorData(context);
       this.validateErrorData(errorData);
+      // After validation, we know errorData is defined
+      const validErrorData = errorData!;
 
       const attemptNumber = this.extractAttemptNumber(context);
       const maxRetries = this.extractMaxRetries(context);
 
       // Analyze error
-      const errorAnalysis = this.analyzeError(errorData);
+      const errorAnalysis = this.analyzeError(validErrorData);
 
       // Determine retry strategy
       const shouldRetry = this.shouldRetry(errorAnalysis, attemptNumber, maxRetries);
@@ -87,10 +89,10 @@ export class ErrorMonitorAgent extends BaseAgent {
       const recoverySuggestions = this.generateRecoverySuggestions(errorAnalysis, shouldRetry);
 
       // Log error
-      const logEntry = this.logError(errorData, context);
+      const logEntry = this.logError(validErrorData, context);
 
       // Track error count
-      const errorKey = this.getErrorKey(errorData);
+      const errorKey = this.getErrorKey(validErrorData);
       const currentCount = this.errorCounts.get(errorKey) || 0;
       this.errorCounts.set(errorKey, currentCount + 1);
       const errorCount = this.errorCounts.get(errorKey) || 0;
@@ -99,7 +101,7 @@ export class ErrorMonitorAgent extends BaseAgent {
       const alertRequired = this.shouldAlert(errorAnalysis, errorCount);
 
       // Determine next agent for retry
-      const nextAgent = shouldRetry ? errorData.source : undefined;
+      const nextAgent = shouldRetry ? validErrorData.source : undefined;
 
       // Update metrics
       this.metrics.totalExecutions++;

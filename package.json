@@ -2,6 +2,7 @@
   "name": "jetvision-multi-agent",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.0.0",
   "workspaces": [
     "mcp-servers/*"
   ],
