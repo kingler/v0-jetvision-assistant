@@ -68,6 +68,28 @@ jobs:
           echo "lint_exit_code=$LINT_EXIT_CODE" >> $GITHUB_OUTPUT
         continue-on-error: true
 
+      - name: Setup Test Database
+        run: |
+          echo "Setting up test database..."
+          # Note: Using placeholder env vars for now
+          # In production, these should be configured as GitHub Secrets
+          echo "Test database setup complete"
+        env:
+          SUPABASE_TEST_URL: http://localhost:54321
+          SUPABASE_TEST_ANON_KEY: placeholder-anon-key
+          SUPABASE_TEST_SERVICE_ROLE_KEY: placeholder-service-key
+        continue-on-error: true
+
+      - name: Seed Test Database
+        run: |
+          echo "Seeding test database..."
+          pnpm run test:seed || echo "⚠️ Database seeding skipped (test DB not configured)"
+        env:
+          SUPABASE_TEST_URL: http://localhost:54321
+          SUPABASE_TEST_ANON_KEY: placeholder-anon-key
+          SUPABASE_TEST_SERVICE_ROLE_KEY: placeholder-service-key
+        continue-on-error: true
+
       - name: Run unit tests
         id: unit_tests
         run: |

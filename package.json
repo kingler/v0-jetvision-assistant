@@ -19,6 +19,7 @@
     "test:agents": "vitest run agents/",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
+    "test:seed": "tsx scripts/test/seed-database.ts",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
