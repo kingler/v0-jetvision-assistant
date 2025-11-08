@@ -157,7 +157,7 @@ async function testClerk(): Promise<ServiceStatus> {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     return {
       name: 'Clerk',

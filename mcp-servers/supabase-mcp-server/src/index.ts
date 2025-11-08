@@ -305,7 +305,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const params = args as unknown as InsertParams;
         const returning = params.returning ?? true;
 
-        let query = supabase.from(params.table).insert(params.data);
+        let query: any = supabase.from(params.table).insert(params.data);
 
         if (returning) {
           query = query.select();
@@ -340,7 +340,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const params = args as unknown as UpdateParams;
         const returning = params.returning ?? true;
 
-        let query = supabase.from(params.table).update(params.data);
+        let query: any = supabase.from(params.table).update(params.data);
 
         // Apply filters
         Object.entries(params.filters).forEach(([key, value]) => {
@@ -380,7 +380,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const params = args as unknown as DeleteParams;
         const returning = params.returning ?? false;
 
-        let query = supabase.from(params.table).delete();
+        let query: any = supabase.from(params.table).delete();
 
         // Apply filters
         Object.entries(params.filters).forEach(([key, value]) => {

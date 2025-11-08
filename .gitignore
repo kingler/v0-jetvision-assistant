@@ -48,4 +48,5 @@ playwright-report/
 .cursor/
 .obsidian/workspace.json
 .DS_Store
+.auth/
 screenshots/

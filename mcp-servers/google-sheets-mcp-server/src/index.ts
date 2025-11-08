@@ -64,7 +64,7 @@ let sheetsClient: sheets_v4.Sheets;
 
 async function initializeSheetsClient(): Promise<void> {
   const authClient = await auth.getClient();
-  sheetsClient = google.sheets({ version: 'v4', auth: authClient });
+  sheetsClient = google.sheets({ version: 'v4', auth: authClient as any });
   console.error('Google Sheets client initialized');
 }
 

@@ -69,7 +69,7 @@ let gmailClient: gmail_v1.Gmail;
 
 async function initializeGmailClient(): Promise<void> {
   const authClient = await auth.getClient();
-  gmailClient = google.gmail({ version: 'v1', auth: authClient });
+  gmailClient = google.gmail({ version: 'v1', auth: authClient as any });
   console.error('Gmail client initialized');
 }
 
