@@ -8,6 +8,41 @@
 import { z } from 'zod';
 
 // ============================================================================
+// Shared Schemas
+// ============================================================================
+
+/**
+ * Client preferences schema with validated structure
+ * Security: Prevents arbitrary object injection by using strict mode
+ */
+export const ClientPreferencesSchema = z.object({
+  preferred_aircraft: z.array(z.string()).optional(),
+  dietary_restrictions: z.array(z.string()).optional(),
+  preferred_amenities: z.array(z.string()).optional(),
+  budget_range: z.object({
+    min: z.number().positive(),
+    max: z.number().positive(),
+  }).optional(),
+  preferred_departure_time: z.string().optional(),
+  requires_customs_assistance: z.boolean().optional(),
+  loyalty_programs: z.array(z.string()).optional(),
+  special_requests: z.string().max(500).optional(),
+}).strict(); // Strict mode prevents additional unknown fields
+
+/**
+ * Aircraft preferences schema with validated structure
+ * Security: Prevents arbitrary object injection by using strict mode
+ */
+export const AircraftPreferencesSchema = z.object({
+  preferred_types: z.array(z.string()).optional(),
+  min_passengers: z.number().int().min(1).optional(),
+  max_passengers: z.number().int().min(1).optional(),
+  requires_wifi: z.boolean().optional(),
+  requires_lavatory: z.boolean().optional(),
+  preferred_amenities: z.array(z.string()).optional(),
+}).strict();
+
+// ============================================================================
 // Quotes API Schemas
 // ============================================================================
 
@@ -39,7 +74,7 @@ export const ClientsPostSchema = z.object({
   contact_name: z.string().min(1, 'Contact name is required').max(100),
   email: z.string().email('Invalid email address'),
   phone: z.string().max(50).optional(),
-  preferences: z.record(z.unknown()).optional(),
+  preferences: ClientPreferencesSchema.optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -49,7 +84,7 @@ export const ClientsPatchSchema = z.object({
   contact_name: z.string().min(1).max(100).optional(),
   email: z.string().email().optional(),
   phone: z.string().max(50).optional(),
-  preferences: z.record(z.unknown()).optional(),
+  preferences: ClientPreferencesSchema.optional(),
   notes: z.string().max(2000).optional(),
   is_active: z.boolean().optional(),
 });
@@ -109,7 +144,7 @@ export const RequestsPostSchema = z.object({
   departure_date: z.string().datetime('Invalid departure date format'),
   return_date: z.string().datetime().optional(),
   passengers: z.number().int().min(1).max(50, 'Passengers must be between 1 and 50'),
-  aircraft_preferences: z.record(z.unknown()).optional(),
+  aircraft_preferences: AircraftPreferencesSchema.optional(),
   budget: z.number().positive('Budget must be positive').optional(),
   notes: z.string().max(2000).optional(),
 });
@@ -132,7 +167,7 @@ export const RequestsPatchSchema = z.object({
   departure_date: z.string().datetime().optional(),
   return_date: z.string().datetime().optional(),
   passengers: z.number().int().min(1).max(50).optional(),
-  aircraft_preferences: z.record(z.unknown()).optional(),
+  aircraft_preferences: AircraftPreferencesSchema.optional(),
   budget: z.number().positive().optional(),
   notes: z.string().max(2000).optional(),
 });
