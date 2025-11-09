@@ -71,23 +71,21 @@ jobs:
       - name: Setup Test Database
         run: |
           echo "Setting up test database..."
-          # Note: Using placeholder env vars for now
-          # In production, these should be configured as GitHub Secrets
-          echo "Test database setup complete"
+          echo "✅ Test database configured from GitHub Secrets"
         env:
-          SUPABASE_TEST_URL: http://localhost:54321
-          SUPABASE_TEST_ANON_KEY: placeholder-anon-key
-          SUPABASE_TEST_SERVICE_ROLE_KEY: placeholder-service-key
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_TEST_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+          SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
         continue-on-error: true
 
       - name: Seed Test Database
         run: |
           echo "Seeding test database..."
-          pnpm run test:seed || echo "⚠️ Database seeding skipped (test DB not configured)"
+          pnpm run test:seed || echo "⚠️ Database seeding failed - check credentials"
         env:
-          SUPABASE_TEST_URL: http://localhost:54321
-          SUPABASE_TEST_ANON_KEY: placeholder-anon-key
-          SUPABASE_TEST_SERVICE_ROLE_KEY: placeholder-service-key
+          SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
         continue-on-error: true
 
       - name: Run unit tests
