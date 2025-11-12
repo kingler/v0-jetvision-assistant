@@ -49,7 +49,7 @@ export default function NewRequestPage() {
   const fetchClients = async () => {
     try {
       const res = await fetch('/api/clients');
-      const data = await res.json();
+      const data = await res.json() as { clients?: ClientProfile[] };
       setClients(data.clients || []);
     } catch (error) {
       console.error('Failed to fetch clients:', error);
@@ -78,7 +78,7 @@ export default function NewRequestPage() {
         throw new Error('Failed to create request');
       }
 
-      const data = await res.json();
+      const data = await res.json() as { request: { id: string } };
       router.push(`/dashboard/requests/${data.request.id}`);
     } catch (error) {
       console.error('Error creating request:', error);
@@ -125,14 +125,13 @@ export default function NewRequestPage() {
               <div className="space-y-2">
                 <Label htmlFor="client">Client (Optional)</Label>
                 <Select
-                  value={formData.client_profile_id}
+                  value={formData.client_profile_id || undefined}
                   onValueChange={(value) => handleChange('client_profile_id', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a client or leave blank" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No client (manual entry)</SelectItem>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.company_name} - {client.contact_name}
@@ -207,14 +206,13 @@ export default function NewRequestPage() {
               <div className="space-y-2">
                 <Label htmlFor="aircraft_type">Preferred Aircraft Type (Optional)</Label>
                 <Select
-                  value={formData.aircraft_type}
+                  value={formData.aircraft_type || undefined}
                   onValueChange={(value) => handleChange('aircraft_type', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Any aircraft type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any type</SelectItem>
                     <SelectItem value="light_jet">Light Jet</SelectItem>
                     <SelectItem value="midsize_jet">Midsize Jet</SelectItem>
                     <SelectItem value="super_midsize">Super Midsize</SelectItem>
