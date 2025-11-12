@@ -7,6 +7,7 @@
 
 import { config } from 'dotenv'
 import path from 'path'
+import '@testing-library/jest-dom'
 
 // Load environment variables from .env.local for testing
 config({ path: path.join(process.cwd(), '.env.local') })
