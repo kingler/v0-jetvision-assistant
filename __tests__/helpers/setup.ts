@@ -31,7 +31,7 @@ if (missingEnvVars.length > 0) {
 
 // Set test timeout (10 seconds default)
 if (typeof global.vi !== 'undefined') {
-  global.vi?.setConfig?.({ testTimeout: 10000 })
+  ;(global as any).vi?.setConfig?.({ testTimeout: 10000 })
 }
 
 // Console output for test runs

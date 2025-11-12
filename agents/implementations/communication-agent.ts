@@ -93,7 +93,7 @@ export class CommunicationAgent extends BaseAgent {
       const emailContent = this.generateEmailContent(
         clientData,
         recommendation!,
-        quotes,
+        quotes!,
         rfpData
       );
 
