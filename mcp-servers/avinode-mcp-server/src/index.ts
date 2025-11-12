@@ -38,17 +38,15 @@ const __dirname = dirname(__filename);
 // Load environment variables from project root
 config({ path: resolve(__dirname, '../../../.env.local') });
 
-// Validate environment variables (only for real API mode)
-const useMock = process.env.USE_MOCK_AVINODE === 'true';
+// Validate environment variables
 const apiKey = process.env.AVINODE_API_KEY;
 
-if (!useMock && !apiKey) {
+if (!apiKey) {
   console.error('Error: Missing AVINODE_API_KEY in .env.local');
-  console.error('Set USE_MOCK_AVINODE=true to use mock data instead.');
   process.exit(1);
 }
 
-// Get Avinode client (will use mock or real API based on environment)
+// Get Avinode client
 const avinodeClient = getAvinodeClient();
 
 // Define MCP tools
@@ -274,37 +272,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     switch (name) {
       case 'search_flights': {
-        const params = args as unknown as FlightSearchParams;
+        const params = args as FlightSearchParams;
         result = await searchFlights(params);
         break;
       }
 
       case 'search_empty_legs': {
-        const params = args as unknown as EmptyLegSearchParams;
+        const params = args as EmptyLegSearchParams;
         result = await searchEmptyLegs(params);
         break;
       }
 
       case 'create_rfp': {
-        const params = args as unknown as CreateRFPParams;
+        const params = args as CreateRFPParams;
         result = await createRFP(params);
         break;
       }
 
       case 'get_rfp_status': {
-        const params = args as unknown as GetRFPStatusParams;
+        const params = args as GetRFPStatusParams;
         result = await getRFPStatus(params);
         break;
       }
 
       case 'create_watch': {
-        const params = args as unknown as CreateWatchParams;
+        const params = args as CreateWatchParams;
         result = await createWatch(params);
         break;
       }
 
       case 'search_airports': {
-        const params = args as unknown as SearchAirportsParams;
+        const params = args as SearchAirportsParams;
         result = await searchAirports(params);
         break;
       }

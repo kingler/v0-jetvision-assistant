@@ -253,7 +253,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'supabase_query': {
-        const params = args as unknown as QueryParams;
+        const params = args as QueryParams;
         let query = supabase.from(params.table).select(params.select || '*');
 
         // Apply filters
@@ -302,10 +302,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'supabase_insert': {
-        const params = args as unknown as InsertParams;
+        const params = args as InsertParams;
         const returning = params.returning ?? true;
 
-        let query: any = supabase.from(params.table).insert(params.data);
+        let query = supabase.from(params.table).insert(params.data);
 
         if (returning) {
           query = query.select();
@@ -337,10 +337,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'supabase_update': {
-        const params = args as unknown as UpdateParams;
+        const params = args as UpdateParams;
         const returning = params.returning ?? true;
 
-        let query: any = supabase.from(params.table).update(params.data);
+        let query = supabase.from(params.table).update(params.data);
 
         // Apply filters
         Object.entries(params.filters).forEach(([key, value]) => {
@@ -377,10 +377,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'supabase_delete': {
-        const params = args as unknown as DeleteParams;
+        const params = args as DeleteParams;
         const returning = params.returning ?? false;
 
-        let query: any = supabase.from(params.table).delete();
+        let query = supabase.from(params.table).delete();
 
         // Apply filters
         Object.entries(params.filters).forEach(([key, value]) => {
@@ -417,7 +417,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'supabase_rpc': {
-        const params = args as unknown as RpcParams;
+        const params = args as RpcParams;
         const { data, error } = await supabase.rpc(
           params.functionName,
           params.params || {}
@@ -516,7 +516,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'supabase_count': {
-        const params = args as unknown as QueryParams;
+        const params = args as QueryParams;
         let query = supabase
           .from(params.table)
           .select('*', { count: 'exact', head: true });

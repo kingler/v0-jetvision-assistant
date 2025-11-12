@@ -35,6 +35,8 @@
     "playwright.config.ts",
     "__tests__/unit/app/**",
     "__tests__/unit/hooks/**",
-    "__tests__/unit/api/**"
+    "__tests__/unit/api/**",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }

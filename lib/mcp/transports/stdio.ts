@@ -34,9 +34,10 @@ export class StdioTransport implements Transport {
     }
 
     // Create readline interface for stdin
+    // Note: Omit output option to prevent readline from writing prompts/echoes
+    // that would corrupt MCP JSON messages on stdout
     this.readlineInterface = readline.createInterface({
       input: process.stdin,
-      output: process.stdout,
       terminal: false,
     });
 

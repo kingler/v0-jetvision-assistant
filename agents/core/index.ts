@@ -9,3 +9,4 @@ export { AgentRegistry } from './agent-registry'
 export { AgentContextManager, contextManager } from './agent-context'
 
 export * from './types'
+export * from './gpt5-configs'

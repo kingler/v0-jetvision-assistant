@@ -1,7 +1,7 @@
 {
   "name": "@jetvision/supabase-mcp-server",
   "version": "1.0.0",
-  "description": "Supabase MCP server for Jetvision Multi-Agent System",
+  "description": "Supabase MCP server for JetVision Multi-Agent System",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

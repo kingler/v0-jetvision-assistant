@@ -167,8 +167,11 @@ export async function POST(req: NextRequest) {
 
 #### 3. Install ChatKit React
 
+**NOTE:** The `@openai/chatkit-react` npm package is not yet published. Use the CDN approach instead (see step 4).
+
 ```bash
-npm install @openai/chatkit-react
+# Package not available yet - use CDN script approach
+# npm install @openai/chatkit-react
 ```
 
 #### 4. Add ChatKit Script
@@ -184,8 +187,34 @@ Add to `app/layout.tsx` or `pages/_document.tsx`:
 
 #### 5. Render ChatKit Component
 
+**OPTION A: Using the pre-built component** (Recommended)
+
 ```typescript
-// components/ChatInterface.tsx
+// app/chat/page.tsx
+import { ChatKitInterface } from '@/components/chatkit-interface'
+
+export default function ChatPage() {
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="mb-4 text-2xl font-bold">JetVision AI Assistant</h1>
+      <ChatKitInterface
+        className="h-[600px] w-full rounded-lg shadow-xl"
+        theme={{
+          primaryColor: '#0066cc',
+          backgroundColor: '#ffffff',
+          textColor: '#333333',
+          borderRadius: '12px',
+        }}
+      />
+    </div>
+  )
+}
+```
+
+**OPTION B: Custom implementation** (When npm package is available)
+
+```typescript
+// components/ChatInterface.tsx (Future implementation)
 'use client'
 
 import { ChatKit, useChatKit } from '@openai/chatkit-react'

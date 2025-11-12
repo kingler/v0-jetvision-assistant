@@ -1,6 +1,6 @@
 # Tests
 
-Comprehensive test suite for Jetvision Multi-Agent System.
+Comprehensive test suite for JetVision Multi-Agent System.
 
 ## Directory Structure
 

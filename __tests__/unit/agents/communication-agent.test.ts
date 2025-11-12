@@ -8,21 +8,6 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import type { AgentContext, AgentResult } from '@agents/core/types';
 import { AgentType, AgentStatus } from '@agents/core/types';
 
-// Type for Communication Agent result
-interface CommunicationResult {
-  emailContent: {
-    subject: string;
-    body: string;
-  };
-  emailSent?: boolean;
-  emailId?: string;
-  recipient?: string;
-  sentAt?: Date;
-  requestId?: string;
-  sessionId?: string;
-  nextAgent?: string;
-}
-
 describe('CommunicationAgent', () => {
   let CommunicationAgent: any;
   let agent: any;
@@ -131,42 +116,42 @@ describe('CommunicationAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect((result.data as CommunicationResult).emailContent).toBeDefined();
-      expect((result.data as CommunicationResult).emailContent.subject).toBeDefined();
-      expect((result.data as CommunicationResult).emailContent.body).toBeDefined();
+      expect(result.data.emailContent).toBeDefined();
+      expect(result.data.emailContent.subject).toBeDefined();
+      expect(result.data.emailContent.body).toBeDefined();
     });
 
     it('should personalize email with client name', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).emailContent.body).toContain('John Smith');
+      expect(result.data.emailContent.body).toContain('John Smith');
     });
 
     it('should include flight route information', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).emailContent.body).toContain('KTEB');
-      expect((result.data as CommunicationResult).emailContent.body).toContain('KMIA');
+      expect(result.data.emailContent.body).toContain('KTEB');
+      expect(result.data.emailContent.body).toContain('KMIA');
     });
 
     it('should include recommendation details', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).emailContent.body).toContain('Jet Elite');
+      expect(result.data.emailContent.body).toContain('Jet Elite');
     });
 
     it('should format price correctly', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       // Should include formatted price like $45,000
-      expect((result.data as CommunicationResult).emailContent.body).toMatch(/\$[\d,]+/);
+      expect(result.data.emailContent.body).toMatch(/\$[\d,]+/);
     });
 
     it('should include multiple quote options', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).emailContent.body).toContain('Jet Elite');
-      expect((result.data as CommunicationResult).emailContent.body).toContain('Sky Charter');
+      expect(result.data.emailContent.body).toContain('Jet Elite');
+      expect(result.data.emailContent.body).toContain('Sky Charter');
     });
   });
 
@@ -243,27 +228,27 @@ describe('CommunicationAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect((result.data as CommunicationResult).emailSent).toBe(true);
+      expect(result.data.emailSent).toBe(true);
     });
 
     it('should track email ID', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).emailId).toBeDefined();
-      expect(typeof (result.data as CommunicationResult).emailId).toBe('string');
+      expect(result.data.emailId).toBeDefined();
+      expect(typeof result.data.emailId).toBe('string');
     });
 
     it('should include recipient email', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).recipient).toBe('john.smith@example.com');
+      expect(result.data.recipient).toBe('john.smith@example.com');
     });
 
     it('should track send timestamp', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).sentAt).toBeDefined();
-      expect((result.data as CommunicationResult).sentAt).toBeInstanceOf(Date);
+      expect(result.data.sentAt).toBeDefined();
+      expect(result.data.sentAt).toBeInstanceOf(Date);
     });
   });
 
@@ -279,7 +264,7 @@ describe('CommunicationAgent', () => {
     it('should use professional email subject', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const subject = (result.data as CommunicationResult).emailContent.subject;
+      const subject = result.data.emailContent.subject;
       expect(subject).toBeDefined();
       expect(subject.length).toBeGreaterThan(0);
       expect(subject.length).toBeLessThan(100);
@@ -289,14 +274,14 @@ describe('CommunicationAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       // Check for HTML tags
-      const body = (result.data as CommunicationResult).emailContent.body;
+      const body = result.data.emailContent.body;
       expect(body).toMatch(/<[^>]+>/); // Contains HTML tags
     });
 
     it('should include call to action', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const body = (result.data as CommunicationResult).emailContent.body;
+      const body = result.data.emailContent.body;
       // Should include some action phrase
       expect(body.toLowerCase()).toMatch(/book|confirm|contact|reply/);
     });
@@ -304,7 +289,7 @@ describe('CommunicationAgent', () => {
     it('should include contact information', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const body = (result.data as CommunicationResult).emailContent.body;
+      const body = result.data.emailContent.body;
       // Should include some contact method
       expect(body).toBeTruthy();
     });
@@ -322,7 +307,7 @@ describe('CommunicationAgent', () => {
     it('should highlight top recommendation', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const body = (result.data as CommunicationResult).emailContent.body;
+      const body = result.data.emailContent.body;
       // Recommendation should be mentioned prominently (case-insensitive)
       expect(body.toLowerCase()).toContain('recommend');
     });
@@ -330,7 +315,7 @@ describe('CommunicationAgent', () => {
     it('should present quotes in ranked order', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const body = (result.data as CommunicationResult).emailContent.body;
+      const body = result.data.emailContent.body;
       const jetEliteIndex = body.indexOf('Jet Elite');
       const skyCharterIndex = body.indexOf('Sky Charter');
 
@@ -341,7 +326,7 @@ describe('CommunicationAgent', () => {
     it('should include departure and arrival times', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const body = (result.data as CommunicationResult).emailContent.body;
+      const body = result.data.emailContent.body;
       // Should include time information
       expect(body).toMatch(/\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2}/);
     });
@@ -349,7 +334,7 @@ describe('CommunicationAgent', () => {
     it('should display aircraft type information', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      const body = (result.data as CommunicationResult).emailContent.body;
+      const body = result.data.emailContent.body;
       expect(body.toLowerCase()).toContain('jet');
     });
   });
@@ -366,20 +351,20 @@ describe('CommunicationAgent', () => {
     it('should preserve request ID', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).requestId).toBe(mockContext.requestId);
+      expect(result.data.requestId).toBe(mockContext.requestId);
     });
 
     it('should include session ID', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as CommunicationResult).sessionId).toBe(mockContext.sessionId);
+      expect(result.data.sessionId).toBe(mockContext.sessionId);
     });
 
     it('should not specify next agent (terminal state)', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       // Communication is typically the last agent
-      expect((result.data as CommunicationResult).nextAgent).toBeUndefined();
+      expect(result.data.nextAgent).toBeUndefined();
     });
   });
 

@@ -88,7 +88,7 @@ describe('FlightSearchAgent', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect((result.data as any).flights).toBeDefined();
+      expect(result.data.flights).toBeDefined();
     });
 
     it('should validate required fields - departure', async () => {
@@ -126,18 +126,18 @@ describe('FlightSearchAgent', () => {
     it('should filter by aircraft type from client preferences', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if (result.success && (result.data as any).flights) {
+      if (result.success && result.data.flights) {
         // Should apply aircraft type filter
-        expect((result.data as any).searchParams?.aircraftType).toBe('light_jet');
+        expect(result.data.searchParams?.aircraftType).toBe('light_jet');
       }
     });
 
     it('should filter by budget from client preferences', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if (result.success && (result.data as any).flights) {
+      if (result.success && result.data.flights) {
         // Should apply budget filter
-        expect((result.data as any).searchParams?.budget).toBe(50000);
+        expect(result.data.searchParams?.budget).toBe(50000);
       }
     });
   });
@@ -155,14 +155,14 @@ describe('FlightSearchAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect((result.data as any).emptyLegs).toBeDefined();
+      expect(result.data.emptyLegs).toBeDefined();
     });
 
     it('should identify cost savings for empty legs', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if ((result.data as any).emptyLegs && (result.data as any).emptyLegs.length > 0) {
-        const emptyLeg = (result.data as any).emptyLegs[0];
+      if (result.data.emptyLegs && result.data.emptyLegs.length > 0) {
+        const emptyLeg = result.data.emptyLegs[0];
         expect(emptyLeg.savings).toBeDefined();
         expect(emptyLeg.savings).toBeGreaterThan(0);
       }
@@ -182,23 +182,23 @@ describe('FlightSearchAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect((result.data as any).rfpId).toBeDefined();
+      expect(result.data.rfpId).toBeDefined();
     });
 
     it('should include operator count in RFP result', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if ((result.data as any).rfpId) {
-        expect((result.data as any).operatorsContacted).toBeDefined();
-        expect((result.data as any).operatorsContacted).toBeGreaterThan(0);
+      if (result.data.rfpId) {
+        expect(result.data.operatorsContacted).toBeDefined();
+        expect(result.data.operatorsContacted).toBeGreaterThan(0);
       }
     });
 
     it('should set RFP status to awaiting quotes', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if ((result.data as any).rfpId) {
-        expect((result.data as any).rfpStatus).toBe('awaiting_quotes');
+      if (result.data.rfpId) {
+        expect(result.data.rfpStatus).toBe('awaiting_quotes');
       }
     });
   });
@@ -216,15 +216,15 @@ describe('FlightSearchAgent', () => {
       const result: AgentResult = await agent.execute(mockContext);
 
       expect(result.success).toBe(true);
-      expect((result.data as any).totalOptions).toBeDefined();
-      expect((result.data as any).totalOptions).toBeGreaterThanOrEqual(0);
+      expect(result.data.totalOptions).toBeDefined();
+      expect(result.data.totalOptions).toBeGreaterThanOrEqual(0);
     });
 
     it('should sort options by price', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      if ((result.data as any).flights && (result.data as any).flights.length > 1) {
-        const prices = (result.data as any).flights.map((f: any) => f.price);
+      if (result.data.flights && result.data.flights.length > 1) {
+        const prices = result.data.flights.map((f: any) => f.price);
         const sorted = [...prices].sort((a, b) => a - b);
         expect(prices).toEqual(sorted);
       }
@@ -243,19 +243,19 @@ describe('FlightSearchAgent', () => {
     it('should preserve request ID', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as any).requestId).toBe(mockContext.requestId);
+      expect(result.data.requestId).toBe(mockContext.requestId);
     });
 
     it('should include session ID for handoff', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as any).sessionId).toBe(mockContext.sessionId);
+      expect(result.data.sessionId).toBe(mockContext.sessionId);
     });
 
     it('should set next agent to ProposalAnalysis', async () => {
       const result: AgentResult = await agent.execute(mockContext);
 
-      expect((result.data as any).nextAgent).toBe(AgentType.PROPOSAL_ANALYSIS);
+      expect(result.data.nextAgent).toBe(AgentType.PROPOSAL_ANALYSIS);
     });
   });
 

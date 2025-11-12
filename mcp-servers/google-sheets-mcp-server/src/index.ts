@@ -64,7 +64,7 @@ let sheetsClient: sheets_v4.Sheets;
 
 async function initializeSheetsClient(): Promise<void> {
   const authClient = await auth.getClient();
-  sheetsClient = google.sheets({ version: 'v4', auth: authClient as any });
+  sheetsClient = google.sheets({ version: 'v4', auth: authClient });
   console.error('Google Sheets client initialized');
 }
 
@@ -235,7 +235,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'search_client': {
-        const params = args as unknown as SearchClientParams;
+        const params = args as SearchClientParams;
         const result = await searchClient(params);
         return {
           content: [
@@ -248,7 +248,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'read_sheet': {
-        const params = args as unknown as ReadSheetParams;
+        const params = args as ReadSheetParams;
         const result = await readSheet(params);
         return {
           content: [
@@ -261,7 +261,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'write_sheet': {
-        const params = args as unknown as WriteSheetParams;
+        const params = args as WriteSheetParams;
         const result = await writeSheet(params);
         return {
           content: [
@@ -274,7 +274,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'update_client': {
-        const params = args as unknown as UpdateClientParams;
+        const params = args as UpdateClientParams;
         const result = await updateClient(params);
         return {
           content: [
@@ -287,7 +287,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'create_client': {
-        const params = args as unknown as CreateClientParams;
+        const params = args as CreateClientParams;
         const result = await createClient(params);
         return {
           content: [

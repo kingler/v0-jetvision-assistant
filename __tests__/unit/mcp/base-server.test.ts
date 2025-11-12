@@ -142,7 +142,7 @@ describe('BaseMCPServer', () => {
           description: 'A slow tool',
           inputSchema: { type: 'object', properties: {} },
           execute: async () => {
-            await new Promise((resolve) => setTimeout(resolve, 1100)); // 1.1 seconds (just over 1s timeout)
+            await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 seconds
             return { done: true };
           },
         };

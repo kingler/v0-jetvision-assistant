@@ -8,7 +8,7 @@
 
 ## 📋 Overview
 
-Phase 2 focused on implementing the **MCP (Model Context Protocol) Server Infrastructure** for the Jetvision Multi-Agent System. This phase built the critical integration layer that allows AI agents to interact with external services and APIs.
+Phase 2 focused on implementing the **MCP (Model Context Protocol) Server Infrastructure** for the JetVision Multi-Agent System. This phase built the critical integration layer that allows AI agents to interact with external services and APIs.
 
 ---
 

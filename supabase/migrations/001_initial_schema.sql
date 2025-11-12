@@ -1,4 +1,4 @@
--- Jetvision AI Assistant - Initial Database Schema
+-- JetVision AI Assistant - Initial Database Schema
 -- Migration: 001_initial_schema.sql
 -- Description: Core tables for multi-tenant RFP management system
 -- Created: 2025-10-21

@@ -1,6 +1,6 @@
 # Google Sheets MCP Server
 
-MCP server for Google Sheets integration with Jetvision client database.
+MCP server for Google Sheets integration with JetVision client database.
 
 ## Overview
 

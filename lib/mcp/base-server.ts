@@ -88,7 +88,7 @@ export abstract class BaseMCPServer {
   ): Promise<any> {
     // Check server state
     if (this.state !== 'running') {
-      throw new Error('Server not running');
+      throw new ServerStateError(this.state, 'running');
     }
 
     // Get tool
