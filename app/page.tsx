@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
 import { WorkflowVisualization } from "@/components/workflow-visualization"
 import { SettingsPanel } from "@/components/settings-panel"
@@ -14,7 +15,8 @@ import { useIsMobile } from "@/hooks/use-mobile"
 
 type View = "landing" | "chat" | "workflow" | "settings"
 
-export default function JetVisionAgent() {
+export default function JetvisionAgent() {
+  const { user, isLoaded } = useUser()
   const [currentView, setCurrentView] = useState<View>("landing")
   const [isProcessing, setIsProcessing] = useState(false)
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(useCaseChats)
@@ -75,6 +77,18 @@ export default function JetVisionAgent() {
 
   const activeChat = activeChatId ? chatSessions.find((chat) => chat.id === activeChatId) : null
 
+  // Show loading state while Clerk is initializing
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       {isMobile && sidebarOpen && (
@@ -113,12 +127,14 @@ export default function JetVisionAgent() {
                   size="sm"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                   className="text-gray-300 hover:text-white hover:bg-gray-800 flex-shrink-0"
+                  aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+                  aria-expanded={sidebarOpen}
                 >
                   {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </Button>
                 <Image
                   src="/images/jetvision-logo.png"
-                  alt="JetVision"
+                  alt="Jetvision"
                   width={120}
                   height={32}
                   className="h-6 sm:h-7 w-auto flex-shrink-0"
@@ -128,7 +144,7 @@ export default function JetVisionAgent() {
                 </div>
               </div>
 
-              <nav className="flex items-center space-x-1">
+              <nav className="flex items-center space-x-2 sm:space-x-3">
                 <Button
                   variant={currentView === "settings" ? "default" : "ghost"}
                   size="sm"
@@ -142,6 +158,21 @@ export default function JetVisionAgent() {
                   <Settings className="w-4 h-4" />
                   <span className="hidden sm:inline">Settings</span>
                 </Button>
+                <div className="flex items-center space-x-2">
+                  {user && (
+                    <span className="hidden sm:inline text-sm text-gray-300">
+                      {user.firstName || user.username || user.emailAddresses[0]?.emailAddress}
+                    </span>
+                  )}
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox: 'w-8 h-8 sm:w-9 sm:h-9',
+                      },
+                    }}
+                    afterSignOutUrl="/sign-in"
+                  />
+                </div>
               </nav>
             </div>
           </div>
@@ -153,7 +184,12 @@ export default function JetVisionAgent() {
           ${isMobile ? "h-[calc(100vh-60px)]" : "h-[calc(100vh-64px)]"}
         `}
         >
-          {currentView === "landing" && <LandingPage onStartChat={handleStartChat} />}
+          {currentView === "landing" && (
+            <LandingPage
+              onStartChat={handleStartChat}
+              userName={user?.firstName || user?.username || user?.emailAddresses[0]?.emailAddress?.split('@')[0]}
+            />
+          )}
           {currentView === "chat" && activeChat && (
             <ChatInterface
               activeChat={activeChat}

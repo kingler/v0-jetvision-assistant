@@ -89,9 +89,10 @@ export class CommunicationAgent extends BaseAgent {
       this.validateQuotes(quotes);
 
       // Generate email content
+      // After validation, we know these are defined
       const emailContent = this.generateEmailContent(
         clientData,
-        recommendation,
+        recommendation!,
         quotes,
         rfpData
       );
@@ -292,7 +293,7 @@ export class CommunicationAgent extends BaseAgent {
     // Signature
     html += '<div style="margin-top: 40px; border-top: 1px solid #ddd; padding-top: 20px;">';
     html += '<p>Best regards,<br>';
-    html += '<strong>JetVision Charter Services</strong></p>';
+    html += '<strong>Jetvision Charter Services</strong></p>';
     html += '<p style="font-size: 12px; color: #666;">';
     html += 'For questions or assistance, please contact our team.';
     html += '</p>';

@@ -91,9 +91,11 @@ export class ProposalAnalysisAgent extends BaseAgent {
 
       this.validateRFPId(rfpId);
       this.validateQuotes(quotes);
+      // After validation, we know quotes is defined
+      const validQuotes = quotes!;
 
       // Handle empty quotes
-      if (quotes.length === 0) {
+      if (validQuotes.length === 0) {
         this.metrics.totalExecutions++;
         this.metrics.successfulExecutions++;
         this._status = AgentStatus.COMPLETED;
@@ -117,7 +119,7 @@ export class ProposalAnalysisAgent extends BaseAgent {
 
       // Analyze quotes
       const analyzedQuotes = await this.analyzeQuotes(
-        quotes,
+        validQuotes,
         clientPreferences
       );
 
@@ -145,7 +147,7 @@ export class ProposalAnalysisAgent extends BaseAgent {
           analyzedQuotes: rankedQuotes,
           recommendation,
           analysis,
-          quotesAnalyzed: quotes.length,
+          quotesAnalyzed: validQuotes.length,
           requestId: context.requestId,
           sessionId: context.sessionId,
           nextAgent: AgentType.COMMUNICATION,

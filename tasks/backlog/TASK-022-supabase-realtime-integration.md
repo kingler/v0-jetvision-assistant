@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Implement Supabase Realtime subscriptions for flight_requests, quotes, and proposals tables to enable live status updates in the UI, connection management, optimistic UI updates, and reconnection logic for the JetVision application.
+Implement Supabase Realtime subscriptions for flight_requests, quotes, and proposals tables to enable live status updates in the UI, connection management, optimistic UI updates, and reconnection logic for the Jetvision application.
 
 ### User Story
 **As an** ISO agent

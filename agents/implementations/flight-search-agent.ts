@@ -199,7 +199,8 @@ export class FlightSearchAgent extends BaseAgent {
     // Filter by budget if provided
     let results = mockFlights;
     if (params.budget) {
-      results = results.filter((f) => f.price <= params.budget);
+      const budget = params.budget;
+      results = results.filter((f) => f.price <= budget);
     }
 
     // Sort by price (lowest first)
@@ -232,7 +233,8 @@ export class FlightSearchAgent extends BaseAgent {
     // Filter by budget if provided
     let results = mockEmptyLegs;
     if (params.budget) {
-      results = results.filter((e) => e.price <= params.budget);
+      const budget = params.budget;
+      results = results.filter((e) => e.price <= budget);
     }
 
     return results;

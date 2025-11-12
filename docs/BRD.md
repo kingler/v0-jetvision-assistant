@@ -1,9 +1,9 @@
 # BUSINESS REQUIREMENTS DOCUMENT (BRD)
-# JetVision AI Assistant - Multi-Agent RFP Automation System
+# Jetvision AI Assistant - Multi-Agent RFP Automation System
 
 **Document Version**: 1.0
 **Date**: October 20, 2025
-**Business Owner**: JetVision Executive Team
+**Business Owner**: Jetvision Executive Team
 **Prepared By**: Product Strategy Team
 **Target Audience**: C-Level Executives, Stakeholders, Investors, Product Team
 
@@ -13,7 +13,7 @@
 
 ### Project Overview
 
-**Project Name**: JetVision AI Assistant
+**Project Name**: Jetvision AI Assistant
 
 **Business Case**: Private jet charter brokers (ISO agents) currently spend 2-4 hours manually processing each flight request, limiting their capacity to ~5-8 requests per day. This manual bottleneck results in:
 - Lost revenue opportunities during high-demand periods
@@ -32,7 +32,7 @@
 
 ### Strategic Objectives
 
-1. **Market Leadership**: Establish JetVision as the first fully automated private jet booking platform
+1. **Market Leadership**: Establish Jetvision as the first fully automated private jet booking platform
 2. **Operational Excellence**: Achieve industry-leading efficiency in RFP processing
 3. **Customer Experience**: Deliver sub-5-minute proposal turnaround times
 4. **Revenue Growth**: Enable 10x broker capacity without proportional staff increase
@@ -97,7 +97,7 @@
 - **Avinode**: Marketplace platform, limited automation
 - **PrivateFly**: Directory service, manual quotes
 - **Charter Hub**: Booking system, no AI automation
-- **JetVision Advantage**: First fully automated AI-powered end-to-end solution
+- **Jetvision Advantage**: First fully automated AI-powered end-to-end solution
 
 ### Proposed Solution
 
@@ -183,7 +183,7 @@ The system employs 6 specialized AI agents that collaborate to automate the enti
 
 #### 3. Market Leadership
 
-**Objective**: Establish JetVision as the AI leader in private aviation booking
+**Objective**: Establish Jetvision as the AI leader in private aviation booking
 
 **Success Criteria**:
 - First-to-market with fully automated AI system
@@ -459,7 +459,7 @@ The system employs 6 specialized AI agents that collaborate to automate the enti
 
 ### Competitive Advantage
 
-**JetVision Differentiators**:
+**Jetvision Differentiators**:
 
 1. **AI-First Architecture**: Only fully autonomous AI-powered system
 2. **End-to-End Automation**: Complete workflow from request to proposal
@@ -482,7 +482,7 @@ The system employs 6 specialized AI agents that collaborate to automate the enti
 
 ### Product Overview
 
-**JetVision AI Assistant** is a cloud-based SaaS platform that automates the private jet charter RFP (Request for Proposal) workflow using a multi-agent AI system powered by OpenAI GPT-5.
+**Jetvision AI Assistant** is a cloud-based SaaS platform that automates the private jet charter RFP (Request for Proposal) workflow using a multi-agent AI system powered by OpenAI GPT-5.
 
 ### Core Features
 

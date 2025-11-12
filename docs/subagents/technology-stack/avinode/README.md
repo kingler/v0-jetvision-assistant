@@ -10,7 +10,7 @@
 
 ## 📋 Overview
 
-Avinode is the leading B2B marketplace for private aviation, connecting charter operators with flight buyers. The JetVision system integrates with Avinode via an MCP (Model Context Protocol) server to search flights, create RFPs, and manage quotes.
+Avinode is the leading B2B marketplace for private aviation, connecting charter operators with flight buyers. The Jetvision system integrates with Avinode via an MCP (Model Context Protocol) server to search flights, create RFPs, and manage quotes.
 
 ### Key Features
 

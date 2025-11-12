@@ -352,7 +352,7 @@ export const ProposalPDF: React.FC<ProposalPDFProps> = ({
                   </Text>
                 </View>
                 <View style={styles.priceRow}>
-                  <Text style={styles.label}>JetVision Margin (30%):</Text>
+                  <Text style={styles.label}>Jetvision Margin (30%):</Text>
                   <Text style={styles.value}>
                     + ${proposal.pricing.margin.toLocaleString()}
                   </Text>
@@ -394,7 +394,7 @@ export const ProposalPDF: React.FC<ProposalPDFProps> = ({
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text>JetVision Group | info@jetvision.com | +1 (555) 123-4567</Text>
+          <Text>Jetvision Group | info@jetvision.com | +1 (555) 123-4567</Text>
           <Text>This proposal is confidential and intended solely for {proposal.client.name}</Text>
         </View>
       </Page>
@@ -703,7 +703,7 @@ export class CommunicationManagerAgent extends BaseAgent {
       body_html: emailContent,
       attachments: [
         {
-          filename: `JetVision-Proposal-${proposalId}.pdf`,
+          filename: `Jetvision-Proposal-${proposalId}.pdf`,
           content: pdfBuffer,
           contentType: 'application/pdf',
         },

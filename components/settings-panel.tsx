@@ -27,7 +27,7 @@ export function SettingsPanel() {
   const appliedMargin = marginType === "fixed" ? marginValue : (operatorCost * marginPercentage) / 100
   const totalQuote = operatorCost + appliedMargin
   const agentCommission = appliedMargin * (commissionSplit[0] / 100)
-  const jetVisionNet = appliedMargin - agentCommission
+  const jetvisionNet = appliedMargin - agentCommission
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -143,7 +143,7 @@ export function SettingsPanel() {
                   className="w-full"
                 />
                 <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                  <span>JetVision: {100 - commissionSplit[0]}%</span>
+                  <span>Jetvision: {100 - commissionSplit[0]}%</span>
                   <span>Agent: {commissionSplit[0]}%</span>
                 </div>
               </div>
@@ -161,8 +161,8 @@ export function SettingsPanel() {
                   <span className="font-medium text-accent">${agentCommission.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>JetVision Net ({100 - commissionSplit[0]}%):</span>
-                  <span className="font-medium text-primary">${jetVisionNet.toLocaleString()}</span>
+                  <span>Jetvision Net ({100 - commissionSplit[0]}%):</span>
+                  <span className="font-medium text-primary">${jetvisionNet.toLocaleString()}</span>
                 </div>
               </div>
             </div>

@@ -162,9 +162,9 @@ docs/
 # docs/api/openapi.yaml
 openapi: 3.0.0
 info:
-  title: JetVision AI Assistant API
+  title: Jetvision AI Assistant API
   description: |
-    REST API for JetVision AI Assistant - Multi-Agent RFP Automation System.
+    REST API for Jetvision AI Assistant - Multi-Agent RFP Automation System.
 
     This API enables ISO agents to automate the private jet charter booking workflow
     from flight request to proposal delivery.
@@ -184,7 +184,7 @@ info:
 
   version: 1.0.0
   contact:
-    name: JetVision Support
+    name: Jetvision Support
     email: support@jetvision-assistant.com
     url: https://jetvision-assistant.com/support
 
@@ -493,13 +493,13 @@ components:
 
 **Getting Started Guide**:
 ```markdown
-# Getting Started with JetVision AI Assistant
+# Getting Started with Jetvision AI Assistant
 
-Welcome to JetVision AI Assistant! This guide will help you get started in 5 minutes.
+Welcome to Jetvision AI Assistant! This guide will help you get started in 5 minutes.
 
-## What is JetVision AI Assistant?
+## What is Jetvision AI Assistant?
 
-JetVision AI Assistant automates the private jet charter booking workflow for ISO agents. Instead of spending 2-4 hours manually processing each flight request, our AI-powered system completes the entire workflow in under 5 minutes.
+Jetvision AI Assistant automates the private jet charter booking workflow for ISO agents. Instead of spending 2-4 hours manually processing each flight request, our AI-powered system completes the entire workflow in under 5 minutes.
 
 ## Quick Start
 

@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Create and deploy the complete Supabase PostgreSQL database schema with all 7 tables, Row Level Security (RLS) policies, indexes, and foreign key constraints to support the JetVision AI Assistant application.
+Create and deploy the complete Supabase PostgreSQL database schema with all 7 tables, Row Level Security (RLS) policies, indexes, and foreign key constraints to support the Jetvision AI Assistant application.
 
 ### User Story
 **As a** backend developer
@@ -231,7 +231,7 @@ Create `lib/supabase/schema.sql`:
 
 ```sql
 -- =============================================
--- JetVision AI Assistant - Database Schema
+-- Jetvision AI Assistant - Database Schema
 -- Created: 2025-10-20
 -- Version: 1.0
 -- =============================================

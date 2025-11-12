@@ -39,7 +39,7 @@ function question(rl: readline.Interface, prompt: string): Promise<string> {
 async function guideTaskExecution(taskId: string) {
   const rl = createInterface()
 
-  console.log('\n🎯 JetVision Guided Task Executor\n')
+  console.log('\n🎯 Jetvision Guided Task Executor\n')
 
   // Load task
   const tasks = await orchestrator.discoverTasks()

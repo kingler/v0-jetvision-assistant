@@ -1,6 +1,6 @@
-# JetVision AI Assistant - Prerequisites Checklist
+# Jetvision AI Assistant - Prerequisites Checklist
 
-**Document Purpose**: This checklist outlines all required accounts, configurations, and setup steps that must be completed before implementing the JetVision AI Assistant system.
+**Document Purpose**: This checklist outlines all required accounts, configurations, and setup steps that must be completed before implementing the Jetvision AI Assistant system.
 
 **Target Audience**: Project managers, technical leads, and non-technical stakeholders
 
@@ -31,13 +31,13 @@
 - [ ] Go to [https://clerk.com](https://clerk.com)
 - [ ] Click "Sign Up" and create an account
 - [ ] Verify your email address
-- [ ] Create a new application/project named "JetVision AI Assistant"
+- [ ] Create a new application/project named "Jetvision AI Assistant"
 - [ ] Select "Next.js" as the framework
 - [ ] Note: Free tier includes 10,000 monthly active users
 
 **Required Information**:
 - Business email address
-- Application name: "JetVision AI Assistant"
+- Application name: "Jetvision AI Assistant"
 - Application type: Production or Development
 
 **Estimated Time**: 10 minutes
@@ -131,7 +131,7 @@
 #### Gmail API Setup:
 - [ ] Go to [Google Cloud Console](https://console.cloud.google.com)
 - [ ] Sign in with your Google Workspace account
-- [ ] Create a new project: "JetVision Assistant"
+- [ ] Create a new project: "Jetvision Assistant"
 - [ ] Enable Gmail API:
   - Navigate to "APIs & Services" → "Library"
   - Search for "Gmail API"
@@ -241,7 +241,7 @@ The Sentry MCP server has been added and provides access to Sentry's full issue 
 
 **Steps**:
 - [ ] Log in to [Clerk Dashboard](https://dashboard.clerk.com)
-- [ ] Select your "JetVision AI Assistant" application
+- [ ] Select your "Jetvision AI Assistant" application
 - [ ] Navigate to "API Keys" section
 - [ ] Copy the following keys:
   - **Publishable Key** (starts with `pk_test_` or `pk_live_`)
@@ -314,7 +314,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...(DIFFERENT_KEY)
 - [ ] Log in to [OpenAI Platform](https://platform.openai.com)
 - [ ] Navigate to "API Keys" section
 - [ ] Click "Create new secret key"
-- [ ] **Name**: "JetVision Assistant - Production"
+- [ ] **Name**: "Jetvision Assistant - Production"
 - [ ] Copy the key (shown only once!)
 - [ ] Store securely in password manager
 - [ ] Copy your Organization ID:

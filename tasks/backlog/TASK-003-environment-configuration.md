@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Configure all required environment variables, set up external service accounts, and verify system prerequisites to enable development of the JetVision AI Assistant application.
+Configure all required environment variables, set up external service accounts, and verify system prerequisites to enable development of the Jetvision AI Assistant application.
 
 ### User Story
 **As a** developer
@@ -267,7 +267,7 @@ Before starting:
 **Step 1**: Set Up Clerk Authentication
 
 1. Sign up at https://clerk.com
-2. Create new application "JetVision Assistant"
+2. Create new application "Jetvision Assistant"
 3. Configure allowed domains:
    - Add `http://localhost:3000` for development
    - Add production domain when available
@@ -294,7 +294,7 @@ Before starting:
 
 1. Sign up at https://platform.openai.com
 2. Navigate to API Keys
-3. Create new API key "JetVision Assistant"
+3. Create new API key "Jetvision Assistant"
 4. Copy `OPENAI_API_KEY`
 5. Set usage limits (recommended: $50/month)
 
@@ -398,7 +398,7 @@ AVINODE_API_URL=http://localhost:3000/api/mock/avinode
 Create `.env.local`:
 ```bash
 # ============================================
-# JetVision AI Assistant - Environment Variables
+# Jetvision AI Assistant - Environment Variables
 # ============================================
 
 # --------------------------------------------

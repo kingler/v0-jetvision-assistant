@@ -2,15 +2,18 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Send, Loader2, Plane, FileText, Eye, Clock, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { WorkflowVisualization } from "./workflow-visualization"
 import { ProposalPreview } from "./proposal-preview"
-import type { ChatSession } from "./chat-sidebar"
+import { QuoteCard } from "@/components/aviation"
+import type { ChatSession, Quote } from "./chat-sidebar"
+import { ChatKitWidget } from "./chatkit-widget"
 
 interface ChatInterfaceProps {
   activeChat: ChatSession
@@ -30,6 +33,16 @@ export function ChatInterface({
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const latestMessagesRef = useRef(activeChat.messages)
+  const chatKitMetadata = useMemo(
+    () => ({
+      route: activeChat.route,
+      date: activeChat.date,
+      passengers: activeChat.passengers,
+      status: activeChat.status,
+    }),
+    [activeChat.date, activeChat.passengers, activeChat.route, activeChat.status],
+  )
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -39,8 +52,55 @@ export function ChatInterface({
     scrollToBottom()
   }, [activeChat.messages, isTyping])
 
+  useEffect(() => {
+    latestMessagesRef.current = activeChat.messages
+  }, [activeChat.messages])
+
+  const commitChatUpdate = useCallback(
+    (
+      updates: Partial<ChatSession>,
+      message?: {
+        content: string
+        showWorkflow?: boolean
+        showQuoteStatus?: boolean
+        showProposal?: boolean
+        showCustomerPreferences?: boolean
+      },
+    ) => {
+      let updatedMessages = latestMessagesRef.current
+
+      if (message) {
+        const agentMessage = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: "agent" as const,
+          content: message.content,
+          timestamp: new Date(),
+          showWorkflow: message.showWorkflow,
+          showQuoteStatus: message.showQuoteStatus,
+          showProposal: message.showProposal,
+          showCustomerPreferences: message.showCustomerPreferences,
+        }
+
+        updatedMessages = [...updatedMessages, agentMessage]
+      }
+
+      latestMessagesRef.current = updatedMessages
+
+      onUpdateChat(activeChat.id, {
+        ...updates,
+        messages: updatedMessages,
+      })
+    },
+    [activeChat.id, onUpdateChat],
+  )
+
   const simulateWorkflowProgress = async (userMessage: string) => {
-    const steps = [
+    const steps: Array<{
+      status: string
+      message: string
+      delay: number
+      showQuotes?: boolean
+    }> = [
       {
         status: "understanding_request",
         message: "I understand you're looking for a flight. Let me analyze your requirements...",
@@ -52,10 +112,15 @@ export function ChatInterface({
         delay: 3000,
       },
       { status: "requesting_quotes", message: "Requesting quotes from our network of operators...", delay: 4000 },
-      { status: "analyzing_options", message: "Analyzing the best options for your trip...", delay: 2500 },
+      {
+        status: "analyzing_options",
+        message: "Analyzing quotes from our operators...",
+        delay: 2500,
+        showQuotes: true,
+      },
       {
         status: "proposal_ready",
-        message: "Perfect! I found a Light Jet that's ideal for your trip. Here's your proposal:",
+        message: "I've analyzed the available options and prepared a recommendation based on your requirements.",
         delay: 2000,
       },
     ]
@@ -75,6 +140,7 @@ export function ChatInterface({
       status: "understanding_request",
       currentStep: 1,
     })
+    latestMessagesRef.current = currentMessages
 
     // Progress through each step
     for (let i = 0; i < steps.length; i++) {
@@ -87,20 +153,127 @@ export function ChatInterface({
         type: "agent" as const,
         content: step.message,
         timestamp: new Date(),
-        showWorkflow: true,
-        showQuoteStatus: step.status === "requesting_quotes" || step.status === "analyzing_options",
+        showWorkflow: i < steps.length - 1, // Don't show workflow on last message
+        showQuoteStatus: step.status === "requesting_quotes",
+        showQuotes: step.showQuotes || false,
         showProposal: step.status === "proposal_ready",
       }
 
       currentMessages = [...currentMessages, agentMsg]
 
-      onUpdateChat(activeChat.id, {
+      // Update chat state
+      const updateData: Partial<ChatSession> = {
         messages: currentMessages,
         status: step.status as any,
         currentStep: i + 2,
-      })
+      }
+
+      // Quotes should be populated by the actual agent workflow (FlightSearchAgent → ProposalAnalysisAgent)
+      // The showQuotes flag will display quotes if they exist in activeChat.quotes
+
+      onUpdateChat(activeChat.id, updateData)
+      latestMessagesRef.current = currentMessages
     }
   }
+
+  const handleChatKitAction = useCallback(
+    (action: { type: string; payload?: Record<string, unknown> }) => {
+      const payload = action.payload ?? {}
+
+      switch (action.type) {
+        case "jetvision.workflow.search":
+        case "jetvision.search": {
+          onProcessingChange(true)
+          commitChatUpdate(
+            {
+              status: "searching_aircraft",
+              currentStep: 2,
+            },
+            {
+              content: "Launching a refreshed aircraft search with the latest parameters supplied via ChatKit.",
+              showWorkflow: true,
+            },
+          )
+          onProcessingChange(false)
+          break
+        }
+        case "jetvision.workflow.request_quotes":
+        case "jetvision.request_quotes": {
+          onProcessingChange(true)
+          const quotesTotal = typeof payload.quotesTotal === "number" ? payload.quotesTotal : activeChat.quotesTotal || 5
+          commitChatUpdate(
+            {
+              status: "requesting_quotes",
+              currentStep: 3,
+              quotesReceived: typeof payload.quotesReceived === "number" ? payload.quotesReceived : 0,
+              quotesTotal,
+            },
+            {
+              content: "Submitting quote requests to operators. I'll surface responses here as they arrive.",
+              showQuoteStatus: true,
+            },
+          )
+          onProcessingChange(false)
+          break
+        }
+        case "jetvision.workflow.analyze_options":
+        case "jetvision.analyze_options": {
+          commitChatUpdate(
+            {
+              status: "analyzing_options",
+              currentStep: 4,
+            },
+            {
+              content: "Reviewing operator responses to compile the best proposal for your client.",
+              showWorkflow: true,
+            },
+          )
+          break
+        }
+        case "jetvision.workflow.finalize_booking":
+        case "jetvision.booking.finalize": {
+          commitChatUpdate(
+            {
+              status: "proposal_ready",
+              currentStep: 5,
+              quotesReceived: activeChat.quotesReceived,
+              quotesTotal: activeChat.quotesTotal,
+            },
+            {
+              content:
+                "The proposal is ready to present. Confirm the itinerary details and proceed to booking when the client approves.",
+              showProposal: true,
+            },
+          )
+          onProcessingChange(false)
+          break
+        }
+        case "jetvision.thread.attach": {
+          if (typeof payload.threadId === "string") {
+            commitChatUpdate({
+              chatkitThreadId: payload.threadId,
+            })
+          }
+          break
+        }
+        default: {
+          commitChatUpdate(
+            {},
+            {
+              content: `Received ChatKit action "${action.type}". No workflow mapping configured yet.`,
+            },
+          )
+          break
+        }
+      }
+    },
+    [
+      activeChat.quotesReceived,
+      activeChat.quotesTotal,
+      commitChatUpdate,
+      onProcessingChange,
+    ],
+  )
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return
@@ -121,6 +294,78 @@ export function ChatInterface({
       e.preventDefault()
       handleSendMessage()
     }
+  }
+
+  const handleSelectQuote = (quoteId: string) => {
+    onUpdateChat(activeChat.id, { selectedQuoteId: quoteId })
+  }
+
+  const QuoteComparisonDisplay = () => {
+    const quotes = activeChat.quotes || []
+    const sortedQuotes = [...quotes].sort((a, b) => a.rank - b.rank)
+
+    if (quotes.length === 0) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium">Compare Flight Quotes</h4>
+            <Badge variant="outline" className="text-xs">
+              0 quotes received
+            </Badge>
+          </div>
+          <div className="p-8 text-center border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              Waiting for quotes from operators...
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Quotes will appear here once received from the flight search workflow.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="font-medium">Compare Flight Quotes</h4>
+          <Badge variant="outline" className="text-xs">
+            {quotes.length} quote{quotes.length !== 1 ? 's' : ''} received
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {sortedQuotes.map((quote) => (
+            <QuoteCard
+              key={quote.id}
+              id={quote.id}
+              operatorName={quote.operatorName}
+              aircraftType={quote.aircraftType}
+              price={quote.price}
+              aiScore={quote.aiScore}
+              rank={quote.rank}
+              totalQuotes={quotes.length}
+              operatorRating={quote.operatorRating}
+              departureTime={quote.departureTime}
+              arrivalTime={quote.arrivalTime}
+              flightDuration={quote.flightDuration}
+              isRecommended={quote.isRecommended}
+              isSelected={activeChat.selectedQuoteId === quote.id}
+              onSelect={() => handleSelectQuote(quote.id)}
+              compact={false}
+            />
+          ))}
+        </div>
+
+        {activeChat.selectedQuoteId && (
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              ✓ You've selected a quote. I can send this proposal to your client, or you can select a different option.
+            </p>
+          </div>
+        )}
+      </div>
+    )
   }
 
   const QuoteStatusDisplay = () => (
@@ -253,7 +498,7 @@ export function ChatInterface({
                     <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
                       <Plane className="w-3 h-3 text-white" />
                     </div>
-                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">JetVision Agent</span>
+                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Jetvision Agent</span>
                   </div>
                 )}
                 <p className="text-sm leading-relaxed">{message.content}</p>
@@ -281,6 +526,12 @@ export function ChatInterface({
                   </div>
                 )}
 
+                {message.showQuotes && activeChat.quotes && activeChat.quotes.length > 0 && (
+                  <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <QuoteComparisonDisplay />
+                  </div>
+                )}
+
                 {message.showProposal && (
                   <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                     <ProposalPreview embedded={true} chatData={activeChat} />
@@ -292,6 +543,23 @@ export function ChatInterface({
             </div>
           ))}
 
+          <Card className="bg-gray-900 text-gray-100 border border-gray-800 shadow-lg shadow-cyan-500/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-white">ChatKit Live Assistant</CardTitle>
+              <CardDescription className="text-xs text-gray-400">
+                Embedded assistant connected to jet search, quote orchestration, and booking workflows.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-6">
+              <ChatKitWidget
+                sessionId={activeChat.chatkitThreadId ?? `flight-${activeChat.id}`}
+                metadata={chatKitMetadata}
+                onWorkflowAction={handleChatKitAction}
+                className="h-[420px]"
+              />
+            </CardContent>
+          </Card>
+
           {/* Typing Indicator */}
           {isTyping && (
             <div className="flex justify-start">
@@ -300,7 +568,7 @@ export function ChatInterface({
                   <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
                     <Plane className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">JetVision Agent</span>
+                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Jetvision Agent</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Loader2 className="w-4 h-4 animate-spin text-blue-600" />

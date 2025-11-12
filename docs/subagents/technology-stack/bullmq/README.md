@@ -9,7 +9,7 @@
 
 ## 📋 Overview
 
-BullMQ is a Redis-based queue system for Node.js used in JetVision to handle asynchronous agent tasks, long-running operations, and job scheduling. It provides reliable job processing with features like retry logic, job prioritization, and real-time monitoring.
+BullMQ is a Redis-based queue system for Node.js used in Jetvision to handle asynchronous agent tasks, long-running operations, and job scheduling. It provides reliable job processing with features like retry logic, job prioritization, and real-time monitoring.
 
 ### Why BullMQ?
 
@@ -37,7 +37,7 @@ flowchart LR
     Agent --> DB[(Database)]
 ```
 
-### Queue Types in JetVision
+### Queue Types in Jetvision
 
 ```typescript
 // Queue configuration

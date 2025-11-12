@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Jetvision Multi-Agent Code Review - Pre-push Hook
+# Comprehensive validation before pushing to remote
+
+echo "🚀 Running pre-push validation..."
+
+# Run full test suite
+npm run test:coverage || {
+  echo "❌ Test coverage below threshold. Add more tests before pushing."
+  exit 1
+}
+
+# Run integration tests
+npm run test:integration || {
+  echo "❌ Integration tests failed. Fix before pushing."
+  exit 1
+}
+
+echo "✅ Pre-push checks passed!"

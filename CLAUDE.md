@@ -1,6 +1,6 @@
-# Claude Code Guide - JetVision Multi-Agent System
+# Claude Code Guide - Jetvision Multi-Agent System
 
-**Project**: JetVision AI Assistant
+**Project**: Jetvision AI Assistant
 **Architecture**: Multi-Agent System with OpenAI Agent SDK + MCP
 **Stack**: Next.js 14, TypeScript, Supabase, BullMQ + Redis
 
@@ -73,6 +73,22 @@ npm run mcp:test
 
 # List available MCP tools
 npm run mcp:list-tools
+```
+
+### Code Review & Quality
+
+```bash
+# Run code review validation (morpheus-validator)
+npm run review:validate
+
+# Run TDD workflow (RED -> GREEN -> REFACTOR)
+npm run review:tdd
+
+# Generate PR review report (code-review-coordinator)
+npm run review:pr
+
+# Auto-fix linting issues
+npm run review:fix
 ```
 
 ---
@@ -628,6 +644,228 @@ Example end-to-end workflow:
 - **Clerk Auth**: JWT tokens validated on every request
 - **API Keys**: Stored in environment variables only
 - **Redis**: Should be secured in production (password, TLS)
+
+---
+
+## Code Review Integration
+
+### Overview
+
+The project uses **two specialized code review agents** integrated into all development workflows:
+
+1. **morpheus-validator** - Automated code quality validation
+2. **code-review-coordinator** - PR review process management
+
+### Git Hooks (Pre-commit Validation)
+
+Git hooks automatically run on every commit and push:
+
+**Pre-commit Hook** (`.husky/pre-commit`):
+- Type checking (`npm run type-check`)
+- Linting (`npm run lint`)
+- Unit tests for changed files
+- Code validation (`npm run review:validate`)
+
+**Pre-push Hook** (`.husky/pre-push`):
+- Full test suite with coverage
+- Integration tests
+
+**Commit Message Validation** (`.husky/commit-msg`):
+- Enforces conventional commits format
+- Example: `feat(agents): add orchestrator agent`
+
+### TDD Workflow Integration
+
+Use the TDD workflow script to enforce proper test-driven development:
+
+```bash
+npm run review:tdd
+```
+
+**Workflow Phases**:
+
+1. **RED Phase** - Write failing test
+   - Create test file
+   - Define desired behavior
+   - Verify test fails
+
+2. **GREEN Phase** - Make test pass
+   - Implement minimal code
+   - Run tests to verify
+   - Commit with validation
+
+3. **REFACTOR Phase** - Improve code quality
+   - Improve structure
+   - Remove duplication
+   - Run full validation suite
+
+### Pull Request Workflow
+
+**Before creating a PR:**
+
+```bash
+# 1. Run PR review coordinator
+npm run review:pr
+
+# This will:
+# - Run all automated checks
+# - Display code review checklist
+# - Generate review report
+# - Save report to .github/PULL_REQUEST_REVIEW.md
+```
+
+**Code Review Checklist Categories**:
+- **Code Quality**: Style guidelines, error handling, naming
+- **Testing**: Unit tests, integration tests, edge cases, coverage
+- **Documentation**: JSDoc, README, changelog, comments
+- **Security**: No secrets, input validation, SQL/XSS prevention
+- **Architecture**: Project structure, BaseAgent extension, separation of concerns
+- **Performance**: Rendering, queries, caching, memory leaks
+
+### Automated Code Validation
+
+The `review:validate` script checks:
+
+**File Naming**:
+- Kebab-case for non-component files
+- PascalCase for React components
+- Test files end with `.test.ts` or `.test.tsx`
+
+**Code Style**:
+- No `console.log` in production code
+- No `any` type usage
+- JSDoc on exported functions
+- TODO/FIXME tracking
+
+**Test Coverage**:
+- Corresponding test file exists for each source file
+- 75% coverage threshold enforced
+
+**Security**:
+- No hardcoded secrets or API keys
+- No `eval()` usage
+- Safe handling of `dangerouslySetInnerHTML`
+
+**Architecture**:
+- Agents extend `BaseAgent`
+- MCP servers use `@modelcontextprotocol/sdk`
+- API routes have try/catch error handling
+
+### GitHub Actions Integration
+
+Automated code review runs on every PR and push (`.github/workflows/code-review.yml`):
+
+**Jobs**:
+1. **code-review** - All automated checks + PR comment
+2. **security-review** - npm audit + secret scanning
+3. **architecture-review** - Architecture compliance
+4. **performance-review** - Bundle size analysis
+
+### Daily Workflow Example
+
+**Starting new feature**:
+```bash
+# 1. Create feature branch
+git checkout -b feat/new-feature
+
+# 2. Start TDD workflow - RED phase
+npm run review:tdd
+# Write failing test...
+
+# 3. TDD workflow - GREEN phase
+npm run review:tdd
+# Implement feature...
+
+# 4. TDD workflow - REFACTOR phase
+npm run review:tdd
+# Improve code quality...
+
+# 5. Generate PR review
+npm run review:pr
+
+# 6. Create PR
+gh pr create
+```
+
+**Pre-commit** (automatic):
+```bash
+# Git hooks run automatically
+git commit -m "feat(agents): add new feature"
+# ✅ Type check
+# ✅ Lint
+# ✅ Unit tests
+# ✅ Code validation
+```
+
+**Pre-push** (automatic):
+```bash
+git push
+# ✅ Full test suite
+# ✅ Integration tests
+# ✅ Coverage ≥75%
+```
+
+### Bypassing Hooks (Emergency Only)
+
+```bash
+# Skip pre-commit hooks (NOT recommended)
+git commit --no-verify -m "emergency fix"
+
+# Skip pre-push hooks (NOT recommended)
+git push --no-verify
+```
+
+**Note**: Only use `--no-verify` in emergencies. All checks will still run in CI/CD.
+
+### Code Review Standards
+
+From `docs/AGENTS.md`:
+
+**Code Style**:
+- Indentation: 2 spaces
+- Semicolons: Required
+- Quotes: Single quotes
+- Trailing commas: Required
+
+**Naming Conventions**:
+- Classes: PascalCase
+- Functions: camelCase
+- Constants: UPPER_SNAKE_CASE
+- Interfaces: PascalCase with `I` prefix
+- Types: PascalCase
+- Enums: PascalCase
+
+**TypeScript**:
+- Strict mode enabled
+- No `any` type
+- Explicit return types on public methods
+- Prefer interfaces over types
+
+### Setting Up Code Review
+
+**Initial Setup**:
+```bash
+# Install dependencies (includes husky)
+npm install
+
+# Initialize git hooks
+npm run prepare
+
+# Or manually:
+npx husky install
+```
+
+**Verify Setup**:
+```bash
+# Check hooks are installed
+ls -la .husky/
+
+# Test validation
+npm run review:validate
+
+# Test TDD workflow
+npm run review:tdd
+```
 
 ---
 

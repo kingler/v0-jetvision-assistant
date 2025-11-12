@@ -13,7 +13,7 @@
 ## 1. TASK OVERVIEW
 
 ### Objective
-Implement all dashboard pages for the JetVision AI Assistant including the main dashboard layout with navigation, requests list page, new request creation page, and request detail view with responsive design using Next.js App Router and Tailwind CSS.
+Implement all dashboard pages for the Jetvision AI Assistant including the main dashboard layout with navigation, requests list page, new request creation page, and request detail view with responsive design using Next.js App Router and Tailwind CSS.
 
 ### User Story
 **As an** ISO agent
@@ -133,7 +133,7 @@ describe('DashboardLayout', () => {
 
     expect(screen.getByRole('banner')).toBeInTheDocument()
     expect(screen.getByRole('navigation')).toBeInTheDocument()
-    expect(screen.getByText('JetVision')).toBeInTheDocument()
+    expect(screen.getByText('Jetvision')).toBeInTheDocument()
   })
 
   it('should render sidebar with request list', () => {

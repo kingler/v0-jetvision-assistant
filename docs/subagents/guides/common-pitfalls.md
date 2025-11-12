@@ -7,7 +7,7 @@
 
 ## 📋 Overview
 
-This guide covers common mistakes, gotchas, and troubleshooting tips for JetVision development.
+This guide covers common mistakes, gotchas, and troubleshooting tips for Jetvision development.
 
 ---
 
