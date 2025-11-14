@@ -2,7 +2,15 @@
  * Orchestrator Agent Implementation
  *
  * The OrchestratorAgent is the entry point for RFP processing.
- * It analyzes requests, validates data, creates workflows, and delegates tasks to other agents.
+ * It handles natural language conversation, progressive data extraction,
+ * and coordinates the multi-agent workflow.
+ *
+ * ONEK-98: Enhanced with conversational capabilities:
+ * - Natural language intent parsing
+ * - Progressive data extraction
+ * - Contextual question generation
+ * - Conversation state tracking
+ * - Structured message component responses
  */
 
 import { BaseAgent } from '../core/base-agent';
@@ -13,7 +21,20 @@ import type {
   AgentTask,
 } from '../core/types';
 import { AgentType, AgentStatus } from '../core/types';
+import {
+  IntentParser,
+  DataExtractor,
+  QuestionGenerator,
+  UserIntent,
+  type ConversationState,
+  createConversationState,
+  updateConversationState,
+} from '../tools';
+import type { MessageComponent } from '@/components/message-components/types';
 
+/**
+ * RFP data structure (backward compatibility)
+ */
 interface RFPData {
   departure: string;
   arrival: string;
@@ -25,6 +46,9 @@ interface RFPData {
   budget?: number;
 }
 
+/**
+ * RFP analysis result
+ */
 interface RFPAnalysis {
   departure: string;
   arrival: string;
@@ -36,15 +60,40 @@ interface RFPAnalysis {
 }
 
 /**
+ * Conversational response
+ */
+interface ConversationalResponse {
+  message: string;
+  components: MessageComponent[];
+  intent: UserIntent;
+  conversationState: ConversationState;
+  isComplete: boolean;
+  nextAction?: 'ask_question' | 'create_rfp' | 'provide_info';
+}
+
+/**
  * OrchestratorAgent
- * Analyzes RFP requests and coordinates the workflow
+ * Analyzes RFP requests, handles conversation, and coordinates the workflow
  */
 export class OrchestratorAgent extends BaseAgent {
+  private intentParser: IntentParser;
+  private dataExtractor: DataExtractor;
+  private questionGenerator: QuestionGenerator;
+
+  // TODO(ONEK-115): Replace in-memory conversation state with Redis-backed storage
+  // Conversation state store (in-memory, tracked as tech debt in ONEK-115)
+  private conversationStates: Map<string, ConversationState> = new Map();
+
   constructor(config: AgentConfig) {
     super({
       ...config,
       type: AgentType.ORCHESTRATOR,
     });
+
+    // Initialize conversational tools
+    this.intentParser = new IntentParser();
+    this.dataExtractor = new DataExtractor();
+    this.questionGenerator = new QuestionGenerator();
   }
 
   /**
@@ -52,81 +101,412 @@ export class OrchestratorAgent extends BaseAgent {
    */
   async initialize(): Promise<void> {
     await super.initialize();
-    console.log(`[${this.name}] OrchestratorAgent initialized`);
+    console.log(`[${this.name}] OrchestratorAgent initialized with conversational capabilities`);
   }
 
   /**
    * Execute the agent
-   * Analyzes RFP and creates tasks for downstream agents
+   * Main entry point - handles both conversational and direct RFP creation
    */
   async execute(context: AgentContext): Promise<AgentResult> {
     const startTime = Date.now();
     this._status = AgentStatus.RUNNING;
 
     try {
-      // Extract and validate RFP data
-      const rfpData = this.extractRFPData(context);
-      this.validateRFPData(rfpData);
+      // Check if this is a conversational request or direct RFP
+      const userMessage = context.metadata?.userMessage as string | undefined;
 
-      // Analyze the RFP
-      const analysis = this.analyzeRFP(rfpData);
-
-      // Determine priority based on urgency
-      const priority = this.determinePriority(rfpData.departureDate);
-
-      // Create workflow
-      const workflowId = context.requestId || `workflow-${Date.now()}`;
-      const workflowState = 'ANALYZING';
-
-      // Identify next steps
-      const nextSteps = ['fetch_client_data', 'search_flights'];
-
-      // Create tasks for downstream agents
-      const tasks = this.createTasks(rfpData, context, priority);
-
-      // Update metrics
-      this.metrics.totalExecutions++;
-      this.metrics.successfulExecutions++;
-      this._status = AgentStatus.COMPLETED;
-
-      const executionTime = Date.now() - startTime;
-      this.updateAverageExecutionTime(executionTime);
-
-      return {
-        success: true,
-        data: {
-          requestId: context.requestId,
-          analysis,
-          nextSteps,
-          priority,
-          workflowId,
-          workflowState,
-          tasks,
-        },
-        metadata: {
-          executionTime,
-        },
-      };
+      if (userMessage) {
+        // Conversational mode - process natural language
+        const response = await this.handleConversation(userMessage, context);
+        return this.buildConversationalResult(response, startTime);
+      } else {
+        // Legacy mode - direct RFP processing (backward compatibility)
+        return await this.executeLegacy(context, startTime);
+      }
     } catch (error) {
-      // Handle errors
       this.metrics.totalExecutions++;
       this.metrics.failedExecutions++;
       this._status = AgentStatus.ERROR;
-
-      const executionTime = Date.now() - startTime;
 
       return {
         success: false,
         error: error as Error,
         metadata: {
-          executionTime,
+          executionTime: Date.now() - startTime,
         },
       };
     }
   }
 
   /**
-   * Extract RFP data from context
+   * Handle conversational interaction
+   */
+  private async handleConversation(
+    userMessage: string,
+    context: AgentContext
+  ): Promise<ConversationalResponse> {
+    const sessionId = context.sessionId || 'default-session';
+
+    // Get or create conversation state
+    let conversationState = this.conversationStates.get(sessionId);
+    if (!conversationState) {
+      conversationState = createConversationState(
+        sessionId,
+        context.userId,
+        context.requestId
+      );
+      this.conversationStates.set(sessionId, conversationState);
+    }
+
+    // Add user message to history
+    conversationState.conversationHistory.push({
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date(),
+    });
+
+    // Parse user intent
+    const intentResult = await this.intentParser.parseIntent(
+      userMessage,
+      conversationState.conversationHistory
+    );
+
+    conversationState = updateConversationState(conversationState, {
+      intent: intentResult.intent,
+    });
+
+    // Handle based on intent
+    switch (intentResult.intent) {
+      case UserIntent.RFP_CREATION:
+      case UserIntent.CLARIFICATION_RESPONSE:
+        return await this.handleRFPCreation(userMessage, conversationState, context);
+
+      case UserIntent.INFORMATION_QUERY:
+        return await this.handleInformationQuery(userMessage, conversationState);
+
+      case UserIntent.GENERAL_CONVERSATION:
+        return await this.handleGeneralConversation(userMessage, conversationState);
+
+      default:
+        return await this.handleRFPCreation(userMessage, conversationState, context);
+    }
+  }
+
+  /**
+   * Handle RFP creation and clarification
+   */
+  private async handleRFPCreation(
+    userMessage: string,
+    conversationState: ConversationState,
+    context: AgentContext
+  ): Promise<ConversationalResponse> {
+    // Extract data from user message
+    const extractionResult = await this.dataExtractor.extractData(
+      userMessage,
+      conversationState.extractedData,
+      conversationState.conversationHistory
+    );
+
+    // Update conversation state
+    const missingFields = this.dataExtractor.getMissingFields(extractionResult.data);
+    const isComplete = this.dataExtractor.isComplete(extractionResult.data);
+
+    conversationState = updateConversationState(conversationState, {
+      extractedData: extractionResult.data,
+      missingFields,
+      isComplete,
+    });
+
+    this.conversationStates.set(conversationState.sessionId, conversationState);
+
+    // If complete, create RFP and delegate to downstream agents
+    if (isComplete) {
+      return await this.completeRFPCreation(conversationState, context);
+    }
+
+    // Otherwise, ask clarifying question
+    return await this.askClarifyingQuestion(conversationState);
+  }
+
+  /**
+   * Ask clarifying question for missing data
+   */
+  private async askClarifyingQuestion(
+    conversationState: ConversationState
+  ): Promise<ConversationalResponse> {
+    const questionResult = await this.questionGenerator.generateQuestion(
+      conversationState.missingFields,
+      conversationState.extractedData,
+      conversationState.conversationHistory,
+      conversationState.clarificationRound
+    );
+
+    if (!questionResult) {
+      // Max clarification rounds reached, work with what we have
+      return {
+        message: 'I need a bit more information to complete your request. Could you provide the missing details?',
+        components: [
+          {
+            type: 'text',
+            content: 'I need a bit more information to complete your request. Could you provide the missing details?',
+          },
+        ],
+        intent: UserIntent.RFP_CREATION,
+        conversationState,
+        isComplete: false,
+        nextAction: 'ask_question',
+      };
+    }
+
+    // Update conversation state
+    conversationState = updateConversationState(conversationState, {
+      clarificationRound: conversationState.clarificationRound + 1,
+      questionsAsked: [...conversationState.questionsAsked, questionResult.field],
+    });
+
+    // Add assistant message to history
+    conversationState.conversationHistory.push({
+      role: 'assistant',
+      content: questionResult.question,
+      timestamp: new Date(),
+    });
+
+    this.conversationStates.set(conversationState.sessionId, conversationState);
+
+    return {
+      message: questionResult.question,
+      components: questionResult.components || [
+        {
+          type: 'text',
+          content: questionResult.question,
+        },
+      ],
+      intent: UserIntent.RFP_CREATION,
+      conversationState,
+      isComplete: false,
+      nextAction: 'ask_question',
+    };
+  }
+
+  /**
+   * Complete RFP creation and delegate to downstream agents
+   */
+  private async completeRFPCreation(
+    conversationState: ConversationState,
+    context: AgentContext
+  ): Promise<ConversationalResponse> {
+    const rfpData = conversationState.extractedData as RFPData;
+
+    // Analyze the RFP
+    const analysis = this.analyzeRFP(rfpData);
+    const priority = this.determinePriority(rfpData.departureDate);
+
+    // Create tasks for downstream agents
+    const tasks = this.createTasks(rfpData, context, priority);
+
+    // Build success message with workflow status
+    const message = `Perfect! I've created your flight request from ${rfpData.departure} to ${rfpData.arrival} on ${rfpData.departureDate} for ${rfpData.passengers} passenger${rfpData.passengers > 1 ? 's' : ''}. I'm now searching for available flights and quotes.`;
+
+    const components: MessageComponent[] = [
+      {
+        type: 'text',
+        content: message,
+      },
+      {
+        type: 'workflow_status',
+        stage: 'searching',
+        progress: 25,
+        message: 'Searching for flights...',
+        details: [
+          { label: 'Route', value: `${rfpData.departure} → ${rfpData.arrival}` },
+          { label: 'Date', value: rfpData.departureDate },
+          { label: 'Passengers', value: rfpData.passengers },
+          { label: 'Status', value: 'In Progress', status: 'in_progress' },
+        ],
+      },
+    ];
+
+    // Add assistant message to history
+    conversationState.conversationHistory.push({
+      role: 'assistant',
+      content: message,
+      timestamp: new Date(),
+    });
+
+    // Mark as complete
+    conversationState = updateConversationState(conversationState, {
+      isComplete: true,
+    });
+
+    this.conversationStates.set(conversationState.sessionId, conversationState);
+
+    return {
+      message,
+      components,
+      intent: UserIntent.RFP_CREATION,
+      conversationState,
+      isComplete: true,
+      nextAction: 'create_rfp',
+    };
+  }
+
+  /**
+   * Handle information query
+   */
+  private async handleInformationQuery(
+    userMessage: string,
+    conversationState: ConversationState
+  ): Promise<ConversationalResponse> {
+    const questionResult = await this.questionGenerator.generateInformationResponse(userMessage);
+
+    // Add messages to history
+    conversationState.conversationHistory.push({
+      role: 'assistant',
+      content: questionResult.question,
+      timestamp: new Date(),
+    });
+
+    this.conversationStates.set(conversationState.sessionId, conversationState);
+
+    return {
+      message: questionResult.question,
+      components: questionResult.components || [
+        {
+          type: 'text',
+          content: questionResult.question,
+        },
+      ],
+      intent: UserIntent.INFORMATION_QUERY,
+      conversationState,
+      isComplete: false,
+      nextAction: 'provide_info',
+    };
+  }
+
+  /**
+   * Handle general conversation
+   */
+  private async handleGeneralConversation(
+    userMessage: string,
+    conversationState: ConversationState
+  ): Promise<ConversationalResponse> {
+    const greetings = ['Hello', 'Hi', 'Hey'];
+    const thanks = ['Thank you', 'Thanks', 'Great'];
+    const responses = ['You\'re welcome', 'Happy to help', 'My pleasure'];
+
+    let response = 'Hello! I can help you book a private jet flight. What are your travel plans?';
+
+    if (userMessage.toLowerCase().includes('thank')) {
+      response = responses[Math.floor(Math.random() * responses.length)] + '! Is there anything else I can help you with?';
+    } else if (userMessage.toLowerCase().match(/^(hi|hello|hey)/)) {
+      response = 'Hello! I can help you book a private jet flight. Where would you like to fly?';
+    }
+
+    conversationState.conversationHistory.push({
+      role: 'assistant',
+      content: response,
+      timestamp: new Date(),
+    });
+
+    this.conversationStates.set(conversationState.sessionId, conversationState);
+
+    return {
+      message: response,
+      components: [
+        {
+          type: 'text',
+          content: response,
+        },
+      ],
+      intent: UserIntent.GENERAL_CONVERSATION,
+      conversationState,
+      isComplete: false,
+      nextAction: 'provide_info',
+    };
+  }
+
+  /**
+   * Build result for conversational response
+   */
+  private buildConversationalResult(
+    response: ConversationalResponse,
+    startTime: number
+  ): AgentResult {
+    this.metrics.totalExecutions++;
+    this.metrics.successfulExecutions++;
+    this._status = AgentStatus.COMPLETED;
+
+    const executionTime = Date.now() - startTime;
+    this.updateAverageExecutionTime(executionTime);
+
+    return {
+      success: true,
+      data: {
+        message: response.message,
+        components: response.components,
+        intent: response.intent,
+        conversationState: response.conversationState,
+        isComplete: response.isComplete,
+        nextAction: response.nextAction,
+      },
+      metadata: {
+        executionTime,
+      },
+    };
+  }
+
+  /**
+   * Legacy RFP processing (backward compatibility)
+   */
+  private async executeLegacy(context: AgentContext, startTime: number): Promise<AgentResult> {
+    // Extract and validate RFP data
+    const rfpData = this.extractRFPData(context);
+    this.validateRFPData(rfpData);
+
+    // Analyze the RFP
+    const analysis = this.analyzeRFP(rfpData);
+
+    // Determine priority based on urgency
+    const priority = this.determinePriority(rfpData.departureDate);
+
+    // Create workflow
+    const workflowId = context.requestId || `workflow-${Date.now()}`;
+    const workflowState = 'ANALYZING';
+
+    // Identify next steps
+    const nextSteps = ['fetch_client_data', 'search_flights'];
+
+    // Create tasks for downstream agents
+    const tasks = this.createTasks(rfpData, context, priority);
+
+    // Update metrics
+    this.metrics.totalExecutions++;
+    this.metrics.successfulExecutions++;
+    this._status = AgentStatus.COMPLETED;
+
+    const executionTime = Date.now() - startTime;
+    this.updateAverageExecutionTime(executionTime);
+
+    return {
+      success: true,
+      data: {
+        requestId: context.requestId,
+        analysis,
+        nextSteps,
+        priority,
+        workflowId,
+        workflowState,
+        tasks,
+      },
+      metadata: {
+        executionTime,
+      },
+    };
+  }
+
+  /**
+   * Extract RFP data from context (legacy)
    */
   private extractRFPData(context: AgentContext): RFPData {
     const rfpData = context.metadata?.rfpData as RFPData;
@@ -262,5 +642,27 @@ export class OrchestratorAgent extends BaseAgent {
 
     this.metrics.averageExecutionTime =
       (currentAverage * (totalExecutions - 1) + executionTime) / totalExecutions;
+  }
+
+  /**
+   * Get conversation state for a session (for testing/debugging)
+   */
+  getConversationState(sessionId: string): ConversationState | undefined {
+    return this.conversationStates.get(sessionId);
+  }
+
+  /**
+   * Clear conversation state (for testing/session reset)
+   */
+  clearConversationState(sessionId: string): void {
+    this.conversationStates.delete(sessionId);
+  }
+
+  /**
+   * Shutdown - cleanup conversation states
+   */
+  async shutdown(): Promise<void> {
+    await super.shutdown();
+    this.conversationStates.clear();
   }
 }

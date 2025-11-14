@@ -3,10 +3,11 @@
  * Barrel exports for Linear-GitHub synchronization
  */
 
-// Types
+// Enums (value exports)
+export { LinearIssueState, GitHubPRState } from './types';
+
+// Types (type-only exports)
 export type {
-  LinearIssueState,
-  GitHubPRState,
   TaskPRMapping,
   PRLifecycleEvent,
   LinearStatusUpdate,
@@ -16,8 +17,6 @@ export type {
   LinearIssue,
   GitHubPR,
 } from './types';
-
-export { LinearIssueState, GitHubPRState } from './types';
 
 // Mapping Extractor
 export {

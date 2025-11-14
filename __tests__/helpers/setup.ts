@@ -12,6 +12,12 @@ import '@testing-library/jest-dom'
 // Load environment variables from .env.local for testing
 config({ path: path.join(process.cwd(), '.env.local') })
 
+// Set mock OPENAI_API_KEY for CI if not already set
+// Tests mock the OpenAI client, so this is only for constructor validation
+if (!process.env.OPENAI_API_KEY) {
+  process.env.OPENAI_API_KEY = 'sk-test-mock-key-for-ci'
+}
+
 // Validate required environment variables
 const requiredEnvVars = [
   'NEXT_PUBLIC_SUPABASE_URL',
