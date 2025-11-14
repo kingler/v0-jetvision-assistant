@@ -26,7 +26,14 @@ export function ActionButtons({ actions, layout = 'horizontal', onAction, classN
   return (
     <div className={`${layoutClasses[layout]} ${className || ''}`}>
       {actions.map((action) => {
-        const variant = action.variant || 'outline';
+        // Map 'primary' to 'default' for Button component compatibility
+        const variantMapping = {
+          primary: 'default',
+          secondary: 'secondary',
+          outline: 'outline',
+          ghost: 'ghost',
+        } as const;
+        const variant = action.variant ? variantMapping[action.variant] : 'outline';
 
         return (
           <Button
