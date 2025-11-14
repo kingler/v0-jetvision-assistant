@@ -7,6 +7,7 @@
 
 import { config } from 'dotenv'
 import path from 'path'
+import '@testing-library/jest-dom'
 
 // Load environment variables from .env.local for testing
 config({ path: path.join(process.cwd(), '.env.local') })
@@ -30,7 +31,7 @@ if (missingEnvVars.length > 0) {
 }
 
 // Set test timeout (10 seconds default)
-if (typeof global.vi !== 'undefined') {
+if (typeof (global as any).vi !== 'undefined') {
   ;(global as any).vi?.setConfig?.({ testTimeout: 10000 })
 }
 

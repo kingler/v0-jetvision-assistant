@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
           // Multi-turn conversation loop for tool calling
           // ONEK-83: Integrate Tool Execution into OpenAI Streaming Loop
           const MAX_TOOL_DEPTH = 5; // Prevent infinite loops
-          let conversationMessages = [...messages];
+          let conversationMessages: OpenAI.ChatCompletionMessageParam[] = [...messages];
           let toolCallDepth = 0;
 
           while (toolCallDepth < MAX_TOOL_DEPTH) {
@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
                 // Add assistant message with tool calls to history
                 conversationMessages.push({
                   role: 'assistant',
-                  content: fullContent || null,
+                  content: fullContent || '',
                   tool_calls: toolCalls.map((tc) => ({
                     id: tc.id,
                     type: 'function' as const,

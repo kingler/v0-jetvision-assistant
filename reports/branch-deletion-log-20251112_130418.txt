@@ -1,0 +1,16 @@
+Branch Deletion Log - Wed Nov 12 13:04:20 EST 2025
+======================================
+
+SKIPPED: feat/chatkit-frontend-clean (not found on remote)
+DRY RUN: Would delete origin/feat/TASK-002-database-schema
+DRY RUN: Would delete origin/claude/fix-jetvision-company-name-011CUeAGoNLoMU7DM5AoJddf
+DRY RUN: Would delete origin/add-claude-github-actions-1762088487382
+DRY RUN: Would delete origin/feat/ONEK-81-execute-tool-function
+DRY RUN: Would delete origin/feat/TASK-002-supabase-database-schema
+DRY RUN: Would delete origin/feature/mcp-ui-chatkit-integration
+DRY RUN: Would delete origin/feature/onek-78-mcp-server-manager
+DRY RUN: Would delete origin/fix/TASK-000-typescript-vitest-blockers
+DRY RUN: Would delete origin/feat/automated-pr-code-review
+DRY RUN: Would delete origin/feat/apply-user-table-migrations
+DRY RUN: Would delete origin/feat/TASK-001-clerk-authentication
+DRY RUN: Would delete origin/feat/rfp-processing-dashboard

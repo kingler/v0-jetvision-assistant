@@ -30,6 +30,7 @@
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": [
     "node_modules",
+    "app/_archived/**",
     "__tests__/e2e/**",
     "__tests__/templates/**",
     "playwright.config.ts",

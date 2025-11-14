@@ -129,15 +129,19 @@ Located in `.github/`:
 ```
 docs/
 ├── README.md (this file)
-├── guides/              # Developer and user guides
 ├── architecture/        # System architecture documents
 ├── deployment/          # Deployment and infrastructure docs
+├── diagrams/            # Architecture diagrams and flowcharts (NEW)
+├── git/                 # Git workflow and branch management (NEW)
+├── guides/              # Developer and user guides
 ├── implementation/      # Feature implementation guides
+├── migrations/          # Migration guides and procedures (NEW)
 ├── phases/              # Phase completion reports
 ├── project-management/  # Project structure and automation
 ├── sessions/            # Development session notes
 ├── subagents/          # Subagent documentation
-└── testing/            # Testing documentation
+├── testing/            # Testing documentation
+└── troubleshooting/    # Problem resolution guides (NEW)
 ```
 
 ## Contributing to Documentation
@@ -153,7 +157,16 @@ When adding new documentation:
 
 ---
 
-**Last Updated**: 2025-10-26
+## New Documentation Directories (Added 2025-11-14)
+
+- **diagrams/** - Architecture diagrams and visual documentation (includes Avinode diagram)
+- **troubleshooting/** - Problem resolution guides and debugging documentation
+- **migrations/** - Migration guides and procedures
+- **git/** - Git workflow and branch management documentation
+
+---
+
+**Last Updated**: 2025-11-14
 **Project**: Jetvision AI Assistant
 **Architecture**: Multi-Agent System with OpenAI Agent SDK + MCP
 **Stack**: Next.js 14, TypeScript, Supabase, BullMQ + Redis
