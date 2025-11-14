@@ -31,7 +31,6 @@ export interface ProcessResult {
   error?: string;
   clarification?: string;
   suggestions?: string[];
-  warning?: string;
 }
 
 interface RFPFlowState {

@@ -25,11 +25,11 @@ export class IntentExtractor {
     }
 
     // Pattern: "from X to Y"
-    match = normalizedInput.match(/from\s+([a-z\s]+)\s+to\s+([a-z\s]+?)$/i);
+    match = normalizedInput.match(/from\s+([a-z\s]+?)\s+to\s+([a-z\s]+?)(?:\s|$)/i);
     if (match) {
       return {
-        departure: this.cleanCityName(match[1].trim()),
-        arrival: this.cleanCityName(match[2].trim()),
+        departure: this.cleanCityName(match[1]),
+        arrival: this.cleanCityName(match[2]),
         confidence: 0.95,
       };
     }
@@ -102,26 +102,25 @@ export class IntentExtractor {
     const normalizedInput = input.toLowerCase();
     const now = new Date();
 
-    const monthNames = [
-      'january',
-      'february',
-      'march',
-      'april',
-      'may',
-      'june',
-      'july',
-      'august',
-      'september',
-      'october',
-      'november',
-      'december',
-    ];
-
-    // Extract explicit dates with year (December 25th, 2024)
-    let explicitDateMatch = input.match(
+    // Extract explicit dates first (December 25th, 2024)
+    const explicitDateMatch = input.match(
       /(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/i
     );
     if (explicitDateMatch) {
+      const monthNames = [
+        'january',
+        'february',
+        'march',
+        'april',
+        'may',
+        'june',
+        'july',
+        'august',
+        'september',
+        'october',
+        'november',
+        'december',
+      ];
       const monthIndex = monthNames.indexOf(explicitDateMatch[1].toLowerCase());
       if (monthIndex !== -1) {
         const date = new Date(
@@ -157,63 +156,12 @@ export class IntentExtractor {
       }
     }
 
-    // Extract explicit dates without year (December 25th) - assume current or next year
-    explicitDateMatch = input.match(
-      /(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?(?!\s*,?\s*\d{4})/i
-    );
-    if (explicitDateMatch) {
-      const monthIndex = monthNames.indexOf(explicitDateMatch[1].toLowerCase());
-      if (monthIndex !== -1) {
-        const currentYear = now.getFullYear();
-        let date = new Date(
-          currentYear,
-          monthIndex,
-          parseInt(explicitDateMatch[2])
-        );
-
-        // If date is in the past, use next year
-        if (date < now) {
-          date = new Date(
-            currentYear + 1,
-            monthIndex,
-            parseInt(explicitDateMatch[2])
-          );
-        }
-
-        // Check for return date in same input
-        const returnMatchIndex = input.toLowerCase().indexOf('return');
-        if (returnMatchIndex > 0) {
-          const returnPart = input.substring(returnMatchIndex);
-          const returnDateMatch = returnPart.match(
-            /(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?/i
-          );
-          if (returnDateMatch) {
-            const returnMonthIndex = monthNames.indexOf(returnDateMatch[1].toLowerCase());
-            if (returnMonthIndex !== -1) {
-              const returnYear = returnMonthIndex < monthIndex ? currentYear + 1 : currentYear;
-              const returnDate = new Date(
-                returnYear,
-                returnMonthIndex,
-                parseInt(returnDateMatch[2])
-              );
-              return {
-                departureDate: date.toISOString(),
-                returnDate: returnDate.toISOString(),
-              };
-            }
-          }
-        }
-
-        return { departureDate: date.toISOString() };
-      }
-    }
-
-    // Handle "tomorrow, returning in X days" or "tomorrow, return in X days"
+    // Handle "tomorrow, returning in X days"
     if (normalizedInput.includes('tomorrow')) {
       const tomorrow = new Date(now);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const returningMatch = normalizedInput.match(/return(?:ing)?\s+in\s+(\d+)\s+days?/);
+      const returningMatch = normalizedInput.match(/returning\s+in\s+(\d+)\s+days?/);
       if (returningMatch) {
         const returnDate = new Date(tomorrow);
         returnDate.setDate(returnDate.getDate() + parseInt(returningMatch[1]));
@@ -231,11 +179,12 @@ export class IntentExtractor {
       return { departureDate: now.toISOString() };
     }
 
-    // Handle "yesterday" (will be caught by validator as invalid)
-    if (normalizedInput.includes('yesterday')) {
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      return { departureDate: yesterday.toISOString() };
+    // "in X days"
+    const inDaysMatch = normalizedInput.match(/in\s+(\d+)\s+days?/);
+    if (inDaysMatch) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + parseInt(inDaysMatch[1]));
+      return { departureDate: date.toISOString() };
     }
 
     // "next week"
@@ -245,7 +194,7 @@ export class IntentExtractor {
       return { departureDate: date.toISOString() };
     }
 
-    // "next Monday" etc with optional return (check BEFORE "in X days" pattern)
+    // "next Monday" etc
     const dayMatch = normalizedInput.match(/next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
     if (dayMatch) {
       const targetDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(
@@ -257,26 +206,6 @@ export class IntentExtractor {
 
       const date = new Date(now);
       date.setDate(date.getDate() + daysUntil);
-
-      // Check for "returning in X days" pattern
-      const returningMatch = normalizedInput.match(/return(?:ing)?\s+in\s+(\d+)\s+days?/);
-      if (returningMatch) {
-        const returnDate = new Date(date);
-        returnDate.setDate(returnDate.getDate() + parseInt(returningMatch[1]));
-        return {
-          departureDate: date.toISOString(),
-          returnDate: returnDate.toISOString(),
-        };
-      }
-
-      return { departureDate: date.toISOString() };
-    }
-
-    // "in X days" (must come AFTER "next Monday" to avoid false matches)
-    const inDaysMatch = normalizedInput.match(/in\s+(\d+)\s+days?/);
-    if (inDaysMatch) {
-      const date = new Date(now);
-      date.setDate(date.getDate() + parseInt(inDaysMatch[1]));
       return { departureDate: date.toISOString() };
     }
 
@@ -305,8 +234,8 @@ export class IntentExtractor {
       return { passengers: parseInt(numericMatch[1]) };
     }
 
-    // "party of X" or "family of X"
-    const partyMatch = normalizedInput.match(/(?:party|family)\s+of\s+(\d+)/);
+    // "party of X"
+    const partyMatch = normalizedInput.match(/party\s+of\s+(\d+)/);
     if (partyMatch) {
       return { passengers: parseInt(partyMatch[1]) };
     }
@@ -317,7 +246,7 @@ export class IntentExtractor {
       return { passengers: parseInt(forMatch[1]) };
     }
 
-    // Written numbers (handle "party of four", "four passengers", etc)
+    // Written numbers
     const writtenNumbers: Record<string, number> = {
       one: 1,
       two: 2,
@@ -332,11 +261,6 @@ export class IntentExtractor {
     };
 
     for (const [word, num] of Object.entries(writtenNumbers)) {
-      // Check for "party of X" or "family of X" with written numbers
-      if (normalizedInput.match(new RegExp(`(?:party|family)\\s+of\\s+${word}\\b`))) {
-        return { passengers: num };
-      }
-      // Check for "X passengers"
       if (normalizedInput.includes(word + ' passenger')) {
         return { passengers: num };
       }
@@ -407,8 +331,8 @@ export class IntentExtractor {
     const normalizedInput = input.toLowerCase();
     const result: Partial<RFPData> = {};
 
-    // Extract budget with "k" suffix (e.g., "50k", "Budget 50k")
-    const budgetKMatch = input.match(/(\d{1,3})\s*k\b/i);
+    // Extract budget with "k" suffix (e.g., "50k")
+    const budgetKMatch = input.match(/\$?\s*(\d{1,3})\s*k\b/i);
     if (budgetKMatch) {
       result.budget = parseFloat(budgetKMatch[1]) * 1000;
     } else {
