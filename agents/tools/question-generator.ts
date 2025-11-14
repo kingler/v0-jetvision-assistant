@@ -10,6 +10,20 @@ import type { ExtractedRFPData } from './data-extractor';
 import type { MessageComponent } from '@/components/message-components/types';
 
 /**
+ * GPT-4 JSON response structure for question generation
+ */
+interface GPTQuestionResult {
+  question: string;
+  examples?: string[];
+  suggested_actions?: Array<{
+    id: string;
+    label: string;
+    value: string | number;
+  }>;
+  reference_context?: string;
+}
+
+/**
  * Question result
  */
 export interface QuestionResult {
@@ -43,8 +57,13 @@ export class QuestionGenerator {
   private config: QuestionGeneratorConfig;
 
   constructor(config: QuestionGeneratorConfig = {}) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey,
     });
     this.config = {
       model: config.model || 'gpt-4-turbo-preview',
@@ -114,8 +133,7 @@ export class QuestionGenerator {
         components,
       };
     } catch (error) {
-      console.error('[QuestionGenerator] Error generating question:', error);
-      // Fallback to simple question
+      // Fallback to simple question on error
       return this.generateFallbackQuestion(nextField, extractedData);
     }
   }
@@ -193,7 +211,7 @@ Example suggested_actions:
   /**
    * Build message components for rich UI
    */
-  private buildMessageComponents(result: any, field: string): MessageComponent[] {
+  private buildMessageComponents(result: GPTQuestionResult, field: string): MessageComponent[] {
     const components: MessageComponent[] = [];
 
     // Add text component with question
@@ -207,7 +225,7 @@ Example suggested_actions:
     if (result.suggested_actions && result.suggested_actions.length > 0) {
       components.push({
         type: 'action_buttons',
-        actions: result.suggested_actions.map((action: any) => ({
+        actions: result.suggested_actions.map((action) => ({
           id: action.id,
           label: action.label,
           value: action.value,
@@ -351,7 +369,7 @@ Keep responses brief (2-3 sentences) and friendly.`;
         ],
       };
     } catch (error) {
-      console.error('[QuestionGenerator] Error generating information response:', error);
+      // Fallback response on error
       return {
         question: 'I can help you book a private jet flight. What are your travel plans?',
         field: 'information',

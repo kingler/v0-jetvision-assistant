@@ -80,7 +80,8 @@ export class OrchestratorAgent extends BaseAgent {
   private dataExtractor: DataExtractor;
   private questionGenerator: QuestionGenerator;
 
-  // Conversation state store (in-memory, should use Redis in production)
+  // TODO(ONEK-115): Replace in-memory conversation state with Redis-backed storage
+  // Conversation state store (in-memory, tracked as tech debt in ONEK-115)
   private conversationStates: Map<string, ConversationState> = new Map();
 
   constructor(config: AgentConfig) {

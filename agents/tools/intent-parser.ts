@@ -44,8 +44,13 @@ export class IntentParser {
   private config: IntentParserConfig;
 
   constructor(config: IntentParserConfig = {}) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey,
     });
     this.config = {
       model: config.model || 'gpt-4-turbo-preview',
@@ -90,7 +95,6 @@ export class IntentParser {
         reasoning: result.reasoning,
       };
     } catch (error) {
-      console.error('[IntentParser] Error parsing intent:', error);
       // Default to RFP creation if uncertain
       return {
         intent: UserIntent.RFP_CREATION,

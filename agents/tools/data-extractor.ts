@@ -50,8 +50,13 @@ export class DataExtractor {
   private config: DataExtractorConfig;
 
   constructor(config: DataExtractorConfig = {}) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey,
     });
     this.config = {
       model: config.model || 'gpt-4-turbo-preview',
@@ -103,7 +108,7 @@ export class DataExtractor {
         ambiguities: result.ambiguities || [],
       };
     } catch (error) {
-      console.error('[DataExtractor] Error extracting data:', error);
+      // Return existing data with error flag on extraction failure
       return {
         data: existingData || {},
         confidence: 0,
