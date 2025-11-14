@@ -168,6 +168,7 @@
   },
   "active": "d8a02ca2b234c483",
   "lastOpenFiles": [
+    "lib/types/supabase.ts",
     "UNMERGED_BRANCHES_SUMMARY.md",
     "TASK-007-SESSION-SUMMARY.md",
     "SESSION_SUMMARY.md",
@@ -203,7 +204,6 @@
     "docs/sessions/session-summary-20251021.md",
     "docs/sessions/NEXT_TASK_ANALYSIS_20251112.md",
     "docs/sessions/CRITICAL_BACKLOGS_COMPLETED_20251112.md",
-    "reports/CLEANUP_COMPLETE_20251112.md",
     "test-results/browser-agent-workflow-Bro-3e809-ChatKit-→-Agents-→-Proposal-Mobile-Chrome/test-failed-1.png",
     "test-results/browser-agent-workflow-Bro-3e809-ChatKit-→-Agents-→-Proposal-chromium/test-failed-1.png",
     "test-results/browser-agent-workflow-Bro-98e32-Verify-widget-communication-Mobile-Chrome/test-failed-1.png",

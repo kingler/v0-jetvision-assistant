@@ -6,11 +6,12 @@
 
 -- ============================================================================
 -- DROP OLD HELPER FUNCTIONS
+-- Note: CASCADE will drop dependent policies which will be recreated later
 -- ============================================================================
 
-DROP FUNCTION IF EXISTS get_current_iso_agent_id();
-DROP FUNCTION IF EXISTS owns_resource(UUID);
-DROP FUNCTION IF EXISTS is_admin();
+DROP FUNCTION IF EXISTS get_current_iso_agent_id() CASCADE;
+DROP FUNCTION IF EXISTS owns_resource(UUID) CASCADE;
+DROP FUNCTION IF EXISTS is_admin() CASCADE;
 
 -- ============================================================================
 -- CREATE NEW HELPER FUNCTIONS

@@ -1,0 +1,11 @@
+# Ignore all worktree directories
+phase-*/
+
+# Keep archive directory
+!.archive/
+
+# Keep this .gitignore
+!.gitignore
+
+# Keep README
+!README.md

@@ -42,14 +42,17 @@ BEGIN
   END IF;
 END $$;
 
--- Step 5: Drop old role column and rename new one
+-- Step 5: Drop old role column and configure new one
 ALTER TABLE iso_agents
   DROP COLUMN role,
   ALTER COLUMN role_new SET NOT NULL,
-  ALTER COLUMN role_new SET DEFAULT 'customer'::user_role_new,
+  ALTER COLUMN role_new SET DEFAULT 'customer'::user_role_new;
+
+-- Step 6: Rename the new column to replace old one
+ALTER TABLE iso_agents
   RENAME COLUMN role_new TO role;
 
--- Step 6: Drop old enum type and rename new one
+-- Step 7: Drop old enum type and rename new one
 DROP TYPE user_role;
 ALTER TYPE user_role_new RENAME TO user_role;
 
