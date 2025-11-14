@@ -14,6 +14,10 @@ import {
   withErrorHandling,
   ErrorResponses,
 } from '@/lib/utils/api';
+import type { Database } from '@/lib/types/database';
+
+type Request = Database['public']['Tables']['requests']['Row'];
+type EmailHistory = Database['public']['Tables']['email_history']['Row'];
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -85,10 +89,10 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   // Get request details to verify ownership
   const { data: flightRequest, error: requestError } = await supabase
     .from('requests')
-    .select('id, client_id')
+    .select('id, client_profile_id')
     .eq('id', emailData.request_id)
     .eq('iso_agent_id', isoAgent.id)
-    .single();
+    .single<Pick<Request, 'id' | 'client_profile_id'>>();
 
   if (requestError || !flightRequest) {
     return ErrorResponses.notFound('Flight request not found or access denied');
@@ -97,10 +101,10 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   // TODO: In production, integrate with email service (Gmail MCP, SendGrid, etc.)
   // For now, we'll simulate email sending and store in database
 
-  const emailRecord = {
+  const emailRecord: Database['public']['Tables']['email_history']['Insert'] = {
     iso_agent_id: isoAgent.id,
     request_id: emailData.request_id,
-    client_id: flightRequest.client_id,
+    client_id: flightRequest.client_profile_id || '',
     to_email: emailData.client_email,
     cc: emailData.cc || null,
     bcc: emailData.bcc || null,
@@ -115,7 +119,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   const { data: email, error: emailError } = await supabase
     .from('email_history')
     .insert(emailRecord)
-    .select()
+    .select<'*', EmailHistory>()
     .single();
 
   if (emailError) {

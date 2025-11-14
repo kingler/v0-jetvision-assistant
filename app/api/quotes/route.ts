@@ -4,6 +4,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
+import type { Database } from '@/lib/types/database';
+
+type User = Database['public']['Tables']['users']['Row'];
+type Quote = Database['public']['Tables']['quotes']['Row'];
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -17,13 +21,17 @@ export async function GET(request: NextRequest) {
     const requestId = searchParams.get('request_id');
     const status = searchParams.get('status');
 
-    const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('clerk_user_id', userId)
+      .single<Pick<User, 'id' | 'role'>>();
+
+    if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     let query = supabase
       .from('quotes')
-      .select('*, request:requests!inner(id, departure_airport, arrival_airport, user_id)')
-      .eq('request.user_id', user.id);
+      .select('*');
 
     if (requestId) query = query.eq('request_id', requestId);
     if (status) query = query.eq('status', status);
@@ -42,15 +50,28 @@ export async function PATCH(request: NextRequest) {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { quote_id, status, notes } = await request.json();
-    if (!quote_id || !status) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const body = await request.json() as Record<string, any>;
+    const { quote_id, status, notes } = body;
+    if (!quote_id || !status) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
 
-    const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('clerk_user_id', userId)
+      .single<Pick<User, 'id' | 'role'>>();
+
+    if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const updateData: Database['public']['Tables']['quotes']['Update'] = {
+      status,
+      analysis_notes: notes || null,
+    };
 
     const { data: updatedQuote, error } = await supabase
       .from('quotes')
-      .update({ status, notes, updated_at: new Date().toISOString() })
+      .update(updateData)
       .eq('id', quote_id)
       .select()
       .single();
@@ -58,7 +79,10 @@ export async function PATCH(request: NextRequest) {
     if (error) return NextResponse.json({ error: 'Failed to update quote' }, { status: 500 });
 
     if (status === 'accepted') {
-      await supabase.from('requests').update({ status: 'completed' }).eq('id', updatedQuote.request_id);
+      await supabase
+        .from('requests')
+        .update({ status: 'completed' })
+        .eq('id', updatedQuote.request_id);
     }
 
     return NextResponse.json({ quote: updatedQuote });

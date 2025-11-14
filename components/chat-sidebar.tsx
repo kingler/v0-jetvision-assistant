@@ -21,6 +21,22 @@ export interface ChatSession {
   basePrice?: number
   totalPrice?: number
   margin?: number
+  chatkitThreadId?: string
+  selectedQuoteId?: string
+  quotes?: Array<{
+    id: string
+    operatorName: string
+    aircraftType: string
+    price: number
+    score?: number
+    ranking?: number
+    totalQuotes?: number
+    operatorRating?: number
+    departureTime?: string
+    arrivalTime?: string
+    flightDuration?: string
+    isRecommended?: boolean
+  }>
   customer?: {
     name: string
     isReturning: boolean
@@ -35,6 +51,7 @@ export interface ChatSession {
     showProposal?: boolean
     showQuoteStatus?: boolean
     showCustomerPreferences?: boolean
+    showQuotes?: boolean
   }>
 }
 

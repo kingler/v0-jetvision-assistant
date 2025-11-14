@@ -159,6 +159,47 @@ export interface AgentExecution {
   created_at: string;
 }
 
+export interface User {
+  id: string;
+  clerk_user_id: string;
+  email: string;
+  full_name: string | null;
+  role: UserRole;
+  metadata: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailHistory {
+  id: string;
+  iso_agent_id: string;
+  request_id: string;
+  client_id: string;
+  to_email: string;
+  cc: string[] | null;
+  bcc: string[] | null;
+  subject: string;
+  body: string;
+  template_id: string | null;
+  attachments: Record<string, any>[] | null;
+  status: string;
+  sent_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowHistory {
+  id: string;
+  request_id: string;
+  from_state: RequestStatus;
+  to_state: RequestStatus;
+  agent_id: string | null;
+  metadata: Record<string, any>;
+  transitioned_at: string;
+  created_at: string;
+}
+
 // ============================================================================
 // DATABASE SCHEMA TYPE
 // ============================================================================
@@ -217,6 +258,32 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Omit<AgentExecution, 'id' | 'created_at'>>;
+      };
+      users: {
+        Row: User;
+        Insert: Omit<User, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      email_history: {
+        Row: EmailHistory;
+        Insert: Omit<EmailHistory, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<EmailHistory, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      workflow_history: {
+        Row: WorkflowHistory;
+        Insert: Omit<WorkflowHistory, 'id' | 'created_at'> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Omit<WorkflowHistory, 'id' | 'created_at'>>;
       };
     };
     Views: {};

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { WorkflowVisualization } from "./workflow-visualization"
 import { ProposalPreview } from "./proposal-preview"
 import { QuoteCard } from "@/components/aviation"
-import type { ChatSession, Quote } from "./chat-sidebar"
+import type { ChatSession } from "./chat-sidebar"
 import { ChatKitWidget } from "./chatkit-widget"
 
 interface ChatInterfaceProps {
@@ -302,7 +302,7 @@ export function ChatInterface({
 
   const QuoteComparisonDisplay = () => {
     const quotes = activeChat.quotes || []
-    const sortedQuotes = [...quotes].sort((a, b) => a.rank - b.rank)
+    const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
 
     if (quotes.length === 0) {
       return (
@@ -338,21 +338,18 @@ export function ChatInterface({
           {sortedQuotes.map((quote) => (
             <QuoteCard
               key={quote.id}
-              id={quote.id}
               operatorName={quote.operatorName}
               aircraftType={quote.aircraftType}
               price={quote.price}
-              aiScore={quote.aiScore}
-              rank={quote.rank}
+              score={quote.score}
+              ranking={quote.ranking}
               totalQuotes={quotes.length}
               operatorRating={quote.operatorRating}
               departureTime={quote.departureTime}
               arrivalTime={quote.arrivalTime}
               flightDuration={quote.flightDuration}
               isRecommended={quote.isRecommended}
-              isSelected={activeChat.selectedQuoteId === quote.id}
               onSelect={() => handleSelectQuote(quote.id)}
-              compact={false}
             />
           ))}
         </div>
