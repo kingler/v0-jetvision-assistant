@@ -208,12 +208,12 @@ export class IntentExtractor {
       }
     }
 
-    // Handle "tomorrow, returning in X days"
+    // Handle "tomorrow, returning in X days" or "tomorrow, return in X days"
     if (normalizedInput.includes('tomorrow')) {
       const tomorrow = new Date(now);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const returningMatch = normalizedInput.match(/returning\s+in\s+(\d+)\s+days?/);
+      const returningMatch = normalizedInput.match(/return(?:ing)?\s+in\s+(\d+)\s+days?/);
       if (returningMatch) {
         const returnDate = new Date(tomorrow);
         returnDate.setDate(returnDate.getDate() + parseInt(returningMatch[1]));
