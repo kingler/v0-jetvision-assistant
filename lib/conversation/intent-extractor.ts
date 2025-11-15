@@ -238,14 +238,6 @@ export class IntentExtractor {
       return { departureDate: yesterday.toISOString() };
     }
 
-    // "in X days"
-    const inDaysMatch = normalizedInput.match(/in\s+(\d+)\s+days?/);
-    if (inDaysMatch) {
-      const date = new Date(now);
-      date.setDate(date.getDate() + parseInt(inDaysMatch[1]));
-      return { departureDate: date.toISOString() };
-    }
-
     // "next week"
     if (normalizedInput.includes('next week')) {
       const date = new Date(now);
@@ -253,7 +245,7 @@ export class IntentExtractor {
       return { departureDate: date.toISOString() };
     }
 
-    // "next Monday" etc
+    // "next Monday" etc with optional return (check BEFORE "in X days" pattern)
     const dayMatch = normalizedInput.match(/next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
     if (dayMatch) {
       const targetDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(
@@ -265,6 +257,26 @@ export class IntentExtractor {
 
       const date = new Date(now);
       date.setDate(date.getDate() + daysUntil);
+
+      // Check for "returning in X days" pattern
+      const returningMatch = normalizedInput.match(/return(?:ing)?\s+in\s+(\d+)\s+days?/);
+      if (returningMatch) {
+        const returnDate = new Date(date);
+        returnDate.setDate(returnDate.getDate() + parseInt(returningMatch[1]));
+        return {
+          departureDate: date.toISOString(),
+          returnDate: returnDate.toISOString(),
+        };
+      }
+
+      return { departureDate: date.toISOString() };
+    }
+
+    // "in X days" (must come AFTER "next Monday" to avoid false matches)
+    const inDaysMatch = normalizedInput.match(/in\s+(\d+)\s+days?/);
+    if (inDaysMatch) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + parseInt(inDaysMatch[1]));
       return { departureDate: date.toISOString() };
     }
 
@@ -293,8 +305,8 @@ export class IntentExtractor {
       return { passengers: parseInt(numericMatch[1]) };
     }
 
-    // "party of X"
-    const partyMatch = normalizedInput.match(/party\s+of\s+(\d+)/);
+    // "party of X" or "family of X"
+    const partyMatch = normalizedInput.match(/(?:party|family)\s+of\s+(\d+)/);
     if (partyMatch) {
       return { passengers: parseInt(partyMatch[1]) };
     }
@@ -305,7 +317,7 @@ export class IntentExtractor {
       return { passengers: parseInt(forMatch[1]) };
     }
 
-    // Written numbers
+    // Written numbers (handle "party of four", "four passengers", etc)
     const writtenNumbers: Record<string, number> = {
       one: 1,
       two: 2,
@@ -320,6 +332,11 @@ export class IntentExtractor {
     };
 
     for (const [word, num] of Object.entries(writtenNumbers)) {
+      // Check for "party of X" or "family of X" with written numbers
+      if (normalizedInput.match(new RegExp(`(?:party|family)\\s+of\\s+${word}\\b`))) {
+        return { passengers: num };
+      }
+      // Check for "X passengers"
       if (normalizedInput.includes(word + ' passenger')) {
         return { passengers: num };
       }
@@ -390,8 +407,8 @@ export class IntentExtractor {
     const normalizedInput = input.toLowerCase();
     const result: Partial<RFPData> = {};
 
-    // Extract budget with "k" suffix (e.g., "50k")
-    const budgetKMatch = input.match(/\$?\s*(\d{1,3})\s*k\b/i);
+    // Extract budget with "k" suffix (e.g., "50k", "Budget 50k")
+    const budgetKMatch = input.match(/(\d{1,3})\s*k\b/i);
     if (budgetKMatch) {
       result.budget = parseFloat(budgetKMatch[1]) * 1000;
     } else {
