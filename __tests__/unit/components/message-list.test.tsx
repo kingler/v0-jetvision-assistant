@@ -15,6 +15,9 @@ describe('MessageList', () => {
   let mockMessages: Message[];
 
   beforeEach(() => {
+    // Mock scrollIntoView for jsdom
+    Element.prototype.scrollIntoView = vi.fn();
+
     mockMessages = [
       {
         id: 'msg-1',
