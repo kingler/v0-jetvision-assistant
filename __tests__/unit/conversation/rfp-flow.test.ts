@@ -84,7 +84,7 @@ describe('RFPFlow', () => {
 
     it('should extract departure date from date input', () => {
       flow.processInput('From JFK to LAX');
-      flow.processInput('December 25th, 2024');
+      flow.processInput('December 25th, 2025');
 
       const data = flow.getData();
       expect(data.departureDate).toBeDefined();
