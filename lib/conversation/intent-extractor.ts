@@ -25,11 +25,11 @@ export class IntentExtractor {
     }
 
     // Pattern: "from X to Y"
-    match = normalizedInput.match(/from\s+([a-z\s]+?)\s+to\s+([a-z\s]+?)(?:\s|$)/i);
+    match = normalizedInput.match(/from\s+([a-z\s]+)\s+to\s+([a-z\s]+?)$/i);
     if (match) {
       return {
-        departure: this.cleanCityName(match[1]),
-        arrival: this.cleanCityName(match[2]),
+        departure: this.cleanCityName(match[1].trim()),
+        arrival: this.cleanCityName(match[2].trim()),
         confidence: 0.95,
       };
     }
@@ -102,25 +102,26 @@ export class IntentExtractor {
     const normalizedInput = input.toLowerCase();
     const now = new Date();
 
-    // Extract explicit dates first (December 25th, 2024)
-    const explicitDateMatch = input.match(
+    const monthNames = [
+      'january',
+      'february',
+      'march',
+      'april',
+      'may',
+      'june',
+      'july',
+      'august',
+      'september',
+      'october',
+      'november',
+      'december',
+    ];
+
+    // Extract explicit dates with year (December 25th, 2024)
+    let explicitDateMatch = input.match(
       /(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/i
     );
     if (explicitDateMatch) {
-      const monthNames = [
-        'january',
-        'february',
-        'march',
-        'april',
-        'may',
-        'june',
-        'july',
-        'august',
-        'september',
-        'october',
-        'november',
-        'december',
-      ];
       const monthIndex = monthNames.indexOf(explicitDateMatch[1].toLowerCase());
       if (monthIndex !== -1) {
         const date = new Date(
@@ -141,6 +142,57 @@ export class IntentExtractor {
             if (returnMonthIndex !== -1) {
               const returnDate = new Date(
                 parseInt(returnDateMatch[3]),
+                returnMonthIndex,
+                parseInt(returnDateMatch[2])
+              );
+              return {
+                departureDate: date.toISOString(),
+                returnDate: returnDate.toISOString(),
+              };
+            }
+          }
+        }
+
+        return { departureDate: date.toISOString() };
+      }
+    }
+
+    // Extract explicit dates without year (December 25th) - assume current or next year
+    explicitDateMatch = input.match(
+      /(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?(?!\s*,?\s*\d{4})/i
+    );
+    if (explicitDateMatch) {
+      const monthIndex = monthNames.indexOf(explicitDateMatch[1].toLowerCase());
+      if (monthIndex !== -1) {
+        const currentYear = now.getFullYear();
+        let date = new Date(
+          currentYear,
+          monthIndex,
+          parseInt(explicitDateMatch[2])
+        );
+
+        // If date is in the past, use next year
+        if (date < now) {
+          date = new Date(
+            currentYear + 1,
+            monthIndex,
+            parseInt(explicitDateMatch[2])
+          );
+        }
+
+        // Check for return date in same input
+        const returnMatchIndex = input.toLowerCase().indexOf('return');
+        if (returnMatchIndex > 0) {
+          const returnPart = input.substring(returnMatchIndex);
+          const returnDateMatch = returnPart.match(
+            /(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?/i
+          );
+          if (returnDateMatch) {
+            const returnMonthIndex = monthNames.indexOf(returnDateMatch[1].toLowerCase());
+            if (returnMonthIndex !== -1) {
+              const returnYear = returnMonthIndex < monthIndex ? currentYear + 1 : currentYear;
+              const returnDate = new Date(
+                returnYear,
                 returnMonthIndex,
                 parseInt(returnDateMatch[2])
               );
@@ -177,6 +229,13 @@ export class IntentExtractor {
     // Handle "today"
     if (normalizedInput.includes('today')) {
       return { departureDate: now.toISOString() };
+    }
+
+    // Handle "yesterday" (will be caught by validator as invalid)
+    if (normalizedInput.includes('yesterday')) {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return { departureDate: yesterday.toISOString() };
     }
 
     // "in X days"
