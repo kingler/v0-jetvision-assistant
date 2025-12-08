@@ -67,7 +67,7 @@ CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
 DECLARE
   agent_id UUID;
-  user_role user_role;
+  agent_role user_role;  -- Renamed to avoid shadowing the user_role type
 BEGIN
   agent_id := get_current_iso_agent_id();
 
@@ -75,11 +75,11 @@ BEGIN
     RETURN FALSE;
   END IF;
 
-  SELECT role INTO user_role
+  SELECT role INTO agent_role
   FROM iso_agents
   WHERE id = agent_id;
 
-  RETURN user_role = 'admin';
+  RETURN agent_role = 'admin';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 

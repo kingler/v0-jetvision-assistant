@@ -62,6 +62,7 @@ export type ConversationType =
   | 'rfp_negotiation'
   | 'quote_discussion'
   | 'general_inquiry'
+  | 'booking_confirmation'
   | 'support';
 
 export type ConversationStatus =
@@ -322,23 +323,32 @@ export interface WorkflowHistory {
 
 export interface OperatorProfile {
   id: string;
+  // Avinode identifiers
   avinode_operator_id: string;
+  avinode_company_id: string | null;
+  // Profile info
   company_name: string;
+  contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
-  contact_name: string | null;
-  headquarters_location: string | null;
-  operator_rating: number | null;
-  total_quotes: number;
-  accepted_quotes: number;
-  average_response_time_hours: number | null;
-  aircraft_types: string[];
-  certifications: string[];
-  operating_regions: string[];
-  is_preferred: boolean;
+  // Business details
+  aoc_number: string | null;           // Air Operator Certificate
+  country_code: string | null;
+  region: string | null;
+  operator_rating: number | null;      // 0-5 scale from Avinode
+  fleet_size: number | null;
+  // Capabilities
+  aircraft_types: string[];            // Array of aircraft types operated
+  certifications: string[];            // ARGUS, Wyvern, IS-BAO, etc.
+  // Communication preferences
+  preferred_contact_method: 'avinode' | 'email' | 'both';
+  notification_preferences: Record<string, any>;
+  // Status
   is_active: boolean;
-  notes: string | null;
+  is_preferred_partner: boolean;
+  // Metadata
   metadata: Record<string, any>;
+  last_synced_at: string | null;
   created_at: string;
   updated_at: string;
 }

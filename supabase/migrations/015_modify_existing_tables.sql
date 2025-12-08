@@ -140,34 +140,16 @@ ALTER TABLE conversation_participants
 
 -- ============================================================================
 -- EXTEND: request_status enum with Avinode states
--- Note: PostgreSQL doesn't allow direct ALTER TYPE ADD VALUE in transaction
--- So we need to do this outside transaction or use a workaround
+-- Note: ALTER TYPE ADD VALUE IF NOT EXISTS requires PostgreSQL 9.3+
+-- These statements must run outside transaction blocks in some contexts
 -- ============================================================================
 
 -- Add new request statuses for Avinode workflow
--- (This may need to be run separately if in a transaction)
-DO $$
-BEGIN
-  -- Check if 'trip_created' already exists
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'trip_created' AND enumtypid = 'request_status'::regtype) THEN
-    ALTER TYPE request_status ADD VALUE 'trip_created' AFTER 'fetching_client_data';
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'awaiting_user_action' AND enumtypid = 'request_status'::regtype) THEN
-    ALTER TYPE request_status ADD VALUE 'awaiting_user_action' AFTER 'trip_created';
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'avinode_session_active' AND enumtypid = 'request_status'::regtype) THEN
-    ALTER TYPE request_status ADD VALUE 'avinode_session_active' AFTER 'awaiting_user_action';
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'monitoring_for_quotes' AND enumtypid = 'request_status'::regtype) THEN
-    ALTER TYPE request_status ADD VALUE 'monitoring_for_quotes' AFTER 'avinode_session_active';
-  END IF;
-EXCEPTION
-  WHEN duplicate_object THEN
-    NULL; -- Ignore if already exists
-END $$;
+-- Using IF NOT EXISTS to safely add enum values (PostgreSQL 9.3+)
+ALTER TYPE request_status ADD VALUE IF NOT EXISTS 'trip_created';
+ALTER TYPE request_status ADD VALUE IF NOT EXISTS 'awaiting_user_action';
+ALTER TYPE request_status ADD VALUE IF NOT EXISTS 'avinode_session_active';
+ALTER TYPE request_status ADD VALUE IF NOT EXISTS 'monitoring_for_quotes';
 
 -- ============================================================================
 -- FUNCTION: Get conversation for a request (creates if needed)
