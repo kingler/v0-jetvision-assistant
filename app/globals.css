@@ -1,69 +1,129 @@
+/**
+ * Jetvision Group Global Styles
+ *
+ * This file integrates with the design system tokens (lib/design-system/tokens.ts)
+ * and provides CSS variables for runtime theming (light/dark mode).
+ *
+ * The Tailwind theme extends our design tokens via tailwind.config.ts.
+ * CSS variables here enable runtime dark mode switching.
+ *
+ * Design System Colors (from tokens):
+ * - Aviation Blue: #0066cc (primary brand)
+ * - Sky Blue: #00a8e8 (secondary)
+ * - Sunset Orange: #ff6b35 (accent)
+ */
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ==========================================================================
+   CSS Variables - Light Mode (Default)
+   These map to design system semantic colors for runtime theming
+   ========================================================================== */
+
 :root {
-  --background: oklch(1 0 0); /* #ffffff */
-  --foreground: oklch(0.25 0 0); /* #374151 */
-  --card: oklch(0.98 0 0); /* #f9fafb */
-  --card-foreground: oklch(0.3 0 0); /* #4b5563 */
-  --popover: oklch(1 0 0); /* #ffffff */
-  --popover-foreground: oklch(0.25 0 0); /* #374151 */
-  --primary: oklch(0.5 0.18 250); /* #0066cc Aviation Blue */
-  --primary-foreground: oklch(1 0 0); /* #ffffff */
-  --secondary: oklch(0.65 0.18 220); /* #00a8e8 Sky Blue */
-  --secondary-foreground: oklch(1 0 0); /* #ffffff */
-  --muted: oklch(0.98 0 0); /* #f9fafb */
-  --muted-foreground: oklch(0.3 0 0); /* #4b5563 */
-  --accent: oklch(0.65 0.22 40); /* #ff6b35 Sunset Orange */
-  --accent-foreground: oklch(1 0 0); /* #ffffff */
-  --destructive: oklch(0.55 0.22 25); /* #dc2626 */
-  --destructive-foreground: oklch(1 0 0); /* #ffffff */
-  --border: oklch(0.92 0 0); /* #e5e7eb */
-  --input: oklch(1 0 0); /* #ffffff */
-  --ring: oklch(0.55 0.15 200); /* #0891b2 */
-  --chart-1: oklch(0.6 0.2 260); /* #6366f1 */
-  --chart-2: oklch(0.7 0.15 70); /* #f59e0b */
-  --chart-3: oklch(0.55 0.22 25); /* #dc2626 */
-  --chart-4: oklch(0.3 0 0); /* #4b5563 */
-  --chart-5: oklch(0.95 0.05 130); /* #dcfce7 */
+  /* Base colors */
+  --background: oklch(1 0 0); /* white */
+  --foreground: oklch(0.25 0 0); /* neutral-700 */
+
+  /* Card surfaces */
+  --card: oklch(0.98 0 0); /* neutral-50 */
+  --card-foreground: oklch(0.3 0 0); /* neutral-600 */
+
+  /* Popover surfaces */
+  --popover: oklch(1 0 0); /* white */
+  --popover-foreground: oklch(0.25 0 0); /* neutral-700 */
+
+  /* Primary - Aviation Blue */
+  --primary: oklch(0.5 0.18 250); /* #0066cc */
+  --primary-foreground: oklch(1 0 0); /* white */
+
+  /* Secondary - Sky Blue */
+  --secondary: oklch(0.65 0.18 220); /* #00a8e8 */
+  --secondary-foreground: oklch(1 0 0); /* white */
+
+  /* Muted surfaces */
+  --muted: oklch(0.98 0 0); /* neutral-50 */
+  --muted-foreground: oklch(0.3 0 0); /* neutral-600 */
+
+  /* Accent - Sunset Orange */
+  --accent: oklch(0.65 0.22 40); /* #ff6b35 */
+  --accent-foreground: oklch(1 0 0); /* white */
+
+  /* Destructive/Error */
+  --destructive: oklch(0.55 0.22 25); /* error red */
+  --destructive-foreground: oklch(1 0 0); /* white */
+
+  /* Borders and inputs */
+  --border: oklch(0.92 0 0); /* neutral-200 */
+  --input: oklch(1 0 0); /* white */
+  --ring: oklch(0.55 0.15 200); /* focus ring */
+
+  /* Chart colors */
+  --chart-1: oklch(0.6 0.2 260);
+  --chart-2: oklch(0.7 0.15 70);
+  --chart-3: oklch(0.55 0.22 25);
+  --chart-4: oklch(0.3 0 0);
+  --chart-5: oklch(0.95 0.05 130);
+
+  /* Base radius (used with calc for variants) */
   --radius: 0.5rem;
-  --sidebar: oklch(0.98 0 0); /* #f9fafb */
-  --sidebar-foreground: oklch(0.25 0 0); /* #374151 */
-  --sidebar-primary: oklch(1 0 0); /* #ffffff */
-  --sidebar-primary-foreground: oklch(0.55 0.15 200); /* #0891b2 */
-  --sidebar-accent: oklch(0.7 0.15 70); /* #f59e0b */
-  --sidebar-accent-foreground: oklch(0.25 0 0); /* #374151 */
-  --sidebar-border: oklch(0.92 0 0); /* #e5e7eb */
-  --sidebar-ring: oklch(0.55 0.15 200); /* #0891b2 */
+
+  /* Sidebar */
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.25 0 0);
+  --sidebar-primary: oklch(1 0 0);
+  --sidebar-primary-foreground: oklch(0.55 0.15 200);
+  --sidebar-accent: oklch(0.7 0.15 70);
+  --sidebar-accent-foreground: oklch(0.25 0 0);
+  --sidebar-border: oklch(0.92 0 0);
+  --sidebar-ring: oklch(0.55 0.15 200);
 }
+
+/* ==========================================================================
+   CSS Variables - Dark Mode
+   ========================================================================== */
 
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
+
   --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
+
   --popover: oklch(0.145 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.6 0.20 250); /* Lighter Aviation Blue for dark mode */
+
+  /* Primary - Aviation Blue (lighter for dark mode) */
+  --primary: oklch(0.6 0.20 250);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.70 0.20 220); /* Lighter Sky Blue for dark mode */
+
+  /* Secondary - Sky Blue (lighter for dark mode) */
+  --secondary: oklch(0.70 0.20 220);
   --secondary-foreground: oklch(0.145 0 0);
+
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.70 0.24 40); /* Sunset Orange bright in dark mode */
+
+  /* Accent - Sunset Orange (brighter for dark mode) */
+  --accent: oklch(0.70 0.24 40);
   --accent-foreground: oklch(0.98 0 0);
+
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
+
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.6 0.15 200);
+
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -74,10 +134,18 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+/* ==========================================================================
+   Tailwind v4 Theme Inline
+   Maps CSS variables to Tailwind utility classes
+   Design system tokens are extended in tailwind.config.ts
+   ========================================================================== */
+
 @theme inline {
+  /* Font families from design system (lib/design-system/tokens.ts) */
   --font-sans: Arial, sans-serif;
   --font-mono: "Courier New", monospace;
-  /* Updated font families to use Arial for sans and Courier New for mono */
+
+  /* Map CSS variables to Tailwind color utilities */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -102,10 +170,14 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  /* Border radius scale */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Sidebar colors */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -116,10 +188,15 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ==========================================================================
+   Base Layer - Global Element Styles
+   ========================================================================== */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

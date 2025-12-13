@@ -984,6 +984,139 @@ Each worktree contains `WORKSPACE_META.json`:
 
 ---
 
+## Claude Code Terminal Orchestration
+
+The system supports spawning isolated Claude Code terminal instances for Linear issue implementation. Each terminal runs in its own git worktree workspace.
+
+### Terminal Manager
+
+The `TerminalManager` handles lifecycle management of Claude Code processes:
+
+```typescript
+import { terminalManager, TerminalStatus } from '@agents/coordination'
+
+// Spawn a new Claude Code terminal
+const terminal = await terminalManager.spawnTerminal({
+  linearIssueId: 'ONEK-123',
+  branch: 'feat/onek-123-user-auth',
+  phase: 3, // Implementation phase
+  agentType: 'backend-developer',
+  prompt: 'Implement user authentication',
+  timeout: 30 * 60 * 1000, // 30 minutes
+})
+
+// Monitor terminal
+console.log(`Terminal ${terminal.id} PID: ${terminal.pid}`)
+console.log(`Worktree: ${terminal.worktreePath}`)
+
+// Get running terminals
+const running = terminalManager.getRunningTerminals()
+
+// Terminate terminal
+await terminalManager.terminateTerminal(terminal.id, 'User request')
+```
+
+### Linear Issue Agent Spawner
+
+For Linear issue delegation, use the `LinearAgentSpawner`:
+
+```typescript
+import {
+  linearAgentSpawner,
+  spawnAgentForLinearIssue,
+  spawnAgentsForLinearIssues
+} from '@agents/coordination'
+
+// Spawn agent for single issue
+const terminal = await spawnAgentForLinearIssue({
+  issueId: 'ONEK-123',
+  title: 'Implement user authentication',
+  description: 'Add login/logout functionality',
+  agentType: 'backend-developer',
+  phase: 3,
+  priority: 'high',
+})
+
+// Spawn agents for multiple issues in parallel
+const terminals = await spawnAgentsForLinearIssues([
+  { issueId: 'ONEK-123', title: 'Auth', agentType: 'backend-developer' },
+  { issueId: 'ONEK-124', title: 'UI', agentType: 'frontend-developer' },
+  { issueId: 'ONEK-125', title: 'Tests', agentType: 'test-engineer', phase: 2 },
+])
+```
+
+### Terminal Handoffs
+
+The `HandoffManager` supports terminal-based handoffs:
+
+```typescript
+import { handoffManager } from '@agents/coordination'
+
+// Handoff task to new terminal
+const terminal = await handoffManager.handoffToTerminal(
+  task,
+  {
+    linearIssueId: 'ONEK-123',
+    branch: 'feat/onek-123-feature',
+    phase: 3,
+    agentType: 'backend-developer',
+    prompt: 'Implement the feature',
+  },
+  context
+)
+
+// Batch handoff for parallel execution
+const terminals = await handoffManager.batchHandoffToTerminals(
+  [
+    { task: task1, config: config1 },
+    { task: task2, config: config2 },
+  ],
+  context
+)
+
+// Get active terminal handoffs
+const active = handoffManager.getActiveTerminalHandoffs()
+```
+
+### Message Types for Terminal Events
+
+New message types for terminal lifecycle:
+
+```typescript
+enum MessageType {
+  // ... existing types ...
+  TERMINAL_SPAWNED = 'terminal_spawned',
+  TERMINAL_OUTPUT = 'terminal_output',
+  TERMINAL_COMPLETED = 'terminal_completed',
+  TERMINAL_FAILED = 'terminal_failed',
+  TERMINAL_TERMINATED = 'terminal_terminated',
+  WORKTREE_CREATED = 'worktree_created',
+  WORKTREE_CLEANUP = 'worktree_cleanup',
+}
+
+// Subscribe to terminal events
+messageBus.subscribe(MessageType.TERMINAL_COMPLETED, async (message) => {
+  const { terminalId, linearIssueId, exitCode } = message.payload
+  console.log(`Terminal ${terminalId} for ${linearIssueId} completed: ${exitCode}`)
+})
+```
+
+### Agent Type to Phase Mapping
+
+Agents are mapped to SDLC phases:
+
+| Agent Type | Phase | Name |
+|------------|-------|------|
+| architect, system-architect | 1 | branch-init |
+| qa, test-engineer, qa-engineer-seraph | 2 | test-creation |
+| backend-developer, frontend-developer, fullstack-developer | 3 | implementation |
+| code-reviewer, code-review-coordinator | 4 | code-review |
+| performance-engineer, legacy-modernizer | 5 | iteration |
+| git-workflow, devops | 6 | pr-creation |
+| deployment-engineer | 9 | merge |
+
+---
+
 ## Next Implementation Phases
 
 ### Phase 2: MCP Server Infrastructure (Next)

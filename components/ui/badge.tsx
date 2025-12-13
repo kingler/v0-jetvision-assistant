@@ -4,19 +4,41 @@ import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
+/**
+ * Badge Component - Jetvision Design System
+ *
+ * Uses semantic colors from design system tokens.
+ * Variants map to brand and semantic colors.
+ */
 const badgeVariants = cva(
   'inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden',
   {
     variants: {
       variant: {
+        // Primary - Aviation Blue (#0066cc)
         default:
           'border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90',
+        // Secondary - Sky Blue (#00a8e8)
         secondary:
           'border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
+        // Accent - Sunset Orange (#ff6b35)
+        accent:
+          'border-transparent bg-accent text-accent-foreground [a&]:hover:bg-accent/90',
+        // Destructive/Error
         destructive:
           'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
+        // Outline
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
+        // Success - Semantic color
+        success:
+          'border-transparent bg-success text-white [a&]:hover:bg-success/90',
+        // Warning - Semantic color
+        warning:
+          'border-transparent bg-warning text-white [a&]:hover:bg-warning/90',
+        // Info - Semantic color
+        info:
+          'border-transparent bg-info text-white [a&]:hover:bg-info/90',
       },
     },
     defaultVariants: {
