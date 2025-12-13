@@ -71,3 +71,51 @@ Agent workspaces use git worktrees in `.context/workspaces/` for parallel isolat
 | 9 | merge | Branch merge |
 
 See `CLAUDE.md` for detailed workspace management documentation.
+
+## CI/CD Workflows (GitHub Actions)
+
+Automated pipelines in `.github/workflows/` enforce quality gates on every PR and push.
+
+### Workflow Overview
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `code-review.yml` | PR, push to main/develop | Automated code quality checks |
+| `pr-code-review.yml` | PR events | Detailed PR review with comments |
+| `linear-sync.yml` | PR events | Sync PR status to Linear issues |
+| `auto-create-pr.yml` | Push to feature branches | Auto-create PRs for new branches |
+| `review-command.yml` | PR comment `/review` | On-demand review trigger |
+
+### Review Jobs
+
+Each PR triggers 4 automated review jobs:
+
+1. **code-review** - Type checking, linting, unit/integration tests, coverage (≥75%)
+2. **security-review** - `npm audit`, secret scanning with trufflehog
+3. **architecture-review** - BaseAgent extension check, MCP SDK usage, API error handling
+4. **performance-review** - Production build, bundle size analysis
+
+### Automated PR Labels
+
+PRs receive labels based on review status:
+
+- `✅ code-review-passed` + `ready-for-merge` - All checks pass
+- `⚠️ code-review-failed` + `needs-work` - Issues found
+
+### Linear Integration
+
+The `linear-sync.yml` workflow automatically:
+
+- Extracts Linear IDs (e.g., `ONEK-123`) from branch name, PR title, or body
+- Updates Linear issue state when PR is opened, ready for review, or merged
+- Posts PR links as comments on linked Linear issues
+
+### Running Checks Locally
+
+```bash
+pnpm type-check      # TypeScript validation
+pnpm lint            # ESLint + Prettier
+pnpm test:unit       # Unit tests
+pnpm test:coverage   # Coverage report (75% threshold)
+pnpm review:validate # Full validation suite
+```

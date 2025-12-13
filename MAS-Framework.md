@@ -195,9 +195,43 @@ Follow TDD cycle:
 Branch naming: `<type>/<TASK-ID>-<description>`
 
 Examples:
+
 - `feature/TASK-001-user-auth`
 - `fix/BUG-042-validation-error`
 - `refactor/TECH-015-database-client`
+
+## CI/CD Workflows (GitHub Actions)
+
+Automated quality gates run on every PR and push via `.github/workflows/`:
+
+| Workflow | Purpose |
+|----------|---------|
+| `code-review.yml` | Type check, lint, tests, coverage |
+| `pr-code-review.yml` | PR comments, labels, detailed reports |
+| `linear-sync.yml` | Sync PR status to Linear issues |
+| `auto-create-pr.yml` | Auto-create PRs for feature branches |
+
+### Review Jobs
+
+- **code-review** - TypeScript, ESLint, unit/integration tests, coverage ≥75%
+- **security-review** - `npm audit`, secret scanning
+- **architecture-review** - BaseAgent extension, API error handling
+- **performance-review** - Build validation, bundle analysis
+
+### PR Labels
+
+- `✅ code-review-passed` + `ready-for-merge` - All checks pass
+- `⚠️ code-review-failed` + `needs-work` - Issues found
+
+### Local Validation
+
+```bash
+pnpm type-check      # TypeScript
+pnpm lint            # ESLint + Prettier
+pnpm test:unit       # Unit tests
+pnpm test:coverage   # Coverage (75% threshold)
+pnpm review:validate # Full validation
+```
 
 ## Documentation
 
