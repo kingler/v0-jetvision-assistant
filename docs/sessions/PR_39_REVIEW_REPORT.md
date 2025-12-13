@@ -100,7 +100,7 @@ This PR adds:
 **Error**: `ERR_PNPM_OUTDATED_LOCKFILE`
 
 **Root Cause**:
-The `pnpm-lock.yaml` is out of sync with `mcp-servers/avainode-mcp-server/package.json`
+The `pnpm-lock.yaml` is out of sync with `mcp-servers/avinode-mcp-server/package.json`
 
 **Missing Dependencies** (16 packages):
 - `@cloudflare/workers-types@^4.20250823.0`
@@ -222,9 +222,9 @@ npm run review:validate
 - Statements: ≥75%
 
 **New Test Files Added**:
-- `mcp-servers/avainode-mcp-server/tests/unit/avainode-tools.test.ts`
-- `mcp-servers/avainode-mcp-server/tests/integration/avainode-api.test.ts`
-- `mcp-servers/avainode-mcp-server/tests/e2e/avainode-server.test.ts`
+- `mcp-servers/avinode-mcp-server/tests/unit/avinode-tools.test.ts`
+- `mcp-servers/avinode-mcp-server/tests/integration/avinode-api.test.ts`
+- `mcp-servers/avinode-mcp-server/tests/e2e/avinode-server.test.ts`
 
 ---
 

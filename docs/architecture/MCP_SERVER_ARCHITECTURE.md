@@ -1,22 +1,31 @@
-# MCP Server Architecture Plan - Week 2 Implementation
+# MCP Server Architecture
 
 **Project**: Jetvision AI Assistant
-**Phase**: Week 2 - MCP Server Infrastructure
-**Planning Date**: October 21, 2025
-**Execution Window**: October 27 - November 2, 2025
-**Planner**: Project Coordinator Agent
+**Version**: 2.0
+**Last Updated**: December 8, 2025
+**Original Planning Date**: October 21, 2025
 
 ---
 
 ## Executive Summary
 
-This document defines the comprehensive architecture and implementation plan for all Model Context Protocol (MCP) servers in the Jetvision system. The MCP infrastructure provides the bridge between AI agents and external services (Avinode, Gmail, Google Sheets), enabling tool-based AI interactions.
+This document defines the comprehensive architecture for all Model Context Protocol (MCP) servers in the Jetvision system. The MCP infrastructure provides the bridge between AI agents and external services (Avinode, Gmail, Google Sheets), enabling tool-based AI interactions.
 
-**Week 2 delivers 4 MCP servers**:
-1. **MCP Base Infrastructure** (TASK-007 / DES-84)
-2. **Avinode MCP Server** (TASK-008 / DES-85)
-3. **Gmail MCP Server** (TASK-009 / DES-86)
-4. **Google Sheets MCP Server** (TASK-010 / DES-87)
+### Architecture Evolution (Phase 2)
+
+**Key Change**: The Avinode B2B API returns deep links to their Web UI, not direct flight data. This fundamentally changes the integration pattern:
+
+- **Before**: `FlightSearchAgent` → `search_flights` → Returns `FlightOption[]` directly
+- **After**: `FlightSearchAgent` → `create_trip` → Returns `{ tripId, deepLink }` → User browses Avinode → Webhooks deliver quotes
+
+This requires a **webhook-driven architecture** for receiving Avinode events asynchronously.
+
+### MCP Servers
+
+1. **MCP Base Infrastructure** (TASK-007 / DES-84) ✅ Complete
+2. **Avinode MCP Server** (TASK-008 / DES-85) ✅ Complete (Updated for webhooks)
+3. **Gmail MCP Server** (TASK-009 / DES-86) ✅ Complete
+4. **Google Sheets MCP Server** (TASK-010 / DES-87) ✅ Complete
 
 ---
 
@@ -25,15 +34,16 @@ This document defines the comprehensive architecture and implementation plan for
 1. [MCP Overview](#mcp-overview)
 2. [Base Infrastructure Architecture](#base-infrastructure-architecture)
 3. [Avinode MCP Server](#avinode-mcp-server)
-4. [Gmail MCP Server](#gmail-mcp-server)
-5. [Google Sheets MCP Server](#google-sheets-mcp-server)
-6. [Transport Layer Design](#transport-layer-design)
-7. [Tool Registration Framework](#tool-registration-framework)
-8. [Error Handling Strategy](#error-handling-strategy)
-9. [Authentication & Security](#authentication--security)
-10. [Testing Approach](#testing-approach)
-11. [Implementation Sequence](#implementation-sequence)
-12. [Performance Requirements](#performance-requirements)
+4. [Avinode Webhook Integration](#avinode-webhook-integration) ← **NEW (Phase 2)**
+5. [Gmail MCP Server](#gmail-mcp-server)
+6. [Google Sheets MCP Server](#google-sheets-mcp-server)
+7. [Transport Layer Design](#transport-layer-design)
+8. [Tool Registration Framework](#tool-registration-framework)
+9. [Error Handling Strategy](#error-handling-strategy)
+10. [Authentication & Security](#authentication--security)
+11. [Testing Approach](#testing-approach)
+12. [Implementation Sequence](#implementation-sequence)
+13. [Performance Requirements](#performance-requirements)
 
 ---
 
@@ -620,6 +630,470 @@ class AvinodeClient {
   }
 }
 ```
+
+---
+
+## Avinode Webhook Integration
+
+> **Phase 2 Addition** - This section documents the webhook-driven architecture for receiving Avinode events asynchronously.
+
+### Architecture Overview
+
+The Avinode B2B API is designed for marketplace browsing, not direct data access. When users search for flights, they are redirected to Avinode's Web UI via a deep link. Quotes and messages then arrive via webhooks.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as ISO User<br/>(Chat UI)
+    participant FSA as FlightSearch<br/>Agent
+    participant MCP as Avinode MCP<br/>Server
+    participant API as Avinode API<br/>(sandbox.avinode.com)
+    participant WebUI as Avinode<br/>Marketplace UI
+    participant WH as JetVision<br/>Webhook Endpoint
+    participant DB as Supabase<br/>(avinode_webhook_events)
+    participant RT as Supabase<br/>Realtime
+
+    %% Phase 1: Trip Creation
+    rect rgb(230, 245, 255)
+        Note over User,API: Phase 1: Create Trip & Get Deep Link
+        User->>FSA: Request flight search<br/>(departure, arrival, date, pax)
+        FSA->>MCP: create_trip(criteria)
+        MCP->>API: POST /trips<br/>Authorization: Bearer {token}<br/>Cookie: AVI_JWT={token}
+        API-->>MCP: { tripId, deepLink }
+        MCP-->>FSA: Trip created response
+        FSA-->>User: Deep link URL<br/>(opens in popup)
+    end
+
+    %% Phase 2: User Browses Avinode
+    rect rgb(255, 245, 230)
+        Note over User,WebUI: Phase 2: User Browses Marketplace
+        User->>WebUI: Open deep link<br/>(popup window)
+        WebUI->>WebUI: User browses flights,<br/>submits RFQs to operators
+    end
+
+    %% Phase 3: Webhooks Arrive
+    rect rgb(230, 255, 230)
+        Note over WebUI,RT: Phase 3: Async Webhook Delivery
+        WebUI-->>WH: quote_received webhook
+        WH->>DB: INSERT INTO avinode_webhook_events
+        DB-->>RT: Realtime broadcast
+        RT-->>User: New quote notification
+
+        WebUI-->>WH: message_received webhook
+        WH->>DB: INSERT INTO avinode_webhook_events
+        DB-->>RT: Realtime broadcast
+        RT-->>User: New message notification
+    end
+```
+
+### Avinode Authentication Flow
+
+The Avinode API uses dual authentication with both Bearer token and Cookie headers:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as AvinodeClient
+    participant Interceptor as Axios Interceptor
+    participant API as Avinode API
+
+    Note over Client,API: Every Request Adds Auth Headers
+
+    Client->>Interceptor: Request to /trips, /rfqs, etc.
+
+    Interceptor->>Interceptor: Add X-Avinode-ApiToken
+    Interceptor->>Interceptor: Add X-Avinode-SentTimestamp<br/>(ISO-8601 current time)
+    Interceptor->>Interceptor: Add X-Avinode-Product: JetVision/1.0
+    Interceptor->>Interceptor: Add Authorization: Bearer {JWT}
+    Interceptor->>Interceptor: Add Cookie: AVI_JWT={JWT}
+
+    Interceptor->>API: Authenticated Request
+
+    alt Success (200-299)
+        API-->>Client: Response data
+    else Auth Failed (401/403)
+        API-->>Client: Authentication error
+        Note over Client: Token may be expired,<br/>refresh required
+    else Rate Limited (429)
+        API-->>Client: Rate limit error
+        Note over Client: Implement backoff
+    end
+```
+
+### Avinode Broker Workflow (Complete)
+
+This diagram shows the full Broker workflow from initial request through quote acceptance:
+
+```mermaid
+flowchart TB
+    subgraph Client["Client Layer"]
+        U[("👤 ISO User")]
+        Chat[Chat Interface]
+    end
+
+    subgraph JetVision["JetVision Backend"]
+        OA[Orchestrator Agent]
+        FSA[FlightSearch Agent]
+        MCP[Avinode MCP Server]
+        WH[/Webhook Endpoint\]
+        DB[(Supabase DB)]
+    end
+
+    subgraph Avinode["Avinode Platform"]
+        API[Avinode API<br/>sandbox.avinode.com]
+        WebUI[Avinode Web UI<br/>Marketplace]
+        Sellers[("✈️ Operators")]
+    end
+
+    %% Request Flow
+    U -->|"1. Flight request"| Chat
+    Chat -->|"2. Extract criteria"| OA
+    OA -->|"3. Delegate search"| FSA
+    FSA -->|"4. create_trip()"| MCP
+    MCP -->|"5. POST /trips"| API
+    API -->|"6. {tripId, deepLink}"| MCP
+    MCP -->|"7. Return deep link"| FSA
+    FSA -->|"8. Show deep link"| Chat
+    Chat -->|"9. Open popup"| U
+
+    %% Avinode Interaction
+    U -.->|"10. Browse marketplace"| WebUI
+    WebUI <-->|"11. RFQ/Quotes"| Sellers
+
+    %% Webhook Flow
+    Sellers -->|"12. Send quote"| WebUI
+    WebUI -->|"13. Webhook"| WH
+    WH -->|"14. Store event"| DB
+    DB -->|"15. Realtime"| Chat
+    Chat -->|"16. Show quote"| U
+
+    %% Styling
+    classDef client fill:#e1f5fe,stroke:#01579b
+    classDef jetvision fill:#fff3e0,stroke:#e65100
+    classDef avinode fill:#e8f5e9,stroke:#2e7d32
+    classDef database fill:#fce4ec,stroke:#880e4f
+
+    class U,Chat client
+    class OA,FSA,MCP,WH jetvision
+    class API,WebUI,Sellers avinode
+    class DB database
+```
+
+### Database Schema
+
+The webhook events are stored in the `avinode_webhook_events` table for processing and auditing:
+
+```sql
+-- Migration: 014_avinode_webhook_events.sql
+CREATE TABLE avinode_webhook_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Event identification
+  event_type avinode_event_type NOT NULL,
+  avinode_event_id TEXT UNIQUE NOT NULL,
+  avinode_timestamp TIMESTAMPTZ,
+
+  -- Related entities (populated during processing)
+  request_id UUID REFERENCES requests(id),
+  quote_id UUID REFERENCES quotes(id),
+  conversation_id UUID REFERENCES conversations(id),
+  operator_profile_id UUID REFERENCES operator_profiles(id),
+  message_id UUID REFERENCES messages(id),
+
+  -- Avinode references
+  avinode_rfp_id TEXT,
+  avinode_quote_id TEXT,
+  avinode_trip_id TEXT,
+  avinode_thread_id TEXT,
+
+  -- Payload
+  raw_payload JSONB NOT NULL,
+  parsed_data JSONB,
+
+  -- Processing status
+  processing_status webhook_processing_status NOT NULL DEFAULT 'pending',
+  processed_at TIMESTAMPTZ,
+  processing_duration_ms INTEGER,
+
+  -- Error handling with retry
+  error_message TEXT,
+  retry_count INTEGER DEFAULT 0,
+  next_retry_at TIMESTAMPTZ,
+  max_retries INTEGER DEFAULT 5
+);
+```
+
+### Event Types
+
+```sql
+CREATE TYPE avinode_event_type AS ENUM (
+  -- RFQ events
+  'rfq_received',       -- New RFQ received from buyer
+  'rfq_updated',        -- RFQ details updated
+  'rfq_cancelled',      -- RFQ cancelled by buyer
+
+  -- Quote events
+  'quote_received',     -- Quote received from operator
+  'quote_updated',      -- Quote details updated
+  'quote_accepted',     -- Quote was accepted
+  'quote_rejected',     -- Quote was rejected
+  'quote_expired',      -- Quote has expired
+
+  -- Message events
+  'message_received',   -- Chat message from other party
+
+  -- Booking events
+  'booking_confirmed',  -- Booking was confirmed
+  'booking_cancelled',  -- Booking was cancelled
+  'booking_updated',    -- Booking details changed
+
+  -- Trip events
+  'trip_created',       -- New trip created
+  'trip_updated',       -- Trip details updated
+  'trip_cancelled'      -- Trip was cancelled
+);
+```
+
+### Webhook Processing Pipeline
+
+```typescript
+// app/api/webhooks/avinode/route.ts
+export async function POST(request: Request) {
+  const payload = await request.json();
+  const signature = request.headers.get('X-Avinode-Signature');
+
+  // 1. Verify webhook signature
+  const isValid = verifyAvinodeSignature(payload, signature);
+  if (!isValid) {
+    return Response.json({ error: 'Invalid signature' }, { status: 401 });
+  }
+
+  // 2. Store event for processing
+  const { data: event } = await supabase
+    .from('avinode_webhook_events')
+    .insert({
+      event_type: payload.event_type,
+      avinode_event_id: payload.event_id,
+      avinode_timestamp: payload.timestamp,
+      raw_payload: payload,
+      avinode_rfp_id: payload.rfp_id,
+      avinode_quote_id: payload.quote_id,
+      avinode_trip_id: payload.trip_id,
+      signature_verified: true,
+      source_ip: request.headers.get('x-forwarded-for'),
+    })
+    .select()
+    .single();
+
+  // 3. Process immediately or queue for async processing
+  await processWebhookEvent(event);
+
+  return Response.json({ received: true });
+}
+```
+
+### Processing Functions (PostgreSQL)
+
+```sql
+-- Claim an event for processing (prevents duplicate processing)
+CREATE FUNCTION claim_webhook_event(event_id UUID) RETURNS BOOLEAN AS $$
+  UPDATE avinode_webhook_events
+  SET processing_status = 'processing', processed_at = NOW()
+  WHERE id = event_id
+    AND processing_status IN ('pending', 'failed')
+    AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+  RETURNING TRUE;
+$$ LANGUAGE sql;
+
+-- Mark event as completed with related entity IDs
+CREATE FUNCTION complete_webhook_event(
+  event_id UUID,
+  p_request_id UUID,
+  p_quote_id UUID,
+  p_conversation_id UUID
+) RETURNS VOID AS $$
+  UPDATE avinode_webhook_events
+  SET
+    processing_status = 'completed',
+    processing_duration_ms = EXTRACT(MILLISECONDS FROM (NOW() - processed_at)),
+    request_id = p_request_id,
+    quote_id = p_quote_id,
+    conversation_id = p_conversation_id
+  WHERE id = event_id;
+$$ LANGUAGE sql;
+
+-- Fail with exponential backoff retry
+CREATE FUNCTION fail_webhook_event(
+  event_id UUID,
+  p_error_message TEXT
+) RETURNS VOID AS $$
+DECLARE
+  current_retry INTEGER;
+  max_retry INTEGER;
+BEGIN
+  SELECT retry_count, max_retries INTO current_retry, max_retry
+  FROM avinode_webhook_events WHERE id = event_id;
+
+  IF current_retry >= max_retry THEN
+    UPDATE avinode_webhook_events
+    SET processing_status = 'dead_letter', error_message = p_error_message
+    WHERE id = event_id;
+  ELSE
+    UPDATE avinode_webhook_events
+    SET
+      processing_status = 'failed',
+      error_message = p_error_message,
+      retry_count = retry_count + 1,
+      next_retry_at = NOW() + (POWER(2, retry_count + 1) || ' minutes')::INTERVAL
+    WHERE id = event_id;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Event-to-Entity Mapping
+
+When a webhook event is processed, it creates/updates entities in the database:
+
+| Event Type | Creates/Updates | Notifications |
+|------------|-----------------|---------------|
+| `quote_received` | `quotes`, `operator_profiles` | Real-time to ISO User |
+| `quote_updated` | `quotes` | Real-time to ISO User |
+| `quote_accepted` | `quotes.status = 'accepted'` | Email + Real-time |
+| `message_received` | `messages`, `conversations` | Real-time to all participants |
+| `booking_confirmed` | `requests.status = 'booked'` | Email + Real-time |
+| `rfq_received` | `requests` (when acting as operator) | Real-time + Email |
+
+### MCP Tool Updates
+
+The Avinode MCP Server tools have been updated for the webhook-driven flow:
+
+#### `create_trip` (Replaces `search_flights`)
+
+```typescript
+// mcp-servers/avinode-mcp-server/src/index.ts
+{
+  name: 'create_trip',
+  description: 'Create a trip in Avinode and get a deep link for marketplace browsing',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      departure_airport: { type: 'string', pattern: '^[A-Z]{4}$' },
+      arrival_airport: { type: 'string', pattern: '^[A-Z]{4}$' },
+      passengers: { type: 'integer', minimum: 1, maximum: 19 },
+      departure_date: { type: 'string', format: 'date-time' },
+      return_date: { type: 'string', format: 'date-time' },
+    },
+    required: ['departure_airport', 'arrival_airport', 'passengers', 'departure_date'],
+  },
+  execute: async (params) => {
+    const result = await avinodeClient.createTrip(params);
+    return {
+      trip_id: result.tripId,
+      deep_link: result.deepLink,
+      status: 'created',
+      next_action: 'OPEN_AVINODE',
+      message: 'Trip created. Open Avinode to search operators and send RFQs.',
+    };
+  },
+}
+```
+
+#### `send_message` (NEW)
+
+```typescript
+{
+  name: 'send_message',
+  description: 'Send a message to an operator in an existing Avinode thread',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      thread_id: { type: 'string', description: 'Avinode thread ID' },
+      message: { type: 'string', description: 'Message content' },
+    },
+    required: ['thread_id', 'message'],
+  },
+  execute: async (params) => {
+    return await avinodeClient.sendMessage(params.thread_id, params.message);
+  },
+}
+```
+
+### Integration with 3-Party Chat
+
+Webhook events trigger messages in the 3-party chat system:
+
+```typescript
+// lib/webhooks/avinode-processor.ts
+async function processQuoteReceived(event: AvinodeWebhookEvent) {
+  const payload = event.raw_payload as AvinodeQuotePayload;
+
+  // 1. Upsert operator profile
+  const operator = await upsertOperatorProfile(payload.operator);
+
+  // 2. Create or update quote
+  const quote = await createQuote({
+    request_id: event.request_id,
+    operator_profile_id: operator.id,
+    avinode_quote_id: payload.quote_id,
+    aircraft_type: payload.aircraft.type,
+    price_usd: payload.price.total,
+    valid_until: payload.valid_until,
+  });
+
+  // 3. Find or create conversation
+  const conversation = await findOrCreateConversation({
+    request_id: event.request_id,
+    quote_id: quote.id,
+    operator_profile_id: operator.id,
+  });
+
+  // 4. Insert system message
+  await insertMessage({
+    conversation_id: conversation.id,
+    sender_type: 'system',
+    content_type: 'quote_shared',
+    rich_content: {
+      type: 'quote_shared',
+      quote_id: quote.id,
+      operator_name: operator.company_name,
+      aircraft_type: quote.aircraft_type,
+      price_usd: quote.price_usd,
+    },
+  });
+
+  // 5. Mark webhook event as completed
+  await completeWebhookEvent(event.id, {
+    request_id: event.request_id,
+    quote_id: quote.id,
+    conversation_id: conversation.id,
+  });
+}
+```
+
+### Monitoring & Observability
+
+```sql
+-- View pending events for processing
+CREATE VIEW pending_webhook_events AS
+SELECT * FROM avinode_webhook_events
+WHERE processing_status = 'pending'
+   OR (processing_status = 'failed' AND next_retry_at <= NOW())
+ORDER BY received_at ASC;
+
+-- Dead letter queue for manual review
+SELECT * FROM avinode_webhook_events
+WHERE processing_status = 'dead_letter'
+ORDER BY created_at DESC;
+```
+
+### Security Considerations
+
+1. **Webhook Signature Verification**: All incoming webhooks must have valid HMAC signatures
+2. **Idempotency**: `avinode_event_id` is unique to prevent duplicate processing
+3. **Rate Limiting**: Webhook endpoint has rate limiting to prevent abuse
+4. **IP Allowlisting**: Only accept webhooks from Avinode's known IP ranges
+5. **Payload Validation**: JSON schema validation before processing
 
 ---
 
@@ -1700,9 +2174,14 @@ interface MCPServerMetrics {
 
 ---
 
-**Document Version**: 1.0
-**Created**: October 21, 2025
-**Status**: Complete
-**Next Review**: After Week 2 completion
+## Document History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | October 21, 2025 | Initial architecture plan |
+| 2.0 | December 8, 2025 | Added Avinode Webhook Integration section, updated for Phase 2 architecture |
+
+**Status**: Active
+**Maintainer**: Project Coordinator Agent
 
 ---

@@ -6,7 +6,7 @@
 
 async function testWebhook() {
   // Use /api/webhooks (simpler URL that Avinode accepts)
-  const webhookUrl = 'https://v0-jet-vision-agent.vercel.app/api/webhooks';
+  const webhookUrl = 'https://v0-jetvision-assistant.vercel.app/api/webhooks';
 
   const testPayload = {
     event: 'TripRequestSellerResponse',
@@ -64,7 +64,7 @@ async function testWebhook() {
 
 // Also test GET health check
 async function testHealthCheck() {
-  const healthUrl = 'https://v0-jet-vision-agent.vercel.app/api/webhooks';
+  const healthUrl = 'https://v0-jetvision-assistant.vercel.app/api/webhooks';
 
   console.log('\n--- Health Check ---');
   console.log('URL:', healthUrl);

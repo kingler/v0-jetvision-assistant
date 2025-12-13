@@ -1,8 +1,8 @@
 # Jetvision Multi-Agent System Architecture
 
-**Version**: 2.0
-**Last Updated**: October 20, 2025
-**Status**: Implementation In Progress
+**Version**: 3.0
+**Last Updated**: December 8, 2025
+**Status**: Phase 2 - 3-Party Chat System
 
 ---
 
@@ -13,8 +13,10 @@
 3. [Agent Core](#agent-core)
 4. [Agent Coordination](#agent-coordination)
 5. [Multi-Agent Workflows](#multi-agent-workflows)
-6. [Implementation Status](#implementation-status)
-7. [Next Steps](#next-steps)
+6. [3-Party Chat System](#3-party-chat-system)
+7. [Avinode Integration](#avinode-integration)
+8. [Implementation Status](#implementation-status)
+9. [Next Steps](#next-steps)
 
 ---
 
@@ -249,7 +251,8 @@ export class WorkflowStateMachine {
 ```
 
 **Workflow States**:
-```
+
+```text
 CREATED
   ↓
 ANALYZING
@@ -257,6 +260,18 @@ ANALYZING
 FETCHING_CLIENT_DATA
   ↓
 SEARCHING_FLIGHTS
+  ↓
+┌─────────────────────────────────┐
+│  NEW: AVINODE INTEGRATION       │
+├─────────────────────────────────┤
+│  TRIP_CREATED                   │  ← Deep link available
+│    ↓                            │
+│  AWAITING_USER_ACTION           │  ← User opens Avinode
+│    ↓                            │
+│  AVINODE_SESSION_ACTIVE         │  ← User in marketplace
+│    ↓                            │
+│  MONITORING_FOR_QUOTES          │  ← Webhook listening
+└─────────────────────────────────┘
   ↓
 AWAITING_QUOTES
   ↓
@@ -271,6 +286,13 @@ COMPLETED
 
 **Terminal States**: `COMPLETED`, `FAILED`, `CANCELLED`
 
+**New Avinode States** (Phase 2):
+
+- `TRIP_CREATED` - Avinode trip created, deep link URL available
+- `AWAITING_USER_ACTION` - Waiting for user to open Avinode
+- `AVINODE_SESSION_ACTIVE` - User is browsing Avinode marketplace
+- `MONITORING_FOR_QUOTES` - Listening for webhook events from Avinode
+
 **Features**:
 - Enforced state transitions (validates allowed transitions)
 - Complete transition history
@@ -282,62 +304,232 @@ COMPLETED
 
 ## Multi-Agent Workflows
 
-### RFP Processing Workflow
+### RFP Processing Workflow (Updated for Avinode Deep Link Flow)
 
+```mermaid
+flowchart TD
+    subgraph UserLayer["User Layer"]
+        U[("👤 User")]
+        RFP[Submit RFP]
+    end
+
+    subgraph OrchestratorPhase["Phase 1: Request Analysis"]
+        OA[🤖 Orchestrator Agent]
+        OA_Tasks["• Analyze request<br/>• Determine priority<br/>• Create workflow state<br/>• Create conversation<br/>• Publish TASK_CREATED"]
+    end
+
+    subgraph ClientDataPhase["Phase 2: Client Data"]
+        CDA[🤖 Client Data Agent]
+        CDA_Tasks["• Accept handoff<br/>• Fetch client profile<br/>• Identify preferences<br/>• Update context"]
+        Sheets[(Google Sheets<br/>MCP)]
+    end
+
+    subgraph FlightSearchPhase["Phase 3: Create Trip"]
+        FSA[🤖 FlightSearch Agent]
+        FSA_Tasks["• Accept handoff<br/>• Call create_trip()<br/>• Return {tripId, deepLink}<br/>• State: TRIP_CREATED"]
+        MCP[Avinode MCP<br/>Server]
+        API[Avinode API]
+    end
+
+    subgraph AvinodePhase["Phase 4: Avinode User Session"]
+        Browser[🌐 Browser Popup]
+        WebUI[Avinode Marketplace]
+        States["State Transitions:<br/>AWAITING_USER_ACTION<br/>→ AVINODE_SESSION_ACTIVE<br/>→ MONITORING_FOR_QUOTES"]
+    end
+
+    subgraph WebhookPhase["Phase 5: Async Webhooks"]
+        WH[/Webhook Endpoint\]
+        Events["Events:<br/>• quote_received<br/>• message_received<br/>• rfq_updated"]
+        WH_Tasks["• Validate signature<br/>• Store in DB<br/>• Create operator profiles<br/>• Add messages"]
+    end
+
+    subgraph AnalysisPhase["Phase 6: Proposal Analysis"]
+        PAA[🤖 Proposal Analysis Agent]
+        PAA_Tasks["• Analyze all quotes<br/>• Score proposals<br/>• Rank top 3<br/>• Send analysis message"]
+    end
+
+    subgraph CommunicationPhase["Phase 7: Send Proposal"]
+        CMA[🤖 Communication Agent]
+        CMA_Tasks["• Generate email<br/>• Create PDF<br/>• Send chat message<br/>• Send email<br/>• State: COMPLETED"]
+        Gmail[(Gmail MCP)]
+    end
+
+    %% Flow connections
+    U --> RFP
+    RFP --> OA
+    OA --> OA_Tasks
+    OA_Tasks -->|"handoff"| CDA
+
+    CDA --> CDA_Tasks
+    CDA_Tasks <--> Sheets
+    CDA_Tasks -->|"handoff"| FSA
+
+    FSA --> FSA_Tasks
+    FSA_Tasks --> MCP
+    MCP --> API
+    API -->|"{tripId, deepLink}"| FSA_Tasks
+    FSA_Tasks -->|"deep link"| Browser
+
+    Browser --> WebUI
+    WebUI --> States
+
+    WebUI -.->|"webhooks"| WH
+    WH --> Events
+    Events --> WH_Tasks
+
+    WH_Tasks -->|"quotes ready"| PAA
+    PAA --> PAA_Tasks
+    PAA_Tasks -->|"handoff"| CMA
+
+    CMA --> CMA_Tasks
+    CMA_Tasks --> Gmail
+    CMA_Tasks -->|"proposal"| U
+
+    %% Styling
+    classDef agent fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef mcp fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef avinode fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef webhook fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef user fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+
+    class OA,CDA,FSA,PAA,CMA agent
+    class MCP,Sheets,Gmail mcp
+    class API,WebUI avinode
+    class WH,Events webhook
+    class U,Browser user
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     User Submits RFP                     │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│             Orchestrator Agent                          │
-│  - Analyzes request                                      │
-│  - Determines priority and complexity                    │
-│  - Creates workflow state machine                        │
-│  - Publishes TASK_CREATED message                        │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│          Client Data Manager Agent                       │
-│  - Accepts handoff from Orchestrator                     │
-│  - Fetches client profile (via Google Sheets MCP)        │
-│  - Identifies preferences and history                    │
-│  - Updates context with client data                      │
-│  - Hands off to Flight Search                            │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│             Flight Search Agent                          │
-│  - Accepts handoff from Client Data                      │
-│  - Searches flights (via Avinode MCP)                    │
-│  - Creates RFP in Avinode                                │
-│  - Updates workflow state: AWAITING_QUOTES               │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     │ (Webhooks from Avinode)
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│          Proposal Analysis Agent                         │
-│  - Triggered by quote webhook                            │
-│  - Analyzes all received quotes                          │
-│  - Scores proposals (price, safety, speed, comfort)      │
-│  - Ranks and selects top 3                               │
-│  - Hands off to Communication Manager                    │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│         Communication Manager Agent                      │
-│  - Accepts handoff from Proposal Analysis                │
-│  - Generates personalized email (OpenAI)                 │
-│  - Creates PDF proposal                                  │
-│  - Sends email (via Gmail MCP)                           │
-│  - Updates workflow state: COMPLETED                     │
-└─────────────────────────────────────────────────────────┘
+
+### Agent Handoff Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User
+    participant OA as Orchestrator<br/>Agent
+    participant CDA as ClientData<br/>Agent
+    participant FSA as FlightSearch<br/>Agent
+    participant PAA as Proposal<br/>Analysis Agent
+    participant CMA as Communication<br/>Agent
+    participant MB as Message Bus
+    participant WH as Webhook<br/>Processor
+
+    %% Initial Request
+    User->>OA: Submit RFP
+    activate OA
+    OA->>MB: publish(TASK_CREATED)
+    OA->>CDA: handoff(fetch_client_data)
+    deactivate OA
+
+    %% Client Data Phase
+    activate CDA
+    CDA->>MB: publish(TASK_STARTED)
+    CDA->>CDA: Fetch from Google Sheets
+    CDA->>MB: publish(CONTEXT_UPDATE)
+    CDA->>FSA: handoff(create_trip)
+    CDA->>MB: publish(TASK_COMPLETED)
+    deactivate CDA
+
+    %% Flight Search Phase
+    activate FSA
+    FSA->>MB: publish(TASK_STARTED)
+    FSA->>FSA: Call Avinode create_trip()
+    FSA-->>User: Return deep link
+    FSA->>MB: publish(TASK_COMPLETED)
+    deactivate FSA
+
+    Note over User,WH: User opens Avinode in browser,<br/>browses flights, sends RFQs
+
+    %% Webhook Phase (async)
+    loop Avinode Events
+        WH->>MB: publish(CONTEXT_UPDATE)<br/>new quote/message
+    end
+
+    %% Proposal Analysis (triggered by quotes)
+    activate PAA
+    MB->>PAA: Sufficient quotes received
+    PAA->>MB: publish(TASK_STARTED)
+    PAA->>PAA: Analyze & rank quotes
+    PAA->>CMA: handoff(send_proposal)
+    PAA->>MB: publish(TASK_COMPLETED)
+    deactivate PAA
+
+    %% Communication Phase
+    activate CMA
+    CMA->>MB: publish(TASK_STARTED)
+    CMA->>CMA: Generate email & PDF
+    CMA-->>User: Send proposal
+    CMA->>MB: publish(TASK_COMPLETED)
+    deactivate CMA
 ```
+
+### Workflow State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> CREATED: User submits RFP
+
+    CREATED --> ANALYZING: Orchestrator starts
+
+    ANALYZING --> FETCHING_CLIENT_DATA: Handoff to ClientData Agent
+
+    FETCHING_CLIENT_DATA --> SEARCHING_FLIGHTS: Handoff to FlightSearch Agent
+
+    SEARCHING_FLIGHTS --> TRIP_CREATED: create_trip() returns
+
+    TRIP_CREATED --> AWAITING_USER_ACTION: Deep link shown to user
+
+    AWAITING_USER_ACTION --> AVINODE_SESSION_ACTIVE: User opens Avinode
+
+    AVINODE_SESSION_ACTIVE --> MONITORING_FOR_QUOTES: RFQs submitted
+
+    MONITORING_FOR_QUOTES --> AWAITING_QUOTES: Waiting for operator responses
+
+    AWAITING_QUOTES --> ANALYZING_PROPOSALS: Sufficient quotes received
+    AWAITING_QUOTES --> AWAITING_QUOTES: More quotes arrive
+
+    ANALYZING_PROPOSALS --> GENERATING_EMAIL: Top proposals selected
+
+    GENERATING_EMAIL --> SENDING_PROPOSAL: Email & PDF ready
+
+    SENDING_PROPOSAL --> COMPLETED: Proposal sent
+
+    %% Terminal states
+    COMPLETED --> [*]
+
+    %% Failure paths
+    ANALYZING --> FAILED: Error
+    FETCHING_CLIENT_DATA --> FAILED: Error
+    SEARCHING_FLIGHTS --> FAILED: API Error
+    AWAITING_QUOTES --> CANCELLED: User cancels
+
+    FAILED --> [*]
+    CANCELLED --> [*]
+```
+
+### Key Architecture Change: Avinode Returns Deep Links
+
+**Previous (Incorrect) Flow**:
+
+```text
+FlightSearchAgent.searchFlights() → expects FlightOption[] → FAILS
+```
+
+**Current (Correct) Flow**:
+
+```text
+FlightSearchAgent.createTrip() → returns {tripId, deepLink, status: 'created'}
+                                → User must open Avinode to search
+                                → Quotes arrive via webhooks
+```
+
+**Why?** Avinode's B2B API is designed for marketplace access, not direct data retrieval. The API returns a URL that opens the Avinode Web UI where users can:
+
+1. Search available flights
+2. View operator quotes
+3. Send RFQs to multiple operators
+4. Negotiate pricing
+
+All quote and message data comes back to JetVision via **webhooks**, not API calls.
 
 ### Agent Communication Example
 
@@ -370,9 +562,194 @@ await handoffManager.handoff(handoff)
 
 ---
 
+## 3-Party Chat System
+
+The 3-Party Chat System enables real-time communication between:
+
+1. **ISO Agents** - Sales representatives using JetVision
+2. **AI Assistant** - JetVision AI (powered by OpenAI)
+3. **Operators** - Flight operators responding via Avinode
+
+### Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                     CONVERSATION                                 │
+│  request_id: UUID  |  type: rfp_negotiation  |  status: active │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+         ┌───────────┼───────────┐
+         │           │           │
+         ▼           ▼           ▼
+   ┌──────────┐ ┌──────────┐ ┌──────────┐
+   │ ISO Agent│ │    AI    │ │ Operator │
+   │Participant│ │Participant│ │Participant│
+   └────┬─────┘ └────┬─────┘ └────┬─────┘
+        │            │            │
+        │  MESSAGES  │  MESSAGES  │  MESSAGES
+        │    ▼       │    ▼       │    ▼
+        │ ┌─────┐    │ ┌─────┐    │ ┌─────┐
+        │ │text │    │ │quote│    │ │text │
+        │ │     │    │ │shared│   │ │     │
+        │ └─────┘    │ └─────┘    │ └─────┘
+        │            │            │
+        └────────────┴────────────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │  SUPABASE    │
+              │  REALTIME    │
+              │  (live sync) │
+              └──────────────┘
+```
+
+### Message Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `text` | Plain text or markdown | "Can you reduce the price?" |
+| `quote_shared` | Quote details in rich format | Quote card with pricing |
+| `quote_updated` | Quote modification | Updated pricing |
+| `quote_accepted` | Quote accepted notification | Confirmation |
+| `rfp_created` | New RFP notification | Flight details |
+| `proposal_shared` | PDF proposal attachment | Download link |
+| `workflow_update` | Agent status change | "Searching for flights..." |
+| `system_notification` | System alerts | "Quote expires in 2 hours" |
+
+### Real-time Updates
+
+```typescript
+// Subscribe to conversation messages
+const channel = supabase
+  .channel(`conversation:${conversationId}`)
+  .on('postgres_changes', {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'messages',
+    filter: `conversation_id=eq.${conversationId}`,
+  }, handleNewMessage)
+  .subscribe();
+
+// Typing indicators
+const typingChannel = supabase
+  .channel(`typing:${conversationId}`)
+  .on('presence', { event: 'sync' }, handleTypingSync)
+  .subscribe();
+```
+
+---
+
+## Avinode Integration
+
+### Webhook Event Processing
+
+Avinode sends webhook events to JetVision for:
+
+- Quote received/updated/accepted/rejected
+- Message received
+- RFQ updates
+- Booking confirmations
+
+### Webhook Processing Pipeline
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    AVINODE WEBHOOK                               │
+│  POST /api/webhooks/avinode                                      │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  1. RECEIVE & VALIDATE                                           │
+│     - Verify signature                                           │
+│     - Check for duplicate event_id                               │
+│     - Store in avinode_webhook_events (status: pending)          │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. CLAIM EVENT                                                  │
+│     - call claim_webhook_event(event_id)                         │
+│     - status: pending → processing                               │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. PROCESS BY EVENT TYPE                                        │
+│     quote_received:                                              │
+│       - Create/update operator_profile                           │
+│       - Create quote with operator_profile_id                    │
+│       - Create message (content_type: quote_shared)              │
+│       - Update request.quotes_received                           │
+│     message_received:                                            │
+│       - Create message from operator                             │
+│       - Notify via Supabase Realtime                             │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ├──── SUCCESS ────┐
+                     │                 ▼
+                     │     ┌─────────────────────────┐
+                     │     │ complete_webhook_event()│
+                     │     │ status: completed        │
+                     │     └─────────────────────────┘
+                     │
+                     └──── FAILURE ────┐
+                                       ▼
+                           ┌─────────────────────────┐
+                           │ fail_webhook_event()    │
+                           │ retry_count++           │
+                           │ next_retry_at = backoff │
+                           └─────────────────────────┘
+                                       │
+                                       ▼
+                           ┌─────────────────────────┐
+                           │ retry_count >= 5?       │
+                           │ YES → dead_letter       │
+                           │ NO  → retry later       │
+                           └─────────────────────────┘
+```
+
+### Avinode MCP Server Tools
+
+| Tool | Purpose | Returns |
+|------|---------|---------|
+| `create_trip` | Create trip for searching | `{tripId, deepLink}` |
+| `get_rfq` | Get RFQ details | RFQ object |
+| `get_quote` | Get specific quote | Quote object |
+| `send_message` | Send chat message to thread | Message ID |
+
+### FlightSearchAgent Changes
+
+```typescript
+// OLD (incorrect - expected direct flight data)
+async searchFlights(params: FlightSearchParams): Promise<FlightOption[]> {
+  // This approach was wrong - Avinode doesn't return flight data directly
+}
+
+// NEW (correct - returns deep link for user to open)
+async createTrip(params: FlightSearchParams): Promise<TripCreationResult> {
+  const result = await this.executeToolWithRetry('create_trip', {
+    departure_airport: params.departure,
+    arrival_airport: params.arrival,
+    passengers: params.passengers,
+    departure_date: params.departureDate,
+  });
+
+  return {
+    tripId: result.trip_id,
+    deepLink: result.deep_link,
+    status: 'created',
+    nextAction: 'OPEN_AVINODE',
+    message: 'Trip created. Open Avinode to search and send RFQs.',
+  };
+}
+```
+
+---
+
 ## Implementation Status
 
-### ✅ Completed
+### ✅ Phase 1: Core Infrastructure (Complete)
 
 - [x] Package.json updated with all dependencies
 - [x] Vitest configuration for testing
@@ -385,69 +762,87 @@ await handoffManager.handoff(handoff)
 - [x] Task Queue with BullMQ
 - [x] Workflow State Machine
 - [x] TypeScript type definitions
-- [x] Core infrastructure complete
+- [x] Core database schema (7 tables)
 
-### 🚧 In Progress
+### ✅ Phase 2: 3-Party Chat Database Foundation (Complete)
 
-- [ ] MCP Server base infrastructure
-- [ ] MCP Client for agent integration
-- [ ] Agent Tools framework
-- [ ] Agent Guardrails
-- [ ] Individual agent implementations
-- [ ] Configuration management
-- [ ] Monitoring and observability setup
+- [x] `operator_profiles` table - Flight operators from Avinode
+- [x] `conversations` table - Multi-party chat threads
+- [x] `conversation_participants` table - Users in conversations
+- [x] `messages` table - Chat messages with rich content
+- [x] `avinode_webhook_events` table - Webhook processing queue
+- [x] Modified `requests` table with Avinode references
+- [x] Modified `quotes` table with operator relationships
+- [x] Modified `iso_agents` table with presence/notifications
+- [x] RLS policies for all new tables
+- [x] Helper functions (is_admin, is_conversation_participant, etc.)
+- [x] Webhook processing functions with retry logic
+- [x] TypeScript types for chat system (`lib/types/chat.ts`)
 
-### 📋 Pending
+### 🚧 Phase 2: 3-Party Chat Implementation (In Progress)
 
-- [ ] Test suites (unit, integration)
-- [ ] Documentation completion
-- [ ] Example agent implementations
-- [ ] Deployment scripts
-- [ ] Production configuration
+- [ ] API routes for conversations and messages
+- [ ] Webhook endpoint (`/api/webhooks/avinode`)
+- [ ] Real-time hooks (`use-conversation`, `use-messages`)
+- [ ] CommunicationAgent chat messaging
+- [ ] FlightSearchAgent `createTrip()` implementation
+- [ ] Avinode MCP server tool updates
+
+### 📋 Phase 3: Frontend & Integration (Pending)
+
+- [ ] `AvinodeSearchCard` component
+- [ ] Chat interface with 3-party messaging
+- [ ] Message renderer components
+- [ ] Popup/tab handling for Avinode
+- [ ] End-to-end workflow tests
+- [ ] MCP integration tests
 
 ---
 
 ## Next Steps
 
-### Phase 1: Complete Core Infrastructure (Current)
+### Immediate: Complete Phase 2 Chat Implementation
 
-1. **MCP Server Base**
-   - Create base MCP server class
-   - Implement stdio transport
-   - Implement HTTP+SSE transport
-   - Add authentication layer
+1. **API Routes** (Week 1)
+   - `POST /api/webhooks/avinode` - Webhook handler
+   - `GET/POST /api/conversations` - Conversation CRUD
+   - `GET/POST /api/conversations/[id]/messages` - Message CRUD
+   - `POST /api/messages/[id]/read` - Mark as read
 
-2. **MCP Client Integration**
-   - MCP client wrapper
-   - Tool registry
-   - Connection pooling
-   - Error handling
+2. **Real-time Hooks** (Week 1)
+   - `useConversation(id)` - Subscribe to messages
+   - `useConversationList()` - Track unread counts
+   - `useTypingIndicator(conversationId)` - Presence
 
-3. **Agent Tools & Guardrails**
-   - Tool wrapper framework
-   - Input validators
-   - Output validators
-   - Safety checks
-   - Rate limiters
+3. **Agent Updates** (Week 2)
+   - FlightSearchAgent: `createTrip()` instead of `searchFlights()`
+   - CommunicationAgent: `sendChatMessage()` method
+   - OrchestratorAgent: `handleAvinodeMessage()` for routing
 
-### Phase 2: Agent Implementations
+### Phase 3: Frontend Components
 
-1. Migrate existing agents to new architecture
-2. Implement agent-specific tools
-3. Add comprehensive error handling
-4. Create agent test suites
+1. **Avinode Integration UI**
+   - `AvinodeSearchCard` - Shows trip status + "Open Avinode" button
+   - `AvinodeStatusIndicator` - Connection status
+   - Popup/tab handling with fallback
 
-### Phase 3: Integration & Testing
+2. **Chat Components**
+   - Multi-party message list
+   - Rich message renderers (quote cards, proposals)
+   - Typing indicators
+   - Read receipts
 
-1. End-to-end workflow tests
-2. MCP integration tests
-3. Load testing
-4. Performance optimization
+### Phase 4: Integration & Testing
 
-### Phase 4: Production Readiness
+1. End-to-end workflow tests (RFP → Quote → Proposal)
+2. Webhook processing tests
+3. Real-time subscription tests
+4. Load testing for message volume
 
-1. Monitoring dashboards
-2. Alerting configuration
+### Phase 5: Production Readiness
+
+1. Monitoring dashboards (webhook processing, message latency)
+2. Alerting for failed webhooks
 3. Deployment automation
 4. Documentation completion
 

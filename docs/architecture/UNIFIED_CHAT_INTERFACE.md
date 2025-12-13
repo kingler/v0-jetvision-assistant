@@ -16,6 +16,207 @@
 
 ---
 
+## Avinode Integration Workflow
+
+The unified chat interface integrates with Avinode's Broker API to enable real-time flight search and operator communication.
+
+### 3-Party Chat Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as 👤 ISO User<br/>(Chat UI)
+    participant AI as 🤖 AI Assistant
+    participant Avinode as ✈️ Avinode<br/>Marketplace
+    participant Operator as 🏢 Operator
+
+    rect rgb(230, 245, 255)
+        Note over Client,AI: Phase 1: RFP Creation via Chat
+        Client->>AI: "I need a flight to Miami"
+        AI->>Client: Progressive questions<br/>(departure, date, pax)
+        Client->>AI: Completes requirements
+        AI->>AI: Extract structured data
+    end
+
+    rect rgb(255, 245, 230)
+        Note over AI,Avinode: Phase 2: Create Trip in Avinode
+        AI->>Avinode: create_trip(criteria)
+        Avinode-->>AI: {tripId, deepLink}
+        AI->>Client: "Open Avinode to browse flights"<br/>[Open Avinode Button]
+    end
+
+    rect rgb(230, 255, 230)
+        Note over Client,Operator: Phase 3: User Session in Avinode
+        Client->>Avinode: Opens deep link (popup)
+        Avinode->>Avinode: User browses flights
+        Client->>Avinode: Submits RFQs
+        Avinode->>Operator: RFQ notification
+    end
+
+    rect rgb(255, 230, 245)
+        Note over Operator,Client: Phase 4: Quotes & Chat via Webhooks
+        Operator->>Avinode: Send quote
+        Avinode-->>AI: Webhook: quote_received
+        AI->>Client: "New quote arrived!"<br/>[Quote Card]
+
+        Operator->>Avinode: Send message
+        Avinode-->>AI: Webhook: message_received
+        AI->>Client: Display in chat thread
+    end
+
+    rect rgb(245, 245, 230)
+        Note over Client,AI: Phase 5: Selection & Proposal
+        Client->>AI: "I like the NetJets quote"
+        AI->>AI: Generate proposal
+        AI->>Client: [Proposal Preview]<br/>[Send to Client Button]
+    end
+```
+
+### Chat Interface Component Architecture
+
+```mermaid
+flowchart TB
+    subgraph ChatUI["Unified Chat Interface"]
+        Input[Message Input]
+        Thread[Chat Thread]
+        Actions[Quick Actions]
+    end
+
+    subgraph MessageTypes["Rich Message Components"]
+        Text[Text Messages]
+        Cards[Quote Cards]
+        Buttons[Action Buttons]
+        Progress[Workflow Progress]
+        Attachments[File Attachments]
+    end
+
+    subgraph Backend["Backend Services"]
+        OA[Orchestrator Agent]
+        FSA[FlightSearch Agent]
+        PAA[Proposal Analysis Agent]
+        CMA[Communication Agent]
+    end
+
+    subgraph External["External Systems"]
+        MCP[Avinode MCP Server]
+        API[Avinode API]
+        WH[/Webhook Endpoint\]
+        DB[(Supabase)]
+    end
+
+    Input --> OA
+    OA --> FSA
+    FSA --> MCP
+    MCP --> API
+
+    API -.->|webhooks| WH
+    WH --> DB
+    DB -->|Realtime| Thread
+
+    OA --> Thread
+    FSA --> Thread
+    PAA --> Thread
+    CMA --> Thread
+
+    Thread --> Text
+    Thread --> Cards
+    Thread --> Buttons
+    Thread --> Progress
+    Thread --> Attachments
+
+    Actions --> Input
+
+    classDef ui fill:#e3f2fd,stroke:#1565c0
+    classDef message fill:#fff3e0,stroke:#ef6c00
+    classDef backend fill:#e8f5e9,stroke:#2e7d32
+    classDef external fill:#fce4ec,stroke:#c2185b
+
+    class Input,Thread,Actions ui
+    class Text,Cards,Buttons,Progress,Attachments message
+    class OA,FSA,PAA,CMA backend
+    class MCP,API,WH,DB external
+```
+
+### Real-time Webhook Bridge
+
+```mermaid
+sequenceDiagram
+    participant Avinode as Avinode Platform
+    participant WH as /api/webhooks/avinode
+    participant DB as Supabase
+    participant SSE as SSE Endpoint
+    participant Hook as useAvinodeEvents
+    participant UI as Chat Thread
+
+    Avinode->>WH: POST webhook event<br/>(quote_received)
+    activate WH
+    WH->>WH: Verify signature
+    WH->>DB: INSERT avinode_webhook_events
+    WH-->>Avinode: 200 OK
+    deactivate WH
+
+    DB->>DB: Realtime broadcast
+
+    Note over SSE,UI: Client-side real-time updates
+
+    SSE->>Hook: New event notification
+    Hook->>Hook: Parse event type
+    Hook->>UI: Trigger re-render
+
+    alt Quote Event
+        UI->>UI: Show QuoteCard component
+    else Message Event
+        UI->>UI: Show OperatorMessage
+    else Booking Event
+        UI->>UI: Show BookingConfirmation
+    end
+```
+
+### Avinode Session States in Chat
+
+```mermaid
+stateDiagram-v2
+    [*] --> ChatActive: User starts conversation
+
+    ChatActive --> ExtractingRequirements: User mentions flight need
+    ExtractingRequirements --> ExtractingRequirements: Progressive questions
+    ExtractingRequirements --> ReadyToSearch: All requirements gathered
+
+    ReadyToSearch --> CreatingTrip: User confirms search
+    CreatingTrip --> DeepLinkReady: Avinode returns tripId
+
+    DeepLinkReady --> AvinodePopupOpen: User clicks "Open Avinode"
+
+    state AvinodePopupOpen {
+        [*] --> Browsing
+        Browsing --> SubmittingRFQ
+        SubmittingRFQ --> WaitingForQuotes
+    }
+
+    AvinodePopupOpen --> MonitoringQuotes: User closes popup
+    MonitoringQuotes --> MonitoringQuotes: Quotes arrive via webhook
+
+    MonitoringQuotes --> ReviewingQuotes: User reviews in chat
+    ReviewingQuotes --> QuoteSelected: User selects quote
+
+    QuoteSelected --> GeneratingProposal: User requests proposal
+    GeneratingProposal --> ProposalSent: Email sent
+
+    ProposalSent --> [*]: Workflow complete
+
+    note right of AvinodePopupOpen
+        User is in Avinode Web UI
+        Chat shows "Session Active" status
+    end note
+
+    note right of MonitoringQuotes
+        Webhooks deliver quotes
+        to chat in real-time
+    end note
+```
+
+---
+
 ## Current Architecture Issues
 
 ### Pages to Remove
