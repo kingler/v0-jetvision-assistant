@@ -120,3 +120,35 @@ export async function syncUserFromClerk(
 
   return data;
 }
+
+/**
+ * Update request with Avinode trip data
+ * Used by FlightSearchAgent after calling create_trip MCP tool
+ */
+export async function updateRequestWithAvinodeTrip(
+  requestId: string,
+  tripData: {
+    avinode_trip_id: string;
+    avinode_deep_link: string;
+    avinode_rfp_id?: string;
+  }
+) {
+  const { data, error } = await supabaseAdmin
+    .from('requests')
+    .update({
+      avinode_trip_id: tripData.avinode_trip_id,
+      avinode_deep_link: tripData.avinode_deep_link,
+      avinode_rfp_id: tripData.avinode_rfp_id,
+      avinode_session_started_at: new Date().toISOString(),
+    })
+    .eq('id', requestId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Failed to update request with Avinode trip:', error);
+    throw error;
+  }
+
+  return data;
+}

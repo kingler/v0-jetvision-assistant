@@ -13,6 +13,7 @@ import type {
 } from '../core/types';
 import { AgentType, AgentStatus } from '../core/types';
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server';
+import { updateRequestWithAvinodeTrip } from '@/lib/supabase/admin';
 
 /**
  * Flight search parameters extracted from context
@@ -71,12 +72,13 @@ interface Quote {
 }
 
 /**
- * RFP creation result
+ * Trip creation result from Avinode create_trip MCP tool
  */
-interface RFPResult {
-  rfpId: string;
+interface TripResult {
+  tripId: string;
+  deepLink: string;
+  rfpId?: string;
   status: string;
-  operatorsContacted: number;
   createdAt: string;
 }
 
@@ -111,7 +113,7 @@ export class FlightSearchAgent extends BaseAgent {
 
   /**
    * Execute the agent
-   * Searches for flights, creates RFP, and retrieves quotes
+   * Creates trip in Avinode, saves to DB, and returns deep link for user
    */
   async execute(context: AgentContext): Promise<AgentResult> {
     const startTime = Date.now();
@@ -125,14 +127,19 @@ export class FlightSearchAgent extends BaseAgent {
       // Search for flights from multiple operators in parallel
       const flights = await this.searchFlights(searchParams);
 
-      // Create RFP and distribute to operators
-      const rfpResult = await this.createRFP(searchParams, context);
+      // Create trip in Avinode (returns deep link for user to browse/submit RFQs)
+      const tripResult = await this.createTrip(searchParams, context);
+
+      // Save trip data to Supabase for frontend display
+      if (context.requestId) {
+        await this.saveTripToDatabase(context.requestId, tripResult);
+      }
 
       // Wait briefly for operators to respond (in production, this would be async/webhook)
       await this.delay(2000);
 
-      // Retrieve quotes from operators
-      const quotes = await this.getQuotes(rfpResult.rfpId);
+      // Retrieve quotes from operators if RFP was created
+      const quotes = tripResult.rfpId ? await this.getQuotes(tripResult.rfpId) : [];
 
       // Aggregate and deduplicate all results
       const allOptions = this.aggregateResults(flights, quotes);
@@ -159,9 +166,11 @@ export class FlightSearchAgent extends BaseAgent {
           totalOptions: sortedOptions.length,
           totalSavings,
           searchParams,
-          rfpId: rfpResult.rfpId,
-          rfpStatus: rfpResult.status,
-          operatorsContacted: rfpResult.operatorsContacted,
+          // Trip data for frontend display
+          tripId: tripResult.tripId,
+          deepLink: tripResult.deepLink,
+          rfpId: tripResult.rfpId,
+          tripStatus: tripResult.status,
           quotesReceived: quotes.length,
           requestId: context.requestId,
           sessionId: context.sessionId,
@@ -262,38 +271,54 @@ export class FlightSearchAgent extends BaseAgent {
   }
 
   /**
-   * Create RFP (Request for Proposal) via Avinode MCP
+   * Create trip in Avinode via MCP create_trip tool
+   * Returns deep link URL for user to browse flights and submit RFQs
    */
-  private async createRFP(
+  private async createTrip(
     params: FlightSearchParams,
     context: AgentContext
-  ): Promise<RFPResult> {
+  ): Promise<TripResult> {
     this.metrics.toolCallsCount++;
 
     try {
-      // Get list of operators to contact (in production, this would come from client preferences)
-      const operatorIds = this.selectOperators(params);
-
-      // Call Avinode MCP create_rfp tool with retry
-      const result = await this.executeToolWithRetry('create_rfp', {
-        flight_details: {
-          departure_airport: params.departure,
-          arrival_airport: params.arrival,
-          passengers: params.passengers,
-          departure_date: params.departureDate,
-        },
-        operator_ids: operatorIds,
-        special_requirements: params.specialRequirements,
+      // Call Avinode MCP create_trip tool with retry
+      const result = await this.executeToolWithRetry('create_trip', {
+        departure_airport: params.departure,
+        arrival_airport: params.arrival,
+        departure_date: params.departureDate,
+        passengers: params.passengers,
+        days_flexibility: 0,
       });
 
       return {
-        rfpId: result.rfp_id,
-        status: result.status,
-        operatorsContacted: result.operators_notified || operatorIds.length,
+        tripId: result.trip_id,
+        deepLink: result.deep_link,
+        rfpId: result.rfp_id, // May be set if RFQ was auto-created
+        status: result.status || 'trip_created',
         createdAt: result.created_at || new Date().toISOString(),
       };
     } catch (error) {
-      throw new Error(`RFP creation failed: ${(error as Error).message}`);
+      throw new Error(`Trip creation failed: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Save trip data to Supabase requests table
+   * Enables frontend to display trip ID and deep link
+   */
+  private async saveTripToDatabase(
+    requestId: string,
+    tripResult: TripResult
+  ): Promise<void> {
+    try {
+      await updateRequestWithAvinodeTrip(requestId, {
+        avinode_trip_id: tripResult.tripId,
+        avinode_deep_link: tripResult.deepLink,
+        avinode_rfp_id: tripResult.rfpId,
+      });
+    } catch (error) {
+      // Log but don't fail - trip was created successfully, DB save is secondary
+      console.error('Failed to save trip data to database:', error);
     }
   }
 
