@@ -32,6 +32,7 @@ export interface TailwindTheme {
   borderRadius: Record<string, string>;
   boxShadow: Record<string, string>;
   zIndex: Record<string, string>;
+  [key: string]: Record<string, string | Record<string, string>> | string;
 }
 
 /**
