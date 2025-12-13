@@ -72,20 +72,6 @@ export {
 export { getTailwindTheme } from './tailwind-theme';
 export type { TailwindTheme } from './tailwind-theme';
 
-// Export Tailwind helper utilities
-export {
-  cn,
-  getColorClass,
-  getSemanticColorClass,
-  getSpacingClass,
-  getTypographyClasses,
-  getShadowClass,
-  getRadiusClass,
-  getZIndexClass,
-  buttonClasses,
-  tailwindHelpers,
-} from './tailwind-helpers';
-
 // Export types
 export type {
   BrandColor,

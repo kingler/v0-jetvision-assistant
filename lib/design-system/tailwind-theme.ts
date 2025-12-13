@@ -25,9 +25,8 @@ import {
 
 /**
  * Tailwind theme object type
- * Uses a more permissive type that's compatible with Tailwind's Config['theme']['extend']
  */
-export type TailwindTheme = {
+export interface TailwindTheme {
   colors: Record<string, Record<string, string> | string>;
   spacing: Record<string, string>;
   borderRadius: Record<string, string>;
