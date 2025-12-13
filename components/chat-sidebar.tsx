@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, MessageSquare, CheckCircle, Clock, Loader2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { AvinodeTripBadge } from "@/components/avinode-trip-badge"
 
 export interface ChatSession {
   id: string
@@ -23,6 +24,12 @@ export interface ChatSession {
   margin?: number
   chatkitThreadId?: string
   selectedQuoteId?: string
+  /** Avinode trip ID for tracking flight searches */
+  tripId?: string
+  /** Avinode RFQ ID when RFQ is created */
+  rfqId?: string
+  /** Deep link URL to open Avinode Web UI */
+  deepLink?: string
   quotes?: Array<{
     id: string
     operatorName: string
@@ -191,6 +198,15 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
                     <p className="text-xs text-green-600 dark:text-green-400 truncate">
                       {session.aircraft} • {session.operator}
                     </p>
+                  )}
+                  {session.tripId && (
+                    <div className="flex items-center">
+                      <AvinodeTripBadge
+                        tripId={session.tripId}
+                        deepLink={session.deepLink}
+                        size="sm"
+                      />
+                    </div>
                   )}
                 </div>
 

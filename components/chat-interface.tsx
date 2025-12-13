@@ -14,6 +14,7 @@ import { ProposalPreview } from "./proposal-preview"
 import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "./chat-sidebar"
 import { ChatKitWidget } from "./chatkit-widget"
+import { AvinodeTripBadge } from "./avinode-trip-badge"
 
 interface ChatInterfaceProps {
   activeChat: ChatSession
@@ -443,6 +444,13 @@ export function ChatInterface({
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            {activeChat.tripId && (
+              <AvinodeTripBadge
+                tripId={activeChat.tripId}
+                deepLink={activeChat.deepLink}
+                size="md"
+              />
+            )}
             {activeChat.status === "proposal_ready" && (
               <Badge className="bg-green-500 text-white">
                 <FileText className="w-3 h-3 mr-1" />
