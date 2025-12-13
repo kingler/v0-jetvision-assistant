@@ -4,3 +4,5 @@ export { AvinodeDeepLinks } from './avinode-deep-links';
 export type { AvinodeDeepLinksProps } from './avinode-deep-links';
 export { RfqQuoteDetailsCard } from './rfq-quote-details-card';
 export type { RfqQuoteDetailsCardProps } from './rfq-quote-details-card';
+export { AvinodeSidebarCard } from './avinode-sidebar-card';
+export type { AvinodeSidebarCardProps } from './avinode-sidebar-card';
