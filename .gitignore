@@ -51,3 +51,6 @@ playwright-report/
 .auth/
 screenshots/
 build-output.log
+
+# Git Worktree Workspaces (phase directories only, keep archive and config)
+.context/workspaces/phase-*/

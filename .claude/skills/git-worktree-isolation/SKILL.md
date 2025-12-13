@@ -36,7 +36,7 @@ Git worktrees allow multiple working directories from a single repository:
 ## Directory Structure
 
 ```
-.claude/workspaces/
+.context/workspaces/
 ├── phase-1-branch-init/
 │   └── feature-user-auth/          # Pull Request Agent
 ├── phase-2-test-creation/
@@ -61,7 +61,7 @@ Git worktrees allow multiple working directories from a single repository:
 /worktree-create 2 feature/user-auth ONEK-93
 
 # Manual command
-git worktree add .claude/workspaces/phase-2-test-creation/feature-user-auth feature/user-auth
+git worktree add .context/workspaces/phase-2-test-creation/feature-user-auth feature/user-auth
 ```
 
 ### List All Worktrees
@@ -76,7 +76,7 @@ git worktree list
 ### Navigate to Worktree
 
 ```bash
-cd .claude/workspaces/phase-2-test-creation/feature-user-auth
+cd .context/workspaces/phase-2-test-creation/feature-user-auth
 ```
 
 ### Remove Worktree
@@ -86,7 +86,7 @@ cd .claude/workspaces/phase-2-test-creation/feature-user-auth
 /worktree-cleanup feature/user-auth
 
 # Manual command (must be outside worktree)
-git worktree remove .claude/workspaces/phase-2-test-creation/feature-user-auth
+git worktree remove .context/workspaces/phase-2-test-creation/feature-user-auth
 ```
 
 ## SDLC Phase Workflow
@@ -107,7 +107,7 @@ git push -u origin feature/user-authentication
 
 ```bash
 # Test Agent works in isolated worktree
-# Location: .claude/workspaces/phase-2-test-creation/feature-user-authentication
+# Location: .context/workspaces/phase-2-test-creation/feature-user-authentication
 
 # Agent writes tests
 # Commits tests to branch
@@ -118,7 +118,7 @@ git push -u origin feature/user-authentication
 
 ```bash
 # Coding Agent works in separate worktree
-# Location: .claude/workspaces/phase-3-implementation/feature-user-authentication
+# Location: .context/workspaces/phase-3-implementation/feature-user-authentication
 
 # Agent implements features
 # Makes tests pass
@@ -129,7 +129,7 @@ git push -u origin feature/user-authentication
 
 ```bash
 # Code Review Agent uses read-only worktree
-# Location: .claude/workspaces/phase-4-code-review/feature-user-authentication
+# Location: .context/workspaces/phase-4-code-review/feature-user-authentication
 
 # Agent reviews code
 # Provides feedback
@@ -222,7 +222,7 @@ Feature B: feature/user-profile
 
 ```bash
 # Conflict Resolution Agent gets dedicated worktree
-# Location: .claude/workspaces/phase-8-conflict-resolution/feature-name
+# Location: .context/workspaces/phase-8-conflict-resolution/feature-name
 
 # Agent resolves conflicts
 # Tests in isolation
@@ -256,7 +256,7 @@ Each worktree has `WORKSPACE_META.json`:
 
 ### Archive System
 
-Metadata preserved in `.claude/workspaces/.archive/` for:
+Metadata preserved in `.context/workspaces/.archive/` for:
 - Audit trail
 - Troubleshooting
 - Metrics tracking
@@ -270,7 +270,7 @@ Metadata preserved in `.claude/workspaces/.archive/` for:
 git worktree list
 
 # Force remove if stale
-git worktree remove --force .claude/workspaces/phase-2-test-creation/feature-auth
+git worktree remove --force .context/workspaces/phase-2-test-creation/feature-auth
 
 # Recreate
 /worktree-create 2 feature/auth ONEK-93
@@ -280,27 +280,27 @@ git worktree remove --force .claude/workspaces/phase-2-test-creation/feature-aut
 
 ```bash
 # Check directory permissions
-ls -la .claude/workspaces
+ls -la .context/workspaces
 
 # Fix permissions
-chmod -R u+w .claude/workspaces
+chmod -R u+w .context/workspaces
 ```
 
 ### Locked Worktree
 
 ```bash
 # Unlock worktree
-git worktree unlock .claude/workspaces/phase-3-implementation/feature-auth
+git worktree unlock .context/workspaces/phase-3-implementation/feature-auth
 
 # Then remove
-git worktree remove .claude/workspaces/phase-3-implementation/feature-auth
+git worktree remove .context/workspaces/phase-3-implementation/feature-auth
 ```
 
 ### Uncommitted Changes Warning
 
 ```bash
 # Commit changes
-cd .claude/workspaces/phase-3-implementation/feature-auth
+cd .context/workspaces/phase-3-implementation/feature-auth
 git add .
 git commit -m "feat: implement user authentication"
 
@@ -318,7 +318,7 @@ cd -
 
 ```bash
 # Check worktree disk usage
-du -sh .claude/workspaces
+du -sh .context/workspaces
 
 # Clean up stale worktrees
 /worktree-cleanup --stale
@@ -372,10 +372,10 @@ Modify `.claude/agents/worktree-manager.md` to add custom phases.
 
 ```bash
 # Create experimental worktree
-git worktree add .claude/workspaces/experiments/feature-auth-v2 feature/auth
+git worktree add .context/workspaces/experiments/feature-auth-v2 feature/auth
 
 # Test experimental changes
-cd .claude/workspaces/experiments/feature-auth-v2
+cd .context/workspaces/experiments/feature-auth-v2
 # ... make changes ...
 
 # If successful, merge back
@@ -386,7 +386,7 @@ cd .claude/workspaces/experiments/feature-auth-v2
 
 Each team member can have their own worktrees:
 ```bash
-.claude/workspaces/
+.context/workspaces/
 ├── alice-phase-3-implementation/feature-auth
 └── bob-phase-4-code-review/feature-auth
 ```

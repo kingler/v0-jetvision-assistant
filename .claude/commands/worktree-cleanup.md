@@ -34,7 +34,7 @@ List all active worktrees:
 
 Find all workspace metadata files:
 ```bash
-!`find .claude/workspaces -name "WORKSPACE_META.json" -type f 2>/dev/null | head -20`
+!`find .context/workspaces -name "WORKSPACE_META.json" -type f 2>/dev/null | head -20`
 ```
 
 ## Task
@@ -52,10 +52,10 @@ Find all workspace metadata files:
 4. **Archive metadata**:
    - Update status to "archived"
    - Add `archivedAt` timestamp
-   - Move to `.claude/workspaces/.archive/`
+   - Move to `.context/workspaces/.archive/`
 5. **Remove worktrees**:
    ```bash
-   git worktree remove .claude/workspaces/phase-<N>-<name>/<branch>
+   git worktree remove .context/workspaces/phase-<N>-<name>/<branch>
    ```
 6. **Prune git references**:
    ```bash
@@ -66,7 +66,7 @@ Find all workspace metadata files:
 
 1. **Find stale worktrees** (no activity >7 days):
    ```bash
-   find .claude/workspaces -name "WORKSPACE_META.json" -mtime +7
+   find .context/workspaces -name "WORKSPACE_META.json" -mtime +7
    ```
 2. **Parse metadata** to check last access time
 3. **Verify branch status**:
@@ -95,7 +95,7 @@ Before removing ANY worktree:
 
 1. ✅ **Check for uncommitted changes**:
    ```bash
-   cd .claude/workspaces/phase-<N>-<name>/<branch>
+   cd .context/workspaces/phase-<N>-<name>/<branch>
    git status --porcelain
    ```
 
@@ -118,7 +118,7 @@ Before removal, archive workspace metadata:
 
 1. **Create archive directory**:
    ```bash
-   mkdir -p .claude/workspaces/.archive
+   mkdir -p .context/workspaces/.archive
    ```
 
 2. **Update metadata**:
@@ -132,8 +132,8 @@ Before removal, archive workspace metadata:
 
 3. **Move metadata file**:
    ```bash
-   mv .claude/workspaces/phase-<N>-<name>/<branch>/WORKSPACE_META.json \
-      .claude/workspaces/.archive/<branch>-phase-<N>-<timestamp>.json
+   mv .context/workspaces/phase-<N>-<name>/<branch>/WORKSPACE_META.json \
+      .context/workspaces/.archive/<branch>-phase-<N>-<timestamp>.json
    ```
 
 ## Warning Handling
@@ -202,7 +202,7 @@ This removes stale administrative files for deleted worktrees.
 
 ## Report Generation
 
-Create cleanup report at `.claude/workspaces/.archive/cleanup-<timestamp>.log`:
+Create cleanup report at `.context/workspaces/.archive/cleanup-<timestamp>.log`:
 
 ```
 Git Worktree Cleanup Report

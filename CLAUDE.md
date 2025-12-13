@@ -869,6 +869,121 @@ npm run review:tdd
 
 ---
 
+## Git Worktree Workspace Management
+
+Agent workspaces are managed using git worktrees in `.context/workspaces/` with a 9-phase SDLC structure for parallel agent isolation.
+
+### Workspace Structure
+
+```text
+.context/workspaces/
+├── phase-1-branch-init/        # Branch initialization
+├── phase-2-test-creation/      # TDD test writing (RED phase)
+├── phase-3-implementation/     # Code implementation (GREEN phase)
+├── phase-4-code-review/        # Code review
+├── phase-5-iteration/          # Iteration & fixes (REFACTOR phase)
+├── phase-6-pr-creation/        # PR creation
+├── phase-7-pr-review/          # PR review
+├── phase-8-conflict-resolution/ # Conflict resolution
+├── phase-9-merge/              # Branch merge
+└── .archive/                   # Archived workspace metadata
+```
+
+### Automatic Lifecycle Management
+
+Worktrees are automatically managed via Claude Code hooks:
+
+**Auto-Creation** (PreToolUse hook):
+
+- Triggered when agents are invoked for SDLC phases
+- Creates isolated worktree at `.context/workspaces/phase-N-<name>/<branch>`
+- Generates `WORKSPACE_META.json` with metadata
+
+**Auto-Cleanup** (SubagentStop hook):
+
+Worktrees are only cleaned up when ALL 5 conditions are met:
+
+1. All TDD tests pass (`npm run test:unit` exits 0)
+2. PR is created (`gh pr list --head <branch>` returns PR)
+3. Code review is completed (PR has `reviewDecision: APPROVED`)
+4. Linear issue is updated (status = Done/Closed)
+5. Branch is merged into main (`git branch --merged main`)
+
+Plus 2 safety checks:
+
+- No uncommitted changes
+- No unpushed commits
+
+### Slash Commands
+
+```bash
+# Create isolated workspace for a phase
+/worktree-create <phase> <branch> [linear-issue-id]
+
+# Examples:
+/worktree-create 2 feat/ONEK-123-user-auth ONEK-123
+/worktree-create 3 fix/ONEK-456-validation
+
+# View status of all workspaces
+/worktree-status
+
+# Clean up workspaces
+/worktree-cleanup feat/ONEK-123-user-auth  # Specific branch
+/worktree-cleanup --stale                   # Stale (>7 days)
+/worktree-cleanup --all                     # All completed
+```
+
+### Phase-to-Agent Mapping
+
+| Phase | Name | Agents |
+|-------|------|--------|
+| 1 | branch-init | Pull Request Agent, git-workflow |
+| 2 | test-creation | Test Agent, qa-engineer-seraph |
+| 3 | implementation | Coding Agent, backend-developer, frontend-developer |
+| 4 | code-review | Code Review Agent, code-review-coordinator |
+| 5 | iteration | Coding Agent, backend-developer, frontend-developer |
+| 6 | pr-creation | Pull Request Agent, git-workflow |
+| 7 | pr-review | Code Review Agent, code-review-coordinator |
+| 8 | conflict-resolution | Conflict Resolution Agent, git-workflow |
+| 9 | merge | Pull Request Agent, git-workflow |
+
+### Manual Worktree Operations
+
+```bash
+# List all worktrees
+git worktree list
+
+# Navigate to a worktree
+cd .context/workspaces/phase-3-implementation/feat/my-feature
+
+# Remove worktree manually (only if lifecycle complete)
+git worktree remove .context/workspaces/phase-3-implementation/feat/my-feature
+
+# Prune stale references
+git worktree prune
+```
+
+### Workspace Metadata
+
+Each worktree contains `WORKSPACE_META.json`:
+
+```json
+{
+  "branch": "feat/ONEK-123-user-auth",
+  "linearIssue": "ONEK-123",
+  "phase": 3,
+  "phaseName": "implementation",
+  "agentRole": "Coding Agent",
+  "agentType": "backend-developer",
+  "createdAt": "2025-11-14T10:30:00Z",
+  "lastAccessedAt": "2025-11-14T12:45:00Z",
+  "status": "active",
+  "workflowState": {}
+}
+```
+
+---
+
 ## Next Implementation Phases
 
 ### Phase 2: MCP Server Infrastructure (Next)

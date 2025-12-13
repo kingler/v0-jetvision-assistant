@@ -49,14 +49,14 @@ Create an isolated git worktree workspace for a specific SDLC phase and branch.
 5. **Create branch** if it doesn't exist (from current main)
 6. **Create git worktree**:
    ```bash
-   git worktree add .claude/workspaces/phase-<N>-<name>/<branch> <branch>
+   git worktree add .context/workspaces/phase-<N>-<name>/<branch> <branch>
    ```
 7. **Create workspace metadata file** at worktree root
 8. **Report worktree location** and next steps
 
 ## Workspace Metadata
 
-Create `.claude/workspaces/phase-<N>-<name>/<branch>/WORKSPACE_META.json`:
+Create `.context/workspaces/phase-<N>-<name>/<branch>/WORKSPACE_META.json`:
 
 ```json
 {
@@ -75,7 +75,7 @@ Create `.claude/workspaces/phase-<N>-<name>/<branch>/WORKSPACE_META.json`:
 ## Safety Checks
 
 Before creating:
-- ✅ Verify `.claude/workspaces/` exists
+- ✅ Verify `.context/workspaces/` exists
 - ✅ Check if worktree already exists
 - ✅ Validate phase number (1-9)
 - ✅ Ensure branch name follows convention

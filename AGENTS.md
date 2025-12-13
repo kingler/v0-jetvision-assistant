@@ -30,7 +30,44 @@
 - Link TaskMaster briefs or issues, and document env or MCP configuration impacts before reviewers approve.
 
 ## Security & Configuration Notes
+
 - Keep secrets in `.env.local`; never expose API keys in client bundles or commit histories.
 - Hosted MCP connectors should log tool names/args server-side only; sanitize inputs and rate-limit per session.
 - Sentry configs live in `sentry.*.config.ts`; confirm DSNs per environment and strip PII before logging.
 - Update `tasks/` or `docs/` whenever Responses API, Agents SDK, or security decisions change so future agents inherit context.
+
+## Git Worktree Workspace Isolation
+
+Agent workspaces use git worktrees in `.context/workspaces/` for parallel isolation across 9 SDLC phases.
+
+### Workspace Lifecycle
+
+- **Auto-created** when agents are invoked (via PreToolUse hook)
+- **Auto-cleaned** only when ALL conditions are met:
+  1. All TDD tests pass
+  2. PR is created
+  3. Code review is completed (approved)
+  4. Linear issue is updated
+  5. Branch is merged into main
+
+### Slash Commands
+
+- `/worktree-create <phase> <branch> [issue-id]` - Create isolated workspace
+- `/worktree-status` - View all workspace status
+- `/worktree-cleanup [branch|--all|--stale]` - Clean up workspaces
+
+### Phase Structure
+
+| Phase | Name | Purpose |
+|-------|------|---------|
+| 1 | branch-init | Branch initialization |
+| 2 | test-creation | TDD test writing (RED) |
+| 3 | implementation | Code implementation (GREEN) |
+| 4 | code-review | Code review |
+| 5 | iteration | Iteration & fixes (REFACTOR) |
+| 6 | pr-creation | PR creation |
+| 7 | pr-review | PR review |
+| 8 | conflict-resolution | Conflict resolution |
+| 9 | merge | Branch merge |
+
+See `CLAUDE.md` for detailed workspace management documentation.

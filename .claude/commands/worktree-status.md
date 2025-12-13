@@ -16,13 +16,13 @@ Display comprehensive status of all active git worktree workspaces organized by 
 ## Workspace Directory Structure
 
 ```bash
-!`find .claude/workspaces -type d -maxdepth 2 2>/dev/null | grep -v "^\\.claude/workspaces$" | sort`
+!`find .context/workspaces -type d -maxdepth 2 2>/dev/null | grep -v "^\\.context/workspaces$" | sort`
 ```
 
 ## Workspace Metadata Files
 
 ```bash
-!`find .claude/workspaces -name "WORKSPACE_META.json" -type f 2>/dev/null`
+!`find .context/workspaces -name "WORKSPACE_META.json" -type f 2>/dev/null`
 ```
 
 ## Task
@@ -67,7 +67,7 @@ For each worktree, check:
 
 1. **Git Status**:
    ```bash
-   cd .claude/workspaces/phase-<N>-<name>/<branch>
+   cd .context/workspaces/phase-<N>-<name>/<branch>
    git status --porcelain
    ```
 
@@ -83,7 +83,7 @@ For each worktree, check:
 
 4. **Disk Usage**:
    ```bash
-   du -sh .claude/workspaces/phase-<N>-<name>/<branch>
+   du -sh .context/workspaces/phase-<N>-<name>/<branch>
    ```
 
 ### 4. Stale Worktree Detection
@@ -186,9 +186,9 @@ Quick Actions:
 ├── Clean up stale:
 │   /worktree-cleanup --stale
 ├── Navigate to worktree:
-│   cd .claude/workspaces/phase-<N>-<name>/<branch>
+│   cd .context/workspaces/phase-<N>-<name>/<branch>
 └── Archive metadata:
-│   View: cat .claude/workspaces/.archive/*.json
+│   View: cat .context/workspaces/.archive/*.json
 ```
 
 ## Output Format
@@ -230,8 +230,8 @@ To avoid slow operations:
 ## Export Options
 
 Optionally export report to:
-- JSON format: `.claude/workspaces/status-<timestamp>.json`
-- Markdown format: `.claude/workspaces/status-<timestamp>.md`
-- Plain text: `.claude/workspaces/status-<timestamp>.txt`
+- JSON format: `.context/workspaces/status-<timestamp>.json`
+- Markdown format: `.context/workspaces/status-<timestamp>.md`
+- Plain text: `.context/workspaces/status-<timestamp>.txt`
 
 Use `--export json|md|txt` flag for exports.
