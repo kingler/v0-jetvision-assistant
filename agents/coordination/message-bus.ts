@@ -17,6 +17,15 @@ export enum MessageType {
   AGENT_HANDOFF = 'agent_handoff',
   CONTEXT_UPDATE = 'context_update',
   ERROR = 'error',
+  // Terminal lifecycle events
+  TERMINAL_SPAWNED = 'terminal_spawned',
+  TERMINAL_OUTPUT = 'terminal_output',
+  TERMINAL_COMPLETED = 'terminal_completed',
+  TERMINAL_FAILED = 'terminal_failed',
+  TERMINAL_TERMINATED = 'terminal_terminated',
+  // Worktree lifecycle events
+  WORKTREE_CREATED = 'worktree_created',
+  WORKTREE_CLEANUP = 'worktree_cleanup',
 }
 
 /**

@@ -13,3 +13,18 @@ export {
   type StateTransition,
   workflowManager
 } from './state-machine'
+export {
+  TerminalManager,
+  TerminalStatus,
+  type TerminalConfig,
+  type TerminalInstance,
+  terminalManager
+} from './terminal-manager'
+export {
+  LinearAgentSpawner,
+  type LinearIssueConfig,
+  linearAgentSpawner,
+  spawnAgentForLinearIssue,
+  spawnAgentsForLinearIssues
+} from './linear-agent-spawner'
+export { type TerminalHandoffConfig } from './handoff-manager'
