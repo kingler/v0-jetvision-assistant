@@ -10,3 +10,11 @@ export type { RFPStep, RFPData, ProcessResult } from './rfp-flow';
 
 export { IntentExtractor } from './intent-extractor';
 export { FieldValidator } from './field-validator';
+
+export { ConversationStateManager } from './state-manager';
+export type {
+  ConversationState,
+  ConversationMessage,
+  StateUpdate,
+  CreateStateParams,
+} from './state-manager';
