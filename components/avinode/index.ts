@@ -6,3 +6,5 @@ export { RfqQuoteDetailsCard } from './rfq-quote-details-card';
 export type { RfqQuoteDetailsCardProps } from './rfq-quote-details-card';
 export { AvinodeSidebarCard } from './avinode-sidebar-card';
 export type { AvinodeSidebarCardProps } from './avinode-sidebar-card';
+export { AvinodeConnectionStatus } from './avinode-connection-status';
+export type { AvinodeConnectionStatusProps } from './avinode-connection-status';
