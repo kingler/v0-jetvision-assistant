@@ -21,7 +21,8 @@ const config: Config = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: getTailwindTheme(),
+    // Type assertion needed as TailwindTheme is more specific than Config['theme']['extend']
+    extend: getTailwindTheme() as Config['theme'],
   },
   plugins: [],
 };
