@@ -1,23 +1,16 @@
 /**
  * Email API Route - Email management and sending
+ *
+ * NOTE: Email history tracking is not yet implemented.
+ * This is a stub implementation that returns empty results.
+ * Email functionality is handled via proposals API.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
-import { validateRequest, validateQueryParams } from '@/lib/validation';
-import {
-  EmailSendSchema,
-  EmailHistoryGetSchema,
-} from '@/lib/validation/api-schemas';
 import {
   getAuthenticatedAgent,
   isErrorResponse,
   withErrorHandling,
-  ErrorResponses,
 } from '@/lib/utils/api';
-import type { Database } from '@/lib/types/database';
-
-type Request = Database['public']['Tables']['requests']['Row'];
-type EmailHistory = Database['public']['Tables']['email_history']['Row'];
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -25,110 +18,33 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/email
  * Retrieve email history for the authenticated user's requests
+ * NOTE: Stub implementation - email_history table not yet created
  */
-export const GET = withErrorHandling(async (request: NextRequest) => {
-  // Authenticate and get ISO agent
+export const GET = withErrorHandling(async (_request: NextRequest) => {
+  // Authenticate
   const isoAgentOrError = await getAuthenticatedAgent();
   if (isErrorResponse(isoAgentOrError)) return isoAgentOrError;
-  const isoAgent = isoAgentOrError;
 
-  // Validate query parameters
-  const { searchParams } = new URL(request.url);
-  const validation = validateQueryParams(searchParams, EmailHistoryGetSchema);
-  if (!validation.success) {
-    return validation.response;
-  }
-  const { request_id, client_id, status, limit = 50 } = validation.data;
-
-  // Build query for email history
-  let query = supabase
-    .from('email_history')
-    .select('*')
-    .eq('iso_agent_id', isoAgent.id);
-
-  // Apply filters
-  if (request_id) {
-    query = query.eq('request_id', request_id);
-  }
-  if (client_id) {
-    query = query.eq('client_id', client_id);
-  }
-  if (status) {
-    query = query.eq('status', status);
-  }
-
-  // Apply ordering and limit at the end
-  query = query.order('sent_at', { ascending: false }).limit(limit);
-
-  const { data: emails, error } = await query;
-
-  if (error) {
-    return ErrorResponses.internalError('Failed to fetch email history');
-  }
-
-  return NextResponse.json({ emails });
+  // Return empty list - email history table not yet implemented
+  return NextResponse.json({
+    emails: [],
+    message: 'Email history tracking not yet implemented. Use proposals API for email status.',
+  });
 });
 
 /**
  * POST /api/email
  * Send an email for a flight request
+ * NOTE: Stub implementation - use proposals API for email functionality
  */
-export const POST = withErrorHandling(async (request: NextRequest) => {
-  // Authenticate and get ISO agent
+export const POST = withErrorHandling(async (_request: NextRequest) => {
+  // Authenticate
   const isoAgentOrError = await getAuthenticatedAgent();
   if (isErrorResponse(isoAgentOrError)) return isoAgentOrError;
-  const isoAgent = isoAgentOrError;
 
-  // Validate request body
-  const validation = await validateRequest(request, EmailSendSchema);
-  if (!validation.success) {
-    return validation.response;
-  }
-  const emailData = validation.data;
-
-  // Get request details to verify ownership
-  const { data: flightRequest, error: requestError } = await supabase
-    .from('requests')
-    .select('id, client_profile_id')
-    .eq('id', emailData.request_id)
-    .eq('iso_agent_id', isoAgent.id)
-    .single<Pick<Request, 'id' | 'client_profile_id'>>();
-
-  if (requestError || !flightRequest) {
-    return ErrorResponses.notFound('Flight request not found or access denied');
-  }
-
-  // TODO: In production, integrate with email service (Gmail MCP, SendGrid, etc.)
-  // For now, we'll simulate email sending and store in database
-
-  const emailRecord: Database['public']['Tables']['email_history']['Insert'] = {
-    iso_agent_id: isoAgent.id,
-    request_id: emailData.request_id,
-    client_id: flightRequest.client_profile_id || '',
-    to_email: emailData.client_email,
-    cc: emailData.cc || null,
-    bcc: emailData.bcc || null,
-    subject: emailData.subject,
-    body: emailData.body,
-    template_id: emailData.template_id || null,
-    attachments: emailData.attachments || null,
-    status: 'simulated', // Status is 'simulated' since email is not actually sent; use 'pending' in production
-    sent_at: new Date().toISOString(),
-  };
-
-  const { data: email, error: emailError } = await supabase
-    .from('email_history')
-    .insert(emailRecord)
-    .select<'*', EmailHistory>()
-    .single();
-
-  if (emailError) {
-    console.error('Email insert error:', emailError);
-    return ErrorResponses.internalError('Failed to send email', emailError.message);
-  }
-
+  // Return stub response - email functionality via proposals API
   return NextResponse.json({
-    email,
-    message: 'Email sent successfully',
-  });
+    message: 'Email sending not yet implemented. Use proposals API to send proposals via email.',
+    email: null,
+  }, { status: 501 });
 });

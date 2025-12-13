@@ -53,6 +53,7 @@ export enum Permission {
   // Analytics and Reports
   VIEW_ANALYTICS = 'view_analytics',
   MANAGE_REPORTS = 'manage_reports',
+  VIEW_REPORTS = 'view_reports',
   
   // System Administration
   MANAGE_SYSTEM = 'manage_system',

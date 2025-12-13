@@ -79,11 +79,12 @@ export function ChatKitInterface({
         })
 
         if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.message || 'Failed to create ChatKit session')
+          const errorData = await response.json() as { message?: string };
+          throw new Error(errorData.message || 'Failed to create ChatKit session')
         }
 
-        const { client_secret } = await response.json()
+        const sessionData = await response.json() as { client_secret: string };
+        const { client_secret } = sessionData;
 
         // Initialize ChatKit widget
         const ChatKit = (window as any).ChatKit

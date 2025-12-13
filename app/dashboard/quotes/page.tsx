@@ -57,7 +57,7 @@ export default function QuotesPage() {
         ? `/api/quotes?request_id=${requestId}`
         : '/api/quotes';
       const res = await fetch(url);
-      const data = await res.json();
+      const data = await res.json() as { quotes?: Quote[] };
       setQuotes(data.quotes || []);
     } catch (error) {
       console.error('Failed to fetch quotes:', error);

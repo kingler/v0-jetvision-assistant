@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       .select('*');
 
     if (requestId) query = query.eq('request_id', requestId);
-    if (status) query = query.eq('status', status);
+    if (status) query = query.eq('status', status as Database['public']['Enums']['quote_status']);
 
     const { data: quotes, error } = await query;
     if (error) return NextResponse.json({ error: 'Failed to fetch quotes' }, { status: 500 });
@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest) {
     if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const updateData: Database['public']['Tables']['quotes']['Update'] = {
-      status,
+      status: status as Database['public']['Enums']['quote_status'],
       analysis_notes: notes || null,
     };
 
@@ -78,10 +78,10 @@ export async function PATCH(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: 'Failed to update quote' }, { status: 500 });
 
-    if (status === 'accepted') {
+    if (status === 'accepted' && updatedQuote) {
       await supabase
         .from('requests')
-        .update({ status: 'completed' })
+        .update({ status: 'completed' as Database['public']['Enums']['request_status'] })
         .eq('id', updatedQuote.request_id);
     }
 

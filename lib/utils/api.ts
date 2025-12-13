@@ -35,13 +35,13 @@ export async function getAuthenticatedAgent(): Promise<AuthResult> {
   }
 
   const { data: isoAgent, error } = await supabase
-    .from('iso_agents')
+    .from('users')
     .select('id')
     .eq('clerk_user_id', userId)
     .single();
 
   if (error || !isoAgent) {
-    return NextResponse.json({ error: 'ISO agent not found' }, { status: 404 });
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
   return isoAgent as ISOAgent;
@@ -91,13 +91,13 @@ export const ErrorResponses = {
 
   badRequest: (message: string, details?: unknown) =>
     NextResponse.json(
-      { error: message, ...(details && { details }) },
+      { error: message, ...(details ? { details } : {}) },
       { status: 400 }
     ),
 
   internalError: (message = 'Internal server error', details?: unknown) =>
     NextResponse.json(
-      { error: message, ...(details && { details }) },
+      { error: message, ...(details ? { details } : {}) },
       { status: 500 }
     ),
 

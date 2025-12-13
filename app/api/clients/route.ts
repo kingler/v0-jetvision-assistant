@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('client_profiles')
       .select('*')
-      .eq('iso_agent_id', user.id);
+      .eq('user_id', user.id);
 
     if (search) {
       query = query.or(`company_name.ilike.%${search}%,contact_name.ilike.%${search}%`);
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const { data: newClient, error } = await supabase
       .from('client_profiles')
       .insert({
-        iso_agent_id: user.id,
+        user_id: user.id,
         company_name,
         contact_name,
         email,

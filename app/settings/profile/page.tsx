@@ -76,7 +76,7 @@ export default function ProfilePage() {
       try {
         const response = await fetch('/api/users/me');
         if (response.ok) {
-          const data = await response.json();
+          const data = await response.json() as UserProfile;
           setProfile(data);
           setFormData({
             name: data.name || '',
@@ -126,7 +126,7 @@ export default function ProfilePage() {
       });
 
       if (response.ok) {
-        const updatedProfile = await response.json();
+        const updatedProfile = await response.json() as UserProfile;
         setProfile(updatedProfile);
         toast.success('Profile updated successfully');
       } else {
@@ -169,7 +169,7 @@ export default function ProfilePage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as { avatar_url: string };
         setProfile(prev => prev ? { ...prev, avatar_url: data.avatar_url } : null);
         toast.success('Avatar updated successfully');
       } else {
