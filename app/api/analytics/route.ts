@@ -1,10 +1,11 @@
 /**
  * Analytics API Route - Usage analytics and metrics
+ *
+ * Note: This route is currently stubbed as the custom RPC functions
+ * (get_requests_summary, get_quote_conversion, etc.) need to be created
+ * in Supabase before this route can be fully implemented.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
-import { validateQueryParams } from '@/lib/validation';
-import { AnalyticsGetSchema } from '@/lib/validation/api-schemas';
 import {
   getAuthenticatedAgent,
   isErrorResponse,
@@ -16,64 +17,58 @@ import {
 export const dynamic = 'force-dynamic';
 
 /**
- * Metric configuration mapping metrics to RPC functions
+ * Supported metrics (will be implemented when RPC functions are created)
  */
-const METRIC_CONFIG: Record<
-  string,
-  { rpc: string; needsGroupBy?: boolean }
-> = {
-  requests_summary: { rpc: 'get_requests_summary', needsGroupBy: true },
-  quote_conversion: { rpc: 'get_quote_conversion' },
-  agent_performance: { rpc: 'get_agent_performance' },
-  response_times: { rpc: 'get_response_times' },
-  revenue: { rpc: 'get_revenue_analytics' },
-};
+const SUPPORTED_METRICS = [
+  'requests_summary',
+  'quote_conversion',
+  'agent_performance',
+  'response_times',
+  'revenue',
+] as const;
+
+type MetricType = typeof SUPPORTED_METRICS[number];
 
 /**
  * GET /api/analytics
  * Retrieve analytics metrics for the authenticated user
+ *
+ * Query parameters:
+ * - metric: string (required) - One of: requests_summary, quote_conversion, agent_performance, response_times, revenue
+ * - start_date: string (required) - ISO date string
+ * - end_date: string (required) - ISO date string
+ * - iso_agent_id?: string - Filter by specific agent
+ * - group_by?: 'day' | 'week' | 'month' - Grouping interval (default: 'day')
  */
 export const GET = withErrorHandling(async (request: NextRequest) => {
-  // Authenticate and get ISO agent
+  // Authenticate
   const isoAgentOrError = await getAuthenticatedAgent();
   if (isErrorResponse(isoAgentOrError)) return isoAgentOrError;
-  const isoAgent = isoAgentOrError;
 
-  // Validate query parameters
+  // Parse query parameters
   const { searchParams } = new URL(request.url);
-  const validation = validateQueryParams(searchParams, AnalyticsGetSchema);
-  if (!validation.success) {
-    return validation.response;
-  }
-  const { metric, start_date, end_date, iso_agent_id, group_by = 'day' } = validation.data;
+  const metric = searchParams.get('metric') as MetricType | null;
+  const startDate = searchParams.get('start_date');
+  const endDate = searchParams.get('end_date');
+  const groupBy = searchParams.get('group_by') || 'day';
 
-  // Use the provided iso_agent_id or default to current user's agent
-  const targetAgentId = iso_agent_id || isoAgent.id;
-
-  // Get metric configuration
-  const cfg = METRIC_CONFIG[metric];
-  if (!cfg) {
-    return ErrorResponses.badRequest('Invalid metric type');
+  // Validate required parameters
+  if (!metric || !startDate || !endDate) {
+    return ErrorResponses.badRequest('Missing required parameters: metric, start_date, end_date');
   }
 
-  // Build RPC parameters
-  const params: Record<string, unknown> = {
-    p_agent_id: targetAgentId,
-    p_start_date: start_date,
-    p_end_date: end_date,
-    ...(cfg.needsGroupBy && { p_group_by: group_by }),
-  };
-
-  // Call PostgreSQL RPC function
-  const { data, error } = await supabase.rpc(cfg.rpc, params);
-
-  if (error) {
-    return ErrorResponses.internalError('Failed to fetch analytics', error);
+  // Validate metric type
+  if (!SUPPORTED_METRICS.includes(metric)) {
+    return ErrorResponses.badRequest(`Invalid metric. Must be one of: ${SUPPORTED_METRICS.join(', ')}`);
   }
 
+  // TODO: Implement RPC function calls when they are created in Supabase
+  // For now, return placeholder data
   return NextResponse.json({
-    analytics: data,
+    analytics: [],
     metric,
-    period: { start_date, end_date },
+    period: { start_date: startDate, end_date: endDate },
+    group_by: groupBy,
+    message: 'Analytics RPC functions not yet implemented. Please create the required PostgreSQL functions in Supabase.',
   });
 });

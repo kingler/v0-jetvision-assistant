@@ -35,11 +35,11 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('requests')
       .select('*')
-      .eq('iso_agent_id', user.id)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (status) query = query.eq('status', status);
+    if (status) query = query.eq('status', status as Database['public']['Enums']['request_status']);
 
     const { data: requests, error } = await query;
     if (error) return NextResponse.json({ error: 'Failed to fetch requests' }, { status: 500 });
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     const { data: newRequest, error } = await supabase
       .from('requests')
       .insert({
-        iso_agent_id: user.id,
+        user_id: user.id,
         client_profile_id: client_profile_id || null,
         departure_airport,
         arrival_airport,

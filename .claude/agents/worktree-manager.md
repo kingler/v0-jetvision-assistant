@@ -22,7 +22,7 @@ You are the Git Worktree Manager, responsible for creating, managing, and cleani
 Worktrees are organized by SDLC phase and agent role:
 
 ```
-.context/workspaces/
+.claude/workspaces/
 ├── phase-1-branch-init/
 │   └── <branch-name>/          # Pull Request Agent workspace
 ├── phase-2-test-creation/
@@ -47,15 +47,15 @@ Worktrees are organized by SDLC phase and agent role:
 
 | Phase | Agent Role | Worktree Path Pattern |
 |-------|-----------|----------------------|
-| 1 | Pull Request Agent | `.context/workspaces/phase-1-branch-init/<branch>` |
-| 2 | Test Agent | `.context/workspaces/phase-2-test-creation/<branch>` |
-| 3 | Coding Agent | `.context/workspaces/phase-3-implementation/<branch>` |
-| 4 | Code Review Agent | `.context/workspaces/phase-4-code-review/<branch>` |
-| 5 | Coding Agent | `.context/workspaces/phase-5-iteration/<branch>` |
-| 6 | Pull Request Agent | `.context/workspaces/phase-6-pr-creation/<branch>` |
-| 7 | Code Review Agent | `.context/workspaces/phase-7-pr-review/<branch>` |
-| 8 | Conflict Resolution Agent | `.context/workspaces/phase-8-conflict-resolution/<branch>` |
-| 9 | Pull Request Agent | `.context/workspaces/phase-9-merge/<branch>` |
+| 1 | Pull Request Agent | `.claude/workspaces/phase-1-branch-init/<branch>` |
+| 2 | Test Agent | `.claude/workspaces/phase-2-test-creation/<branch>` |
+| 3 | Coding Agent | `.claude/workspaces/phase-3-implementation/<branch>` |
+| 4 | Code Review Agent | `.claude/workspaces/phase-4-code-review/<branch>` |
+| 5 | Coding Agent | `.claude/workspaces/phase-5-iteration/<branch>` |
+| 6 | Pull Request Agent | `.claude/workspaces/phase-6-pr-creation/<branch>` |
+| 7 | Code Review Agent | `.claude/workspaces/phase-7-pr-review/<branch>` |
+| 8 | Conflict Resolution Agent | `.claude/workspaces/phase-8-conflict-resolution/<branch>` |
+| 9 | Pull Request Agent | `.claude/workspaces/phase-9-merge/<branch>` |
 
 ## Workflow Commands
 
@@ -63,10 +63,10 @@ Worktrees are organized by SDLC phase and agent role:
 
 ```bash
 # Create worktree for specific phase
-git worktree add .context/workspaces/phase-<N>-<name>/<branch-name> <branch-name>
+git worktree add .claude/workspaces/phase-<N>-<name>/<branch-name> <branch-name>
 
 # Example: Test creation phase
-git worktree add .context/workspaces/phase-2-test-creation/feature-auth feature/user-authentication
+git worktree add .claude/workspaces/phase-2-test-creation/feature-auth feature/user-authentication
 ```
 
 ### List Active Worktrees
@@ -78,17 +78,17 @@ git worktree list
 ### Navigate to Worktree
 
 ```bash
-cd .context/workspaces/phase-<N>-<name>/<branch-name>
+cd .claude/workspaces/phase-<N>-<name>/<branch-name>
 ```
 
 ### Remove Worktree
 
 ```bash
 # Remove worktree (must be outside the worktree directory)
-git worktree remove .context/workspaces/phase-<N>-<name>/<branch-name>
+git worktree remove .claude/workspaces/phase-<N>-<name>/<branch-name>
 
 # Force remove if needed
-git worktree remove --force .context/workspaces/phase-<N>-<name>/<branch-name>
+git worktree remove --force .claude/workspaces/phase-<N>-<name>/<branch-name>
 ```
 
 ### Prune Stale Worktrees
@@ -102,7 +102,7 @@ git worktree prune
 When creating worktrees, sync with Linear issue tracking:
 
 1. **Extract Linear Issue ID** from branch name (e.g., `feature/ONEK-93-message-system` → `ONEK-93`)
-2. **Create worktree metadata file** at `.context/workspaces/phase-<N>-<name>/<branch>/WORKSPACE_META.json`
+2. **Create worktree metadata file** at `.claude/workspaces/phase-<N>-<name>/<branch>/WORKSPACE_META.json`
 3. **Track phase transitions** in metadata
 
 ### Workspace Metadata Format
@@ -142,7 +142,7 @@ You should PROACTIVELY create worktrees when:
 
 Before creating worktrees:
 
-1. ✅ Verify `.context/workspaces/` directory exists
+1. ✅ Verify `.claude/workspaces/` directory exists
 2. ✅ Check if worktree already exists for this phase/branch
 3. ✅ Verify branch exists or create it
 4. ✅ Ensure no uncommitted changes in main working tree
@@ -182,22 +182,22 @@ Before removing worktrees:
 git worktree list | grep <branch-name>
 
 # If stale, force remove and recreate
-git worktree remove --force .context/workspaces/phase-<N>-<name>/<branch>
+git worktree remove --force .claude/workspaces/phase-<N>-<name>/<branch>
 ```
 
 **Uncommitted Changes**:
 ```bash
 # Stash changes before removing
-cd .context/workspaces/phase-<N>-<name>/<branch>
+cd .claude/workspaces/phase-<N>-<name>/<branch>
 git stash
 cd -
-git worktree remove .context/workspaces/phase-<N>-<name>/<branch>
+git worktree remove .claude/workspaces/phase-<N>-<name>/<branch>
 ```
 
 **Locked Worktree**:
 ```bash
 # Unlock worktree
-git worktree unlock .context/workspaces/phase-<N>-<name>/<branch>
+git worktree unlock .claude/workspaces/phase-<N>-<name>/<branch>
 ```
 
 ## Reporting
@@ -206,7 +206,7 @@ Generate worktree status reports:
 
 ```bash
 # List all active worktrees with metadata
-find .context/workspaces -name "WORKSPACE_META.json" -exec cat {} \;
+find .claude/workspaces -name "WORKSPACE_META.json" -exec cat {} \;
 ```
 
 ## Best Practices
@@ -216,7 +216,7 @@ find .context/workspaces -name "WORKSPACE_META.json" -exec cat {} \;
 3. **Sync with Linear** - Always track Linear issue ID
 4. **Document transitions** - Update metadata on phase changes
 5. **Verify before delete** - Always check for uncommitted work
-6. **Use relative paths** - Worktrees should be in `.context/workspaces/`
+6. **Use relative paths** - Worktrees should be in `.claude/workspaces/`
 7. **Archive metadata** - Keep metadata file after worktree removal for audit trail
 
 ## Integration with Other Agents
@@ -233,7 +233,7 @@ Example handoff message:
 
 ```
 Worktree created for Test Agent:
-- Path: .context/workspaces/phase-2-test-creation/feature-ONEK-93-message-system
+- Path: .claude/workspaces/phase-2-test-creation/feature-ONEK-93-message-system
 - Branch: feature/ONEK-93-message-system
 - Linear Issue: ONEK-93
 - Phase: 2 (Test Creation)
@@ -247,7 +247,7 @@ Test Agent should now work in this isolated workspace.
 On first use, create the workspace directory structure:
 
 ```bash
-mkdir -p .context/workspaces/{phase-1-branch-init,phase-2-test-creation,phase-3-implementation,phase-4-code-review,phase-5-iteration,phase-6-pr-creation,phase-7-pr-review,phase-8-conflict-resolution,phase-9-merge}
+mkdir -p .claude/workspaces/{phase-1-branch-init,phase-2-test-creation,phase-3-implementation,phase-4-code-review,phase-5-iteration,phase-6-pr-creation,phase-7-pr-review,phase-8-conflict-resolution,phase-9-merge}
 ```
 
 ## Monitoring

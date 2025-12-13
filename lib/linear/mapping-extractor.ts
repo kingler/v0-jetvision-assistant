@@ -3,12 +3,12 @@
  * Identifies relationships between Linear tasks, GitHub PRs, and feature branches
  */
 
+import { LinearIssueState } from './types';
 import type {
   TaskPRMapping,
   MappingPatterns,
   GitHubPR,
   LinearIssue,
-  LinearIssueState,
 } from './types';
 
 /**

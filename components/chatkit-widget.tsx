@@ -53,7 +53,7 @@ export function ChatKitWidget({ sessionId, metadata, onWorkflowAction, className
           })
 
           if (!response.ok) {
-            const errorPayload = await response.json().catch(() => ({}))
+            const errorPayload = await response.json().catch(() => ({})) as { error?: string };
             const message =
               typeof errorPayload?.error === "string"
                 ? errorPayload.error
@@ -61,7 +61,7 @@ export function ChatKitWidget({ sessionId, metadata, onWorkflowAction, className
             throw new Error(message)
           }
 
-          const data = await response.json()
+          const data = await response.json() as { client_secret: string };
           setError(null)
           return data.client_secret as string
         } catch (err) {
@@ -99,9 +99,9 @@ export function ChatKitWidget({ sessionId, metadata, onWorkflowAction, className
     startScreen: {
       greeting: "How can JetVision help with this flight?",
       prompts: [
-        { id: "jetvision-route", title: "Review routing & timing" },
-        { id: "jetvision-quotes", title: "Request updated quotes" },
-        { id: "jetvision-booking", title: "Finalize booking checklist" },
+        { title: "Review routing & timing" },
+        { title: "Request updated quotes" },
+        { title: "Finalize booking checklist" },
       ],
     },
     disclaimer: {

@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
+import type { Database } from '@/lib/types/database';
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -25,11 +26,11 @@ export async function GET(request: NextRequest) {
       .from('agent_executions')
       .select('*, request:requests!inner(id, user_id)')
       .eq('request.user_id', user.id)
-      .order('executed_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (requestId) query = query.eq('request_id', requestId);
-    if (agentType) query = query.eq('agent_type', agentType);
-    if (status) query = query.eq('status', status);
+    if (agentType) query = query.eq('agent_type', agentType as Database['public']['Enums']['agent_type']);
+    if (status) query = query.eq('status', status as Database['public']['Enums']['execution_status']);
 
     const { data: executions, error } = await query;
     if (error) return NextResponse.json({ error: 'Failed to fetch executions' }, { status: 500 });

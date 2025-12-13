@@ -63,7 +63,7 @@ Merge Complete → All worktrees cleaned up
 ## Directory Structure
 
 ```
-.context/workspaces/
+.claude/workspaces/
 ├── phase-1-branch-init/
 │   └── <branch-name>/
 │       └── WORKSPACE_META.json
@@ -288,7 +288,7 @@ git push -u origin feature/user-authentication
 ```bash
 # Invoke Test Agent for phase 2
 # Worktree automatically created at:
-# .context/workspaces/phase-2-test-creation/feature-user-authentication
+# .claude/workspaces/phase-2-test-creation/feature-user-authentication
 ```
 
 #### 3. Check Status
@@ -321,7 +321,7 @@ When branch merges to main:
 #### Navigate to Worktree
 
 ```bash
-cd .context/workspaces/phase-3-implementation/feature-payment-gateway
+cd .claude/workspaces/phase-3-implementation/feature-payment-gateway
 ```
 
 #### Check Worktree List
@@ -362,7 +362,7 @@ PreToolUse hook triggered
     ↓
 Agent type: qa-engineer-seraph → Phase 2 (test-creation)
     ↓
-Worktree created: .context/workspaces/phase-2-test-creation/feature-user-auth
+Worktree created: .claude/workspaces/phase-2-test-creation/feature-user-auth
     ↓
 Agent proceeds with work in isolated workspace
 ```
@@ -434,7 +434,7 @@ Before removing any worktree:
 
 ### Metadata Archiving
 
-All workspace metadata preserved in `.context/workspaces/.archive/`:
+All workspace metadata preserved in `.claude/workspaces/.archive/`:
 
 ```json
 {
@@ -482,7 +482,7 @@ Options:
 git worktree list
 
 # If stale, force remove
-git worktree remove --force .context/workspaces/phase-2-test-creation/feature-auth
+git worktree remove --force .claude/workspaces/phase-2-test-creation/feature-auth
 
 # Recreate
 /worktree-create 2 feature/auth ONEK-93
@@ -495,10 +495,10 @@ git worktree remove --force .context/workspaces/phase-2-test-creation/feature-au
 **Solution**:
 ```bash
 # Check permissions
-ls -la .context/workspaces
+ls -la .claude/workspaces
 
 # Fix permissions
-chmod -R u+w .context/workspaces
+chmod -R u+w .claude/workspaces
 ```
 
 #### Issue: Locked Worktree
@@ -508,10 +508,10 @@ chmod -R u+w .context/workspaces
 **Solution**:
 ```bash
 # Unlock worktree
-git worktree unlock .context/workspaces/phase-3-implementation/feature-auth
+git worktree unlock .claude/workspaces/phase-3-implementation/feature-auth
 
 # Remove
-git worktree remove .context/workspaces/phase-3-implementation/feature-auth
+git worktree remove .claude/workspaces/phase-3-implementation/feature-auth
 ```
 
 #### Issue: Uncommitted Changes Warning
@@ -521,7 +521,7 @@ git worktree remove .context/workspaces/phase-3-implementation/feature-auth
 **Solution**:
 ```bash
 # Option 1: Commit
-cd .context/workspaces/phase-3-implementation/feature-auth
+cd .claude/workspaces/phase-3-implementation/feature-auth
 git add .
 git commit -m "feat: complete phase 3 implementation"
 git push
@@ -544,10 +544,10 @@ git worktree list
 git worktree list --porcelain
 
 # Find stale worktrees
-find .context/workspaces -name "WORKSPACE_META.json" -mtime +7
+find .claude/workspaces -name "WORKSPACE_META.json" -mtime +7
 
 # Check disk usage
-du -sh .context/workspaces
+du -sh .claude/workspaces
 
 # Prune references
 git worktree prune --verbose
@@ -566,7 +566,7 @@ git worktree prune --verbose
 
 ❌ **Avoid**:
 ```bash
-git worktree add .context/workspaces/phase-3-implementation/feature-auth feature/auth
+git worktree add .claude/workspaces/phase-3-implementation/feature-auth feature/auth
 ```
 
 **Why**: Slash commands include safety checks, metadata creation, and Linear tracking.
@@ -601,7 +601,7 @@ Don't manually create/remove worktrees unless necessary. Let hooks handle automa
 
 ```bash
 # Check disk usage regularly
-du -sh .context/workspaces
+du -sh .claude/workspaces
 
 # Clean up if > 500MB
 /worktree-cleanup --stale
@@ -688,13 +688,13 @@ Generate periodic status reports:
 /worktree-status --export md
 ```
 
-Exports to: `.context/workspaces/status-<timestamp>.md`
+Exports to: `.claude/workspaces/status-<timestamp>.md`
 
 ### Audit Trail
 
 All operations logged in:
-- `.context/workspaces/.archive/` - Archived metadata
-- `.context/workspaces/status-*.txt` - Status snapshots
+- `.claude/workspaces/.archive/` - Archived metadata
+- `.claude/workspaces/status-*.txt` - Status snapshots
 - Git reflog - Worktree operations
 
 ---

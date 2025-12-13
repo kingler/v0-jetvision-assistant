@@ -53,7 +53,7 @@ export default function DashboardPage() {
 
       // Fetch recent requests
       const requestsRes = await fetch('/api/requests?limit=5');
-      const requestsData = await requestsRes.json();
+      const requestsData = await requestsRes.json() as { requests?: Request[] };
       setRecentRequests(requestsData.requests || []);
 
       // Calculate stats from requests
@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
       // Fetch quotes count
       const quotesRes = await fetch('/api/quotes');
-      const quotesData = await quotesRes.json();
+      const quotesData = await quotesRes.json() as { quotes?: unknown[] };
       stats.total_quotes = quotesData.quotes?.length || 0;
 
       setStats(stats);

@@ -27,7 +27,8 @@ const openai = new OpenAI({
  */
 export async function POST(req: NextRequest) {
   try {
-    const { deviceId } = await req.json()
+    const body = await req.json() as { deviceId?: string };
+    const { deviceId } = body;
 
     if (!deviceId) {
       return NextResponse.json(
