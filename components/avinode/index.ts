@@ -10,3 +10,5 @@ export { AvinodeConnectionStatus } from './avinode-connection-status';
 export type { AvinodeConnectionStatusProps } from './avinode-connection-status';
 export { AvinodeAuthStatus } from './avinode-auth-status';
 export type { AvinodeAuthStatusProps } from './avinode-auth-status';
+export { TripDetailsCard } from './trip-details-card';
+export type { TripDetailsCardProps } from './trip-details-card';
