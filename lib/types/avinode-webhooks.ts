@@ -247,6 +247,84 @@ export interface WebhookRegistrationResponse {
 }
 
 // ============================================================================
+// Full Message Details (from Avinode API fetch)
+// ============================================================================
+
+/**
+ * Quote attributes from full API response
+ */
+export interface AvinodeQuoteAttributes {
+  totalPrice: { amount: number; currency: string };
+  validUntil: string;
+  status: 'quoted' | 'declined' | 'counter_offer' | 'partial';
+  aircraft: {
+    type: string;
+    model: string;
+    tailNumber: string;
+    capacity: number;
+    yearOfManufacture: number;
+    amenities: string[];
+  };
+  pricing: {
+    basePrice: number;
+    taxes: number;
+    fees: number;
+    fuelSurcharge: number;
+    total: number;
+    currency: string;
+  };
+  schedule: {
+    departureTime: string;
+    arrivalTime: string;
+    flightDuration: number; // minutes
+  };
+  availability: {
+    outbound: boolean;
+    return: boolean;
+    notes?: string;
+  };
+}
+
+/**
+ * Full message details returned when fetching the href URL
+ * Used by webhook handler to get complete quote/message information
+ */
+export interface AvinodeMessageDetails {
+  data: {
+    id: string;
+    type: 'tripmsgs' | 'quotes';
+    attributes: {
+      content?: string;
+      sentAt: string;
+      direction: 'incoming' | 'outgoing';
+    };
+    relationships: {
+      trip: { data: { id: string; type: 'trips' } };
+      request?: { data: { id: string; type: 'rfqs' } };
+      sender: {
+        data: {
+          id: string;
+          type: 'users';
+          attributes: {
+            name: string;
+            email: string;
+            companyName: string;
+            companyId: string;
+          };
+        };
+      };
+      quote?: {
+        data: {
+          id: string;
+          type: 'quotes';
+          attributes: AvinodeQuoteAttributes;
+        };
+      };
+    };
+  };
+}
+
+// ============================================================================
 // Database Storage Types
 // ============================================================================
 

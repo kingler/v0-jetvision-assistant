@@ -10,17 +10,75 @@
 
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
-import type { AvinodeWebhookPayload } from '@/lib/types/avinode-webhooks';
-import type { AvinodeMessageDetails } from '@/lib/mock-data/avinode-webhook-payloads';
+import type { AvinodeWebhookPayload, AvinodeMessageDetails } from '@/lib/types/avinode-webhooks';
 
 // ============================================================================
-// Environment Variables
+// Environment Variables (read at runtime for testability)
 // ============================================================================
 
-const AVINODE_API_TOKEN = process.env.AVINODE_API_TOKEN || '';
-const AVINODE_AUTH_TOKEN = process.env.AVINODE_AUTHENTICATION_TOKEN || '';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+/**
+ * Get Avinode API token
+ */
+function getAvinodeApiToken(): string | undefined {
+  return process.env.AVINODE_API_TOKEN;
+}
+
+/**
+ * Get Avinode authentication token
+ */
+function getAvinodeAuthToken(): string | undefined {
+  return process.env.AVINODE_AUTHENTICATION_TOKEN;
+}
+
+/**
+ * Get Supabase URL
+ */
+function getSupabaseUrl(): string | undefined {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL;
+}
+
+/**
+ * Get Supabase service role key
+ */
+function getSupabaseServiceKey(): string | undefined {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
+
+/**
+ * Validate required environment variables
+ * Throws early if critical config is missing
+ */
+function validateEnvVars(): void {
+  const missing: string[] = [];
+
+  if (!getSupabaseUrl()) missing.push('NEXT_PUBLIC_SUPABASE_URL');
+  if (!getSupabaseServiceKey()) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(', ')}. ` +
+        'Please check your .env.local file.'
+    );
+  }
+}
+
+/**
+ * Validate Avinode API credentials
+ * Called before API requests
+ */
+function validateAvinodeCredentials(): void {
+  const missing: string[] = [];
+
+  if (!getAvinodeApiToken()) missing.push('AVINODE_API_TOKEN');
+  if (!getAvinodeAuthToken()) missing.push('AVINODE_AUTHENTICATION_TOKEN');
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing Avinode API credentials: ${missing.join(', ')}. ` +
+        'Avinode API features will not work without proper credentials.'
+    );
+  }
+}
 
 // ============================================================================
 // Zod Schemas for Validation
@@ -191,11 +249,14 @@ export async function fetchMessageDetails(
   href: string,
   options: FetchOptions = {}
 ): Promise<AvinodeMessageDetails> {
+  // Validate credentials before making API request
+  validateAvinodeCredentials();
+
   const { maxRetries = 3, initialDelayMs = 1000 } = options;
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${AVINODE_AUTH_TOKEN}`,
-    'X-Avinode-ApiToken': AVINODE_API_TOKEN,
+    Authorization: `Bearer ${getAvinodeAuthToken()}`,
+    'X-Avinode-ApiToken': getAvinodeApiToken()!,
     'X-Avinode-SentTimestamp': new Date().toISOString(),
     'X-Avinode-Product': 'JetVision/1.0',
     'X-Avinode-ApiVersion': 'v1.0',
@@ -258,10 +319,13 @@ export async function fetchMessageDetails(
 export async function storeOperatorQuote(
   params: StoreQuoteParams
 ): Promise<string> {
+  // Validate environment variables before database operations
+  validateEnvVars();
+
   const { webhookPayload, messageDetails, requestId } = params;
 
   // Create Supabase client with service role for webhook processing
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  const supabase = createClient(getSupabaseUrl()!, getSupabaseServiceKey()!);
 
   // Extract data from webhook and message details
   const webhookData = webhookPayload.data as any;

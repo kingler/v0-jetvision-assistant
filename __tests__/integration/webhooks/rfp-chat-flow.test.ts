@@ -78,6 +78,12 @@ describe('RFP Chat Flow Integration', () => {
     vi.clearAllMocks();
     mockFetch.mockReset();
 
+    // Set up test environment variables for Avinode API validation
+    process.env.AVINODE_API_TOKEN = 'test-api-token';
+    process.env.AVINODE_AUTHENTICATION_TOKEN = 'test-auth-token';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+
     // Set up default mock responses for Supabase chain
     mockSingle.mockResolvedValue({
       data: { id: 'test-quote-id' },
