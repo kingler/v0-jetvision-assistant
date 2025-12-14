@@ -8,3 +8,5 @@ export { AvinodeSidebarCard } from './avinode-sidebar-card';
 export type { AvinodeSidebarCardProps } from './avinode-sidebar-card';
 export { AvinodeConnectionStatus } from './avinode-connection-status';
 export type { AvinodeConnectionStatusProps } from './avinode-connection-status';
+export { AvinodeAuthStatus } from './avinode-auth-status';
+export type { AvinodeAuthStatusProps } from './avinode-auth-status';
