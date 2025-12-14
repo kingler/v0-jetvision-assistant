@@ -14,3 +14,21 @@ export { TripDetailsCard } from './trip-details-card';
 export type { TripDetailsCardProps } from './trip-details-card';
 export { AvinodeMessageCard } from './avinode-message-card';
 export type { AvinodeMessageCardProps } from './avinode-message-card';
+
+// Shared types
+export type {
+  AirportInfo,
+  BuyerInfo,
+  OperatorInfo,
+  AircraftInfo,
+  PriceInfo,
+  FlightDetailsInfo,
+  LinkInfo,
+  QuickAction,
+  QuoteInfo,
+  TripStatus,
+  QuoteStatus,
+  MessageType,
+  AuthMethod,
+  EnvironmentType,
+} from './types';
