@@ -16,6 +16,15 @@ import { ActionButtons } from './action-buttons';
 import { FormField } from './form-field';
 import { FileAttachment } from './file-attachment';
 import { ProgressIndicator } from './progress-indicator';
+import {
+  AvinodeConnectionStatus,
+  TripSummaryCard,
+  AvinodeDeepLinks,
+  AvinodeAuthStatus,
+  RfqQuoteDetailsCard,
+  TripDetailsCard,
+  AvinodeMessageCard,
+} from '@/components/avinode';
 
 export interface MessageRendererProps {
   component: MessageComponent;
@@ -121,6 +130,88 @@ export function MessageRenderer({ component, onAction, className }: MessageRende
           cancellable={component.cancellable}
           onCancel={component.onCancel}
           className={`${className || ''} ${component.className || ''}`}
+        />
+      );
+
+    case 'avinode_connection_status':
+      return (
+        <AvinodeConnectionStatus
+          success={component.success}
+          message={component.message}
+          timestamp={component.timestamp}
+        />
+      );
+
+    case 'avinode_trip_summary':
+      return (
+        <TripSummaryCard
+          tripId={component.tripId}
+          departureAirport={component.departureAirport}
+          arrivalAirport={component.arrivalAirport}
+          departureDate={component.departureDate}
+          passengers={component.passengers}
+          status={component.status}
+          onCopyTripId={component.onCopyTripId || (() => handleAction('copy_trip_id', { tripId: component.tripId }))}
+        />
+      );
+
+    case 'avinode_deep_links':
+      return (
+        <AvinodeDeepLinks
+          links={component.links}
+          onLinkClick={component.onLinkClick || ((type) => handleAction('avinode_link_click', { linkType: type }))}
+        />
+      );
+
+    case 'avinode_auth_status':
+      return (
+        <AvinodeAuthStatus
+          method={component.method}
+          environment={component.environment}
+          baseUrl={component.baseUrl}
+          expiresAt={component.expiresAt}
+          isValid={component.isValid}
+        />
+      );
+
+    case 'avinode_rfq_quote_details':
+      return (
+        <RfqQuoteDetailsCard
+          rfqId={component.rfqId}
+          quoteId={component.quoteId}
+          operator={component.operator}
+          aircraft={component.aircraft}
+          price={component.price}
+          flightDetails={component.flightDetails}
+          status={component.status}
+          statusDescription={component.statusDescription}
+        />
+      );
+
+    case 'avinode_trip_details':
+      return (
+        <TripDetailsCard
+          tripId={component.tripId}
+          displayTripId={component.displayTripId}
+          departureAirport={component.departureAirport}
+          arrivalAirport={component.arrivalAirport}
+          departureDate={component.departureDate}
+          departureTime={component.departureTime}
+          timezone={component.timezone}
+          passengers={component.passengers}
+          status={component.status}
+          buyer={component.buyer}
+          onCopyTripId={component.onCopyTripId || (() => handleAction('copy_trip_id', { tripId: component.tripId }))}
+        />
+      );
+
+    case 'avinode_message':
+      return (
+        <AvinodeMessageCard
+          messageType={component.messageType}
+          content={component.content}
+          timestamp={component.timestamp}
+          sender={component.sender}
         />
       );
 

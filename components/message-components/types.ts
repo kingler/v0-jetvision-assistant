@@ -177,6 +177,141 @@ export interface ProgressIndicatorComponent extends BaseMessageComponent {
 }
 
 /**
+ * Avinode Connection Status component - displays API connection success/failure
+ */
+export interface AvinodeConnectionStatusComponent extends BaseMessageComponent {
+  type: 'avinode_connection_status';
+  success: boolean;
+  message: string;
+  timestamp: string;
+}
+
+/**
+ * Avinode Trip Summary component - displays trip overview
+ */
+export interface AvinodeTripSummaryComponent extends BaseMessageComponent {
+  type: 'avinode_trip_summary';
+  tripId: string;
+  departureAirport: {
+    icao: string;
+    name: string;
+    city: string;
+  };
+  arrivalAirport: {
+    icao: string;
+    name: string;
+    city: string;
+  };
+  departureDate: string;
+  passengers: number;
+  status: 'active' | 'pending' | 'completed' | 'cancelled';
+  onCopyTripId?: () => void;
+}
+
+/**
+ * Avinode Deep Links component - displays action links to Avinode
+ */
+export interface AvinodeDeepLinksComponent extends BaseMessageComponent {
+  type: 'avinode_deep_links';
+  links: {
+    searchInAvinode: {
+      href: string;
+      description: string;
+    };
+    viewInAvinode: {
+      href: string;
+      description: string;
+    };
+    cancel: {
+      href: string;
+      description: string;
+    };
+  };
+  onLinkClick?: (linkType: 'search' | 'view' | 'cancel') => void;
+}
+
+/**
+ * Avinode Auth Status component - displays authentication info
+ */
+export interface AvinodeAuthStatusComponent extends BaseMessageComponent {
+  type: 'avinode_auth_status';
+  method: 'bearer' | 'api_key';
+  environment: 'sandbox' | 'production';
+  baseUrl: string;
+  expiresAt?: Date;
+  isValid: boolean;
+}
+
+/**
+ * Avinode RFQ Quote Details component - displays RFQ and quote information
+ */
+export interface AvinodeRfqQuoteDetailsComponent extends BaseMessageComponent {
+  type: 'avinode_rfq_quote_details';
+  rfqId: string;
+  quoteId: string;
+  operator: {
+    name: string;
+    rating?: number;
+  };
+  aircraft: {
+    type: string;
+    tail: string;
+    category: string;
+    maxPassengers: number;
+  };
+  price: {
+    amount: number;
+    currency: string;
+  };
+  flightDetails: {
+    flightTimeMinutes: number;
+    distanceNm: number;
+  };
+  status: 'unanswered' | 'quoted' | 'accepted' | 'declined' | 'expired';
+  statusDescription?: string;
+}
+
+/**
+ * Avinode Trip Details component - extended trip information
+ */
+export interface AvinodeTripDetailsComponent extends BaseMessageComponent {
+  type: 'avinode_trip_details';
+  tripId: string;
+  displayTripId?: string;
+  departureAirport: {
+    icao: string;
+    name: string;
+    city: string;
+  };
+  arrivalAirport: {
+    icao: string;
+    name: string;
+    city: string;
+  };
+  departureDate: string;
+  departureTime?: string;
+  timezone?: string;
+  passengers: number;
+  status: 'active' | 'pending' | 'completed' | 'cancelled';
+  buyer?: {
+    company: string;
+    contact: string;
+  };
+  onCopyTripId?: () => void;
+}
+
+/**
+ * Avinode Message component - displays communication log
+ */
+export interface AvinodeMessageComponent extends BaseMessageComponent {
+  type: 'avinode_message';
+  messageType: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION';
+  content: string;
+  timestamp: string;
+  sender?: string;
+}
+
+/**
  * Union type of all message components
  */
 export type MessageComponent =
@@ -188,7 +323,14 @@ export type MessageComponent =
   | ActionButtonsComponent
   | FormFieldComponent
   | FileAttachmentComponent
-  | ProgressIndicatorComponent;
+  | ProgressIndicatorComponent
+  | AvinodeConnectionStatusComponent
+  | AvinodeTripSummaryComponent
+  | AvinodeDeepLinksComponent
+  | AvinodeAuthStatusComponent
+  | AvinodeRfqQuoteDetailsComponent
+  | AvinodeTripDetailsComponent
+  | AvinodeMessageComponent;
 
 /**
  * Message component props
