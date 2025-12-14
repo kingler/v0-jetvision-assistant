@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 """
-Automatic worktree cleanup hook with full lifecycle verification.
-Triggers on SubagentStop to clean up worktrees only when ALL conditions are met:
-1. All TDD tests pass
-2. PR is created
-3. Code review is completed
-4. Linear issue is updated
-5. Branch is merged into main
+Automatic worktree cleanup hook.
+Triggers on SubagentStop to clean up completed phase worktrees.
 
 Hook Event: SubagentStop (agent task completion)
 """
@@ -74,110 +69,7 @@ def has_unpushed_commits(worktree_path, branch):
         return False
 
 
-def verify_tests_pass(worktree_path):
-    """Verify all TDD tests pass in the worktree."""
-    try:
-        result = subprocess.run(
-            ["npm", "run", "test:unit"],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=300  # 5 minute timeout
-        )
-        return result.returncode == 0
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-        return False
-
-
-def check_pr_exists(branch):
-    """Check if a PR exists for this branch."""
-    try:
-        result = subprocess.run(
-            ["gh", "pr", "list", "--head", branch, "--json", "number"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        prs = json.loads(result.stdout)
-        return len(prs) > 0
-    except (subprocess.CalledProcessError, json.JSONDecodeError):
-        return False
-
-
-def check_pr_approved(branch):
-    """Check if PR for this branch is approved."""
-    try:
-        # First get the PR number
-        result = subprocess.run(
-            ["gh", "pr", "list", "--head", branch, "--json", "number,reviewDecision"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        prs = json.loads(result.stdout)
-        if not prs:
-            return False
-
-        # Check if review decision is APPROVED
-        return prs[0].get("reviewDecision") == "APPROVED"
-    except (subprocess.CalledProcessError, json.JSONDecodeError):
-        return False
-
-
-def check_linear_status(linear_issue):
-    """Check if Linear issue is marked as Done/Closed."""
-    if not linear_issue:
-        return True  # No issue to check
-
-    # Note: This would require Linear API integration
-    # For now, we'll check if the issue exists and trust other conditions
-    # In production, integrate with Linear MCP or API
-    return True  # Placeholder - integrate with Linear API
-
-
-def load_workspace_meta(worktree_path):
-    """Load workspace metadata from worktree."""
-    metadata_path = Path(worktree_path) / "WORKSPACE_META.json"
-    if not metadata_path.exists():
-        return {}
-
-    try:
-        with open(metadata_path) as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return {}
-
-
-def should_cleanup_worktree(worktree_path, branch):
-    """
-    Check ALL 5 lifecycle conditions before cleanup.
-    Returns (should_cleanup: bool, checks: dict)
-    """
-    meta = load_workspace_meta(worktree_path)
-    linear_issue = meta.get("linearIssue")
-
-    checks = {
-        "tests_passing": verify_tests_pass(worktree_path),
-        "pr_created": check_pr_exists(branch),
-        "review_complete": check_pr_approved(branch),
-        "linear_updated": check_linear_status(linear_issue),
-        "branch_merged": is_branch_merged(branch),
-    }
-
-    # Also check safety conditions
-    safety_checks = {
-        "no_uncommitted_changes": not has_uncommitted_changes(worktree_path),
-        "no_unpushed_commits": not has_unpushed_commits(worktree_path, branch),
-    }
-
-    all_checks = {**checks, **safety_checks}
-    should_cleanup = all(all_checks.values())
-
-    return should_cleanup, all_checks
-
-
-def archive_metadata(worktree_path, reason="lifecycle-complete"):
+def archive_metadata(worktree_path, reason="agent-completed"):
     """Archive workspace metadata before cleanup."""
     metadata_path = Path(worktree_path) / "WORKSPACE_META.json"
     if not metadata_path.exists():
@@ -193,7 +85,7 @@ def archive_metadata(worktree_path, reason="lifecycle-complete"):
     metadata["reason"] = reason
 
     # Create archive directory
-    archive_dir = Path(".context/workspaces/.archive")
+    archive_dir = Path(".claude/workspaces/.archive")
     archive_dir.mkdir(parents=True, exist_ok=True)
 
     # Archive filename
@@ -211,23 +103,23 @@ def archive_metadata(worktree_path, reason="lifecycle-complete"):
 
 
 def cleanup_worktree(worktree_path, branch):
-    """Clean up a single worktree safely after lifecycle verification."""
+    """Clean up a single worktree safely."""
     worktree_path = Path(worktree_path)
 
     if not worktree_path.exists():
         return True  # Already cleaned up
 
-    # Verify all lifecycle conditions
-    should_cleanup, checks = should_cleanup_worktree(str(worktree_path), branch)
+    # Safety checks
+    if has_uncommitted_changes(str(worktree_path)):
+        print(f"⚠️  Skipping cleanup: Uncommitted changes in {worktree_path}", file=sys.stderr)
+        return False
 
-    if not should_cleanup:
-        failed_checks = [k for k, v in checks.items() if not v]
-        print(f"⏳ Worktree not ready for cleanup: {worktree_path}", file=sys.stderr)
-        print(f"   Pending conditions: {', '.join(failed_checks)}", file=sys.stderr)
+    if has_unpushed_commits(str(worktree_path), branch):
+        print(f"⚠️  Skipping cleanup: Unpushed commits in {worktree_path}", file=sys.stderr)
         return False
 
     # Archive metadata
-    archive_metadata(str(worktree_path), reason="lifecycle-complete")
+    archive_metadata(str(worktree_path), reason="agent-completed")
 
     # Remove worktree
     try:
@@ -247,7 +139,7 @@ def cleanup_worktree(worktree_path, branch):
 def find_worktrees_for_branch(branch):
     """Find all worktrees for a given branch."""
     worktrees = []
-    workspace_root = Path(".context/workspaces")
+    workspace_root = Path(".claude/workspaces")
 
     if not workspace_root.exists():
         return worktrees
@@ -264,38 +156,61 @@ def find_worktrees_for_branch(branch):
     return worktrees
 
 
+def should_cleanup_phase(phase, agent_result):
+    """Determine if phase worktree should be cleaned up based on agent result."""
+    # Phases that auto-cleanup after agent completion
+    AUTO_CLEANUP_PHASES = [2, 4, 7]  # test-creation, code-review, pr-review
+
+    # Check if phase should auto-cleanup
+    if phase not in AUTO_CLEANUP_PHASES:
+        return False
+
+    # Check agent result status
+    if not agent_result or not agent_result.get("success"):
+        return False
+
+    return True
+
+
 def main():
     try:
         # Read hook input
         input_data = json.load(sys.stdin)
+
+        # Get agent result
+        agent_result = input_data.get("agent_result", {})
+        agent_type = input_data.get("agent_type", "")
 
         # Get current branch
         branch = get_current_branch()
         if not branch or branch in ["main", "master", "dev", "develop"]:
             sys.exit(0)
 
-        # Check if branch is merged - this triggers cleanup check
+        # Check if branch is merged
         if is_branch_merged(branch):
-            print(f"🔍 Branch {branch} is merged - checking lifecycle conditions", file=sys.stderr)
+            print(f"🎉 Branch {branch} is merged - cleaning up all worktrees", file=sys.stderr)
 
-            # Find and check all worktrees for this branch
+            # Find and cleanup all worktrees for this branch
             worktrees = find_worktrees_for_branch(branch)
             cleaned = 0
-            pending = 0
+            skipped = 0
 
             for worktree_path in worktrees:
                 if cleanup_worktree(worktree_path, branch):
                     cleaned += 1
                 else:
-                    pending += 1
+                    skipped += 1
 
             if cleaned > 0:
                 print(f"✅ Cleaned up {cleaned} worktree(s)", file=sys.stderr)
+                if skipped > 0:
+                    print(f"⚠️  Skipped {skipped} worktree(s) (uncommitted/unpushed work)", file=sys.stderr)
+
                 # Prune git worktree references
                 subprocess.run(["git", "worktree", "prune"], capture_output=True)
 
-            if pending > 0:
-                print(f"⏳ {pending} worktree(s) pending (lifecycle conditions not met)", file=sys.stderr)
+        # Check if specific phase should be cleaned up
+        # (This would require phase detection from agent_type)
 
         sys.exit(0)
 

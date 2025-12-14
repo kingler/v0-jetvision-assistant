@@ -12,16 +12,16 @@ echo ""
 
 # Create workspace directory structure
 echo "📁 Creating workspace directories..."
-mkdir -p .context/workspaces/{phase-1-branch-init,phase-2-test-creation,phase-3-implementation,phase-4-code-review,phase-5-iteration,phase-6-pr-creation,phase-7-pr-review,phase-8-conflict-resolution,phase-9-merge}
-mkdir -p .context/workspaces/.archive
+mkdir -p .claude/workspaces/{phase-1-branch-init,phase-2-test-creation,phase-3-implementation,phase-4-code-review,phase-5-iteration,phase-6-pr-creation,phase-7-pr-review,phase-8-conflict-resolution,phase-9-merge}
+mkdir -p .claude/workspaces/.archive
 
 echo "✅ Created workspace directories"
 echo ""
 
 # Create .gitignore for workspaces
 echo "📝 Configuring git ignore rules..."
-if [ ! -f .context/workspaces/.gitignore ]; then
-  cat > .context/workspaces/.gitignore << 'EOF'
+if [ ! -f .claude/workspaces/.gitignore ]; then
+  cat > .claude/workspaces/.gitignore << 'EOF'
 # Ignore all worktree directories
 phase-*/
 
@@ -34,7 +34,7 @@ phase-*/
 # Keep README
 !README.md
 EOF
-  echo "✅ Created .context/workspaces/.gitignore"
+  echo "✅ Created .claude/workspaces/.gitignore"
 else
   echo "ℹ️  .gitignore already exists"
 fi
@@ -42,7 +42,7 @@ echo ""
 
 # Create README for workspace directory
 echo "📄 Creating workspace README..."
-cat > .context/workspaces/README.md << 'EOF'
+cat > .claude/workspaces/README.md << 'EOF'
 # Git Worktree Agent Workspaces
 
 This directory contains isolated git worktree workspaces for AI agent work organized by SDLC phase.
@@ -50,7 +50,7 @@ This directory contains isolated git worktree workspaces for AI agent work organ
 ## Directory Structure
 
 ```
-.context/workspaces/
+.claude/workspaces/
 ├── phase-1-branch-init/        # Pull Request Agent
 ├── phase-2-test-creation/      # Test Agent
 ├── phase-3-implementation/     # Coding Agent
@@ -179,16 +179,16 @@ echo ""
 # Create initial status report
 echo "📊 Generating initial status report..."
 if command -v python3 &> /dev/null; then
-  cat > .context/workspaces/status-initial.txt << EOF
+  cat > .claude/workspaces/status-initial.txt << EOF
 Git Worktree Workspace Status - Initial Setup
 Date: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 Workspace Structure: ✅ Created
 Active Worktrees: 0
-Disk Space Used: $(du -sh .context/workspaces 2>/dev/null | cut -f1)
+Disk Space Used: $(du -sh .claude/workspaces 2>/dev/null | cut -f1)
 
 Directory Structure:
-$(find .context/workspaces -type d -maxdepth 1 | sort)
+$(find .claude/workspaces -type d -maxdepth 1 | sort)
 
 Next Steps:
 1. Create your first feature branch
@@ -222,7 +222,7 @@ echo "  - PreToolUse: Auto-create worktrees for agents"
 echo "  - SubagentStop: Auto-cleanup completed phases"
 echo ""
 echo "📖 Documentation:"
-echo "  - .context/workspaces/README.md"
+echo "  - .claude/workspaces/README.md"
 echo "  - .claude/skills/git-worktree-isolation/SKILL.md"
 echo "  - .claude/agents/worktree-manager.md"
 echo ""

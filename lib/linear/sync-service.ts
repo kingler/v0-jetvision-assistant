@@ -3,13 +3,15 @@
  * Handles synchronization between GitHub PRs and Linear issues
  */
 
+import {
+  LinearIssueState,
+  GitHubPRState,
+} from './types';
 import type {
   LinearStatusUpdate,
   SyncResult,
   TaskPRMapping,
   LinearSyncConfig,
-  LinearIssueState,
-  GitHubPRState,
   PRLifecycleEvent,
 } from './types';
 

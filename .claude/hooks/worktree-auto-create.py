@@ -55,7 +55,7 @@ def worktree_exists(phase, branch):
         return False
 
     phase_name = phase_info["name"]
-    worktree_path = f".context/workspaces/phase-{phase}-{phase_name}/{branch}"
+    worktree_path = f".claude/workspaces/phase-{phase}-{phase_name}/{branch}"
 
     return os.path.exists(worktree_path)
 
@@ -71,7 +71,7 @@ def create_worktree(phase, branch, agent_type):
     agent_role = phase_info["agents"][0]  # Primary agent role
 
     # Create workspace directory structure
-    workspace_root = Path(".context/workspaces")
+    workspace_root = Path(".claude/workspaces")
     workspace_root.mkdir(parents=True, exist_ok=True)
 
     phase_dir = workspace_root / f"phase-{phase}-{phase_name}"
@@ -184,7 +184,7 @@ def main():
 Phase: {phase} - {phase_info['name']}
 Agent: {agent_type}
 Branch: {branch}
-Path: .context/workspaces/phase-{phase}-{phase_info['name']}/{branch}
+Path: .claude/workspaces/phase-{phase}-{phase_info['name']}/{branch}
 
 The agent will now work in this isolated workspace.
 """, file=sys.stderr)

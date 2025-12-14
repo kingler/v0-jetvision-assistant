@@ -20,17 +20,17 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     let query = supabase
-      .from('workflow_history')
+      .from('workflow_states')
       .select('*, request:requests!inner(id, user_id)')
       .eq('request.user_id', user.id)
-      .order('transitioned_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (requestId) query = query.eq('request_id', requestId);
 
     const { data: history, error } = await query;
     if (error) return NextResponse.json({ error: 'Failed to fetch workflow history' }, { status: 500 });
 
-    return NextResponse.json({ workflow_history: history });
+    return NextResponse.json({ workflow_states: history });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
