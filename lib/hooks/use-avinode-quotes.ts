@@ -15,6 +15,9 @@ import { supabase } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Quote as DBQuote } from '@/lib/types/database';
 
+/** Default currency for quotes when not specified in database */
+const DEFAULT_CURRENCY = 'USD';
+
 /**
  * Transformed quote interface with nested structure
  * Matches the Linear issue requirements
@@ -90,15 +93,13 @@ export interface UseAvinodeQuotesReturn {
  * ```
  */
 export function useAvinodeQuotes(tripId: string): UseAvinodeQuotesReturn {
-  // Validate tripId
-  if (!tripId) {
-    throw new Error('tripId is required');
-  }
-
   // State management
   const [quotes, setQuotes] = useState<DBQuote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  // Initialize error state if tripId is missing (instead of throwing during render)
+  const [error, setError] = useState<Error | null>(
+    tripId ? null : new Error('tripId is required')
+  );
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<
     'connected' | 'connecting' | 'disconnected'
@@ -125,9 +126,8 @@ export function useAvinodeQuotes(tripId: string): UseAvinodeQuotesReturn {
 
       setQuotes(data || []);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to fetch quotes');
-      setError(error);
-      console.error('Error fetching quotes:', error);
+      const fetchError = err instanceof Error ? err : new Error('Failed to fetch quotes');
+      setError(fetchError);
     } finally {
       setIsLoading(false);
     }
@@ -196,8 +196,6 @@ export function useAvinodeQuotes(tripId: string): UseAvinodeQuotesReturn {
             filter: `request_id=eq.${tripId}`,
           },
           (payload) => {
-            console.log('Realtime quote update:', payload);
-
             if (payload.eventType === 'INSERT') {
               // Add new quote to the list
               setQuotes((prev) => [...prev, payload.new as DBQuote]);
@@ -215,8 +213,6 @@ export function useAvinodeQuotes(tripId: string): UseAvinodeQuotesReturn {
           }
         )
         .subscribe((status) => {
-          console.log('Subscription status:', status);
-
           if (status === 'SUBSCRIBED') {
             setConnectionStatus('connected');
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
@@ -230,7 +226,6 @@ export function useAvinodeQuotes(tripId: string): UseAvinodeQuotesReturn {
     // Cleanup subscription on unmount or tripId change
     return () => {
       if (channel) {
-        console.log('Unsubscribing from quotes channel');
         channel.unsubscribe();
       }
     };
@@ -282,6 +277,7 @@ export function transformQuote(dbQuote: DBQuote): Quote {
     analyzed: 'quoted',
     accepted: 'quoted',
     rejected: 'declined',
+    expired: 'expired',
   };
 
   return {
@@ -297,7 +293,7 @@ export function transformQuote(dbQuote: DBQuote): Quote {
     },
     pricing: {
       total: dbQuote.total_price,
-      currency: 'USD', // Default to USD, can be extended
+      currency: DEFAULT_CURRENCY,
     },
     status: statusMap[dbQuote.status] || 'pending',
     validUntil: dbQuote.valid_until || '',
