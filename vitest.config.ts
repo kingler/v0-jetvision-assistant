@@ -8,7 +8,7 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./__tests__/helpers/setup.ts'],
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: ['node_modules', '.next', 'dist', 'build', 'app/_archived/**', '__tests__/unit/app/_archived/**'],
+    exclude: ['node_modules', '.next', 'dist', 'build', 'app/_archived/**', '__tests__/unit/app/_archived/**', '.context/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
