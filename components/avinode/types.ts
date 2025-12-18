@@ -128,3 +128,6 @@ export interface TripIDInputProps {
 
 // Webhook connection status
 export type WebhookStatus = 'connected' | 'delayed' | 'disconnected';
+
+// Workflow status for AvinodeActionRequired component
+export type WorkflowStatus = 'pending' | 'searching' | 'selected' | 'quotes_received';

@@ -20,6 +20,8 @@ export { TripIDInput } from './trip-id-input';
 export type { TripIDInputProps } from './trip-id-input';
 export { WebhookStatusIndicator } from './webhook-status-indicator';
 export type { WebhookStatusIndicatorProps } from './webhook-status-indicator';
+export { AvinodeActionRequired } from './avinode-action-required';
+export type { AvinodeActionRequiredProps } from './avinode-action-required';
 
 // Shared types
 export type {
@@ -38,4 +40,5 @@ export type {
   AuthMethod,
   EnvironmentType,
   WebhookStatus,
+  WorkflowStatus,
 } from './types';
