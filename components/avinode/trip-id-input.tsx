@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * TripIDInput Component
  *
@@ -18,34 +20,15 @@
  * ```
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useId } from 'react';
 import { Loader2, Send, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
-export interface TripIDInputProps {
-  /**
-   * Callback function invoked when a valid Trip ID is submitted
-   */
-  onSubmit: (tripId: string) => Promise<void>;
-  /**
-   * Loading state indicator
-   */
-  isLoading?: boolean;
-  /**
-   * Error message to display
-   */
-  error?: string;
-  /**
-   * Optional callback for cancel action
-   */
-  onCancel?: () => void;
-  /**
-   * Optional help text explaining where to find the Trip ID
-   */
-  helpText?: string;
-}
+// Import shared type - single source of truth in types.ts
+import type { TripIDInputProps } from './types';
+export type { TripIDInputProps } from './types';
 
 /**
  * Regular expression for Trip ID validation
@@ -133,9 +116,9 @@ export function TripIDInput({
 
       try {
         await onSubmit(value);
-      } catch (err) {
+      } catch {
         // Error handling is the responsibility of the parent component
-        console.error('TripIDInput submission error:', err);
+        // Errors are expected to be handled via the error prop or parent state
       }
     },
     [value, validateTripId, isLoading, onSubmit],
@@ -157,11 +140,13 @@ export function TripIDInput({
   const isValid = value.length >= 6 && value.length <= 12 && TRIP_ID_REGEX.test(value);
   const showValidationError = value.length > 0 && !isValid;
 
-  // Generate unique IDs for accessibility
-  const inputId = 'trip-id-input';
-  const helpTextId = 'trip-id-help-text';
-  const errorId = 'trip-id-error';
-  const validationErrorId = 'trip-id-validation-error';
+  // Generate unique IDs for accessibility using React's useId hook
+  // This ensures multiple TripIDInput instances don't have conflicting IDs
+  const instanceId = useId();
+  const inputId = `trip-id-input-${instanceId}`;
+  const helpTextId = `trip-id-help-text-${instanceId}`;
+  const errorId = `trip-id-error-${instanceId}`;
+  const validationErrorId = `trip-id-validation-error-${instanceId}`;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
@@ -221,11 +206,12 @@ export function TripIDInput({
           {isLoading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+              <span>Submitting...</span>
             </>
           ) : (
             <>
               <Send className="h-4 w-4 mr-2" aria-hidden="true" />
-              Submit
+              <span>Submit</span>
             </>
           )}
         </Button>
