@@ -47,9 +47,14 @@ describe('RichMarkdown', () => {
 
     it('should render code blocks', () => {
       const markdown = '```javascript\nconst foo = "bar";\n```';
-      render(<RichMarkdown content={markdown} />);
+      const { container } = render(<RichMarkdown content={markdown} />);
 
-      expect(screen.getByText(/const foo/)).toBeInTheDocument();
+      // Syntax highlighting splits code into multiple elements, so check for the code block structure
+      const codeBlock = container.querySelector('code.language-javascript');
+      expect(codeBlock).toBeInTheDocument();
+      // Check that the code content is rendered (even if split by syntax highlighting)
+      expect(codeBlock?.textContent).toContain('const');
+      expect(codeBlock?.textContent).toContain('foo');
     });
 
     it('should render inline code', () => {
