@@ -61,7 +61,6 @@
     "@clerk/nextjs": "^6.34.0",
     "@hookform/resolvers": "^3.10.0",
     "@modelcontextprotocol/sdk": "^1.0.2",
-    "@openai/chatkit-react": "^1.1.1",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
     "@radix-ui/react-aspect-ratio": "1.1.1",

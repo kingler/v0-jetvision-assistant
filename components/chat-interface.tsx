@@ -8,12 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Send, Loader2, Plane, FileText, Eye, Clock, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { WorkflowVisualization } from "./workflow-visualization"
 import { ProposalPreview } from "./proposal-preview"
 import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "./chat-sidebar"
-import { ChatKitWidget } from "./chatkit-widget"
 import { AvinodeTripBadge } from "./avinode-trip-badge"
 
 interface ChatInterfaceProps {
@@ -33,17 +31,11 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
+  const [streamingContent, setStreamingContent] = useState("")
+  const [streamError, setStreamError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const latestMessagesRef = useRef(activeChat.messages)
-  const chatKitMetadata = useMemo(
-    () => ({
-      route: activeChat.route,
-      date: activeChat.date,
-      passengers: activeChat.passengers,
-      status: activeChat.status,
-    }),
-    [activeChat.date, activeChat.passengers, activeChat.route, activeChat.status],
-  )
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -51,7 +43,7 @@ export function ChatInterface({
 
   useEffect(() => {
     scrollToBottom()
-  }, [activeChat.messages, isTyping])
+  }, [activeChat.messages, isTyping, streamingContent])
 
   useEffect(() => {
     latestMessagesRef.current = activeChat.messages
@@ -177,104 +169,147 @@ export function ChatInterface({
     }
   }
 
-  const handleChatKitAction = useCallback(
-    (action: { type: string; payload?: Record<string, unknown> }) => {
-      const payload = action.payload ?? {}
+  /**
+   * Send message to the chat API with streaming response
+   */
+  const sendMessageWithStreaming = async (userMessage: string) => {
+    // Build conversation history for context
+    const conversationHistory = activeChat.messages.map((msg) => ({
+      role: msg.type === "user" ? "user" as const : "assistant" as const,
+      content: msg.content,
+    }))
 
-      switch (action.type) {
-        case "jetvision.workflow.search":
-        case "jetvision.search": {
-          onProcessingChange(true)
-          commitChatUpdate(
-            {
-              status: "searching_aircraft",
-              currentStep: 2,
-            },
-            {
-              content: "Launching a refreshed aircraft search with the latest parameters supplied via ChatKit.",
-              showWorkflow: true,
-            },
-          )
-          onProcessingChange(false)
-          break
-        }
-        case "jetvision.workflow.request_quotes":
-        case "jetvision.request_quotes": {
-          onProcessingChange(true)
-          const quotesTotal = typeof payload.quotesTotal === "number" ? payload.quotesTotal : activeChat.quotesTotal || 5
-          commitChatUpdate(
-            {
-              status: "requesting_quotes",
-              currentStep: 3,
-              quotesReceived: typeof payload.quotesReceived === "number" ? payload.quotesReceived : 0,
-              quotesTotal,
-            },
-            {
-              content: "Submitting quote requests to operators. I'll surface responses here as they arrive.",
-              showQuoteStatus: true,
-            },
-          )
-          onProcessingChange(false)
-          break
-        }
-        case "jetvision.workflow.analyze_options":
-        case "jetvision.analyze_options": {
-          commitChatUpdate(
-            {
-              status: "analyzing_options",
-              currentStep: 4,
-            },
-            {
-              content: "Reviewing operator responses to compile the best proposal for your client.",
-              showWorkflow: true,
-            },
-          )
-          break
-        }
-        case "jetvision.workflow.finalize_booking":
-        case "jetvision.booking.finalize": {
-          commitChatUpdate(
-            {
-              status: "proposal_ready",
-              currentStep: 5,
-              quotesReceived: activeChat.quotesReceived,
-              quotesTotal: activeChat.quotesTotal,
-            },
-            {
-              content:
-                "The proposal is ready to present. Confirm the itinerary details and proceed to booking when the client approves.",
-              showProposal: true,
-            },
-          )
-          onProcessingChange(false)
-          break
-        }
-        case "jetvision.thread.attach": {
-          if (typeof payload.threadId === "string") {
-            commitChatUpdate({
-              chatkitThreadId: payload.threadId,
-            })
+    // Create abort controller for this request
+    abortControllerRef.current = new AbortController()
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          conversationHistory,
+          context: {
+            flightRequestId: activeChat.id,
+            route: activeChat.route,
+            passengers: activeChat.passengers,
+            date: activeChat.date,
+          },
+        }),
+        signal: abortControllerRef.current.signal,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Request failed" }))
+        throw new Error(errorData.message || `Request failed with status ${response.status}`)
+      }
+
+      // Handle SSE streaming response
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error("No response body")
+      }
+
+      const decoder = new TextDecoder()
+      let fullContent = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n")
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.error) {
+                throw new Error(data.message || "Stream error")
+              }
+
+              if (data.content) {
+                fullContent += data.content
+                setStreamingContent(fullContent)
+              }
+
+              if (data.done) {
+                // Stream complete - add final message
+                const agentMsg = {
+                  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                  type: "agent" as const,
+                  content: fullContent,
+                  timestamp: new Date(),
+                }
+
+                const updatedMessages = [...latestMessagesRef.current, agentMsg]
+                latestMessagesRef.current = updatedMessages
+
+                onUpdateChat(activeChat.id, {
+                  messages: updatedMessages,
+                  status: "understanding_request",
+                  currentStep: 1,
+                })
+
+                setStreamingContent("")
+                return
+              }
+            } catch (parseError) {
+              // Skip malformed JSON lines
+              console.warn("[Chat] Failed to parse SSE data:", line)
+            }
           }
-          break
-        }
-        default: {
-          commitChatUpdate(
-            {},
-            {
-              content: `Received ChatKit action "${action.type}". No workflow mapping configured yet.`,
-            },
-          )
-          break
         }
       }
-    },
-    [
-      activeChat.quotesReceived,
-      activeChat.quotesTotal,
-      commitChatUpdate,
-      onProcessingChange,
-    ],
-  )
+
+      // If we reach here without done signal, finalize with collected content
+      if (fullContent) {
+        const agentMsg = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: "agent" as const,
+          content: fullContent,
+          timestamp: new Date(),
+        }
+
+        const updatedMessages = [...latestMessagesRef.current, agentMsg]
+        latestMessagesRef.current = updatedMessages
+
+        onUpdateChat(activeChat.id, {
+          messages: updatedMessages,
+        })
+
+        setStreamingContent("")
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        // Request was cancelled - don't show error
+        return
+      }
+
+      const errorMessage = error instanceof Error ? error.message : "Failed to send message"
+      setStreamError(errorMessage)
+
+      // Add error message to chat
+      const errorMsg = {
+        id: `${Date.now()}-error`,
+        type: "agent" as const,
+        content: `I apologize, but I encountered an error: ${errorMessage}. Please try again.`,
+        timestamp: new Date(),
+      }
+
+      const updatedMessages = [...latestMessagesRef.current, errorMsg]
+      latestMessagesRef.current = updatedMessages
+
+      onUpdateChat(activeChat.id, {
+        messages: updatedMessages,
+      })
+
+      setStreamingContent("")
+    }
+  }
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return
@@ -282,9 +317,28 @@ export function ChatInterface({
     const userMessage = inputValue.trim()
     setInputValue("")
     setIsTyping(true)
+    setStreamError(null)
     onProcessingChange(true)
 
-    await simulateWorkflowProgress(userMessage)
+    // Add user message immediately
+    const userMsg = {
+      id: Date.now().toString(),
+      type: "user" as const,
+      content: userMessage,
+      timestamp: new Date(),
+    }
+
+    const currentMessages = [...activeChat.messages, userMsg]
+    latestMessagesRef.current = currentMessages
+
+    onUpdateChat(activeChat.id, {
+      messages: currentMessages,
+      status: "understanding_request",
+      currentStep: 1,
+    })
+
+    // Send message with streaming
+    await sendMessageWithStreaming(userMessage)
 
     setIsTyping(false)
     onProcessingChange(false)
@@ -548,37 +602,27 @@ export function ChatInterface({
             </div>
           ))}
 
-          <Card className="bg-gray-900 text-gray-100 border border-gray-800 shadow-lg shadow-cyan-500/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base text-white">ChatKit Live Assistant</CardTitle>
-              <CardDescription className="text-xs text-gray-400">
-                Embedded assistant connected to jet search, quote orchestration, and booking workflows.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pb-6">
-              <ChatKitWidget
-                sessionId={activeChat.chatkitThreadId ?? `flight-${activeChat.id}`}
-                metadata={chatKitMetadata}
-                onWorkflowAction={handleChatKitAction}
-                className="h-[420px]"
-              />
-            </CardContent>
-          </Card>
-
-          {/* Typing Indicator */}
+          {/* Streaming Response / Typing Indicator */}
           {isTyping && (
             <div className="flex justify-start">
-              <div className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl px-4 py-3 border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="max-w-[85%] bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl px-4 py-3 border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="flex items-center space-x-2 mb-2">
                   <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
                     <Plane className="w-3 h-3 text-white" />
                   </div>
                   <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Jetvision Agent</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  <span className="text-sm">Processing your request...</span>
-                </div>
+                {streamingContent ? (
+                  <div>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{streamingContent}</p>
+                    <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-0.5" />
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    <span className="text-sm">Thinking...</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
