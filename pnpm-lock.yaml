@@ -17,9 +17,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.2
         version: 1.20.2
-      '@openai/chatkit-react':
-        specifier: ^1.1.1
-        version: 1.2.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@radix-ui/react-accordion':
         specifier: 1.2.2
         version: 1.2.2(@types/react-dom@18.3.7(@types/react@18.3.26))(@types/react@18.3.26)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1607,15 +1604,6 @@ packages:
   '@nolyfill/is-core-module@1.0.39':
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
-
-  '@openai/chatkit-react@1.2.0':
-    resolution: {integrity: sha512-qk466KfPuCh7gCU0Qqc6PygekV5eMitn4JE8P2XcS8U7aFMNYrS74zYXmJ2xBhugAiuYMycBC0kFiCaxtmVwXQ==}
-    peerDependencies:
-      react: '>=18'
-      react-dom: '>=18'
-
-  '@openai/chatkit@1.0.1':
-    resolution: {integrity: sha512-zU86yKX2wW/L0M6Tva30VKod4Djhq24BXEyDXr7aH1G/bJrgpNUjdinQ8VK41eJjwEdwDZlxJyq7o0JUTWgSOg==}
 
   '@opentelemetry/api-logs@0.204.0':
     resolution: {integrity: sha512-DqxY8yoAaiBPivoJD4UtgrMS8gEmzZ5lnaxzPojzLVHBGqPxgWm4zcuvcUHZiqQ6kRX2Klel2r9y8cA2HAtqpw==}
@@ -8188,14 +8176,6 @@ snapshots:
       fastq: 1.19.1
 
   '@nolyfill/is-core-module@1.0.39': {}
-
-  '@openai/chatkit-react@1.2.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@openai/chatkit': 1.0.1
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-
-  '@openai/chatkit@1.0.1': {}
 
   '@opentelemetry/api-logs@0.204.0':
     dependencies:
