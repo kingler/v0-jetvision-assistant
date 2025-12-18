@@ -14,6 +14,8 @@ export { TripDetailsCard } from './trip-details-card';
 export type { TripDetailsCardProps } from './trip-details-card';
 export { AvinodeMessageCard } from './avinode-message-card';
 export type { AvinodeMessageCardProps } from './avinode-message-card';
+export { DeepLinkPrompt } from './deep-link-prompt';
+export type { DeepLinkPromptProps } from './types';
 
 // Shared types
 export type {

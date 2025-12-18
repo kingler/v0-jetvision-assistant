@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, Copy, Check, Plane, Calendar, Users } from 'lucide-react';
@@ -44,6 +44,16 @@ export function DeepLinkPrompt({
   onCopyLink,
 }: DeepLinkPromptProps) {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   /**
    * Format ISO date string to human-readable format
@@ -68,18 +78,21 @@ export function DeepLinkPrompt({
       await navigator.clipboard.writeText(deepLink);
       setCopied(true);
 
+      // Clear any existing timeout to prevent race conditions
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
       // Reset copied state after 2 seconds
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setCopied(false);
       }, 2000);
 
       // Call optional callback
-      if (onCopyLink) {
-        onCopyLink();
-      }
-    } catch (error) {
-      // Handle clipboard API errors gracefully
-      console.error('Failed to copy link:', error);
+      onCopyLink?.();
+    } catch {
+      // Clipboard API may fail in some browsers/contexts - fail silently
+      // The user can still use the primary CTA link
     }
   };
 

@@ -79,3 +79,23 @@ export interface QuoteInfo {
   operator: string;
   aircraft: string;
 }
+
+// Deep link prompt props
+export interface DeepLinkPromptProps {
+  departureAirport: {
+    icao: string;
+    name?: string;
+    city?: string;
+  };
+  arrivalAirport: {
+    icao: string;
+    name?: string;
+    city?: string;
+  };
+  departureDate: string; // ISO date format (YYYY-MM-DD)
+  passengers: number;
+  requestId: string;
+  deepLink: string;
+  onLinkClick?: () => void;
+  onCopyLink?: () => void;
+}
