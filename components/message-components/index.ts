@@ -39,6 +39,9 @@ export type { WorkflowStatusProps } from './workflow-status';
 export { ProposalPreview } from './proposal-preview';
 export type { ProposalPreviewProps } from './proposal-preview';
 
+export { ActionButton } from './action-button';
+export type { ActionButtonProps } from './action-button';
+
 export { ActionButtons } from './action-buttons';
 export type { ActionButtonsProps } from './action-buttons';
 

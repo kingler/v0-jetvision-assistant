@@ -2,11 +2,11 @@
  * Action Buttons Component
  *
  * Displays inline quick-reply action buttons for user interactions
- * within chat messages.
+ * within chat messages. Supports multiple layouts and keyboard navigation.
  */
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { ActionButton } from './action-button';
 import { ActionButtonsComponent } from './types';
 
 export interface ActionButtonsProps {
@@ -16,39 +16,49 @@ export interface ActionButtonsProps {
   className?: string;
 }
 
-export function ActionButtons({ actions, layout = 'horizontal', onAction, className }: ActionButtonsProps) {
+/**
+ * ActionButtons Component
+ *
+ * Renders a collection of action buttons with configurable layout.
+ * Supports horizontal, vertical, and grid layouts with full keyboard navigation.
+ */
+export function ActionButtons({
+  actions,
+  layout = 'horizontal',
+  onAction,
+  className,
+}: ActionButtonsProps): React.ReactElement {
+  /**
+   * Layout-specific CSS classes
+   */
   const layoutClasses = {
     horizontal: 'flex flex-wrap gap-2',
     vertical: 'flex flex-col gap-2',
     grid: 'grid grid-cols-2 md:grid-cols-3 gap-2',
   };
 
+  /**
+   * Handle button click
+   */
+  const handleAction = (actionId: string, value: string | number): void => {
+    onAction?.(actionId, value);
+  };
+
   return (
     <div className={`${layoutClasses[layout]} ${className || ''}`}>
-      {actions.map((action) => {
-        // Map 'primary' to 'default' for Button component compatibility
-        const variantMapping = {
-          primary: 'default',
-          secondary: 'secondary',
-          outline: 'outline',
-          ghost: 'ghost',
-        } as const;
-        const variant = action.variant ? variantMapping[action.variant] : 'outline';
-
-        return (
-          <Button
-            key={action.id}
-            variant={variant}
-            size="sm"
-            disabled={action.disabled}
-            onClick={() => onAction?.(action.id, action.value)}
-            className={layout === 'grid' ? 'w-full' : ''}
-          >
-            {action.icon && <span className="mr-2">{action.icon}</span>}
-            {action.label}
-          </Button>
-        );
-      })}
+      {actions.map((action) => (
+        <ActionButton
+          key={action.id}
+          id={action.id}
+          label={action.label}
+          value={action.value}
+          variant={action.variant}
+          icon={action.icon}
+          disabled={action.disabled}
+          onClick={handleAction}
+          className={layout === 'grid' ? 'w-full' : ''}
+        />
+      ))}
     </div>
   );
 }
