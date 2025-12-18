@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Copy, Info, CheckCircle2, Circle } from 'lucide-react';
+import { ExternalLink, Copy, Info, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WorkflowStatus } from './types';
 
@@ -148,7 +148,7 @@ export function AvinodeActionRequired({
 
   const handleOpenAvinode = () => {
     const link = status === 'quotes_received' && viewLink ? viewLink : searchLink;
-    window.open(link, '_blank');
+    window.open(link, '_blank', 'noopener,noreferrer');
     onSearchClick?.();
   };
 
@@ -156,8 +156,9 @@ export function AvinodeActionRequired({
     try {
       await navigator.clipboard.writeText(searchLink);
       onCopyLink?.();
-    } catch (error) {
-      console.error('Failed to copy link:', error);
+    } catch {
+      // Clipboard API may fail in some browsers/contexts - fail silently
+      // Parent component can handle via onCopyLink callback if needed
     }
   };
 
