@@ -1,0 +1,13 @@
+# Archived Git Remotes
+# This file documents git remotes that have been removed from the repository
+# after assessment determined they were no longer needed.
+
+## abcucinalabs
+URL: https://github.com/abcucinalabs/v0-jetvision-assistant.git
+Archived: 2025-12-18
+Reason: Fork superseded by main branch evolution (172 commits behind)
+Assessment: docs/analysis/ABCUCINALABS_FORK_ASSESSMENT.md
+Branches:
+  - main (7 commits ahead of common ancestor, all database infrastructure)
+  - authentication-&-database (1 commit ahead, README only)
+Decision: No merge required - all TASK-001/002 changes evolved in main via ONEK-series

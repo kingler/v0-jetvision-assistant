@@ -44,7 +44,9 @@
 | origin/feat/ONEK-96-rich-message-renderer | ✅ Clean | 22 | 2 | Nov 15 |
 | origin/feat/ONEK-98-orchestrator-conversational | ✅ Clean | 23 | 3 | Nov 14 |
 | **THIRD-PARTY** |
-| abcucinalabs/authentication-&-database | ✅ Clean | 172 | 1 | Oct 25 |
+| abcucinalabs/authentication-&-database | ARCHIVED | 172 | 1 | Oct 25 |
+
+**Note:** The abcucinalabs fork has been assessed and archived (2025-12-18). All database infrastructure from TASK-001/002 has been superseded by main branch evolution through ONEK-series tickets. See [ABCUCINALABS_FORK_ASSESSMENT.md](./ABCUCINALABS_FORK_ASSESSMENT.md) for details.
 
 ### Cross-Branch File Conflicts
 
@@ -243,7 +245,7 @@ Latest migrations:
 ❌ feat/chatkit-chat-page-and-tests                  (Too stale, 10 conflicts)
 ❌ fix/TASK-000-typescript-vitest-blockers           (Obsolete)
 ❌ origin/claude/fix-jetvision-company-name-*        (Outdated assessments)
-❌ abcucinalabs/authentication-&-database            (172 behind, README only)
+ARCHIVED abcucinalabs/authentication-&-database      (Fork superseded, remote removed)
 ```
 
 ---
