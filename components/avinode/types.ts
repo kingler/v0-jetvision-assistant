@@ -125,3 +125,6 @@ export interface TripIDInputProps {
    */
   helpText?: string;
 }
+
+// Webhook connection status
+export type WebhookStatus = 'connected' | 'delayed' | 'disconnected';

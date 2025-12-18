@@ -18,6 +18,8 @@ export { DeepLinkPrompt } from './deep-link-prompt';
 export type { DeepLinkPromptProps } from './types';
 export { TripIDInput } from './trip-id-input';
 export type { TripIDInputProps } from './trip-id-input';
+export { WebhookStatusIndicator } from './webhook-status-indicator';
+export type { WebhookStatusIndicatorProps } from './webhook-status-indicator';
 
 // Shared types
 export type {
@@ -35,4 +37,5 @@ export type {
   MessageType,
   AuthMethod,
   EnvironmentType,
+  WebhookStatus,
 } from './types';
