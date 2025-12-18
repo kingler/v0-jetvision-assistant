@@ -99,3 +99,29 @@ export interface DeepLinkPromptProps {
   onLinkClick?: () => void;
   onCopyLink?: () => void;
 }
+
+/**
+ * Props for the TripIDInput component
+ */
+export interface TripIDInputProps {
+  /**
+   * Callback function invoked when a valid Trip ID is submitted
+   */
+  onSubmit: (tripId: string) => Promise<void>;
+  /**
+   * Loading state indicator
+   */
+  isLoading?: boolean;
+  /**
+   * Error message to display
+   */
+  error?: string;
+  /**
+   * Optional callback for cancel action
+   */
+  onCancel?: () => void;
+  /**
+   * Optional help text explaining where to find the Trip ID
+   */
+  helpText?: string;
+}

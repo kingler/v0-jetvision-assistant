@@ -16,6 +16,8 @@ export { AvinodeMessageCard } from './avinode-message-card';
 export type { AvinodeMessageCardProps } from './avinode-message-card';
 export { DeepLinkPrompt } from './deep-link-prompt';
 export type { DeepLinkPromptProps } from './types';
+export { TripIDInput } from './trip-id-input';
+export type { TripIDInputProps } from './trip-id-input';
 
 // Shared types
 export type {
