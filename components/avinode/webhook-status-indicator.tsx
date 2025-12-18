@@ -1,11 +1,15 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import type { WebhookStatus } from './types';
 
 export interface WebhookStatusIndicatorProps {
-  status: 'connected' | 'delayed' | 'disconnected';
+  /** Current webhook connection status */
+  status: WebhookStatus;
+  /** Timestamp of the last successful update */
   lastUpdate?: Date;
-  delayedThreshold?: number;
-  onRefresh?: () => Promise<void>;
+  /** Callback for manual refresh action - supports both sync and async functions */
+  onRefresh?: () => void | Promise<void>;
+  /** Whether a refresh operation is in progress */
   isRefreshing?: boolean;
 }
 
@@ -29,7 +33,6 @@ export interface WebhookStatusIndicatorProps {
 export function WebhookStatusIndicator({
   status,
   lastUpdate,
-  delayedThreshold = 5 * 60 * 1000, // Default: 5 minutes
   onRefresh,
   isRefreshing = false,
 }: WebhookStatusIndicatorProps) {
@@ -47,7 +50,7 @@ export function WebhookStatusIndicator({
     } else if (minutes < 60) {
       return `${minutes} min ago`;
     } else {
-      return `${hours} hour ago`;
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
     }
   };
 
