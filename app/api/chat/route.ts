@@ -125,12 +125,13 @@ export async function POST(req: NextRequest) {
     messages.push({ role: 'user', content: message })
 
     // Create streaming response
+    // Note: GPT-5.2 uses max_completion_tokens instead of max_tokens
     const stream = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-5.2',
       messages,
       stream: true,
       temperature: 0.7,
-      max_tokens: 1024,
+      max_completion_tokens: 1024,
       user: userId,
     })
 
@@ -214,7 +215,7 @@ export async function GET() {
     JSON.stringify({
       status: 'ok',
       configured,
-      model: configured ? 'gpt-4-turbo-preview' : null,
+      model: configured ? 'gpt-5.2' : null,
     }),
     { headers: { 'Content-Type': 'application/json' } }
   )

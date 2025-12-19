@@ -104,11 +104,16 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
           isSelected ? 'ring-2 ring-primary' : ''
         } ${quote.recommended ? 'border-primary' : ''}`}
       >
-        {/* Recommended Banner */}
+        {/* Recommended Banner - accessible for screen readers */}
         {quote.recommended && (
-          <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-4 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1">
-            <Award className="h-3 w-3" />
-            RECOMMENDED
+          <div
+            role="status"
+            aria-live="polite"
+            aria-label="This quote is recommended"
+            className="absolute top-0 right-0 bg-primary text-primary-foreground px-4 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1"
+          >
+            <Award className="h-3 w-3" aria-hidden="true" />
+            <span>RECOMMENDED</span>
           </div>
         )}
 
@@ -131,10 +136,16 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
             <div className="flex-1">
               <h3 className="font-semibold text-lg">{quote.operator.name}</h3>
               <div className="flex items-center gap-2 mt-1">
-                <div className="flex items-center">
+                {/* Star rating with proper accessibility */}
+                <div
+                  role="img"
+                  aria-label={`${quote.operator.rating.toFixed(1)} out of 5 stars rating`}
+                  className="flex items-center"
+                >
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
+                      aria-hidden="true"
                       className={`h-3 w-3 ${
                         i < Math.floor(quote.operator.rating)
                           ? 'fill-yellow-400 text-yellow-400'

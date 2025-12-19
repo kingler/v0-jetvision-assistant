@@ -192,7 +192,7 @@ describe('WebhookStatusIndicator', () => {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
       render(<WebhookStatusIndicator status="delayed" lastUpdate={twoHoursAgo} />);
 
-      expect(screen.getByText(/2 hour ago/i)).toBeInTheDocument();
+      expect(screen.getByText(/2 hours ago/i)).toBeInTheDocument();
     });
 
     it('formats time correctly for less than a minute', () => {

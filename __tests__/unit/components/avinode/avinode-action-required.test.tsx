@@ -136,7 +136,11 @@ describe('AvinodeActionRequired', () => {
       const button = screen.getByRole('button', { name: /Open Avinode/i });
       fireEvent.click(button);
 
-      expect(windowOpenSpy).toHaveBeenCalledWith(defaultProps.searchLink, '_blank');
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        defaultProps.searchLink,
+        '_blank',
+        'noopener,noreferrer'
+      );
 
       windowOpenSpy.mockRestore();
     });
@@ -321,7 +325,8 @@ describe('AvinodeActionRequired', () => {
 
       expect(windowOpenSpy).toHaveBeenCalledWith(
         'https://avinode.com/view/12345',
-        '_blank'
+        '_blank',
+        'noopener,noreferrer'
       );
 
       windowOpenSpy.mockRestore();
@@ -339,7 +344,11 @@ describe('AvinodeActionRequired', () => {
       const button = screen.getByRole('button', { name: /Open Avinode/i });
       fireEvent.click(button);
 
-      expect(windowOpenSpy).toHaveBeenCalledWith(defaultProps.searchLink, '_blank');
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        defaultProps.searchLink,
+        '_blank',
+        'noopener,noreferrer'
+      );
 
       windowOpenSpy.mockRestore();
     });

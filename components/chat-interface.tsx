@@ -14,6 +14,33 @@ import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "./chat-sidebar"
 import { AvinodeTripBadge } from "./avinode-trip-badge"
 
+/**
+ * Convert markdown-formatted text to plain text
+ * Removes bold, italic, headers, bullets, and other markdown syntax
+ */
+function stripMarkdown(text: string): string {
+  return text
+    // Remove bold/italic markers
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Remove headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove code blocks
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove links but keep text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove bullet points but keep content
+    .replace(/^[\s]*[-*+]\s+/gm, '• ')
+    // Remove numbered list markers but keep numbers
+    .replace(/^[\s]*(\d+)\.\s+/gm, '$1. ')
+    // Clean up extra whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 interface ChatInterfaceProps {
   activeChat: ChatSession
   isProcessing: boolean
@@ -560,7 +587,7 @@ export function ChatInterface({
                     <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Jetvision Agent</span>
                   </div>
                 )}
-                <p className="text-sm leading-relaxed">{message.content}</p>
+                <p className="text-sm leading-relaxed">{stripMarkdown(message.content)}</p>
 
                 {message.showCustomerPreferences && activeChat.customer && (
                   <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -614,7 +641,7 @@ export function ChatInterface({
                 </div>
                 {streamingContent ? (
                   <div>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{streamingContent}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{stripMarkdown(streamingContent)}</p>
                     <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-0.5" />
                   </div>
                 ) : (

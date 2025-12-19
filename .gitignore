@@ -33,6 +33,7 @@ coverage/
 test-results/
 playwright-report/
 .playwright-mcp/
+.playwright-auth/
 
 # backup files
 *.bak

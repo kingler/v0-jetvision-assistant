@@ -97,8 +97,8 @@ export function WorkflowVisualization({
     },
     {
       id: "2",
-      title: "Searching Aircraft",
-      description: "Querying operator database for suitable aircraft",
+      title: "Creating Trip",
+      description: "Creating trip container in Avinode marketplace",
       status: getStepStatus("2"),
       icon: <Search className="w-5 h-5" />,
       isExpanded: false,
@@ -106,8 +106,8 @@ export function WorkflowVisualization({
     },
     {
       id: "3",
-      title: "Requesting Quotes",
-      description: "Sending requests to qualified operators",
+      title: "Awaiting Selection",
+      description: "Waiting for flight selection in Avinode",
       status: getStepStatus("3"),
       icon: <Clock className="w-5 h-5" />,
       isExpanded: false,
@@ -115,8 +115,8 @@ export function WorkflowVisualization({
     },
     {
       id: "4",
-      title: "Analyzing Options",
-      description: "Comparing pricing and availability",
+      title: "Receiving Quotes",
+      description: "Processing operator quotes via webhook",
       status: getStepStatus("4"),
       icon: <Calculator className="w-5 h-5" />,
       isExpanded: false,
@@ -144,24 +144,44 @@ export function WorkflowVisualization({
     }
   }
 
-  const getStatusBadge = (stepStatus: "completed" | "in-progress" | "pending") => {
+  const getStatusBadge = (stepStatus: "completed" | "in-progress" | "pending", stepTitle: string) => {
+    const statusLabel = stepStatus === "completed"
+      ? "Completed"
+      : stepStatus === "in-progress"
+        ? "In progress"
+        : "Pending"
+
     switch (stepStatus) {
       case "completed":
         return (
-          <Badge variant="default" className="bg-green-500">
-            <CheckCircle className="w-3 h-3" />
+          <Badge
+            variant="default"
+            className="bg-green-500"
+            aria-label={`${stepTitle}: ${statusLabel}`}
+          >
+            <CheckCircle className="w-3 h-3" aria-hidden="true" />
+            <span className="sr-only">{statusLabel}</span>
           </Badge>
         )
       case "in-progress":
         return (
-          <Badge variant="default" className="bg-primary">
-            <Loader2 className="w-3 h-3 animate-spin" />
+          <Badge
+            variant="default"
+            className="bg-primary"
+            aria-label={`${stepTitle}: ${statusLabel}`}
+          >
+            <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+            <span className="sr-only">{statusLabel}</span>
           </Badge>
         )
       case "pending":
         return (
-          <Badge variant="secondary">
-            <Clock className="w-3 h-3" />
+          <Badge
+            variant="secondary"
+            aria-label={`${stepTitle}: ${statusLabel}`}
+          >
+            <Clock className="w-3 h-3" aria-hidden="true" />
+            <span className="sr-only">{statusLabel}</span>
           </Badge>
         )
     }
@@ -372,8 +392,27 @@ export function WorkflowVisualization({
     )
   }
 
+  // Generate live status announcement for screen readers
+  const completedCount = steps.filter((s) => s.status === "completed").length
+  const inProgressStep = steps.find((s) => s.status === "in-progress")
+  const progressAnnouncement = inProgressStep
+    ? `Step ${inProgressStep.id}: ${inProgressStep.title} is in progress. ${completedCount} of ${steps.length} steps completed.`
+    : completedCount === steps.length
+      ? "All workflow steps completed successfully."
+      : `${completedCount} of ${steps.length} steps completed.`
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Screen reader live region for progress updates */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {progressAnnouncement}
+      </div>
+
       <div className="text-center">
         <h2 className="text-2xl font-bold text-foreground font-[family-name:var(--font-space-grotesk)] mb-2">
           Workflow Visualization
@@ -383,15 +422,29 @@ export function WorkflowVisualization({
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div
+        className="space-y-4"
+        role="list"
+        aria-label="Workflow steps"
+      >
         {steps.map((step, index) => (
           <Card
             key={step.id}
+            role="listitem"
+            tabIndex={0}
+            aria-expanded={step.isExpanded}
+            aria-label={`Step ${index + 1}: ${step.title}. Status: ${step.status === "completed" ? "Completed" : step.status === "in-progress" ? "In progress" : "Pending"}. Press Enter or Space to ${step.isExpanded ? "collapse" : "expand"} details.`}
             className={cn(
-              "transition-all duration-300 cursor-pointer hover:shadow-md",
+              "transition-all duration-300 cursor-pointer hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               step.status === "in-progress" && "ring-2 ring-primary ring-opacity-50",
             )}
             onClick={() => toggleStepExpansion(step.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                toggleStepExpansion(step.id)
+              }
+            }}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -409,8 +462,8 @@ export function WorkflowVisualization({
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {getStatusBadge(step.status)}
-                  <div className="text-sm text-muted-foreground">
+                  {getStatusBadge(step.status, step.title)}
+                  <div className="text-sm text-muted-foreground" aria-hidden="true">
                     {step.isExpanded ? '−' : '+'}
                   </div>
                 </div>

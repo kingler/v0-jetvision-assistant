@@ -5,6 +5,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/webhooks(.*)',
+  '/api/chat', // Health check GET endpoint is public
+  '/api/chat/test', // Dev-only test endpoint
 ])
 
 export default clerkMiddleware(async (auth, request) => {
