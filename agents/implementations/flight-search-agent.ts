@@ -72,6 +72,40 @@ interface Quote {
 }
 
 /**
+ * Message in trip conversation thread
+ */
+interface TripMessage {
+  messageId: string;
+  tripId: string;
+  senderId: string;
+  senderName: string;
+  senderType: 'broker' | 'operator';
+  content: string;
+  sentAt: string;
+  readAt?: string;
+}
+
+/**
+ * RFQ details including status and quotes
+ */
+interface RFQDetails {
+  rfqId: string;
+  tripId: string;
+  status: 'pending' | 'quotes_received' | 'accepted' | 'cancelled' | 'expired';
+  createdAt: string;
+  quoteDeadline?: string;
+  route: {
+    departure: { airport: string; date: string; time?: string };
+    arrival: { airport: string };
+  };
+  passengers: number;
+  quotesReceived: number;
+  quotes: Quote[];
+  operatorsContacted: number;
+  deepLink: string;
+}
+
+/**
  * Trip creation result from Avinode create_trip MCP tool
  */
 interface TripResult {
@@ -598,6 +632,260 @@ export class FlightSearchAgent extends BaseAgent {
 
     this.metrics.averageExecutionTime =
       (currentAverage * (totalExecutions - 1) + executionTime) / totalExecutions;
+  }
+
+  // ============================================================================
+  // Message Thread Integration Methods (ONEK-129)
+  // ============================================================================
+
+  /**
+   * Send a message to operators in the trip conversation thread
+   * Uses the send_trip_message MCP tool
+   *
+   * @param tripId - The trip identifier
+   * @param message - The message content to send
+   * @param recipientType - 'all_operators' or 'specific_operator'
+   * @param operatorId - Required if recipientType is 'specific_operator'
+   * @returns Message send result with message ID and status
+   */
+  async sendTripMessage(
+    tripId: string,
+    message: string,
+    recipientType: 'all_operators' | 'specific_operator' = 'all_operators',
+    operatorId?: string
+  ): Promise<{ messageId: string; status: string; sentAt: string; recipientCount: number }> {
+    this.metrics.toolCallsCount++;
+
+    try {
+      if (!tripId) {
+        throw new Error('tripId is required');
+      }
+      if (!message || message.trim().length === 0) {
+        throw new Error('message is required and cannot be empty');
+      }
+      if (recipientType === 'specific_operator' && !operatorId) {
+        throw new Error('operatorId is required when recipientType is specific_operator');
+      }
+
+      const result = await this.executeToolWithRetry('send_trip_message', {
+        trip_id: tripId,
+        message: message.trim(),
+        recipient_type: recipientType,
+        operator_id: operatorId,
+      });
+
+      return {
+        messageId: result.message_id,
+        status: result.status || 'sent',
+        sentAt: result.sent_at || new Date().toISOString(),
+        recipientCount: result.recipient_count || 1,
+      };
+    } catch (error) {
+      throw new Error(`Failed to send trip message: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Retrieve message history for a trip conversation thread
+   * Uses the get_trip_messages MCP tool
+   *
+   * @param tripId - The trip identifier
+   * @param limit - Maximum number of messages to retrieve (default: 50)
+   * @param since - Optional ISO 8601 timestamp to retrieve messages after
+   * @returns Message history with pagination info
+   */
+  async getTripMessages(
+    tripId: string,
+    limit: number = 50,
+    since?: string
+  ): Promise<{ tripId: string; messages: TripMessage[]; totalCount: number; hasMore: boolean }> {
+    this.metrics.toolCallsCount++;
+
+    try {
+      if (!tripId) {
+        throw new Error('tripId is required');
+      }
+
+      const result = await this.executeToolWithRetry('get_trip_messages', {
+        trip_id: tripId,
+        limit,
+        since,
+      });
+
+      // Normalize message results
+      const messages: TripMessage[] = (result.messages || []).map((msg: any) => ({
+        messageId: msg.message_id,
+        tripId: tripId,
+        senderId: msg.sender_id,
+        senderName: msg.sender_name || 'Unknown',
+        senderType: msg.sender_type || 'operator',
+        content: msg.content,
+        sentAt: msg.sent_at,
+        readAt: msg.read_at,
+      }));
+
+      return {
+        tripId,
+        messages,
+        totalCount: result.total_count || messages.length,
+        hasMore: result.has_more || false,
+      };
+    } catch (error) {
+      throw new Error(`Failed to get trip messages: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Get RFQ details including status and received quotes
+   * Uses the get_rfq MCP tool
+   *
+   * @param rfqId - The RFQ identifier (e.g., arfq-12345678)
+   * @returns RFQ details with quotes
+   */
+  async getRfqDetails(rfqId: string): Promise<RFQDetails> {
+    this.metrics.toolCallsCount++;
+
+    try {
+      if (!rfqId) {
+        throw new Error('rfqId is required');
+      }
+
+      const result = await this.executeToolWithRetry('get_rfq', {
+        rfq_id: rfqId,
+      });
+
+      // Normalize quote results
+      const quotes = this.normalizeQuoteResults(result.quotes || [], rfqId);
+
+      return {
+        rfqId: result.rfq_id || rfqId,
+        tripId: result.trip_id,
+        status: result.status || 'pending',
+        createdAt: result.created_at,
+        quoteDeadline: result.quote_deadline,
+        route: result.route || {
+          departure: { airport: 'N/A', date: 'N/A' },
+          arrival: { airport: 'N/A' },
+        },
+        passengers: result.passengers || 0,
+        quotesReceived: result.quotes_received || quotes.length,
+        quotes,
+        operatorsContacted: result.operators_contacted || 0,
+        deepLink: result.deep_link,
+      };
+    } catch (error) {
+      throw new Error(`Failed to get RFQ details: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Cancel an active trip
+   * Uses the cancel_trip MCP tool
+   *
+   * @param tripId - The trip identifier
+   * @param reason - Optional cancellation reason
+   * @returns Cancellation result
+   */
+  async cancelTrip(
+    tripId: string,
+    reason?: string
+  ): Promise<{ tripId: string; status: string; cancelledAt: string; reason?: string }> {
+    this.metrics.toolCallsCount++;
+
+    try {
+      if (!tripId) {
+        throw new Error('tripId is required');
+      }
+
+      const result = await this.executeToolWithRetry('cancel_trip', {
+        trip_id: tripId,
+        reason,
+      });
+
+      return {
+        tripId,
+        status: 'cancelled',
+        cancelledAt: result.cancelled_at || new Date().toISOString(),
+        reason,
+      };
+    } catch (error) {
+      throw new Error(`Failed to cancel trip: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Get detailed information about a specific quote
+   * Uses the get_quote MCP tool
+   *
+   * @param quoteId - The quote identifier (e.g., aquote-12345678)
+   * @returns Detailed quote information
+   */
+  async getQuoteDetails(quoteId: string): Promise<{
+    quoteId: string;
+    rfqId: string;
+    tripId: string;
+    status: string;
+    operator: { id: string; name: string; rating?: number };
+    aircraft: { type: string; category: string; capacity: number };
+    pricing: { base: number; fuel: number; taxes: number; fees: number; total: number };
+    availability: { departureTime: string; arrivalTime: string; duration: number };
+    validUntil: string;
+    createdAt: string;
+    notes?: string;
+  }> {
+    this.metrics.toolCallsCount++;
+
+    try {
+      if (!quoteId) {
+        throw new Error('quoteId is required');
+      }
+
+      const result = await this.executeToolWithRetry('get_quote', {
+        quote_id: quoteId,
+      });
+
+      // Calculate total price from components
+      const pricing = result.pricing || {};
+      const basePrice = pricing.base || pricing.base_price || 0;
+      const fuel = pricing.fuel || basePrice * 0.15;
+      const taxes = pricing.taxes || basePrice * 0.08;
+      const fees = pricing.fees || basePrice * 0.05;
+      const total = basePrice + fuel + taxes + fees;
+
+      return {
+        quoteId: result.quote_id || quoteId,
+        rfqId: result.rfq_id,
+        tripId: result.trip_id,
+        status: result.status || 'pending',
+        operator: {
+          id: result.operator?.id || 'unknown',
+          name: result.operator?.name || 'Unknown Operator',
+          rating: result.operator?.rating,
+        },
+        aircraft: {
+          type: result.aircraft?.type || 'Unknown',
+          category: result.aircraft?.category || this.mapAircraftTypeToCategory(result.aircraft?.type || ''),
+          capacity: result.aircraft?.capacity || 8,
+        },
+        pricing: {
+          base: basePrice,
+          fuel,
+          taxes,
+          fees,
+          total,
+        },
+        availability: {
+          departureTime: result.availability?.departure_time || new Date().toISOString(),
+          arrivalTime: result.availability?.arrival_time || new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+          duration: result.availability?.duration || 180,
+        },
+        validUntil: result.valid_until || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: result.created_at || new Date().toISOString(),
+        notes: result.notes,
+      };
+    } catch (error) {
+      throw new Error(`Failed to get quote details: ${(error as Error).message}`);
+    }
   }
 
   /**

@@ -132,6 +132,7 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@clerk/testing": "^1.13.25",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.1.9",
     "@testing-library/jest-dom": "^6.9.1",

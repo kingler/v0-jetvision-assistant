@@ -601,10 +601,10 @@ workflow.transition(WorkflowState.ANALYZING, 'agent-id')
 
 ## RFP Processing Workflow
 
-Example end-to-end workflow:
+Example end-to-end workflow with **deep link integration** (Updated Dec 2025):
 
-```
-1. User submits RFP
+```text
+1. User submits flight request
    ↓
 2. Orchestrator Agent
    • Analyzes request
@@ -617,23 +617,105 @@ Example end-to-end workflow:
    • Updates context
    • Hands off to Flight Search
    ↓
-4. Flight Search Agent
-   • Searches flights (Avinode MCP)
-   • Creates RFP in Avinode
-   • Updates state: AWAITING_QUOTES
+4. Flight Search Agent (Deep Link Workflow)
+   • Calls create_trip MCP tool
+   • Receives trip_id + deep_link
+   • Saves to Supabase (requests table)
+   • Displays "Open in Avinode" button
+   • Updates state: PENDING_ACTION
    ↓
-5. Proposal Analysis Agent
+5. Sales Representative (Manual Step)
+   • Opens Avinode deep link
+   • Reviews available operators
+   • Selects preferred aircraft
+   • Sends RFP to operators
+   ↓
+6. Webhook Handler
+   • Receives TripRequestSellerResponse event
+   • Stores quote in avinode_webhook_events
+   • Emits to SSE endpoint
+   • Updates state: QUOTES_RECEIVED
+   ↓
+7. Proposal Analysis Agent
    • Triggered by webhook
    • Scores all quotes
    • Ranks proposals
    • Hands off to Communication
    ↓
-6. Communication Manager Agent
+8. Communication Manager Agent
    • Generates email (OpenAI)
    • Creates PDF
    • Sends email (Gmail MCP)
    • Updates state: COMPLETED
 ```
+
+---
+
+## Avinode Deep Link Integration
+
+### Overview
+
+The system uses a **deep link-based workflow** for Avinode integration, enabling human-in-the-loop decision making while maintaining automation benefits.
+
+### MCP Tools
+
+The Avinode MCP server provides 8 tools:
+
+| Tool | Purpose |
+|------|---------|
+| `create_trip` | Create trip and get deep link |
+| `get_rfq` | Get RFQ details |
+| `get_quote` | Get quote details |
+| `cancel_trip` | Cancel an active trip |
+| `send_trip_message` | Send message to operators |
+| `get_trip_messages` | Get message history |
+| `search_airports` | Search airports by code/name |
+| `search_empty_legs` | Find empty leg flights |
+
+### Key Workflow Steps
+
+1. **Trip Creation**: FlightSearchAgent calls `create_trip` MCP tool
+2. **Deep Link Display**: UI shows "Open in Avinode" button with trip ID
+3. **Manual Selection**: Sales rep opens Avinode, selects operators, sends RFP
+4. **Webhook Events**: Avinode sends quote events to `/api/webhooks/avinode`
+5. **Real-time Updates**: SSE pushes events to frontend via `/api/avinode/events`
+
+### Database Fields
+
+```sql
+-- requests table (from migration 015)
+avinode_rfp_id TEXT      -- RFQ identifier
+avinode_trip_id TEXT     -- Trip identifier (e.g., "trp456789")
+avinode_deep_link TEXT   -- Full URL to Avinode Web UI
+```
+
+### Webhook Events
+
+| Event Type | Description |
+|------------|-------------|
+| `TripRequestSellerResponse` | Operator submitted a quote |
+| `TripChatSeller` | Operator sent a message |
+| `TripChatMine` | Confirmation of sent message |
+
+### UI Components
+
+Located in `components/avinode/`:
+
+- `TripSummaryCard` - Trip overview with route and status
+- `AvinodeDeepLinks` - Clickable deep link button
+- `RFQQuoteDetailsCard` - Quote display with pricing
+- `AvinodeSidebarCard` - Compact sidebar display
+- `AvinodeConnectionStatus` - SSE connection indicator
+- `AvinodeAuthStatus` - Authentication status
+- `WebhookStatusIndicator` - Webhook event status
+- `AvinodeActionRequired` - Action required banner
+
+### Related Documentation
+
+- [UX Requirements](docs/ux/UX_REQUIREMENTS_AVINODE_WORKFLOW.md)
+- [API Integration](docs/api/AVINODE_API_INTEGRATION.md)
+- [Deep Link Workflow](docs/subagents/agents/flight-search/DEEP_LINK_WORKFLOW.md)
+- [Workflow Integration](docs/implementation/WORKFLOW-AVINODE-INTEGRATION.md)
 
 ---
 

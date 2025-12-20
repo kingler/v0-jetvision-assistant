@@ -1,35 +1,98 @@
 # Workflow Visualization - Avinode Integration Guide
 
-**Date**: October 22, 2025
-**Status**: Using Dummy Data (Sandbox Not Configured)
+**Date**: December 20, 2025
+**Status**: Human-in-Loop Workflow (Deep Link + TripID)
 **Component**: `components/workflow-visualization.tsx`
 
 ---
 
-## ⚠️ Current Implementation Status
+## Important: Avinode API Workflow Change
 
-### Dummy Data Mode
-**The Avinode MCP server is currently using dummy/mock data** because the Avinode API Sandbox has not been configured yet. To use real Avinode data, you must:
+Due to Avinode API restrictions, the JetVision Assistant **cannot display flight availability directly** in the chat interface. Instead, the API returns a **Trip ID** and **deep link** for Sales Reps to manually search flights in the Avinode Web UI.
 
-1. **Contact Avinode Group** to request sandbox access
-2. **Obtain API credentials** (API Token and Bearer Token)
-3. **Configure authentication** in the MCP server
-4. **Test in sandbox environment** before production deployment
+### What This Means
 
-See the [Avinode API Setup](#avinode-api-setup) section below for detailed instructions.
+| Original Design (Deprecated) | Current Reality |
+|------------------------------|-----------------|
+| Agent searches flights via API | Agent creates a "trip container" |
+| Agent displays flight options in chat | Agent provides deep link to Avinode |
+| Agent requests quotes from operators | Sales Rep manually selects flights in Avinode |
+| Agent receives quotes automatically | Quotes received via webhooks after manual RFQ |
+
+### Why This Workflow Exists
+
+Avinode's API has **restrictions on viewing/searching flights**:
+
+1. **Proprietary Data**: Flight availability is proprietary marketplace data
+2. **Licensing**: Displaying operator/flight data requires special licensing
+3. **Human-in-Loop**: Avinode's broker workflow is designed for human interaction
+4. **Regulatory**: Aviation industry requirements for quote handling
 
 ---
 
-## Overview
+## Complete User Journey (5 Phases)
 
-The workflow visualization component has been enhanced to support:
-1. **Clickable/expandable steps** - Users can click any step to show/hide details
-2. **Real Avinode data** - Displays actual results from FlightSearchAgent and ProposalAnalysisAgent (when sandbox is configured)
-3. **Sequential display** - Results appear automatically as each workflow step completes
+```
+PHASE 1: INITIAL REQUEST (In Jetvision)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. Sales rep opens Jetvision Assistant                                       │
+│ 2. Rep submits flight request via chat:                                      │
+│    - Departure airport (ICAO/IATA)                                          │
+│    - Arrival airport (ICAO/IATA)                                            │
+│    - Date and time                                                          │
+│    - Passenger count                                                        │
+│ 3. Agent processes request and calls Avinode API                            │
+│ 4. API returns: Trip ID + Deep Link (NOT flight results)                    │
+│ 5. Agent displays deep link prominently with clear instructions             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+PHASE 2: AVINODE MARKETPLACE (External - In Avinode Web UI)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 6. Rep clicks deep link → opens Avinode Marketplace in new tab              │
+│ 7. Rep confirms/adjusts flight details in Avinode                           │
+│ 8. Rep browses available aircraft and operators                             │
+│ 9. Rep selects one or multiple flights to request quotes                    │
+│ 10. Rep communicates with operators via Avinode chat                        │
+│ 11. Operators respond with quotes (creates TripID)                          │
+│ 12. Rep notes the TripID from Avinode                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+PHASE 3: TRIPID SUBMISSION (Back in Jetvision)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 13. Rep returns to Jetvision Assistant                                      │
+│ 14. Rep provides TripID in chat or via dedicated input                      │
+│ 15. Agent fetches trip details from Avinode API using TripID                │
+│ 16. Trip card appears in left sidebar                                       │
+│ 17. Full flight details displayed in chat thread                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+PHASE 4: QUOTE MANAGEMENT (Webhook-driven updates)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 18. Webhooks notify Jetvision of new quotes/status changes                  │
+│ 19. Trip card updates automatically (pending → quoted)                      │
+│ 20. Rep reviews quotes in Jetvision chat interface                          │
+│ 21. Rep selects preferred quote                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+PHASE 5: PROPOSAL GENERATION (In Jetvision)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 22. Agent generates quote PDF with:                                         │
+│     - Flight details and aircraft image                                     │
+│     - Price breakdown and payment instructions                              │
+│     - Route map visualization                                               │
+│ 23. Agent accesses Google Sheet for customer contacts                       │
+│ 24. Rep reviews and approves proposal                                       │
+│ 25. Agent sends email to customer                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-## Master Activity Diagram
+---
 
-The following diagram shows the complete end-to-end Avinode API integration workflow for JetVision's flight search and booking process:
+## Master Activity Diagram (Updated)
 
 ```mermaid
 flowchart TD
@@ -38,73 +101,76 @@ flowchart TD
     ValidateInput -->|No| ErrorInput[Return Validation Error]
     ValidateInput -->|Yes| InitWorkflow[Initialize Workflow State Machine]
 
-    InitWorkflow --> SearchFlights[FlightSearchAgent: Search Flights]
-    SearchFlights --> AuthAvinode1{Authenticate<br/>with Avinode}
+    InitWorkflow --> CreateTrip[FlightSearchAgent: Create Trip Container]
+    CreateTrip --> AuthAvinode1{Authenticate<br/>with Avinode}
     AuthAvinode1 -->|401/403| AuthError1[Handle Auth Error]
     AuthError1 --> RetryAuth1{Retry?}
     RetryAuth1 -->|Yes| AuthAvinode1
     RetryAuth1 -->|No| FailWorkflow1[Fail Workflow]
 
-    AuthAvinode1 -->|Success| CallSearchAPI[POST /api/flights/search]
-    CallSearchAPI --> RateLimit1{Rate Limited<br/>429?}
+    AuthAvinode1 -->|Success| CallCreateTrip[POST /trips]
+    CallCreateTrip --> RateLimit1{Rate Limited<br/>429?}
     RateLimit1 -->|Yes| Backoff1[Exponential Backoff]
-    Backoff1 --> CallSearchAPI
-    RateLimit1 -->|No| ProcessSearch[Process Search Results]
+    Backoff1 --> CallCreateTrip
+    RateLimit1 -->|No| TripCreated[Trip Container Created]
 
-    ProcessSearch --> CheckResults{Aircraft<br/>Found?}
-    CheckResults -->|No| NoResults[Return: No Aircraft Available]
-    CheckResults -->|Yes| FilterAircraft[Filter by Capacity/Range]
+    TripCreated --> StoreTripID[Store Trip ID + Deep Links]
+    StoreTripID --> UpdateWorkflow1[Update Workflow: Step 2 Complete]
+    UpdateWorkflow1 --> DisplayDeepLink[Display Deep Link to User]
 
-    FilterAircraft --> UpdateWorkflow1[Update Workflow: Step 2 Complete]
-    UpdateWorkflow1 --> SelectOperators[Select Top Operators]
+    DisplayDeepLink --> WaitUserAction[⏳ AWAIT USER ACTION IN AVINODE]
 
-    SelectOperators --> CreateRFP[FlightSearchAgent: Create RFP]
-    CreateRFP --> AuthAvinode2{Authenticate<br/>with Avinode}
+    WaitUserAction --> UserReturns{User Provides<br/>TripID?}
+    UserReturns -->|No| WaitUserAction
+    UserReturns -->|Yes| FetchTrip[Fetch Trip Details via TripID]
+
+    FetchTrip --> AuthAvinode2{Authenticate<br/>with Avinode}
     AuthAvinode2 -->|401/403| AuthError2[Handle Auth Error]
     AuthError2 --> RetryAuth2{Retry?}
     RetryAuth2 -->|Yes| AuthAvinode2
     RetryAuth2 -->|No| FailWorkflow2[Fail Workflow]
 
-    AuthAvinode2 -->|Success| CallCreateRFP[POST /api/rfp/create]
-    CallCreateRFP --> RateLimit2{Rate Limited<br/>429?}
+    AuthAvinode2 -->|Success| CallGetTrip[GET /trips/:tripId]
+    CallGetTrip --> RateLimit2{Rate Limited<br/>429?}
     RateLimit2 -->|Yes| Backoff2[Exponential Backoff]
-    Backoff2 --> CallCreateRFP
-    RateLimit2 -->|No| RFPCreated[RFP Created Successfully]
+    Backoff2 --> CallGetTrip
+    RateLimit2 -->|No| TripFetched[Trip Details Retrieved]
 
-    RFPCreated --> StoreRFPID[Store RFP ID in Workflow]
-    StoreRFPID --> UpdateWorkflow2[Update Workflow: Step 3 In Progress]
-    UpdateWorkflow2 --> CreateWatch[Create Watch for RFP Updates]
+    TripFetched --> UpdateSidebar[Add Trip Card to Sidebar]
+    UpdateSidebar --> UpdateWorkflow2[Update Workflow: Step 3 Complete]
+    UpdateWorkflow2 --> CreateWatch[Create Watch for Quote Updates]
 
-    CreateWatch --> WaitQuotes[Wait for Operator Quotes]
-    WaitQuotes --> CheckQuotes{Check RFP<br/>Status}
-    CheckQuotes --> CallGetStatus[GET /api/rfp/:id/status]
-    CallGetStatus --> RateLimit3{Rate Limited<br/>429?}
-    RateLimit3 -->|Yes| Backoff3[Exponential Backoff]
-    Backoff3 --> CallGetStatus
-
-    RateLimit3 -->|No| QuotesReceived{Quotes<br/>Received?}
-    QuotesReceived -->|No| Timeout{Deadline<br/>Reached?}
+    CreateWatch --> WaitQuotes[Wait for Operator Quotes via Webhook]
+    WaitQuotes --> WebhookReceived{Webhook<br/>Received?}
+    WebhookReceived -->|No| Timeout{Deadline<br/>Reached?}
     Timeout -->|No| WaitQuotes
-    Timeout -->|Yes| PartialQuotes[Process Partial Quotes]
-    QuotesReceived -->|Yes| UpdateWorkflow3[Update Workflow: Step 3 Complete]
+    Timeout -->|Yes| PartialQuotes[Process Available Quotes]
+    WebhookReceived -->|Yes| ProcessWebhook[Process Webhook Event]
 
+    ProcessWebhook --> QuoteType{Quote or<br/>Message?}
+    QuoteType -->|Quote| StoreQuote[Store Quote in Database]
+    QuoteType -->|Message| StoreMessage[Store Message in Thread]
+    StoreQuote --> NotifyUI[Real-time UI Update]
+    StoreMessage --> NotifyUI
+    NotifyUI --> MoreQuotes{More Quotes<br/>Expected?}
+    MoreQuotes -->|Yes| WaitQuotes
+    MoreQuotes -->|No| UpdateWorkflow3[Update Workflow: Step 4 Ready]
     PartialQuotes --> UpdateWorkflow3
+
     UpdateWorkflow3 --> AnalyzeProposals[ProposalAnalysisAgent: Analyze Quotes]
-
-    AnalyzeProposals --> FetchQuoteDetails[GET /api/rfp/:id/quotes]
-    FetchQuoteDetails --> RateLimit4{Rate Limited<br/>429?}
-    RateLimit4 -->|Yes| Backoff4[Exponential Backoff]
-    Backoff4 --> FetchQuoteDetails
-    RateLimit4 -->|No| ScoreQuotes[Score and Rank Quotes]
-
+    AnalyzeProposals --> ScoreQuotes[Score and Rank Quotes]
     ScoreQuotes --> ApplyAI[Apply AI Scoring Algorithm]
     ApplyAI --> CompareOptions[Compare Pricing & Features]
     CompareOptions --> RankProposals[Rank Top 3 Proposals]
 
     RankProposals --> UpdateWorkflow4[Update Workflow: Step 4 Complete]
-    UpdateWorkflow4 --> UpdateSupabase[Store Quotes in Supabase]
+    UpdateWorkflow4 --> DisplayQuotes[Display Ranked Quotes to User]
 
-    UpdateSupabase --> GenerateProposal[CommunicationAgent: Generate Proposal]
+    DisplayQuotes --> UserSelectsQuote{User Selects<br/>Quote?}
+    UserSelectsQuote -->|No| WaitSelection[Await User Selection]
+    WaitSelection --> UserSelectsQuote
+    UserSelectsQuote -->|Yes| GenerateProposal[CommunicationAgent: Generate Proposal]
+
     GenerateProposal --> ApplyMargin[Apply JetVision Margin]
     ApplyMargin --> CreatePDF[Generate PDF Document]
     CreatePDF --> BrandingCheck{PDF<br/>Valid?}
@@ -125,7 +191,6 @@ flowchart TD
     LogFailure --> Complete
 
     ErrorInput --> End([End])
-    NoResults --> End
     FailWorkflow1 --> End
     FailWorkflow2 --> End
 
@@ -133,70 +198,164 @@ flowchart TD
     style Complete fill:#e1f5e1
     style End fill:#ffe1e1
     style ErrorInput fill:#ffe1e1
-    style NoResults fill:#fff4e1
     style FailWorkflow1 fill:#ffe1e1
     style FailWorkflow2 fill:#ffe1e1
+    style WaitUserAction fill:#fff4e1
+    style DisplayDeepLink fill:#e1f0ff
 ```
 
-## 5 Workflow Steps
+---
+
+## Updated 5 Workflow Steps
 
 ```
 Step 1: Understanding Request
   └─ Parsing natural language input
+  └─ Extracting: airports, date, time, passengers
 
-Step 2: Searching Aircraft
-  └─ Querying Avinode operator database
+Step 2: Creating Trip
+  └─ Creating trip container in Avinode
+  └─ Displaying deep link for manual selection
+  └─ ⚠️ REQUIRES USER ACTION IN AVINODE
 
-Step 3: Requesting Quotes
-  └─ Creating RFP in Avinode
+Step 3: Awaiting Selection
+  └─ User manually searches in Avinode Marketplace
+  └─ User submits TripID after selecting flights
+  └─ Agent fetches trip details via TripID
 
-Step 4: Analyzing Options
+Step 4: Receiving Quotes
+  └─ Webhook receives operator quotes
+  └─ Real-time updates to UI
   └─ Scoring and ranking quotes
 
 Step 5: Generate Proposal
+  └─ User selects preferred quote
   └─ Creating Jetvision branded quote
+  └─ Sending proposal to customer
 ```
 
-## New Features
+---
 
-### 1. Clickable Steps
+## Component Architecture
 
-**Both Embedded and Full Views**:
-- Click any step header to expand/collapse details
-- `+` icon when collapsed, `−` icon when expanded
-- Smooth animations
-- Details display in indented box with bullet points
+### Components to Modify
 
-### 2. Real Data Integration
+| Component | File Path | Required Modifications |
+|-----------|-----------|----------------------|
+| `ChatSidebar` | `components/chat-sidebar.tsx` | Replace session cards with TripID-based trip cards; add trip status filtering |
+| `ChatInterface` | `components/chat-interface.tsx` | Add TripID input handling; integrate flight details display; remove simulated workflow |
+| `AvinodeDeepLinks` | `components/avinode/avinode-deep-links.tsx` | Make more prominent; add copy-to-clipboard; add step-by-step instructions |
+| `AvinodeSidebarCard` | `components/avinode/avinode-sidebar-card.tsx` | Enhance with quote status, multiple quotes support, webhook status indicator |
+| `TripSummaryCard` | `components/avinode/trip-summary-card.tsx` | Add aircraft image, route map placeholder, airport thumbnails |
+| `WorkflowVisualization` | `components/workflow-visualization.tsx` | Update steps to reflect new workflow (external Avinode step) |
 
-Each step can now display real data from Avinode agents:
+### Components to Create
 
-```typescript
-export interface WorkflowStepData {
-  // Real data from agents/API
-  aircraftFound?: number          // Number of aircraft found
-  operatorsQueried?: number       // Number of operators queried
-  quotesReceived?: number         // Number of quotes received
-  quotesAnalyzed?: number         // Number of quotes analyzed
-  proposalGenerated?: boolean     // Whether proposal was created
+| Component | Proposed Path | Purpose |
+|-----------|---------------|---------|
+| `TripCardList` | `components/trips/trip-card-list.tsx` | Scrollable list of trip cards for sidebar |
+| `TripCard` | `components/trips/trip-card.tsx` | Individual trip card with status, route, quote count |
+| `TripIDInput` | `components/trips/trip-id-input.tsx` | Dedicated input for TripID submission with validation |
+| `DeepLinkPrompt` | `components/avinode/deep-link-prompt.tsx` | Prominent CTA to navigate to Avinode with instructions |
+| `FlightDetailsPanel` | `components/flight/flight-details-panel.tsx` | Complete flight info display with map and images |
+| `FlightRouteMap` | `components/flight/flight-route-map.tsx` | Interactive map showing departure/arrival with flight path |
+| `AircraftImageCard` | `components/flight/aircraft-image-card.tsx` | Aircraft image with type, tail number, capacity |
+| `AirportThumbnail` | `components/flight/airport-thumbnail.tsx` | Small airport preview with image and basic info |
+| `QuotePDFGenerator` | `components/quotes/quote-pdf-generator.tsx` | PDF generation preview and download |
+| `QuoteEmailComposer` | `components/quotes/quote-email-composer.tsx` | Email composition with customer selection |
+| `CustomerSelector` | `components/customers/customer-selector.tsx` | Google Sheets integration for customer lookup |
+| `WebhookStatusIndicator` | `components/avinode/webhook-status-indicator.tsx` | Real-time webhook connection status |
+| `AvinodeActionRequired` | `components/avinode/avinode-action-required.tsx` | Prominent CTA when user action needed in Avinode |
 
-  // Avinode-specific data
-  avinodeRfpId?: string          // Avinode RFP ID
-  avinodeQuotes?: any[]          // Array of quote objects from Avinode
-  avinodeResults?: Record<string, any>  // Additional Avinode metadata
-}
+---
+
+## Deep Link Presentation
+
+After submitting a flight request, the agent displays a prominent action card:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DeepLinkPrompt Component                                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─ Step Indicator ─────────────────────────────────────────────────────┐   │
+│  │  ① Request Created  →  ② Select in Avinode  →  ③ Enter TripID       │   │
+│  │       ✓ Done              ○ Current              ○ Next              │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌─ Action Card (Highlighted Border) ───────────────────────────────────┐   │
+│  │                                                                       │   │
+│  │   🌐  Open Avinode Marketplace                                        │   │
+│  │                                                                       │   │
+│  │   Your flight request has been submitted. Complete these steps        │   │
+│  │   in Avinode:                                                         │   │
+│  │                                                                       │   │
+│  │   1. Review available aircraft options                                │   │
+│  │   2. Select operators to request quotes from                          │   │
+│  │   3. Communicate via Avinode chat if needed                           │   │
+│  │   4. Note the TripID once quotes are received                         │   │
+│  │                                                                       │   │
+│  │   ┌───────────────────────────────────────────────────────────────┐   │   │
+│  │   │  🚀  OPEN AVINODE  →                                          │   │   │
+│  │   │  [Large Primary Button]                                       │   │   │
+│  │   └───────────────────────────────────────────────────────────────┘   │   │
+│  │                                                                       │   │
+│  │   ┌───────────────────────────────────────────────────────────────┐   │   │
+│  │   │  📋 Copy Link                                                 │   │   │
+│  │   │  [Secondary Button]                                           │   │   │
+│  │   └───────────────────────────────────────────────────────────────┘   │   │
+│  │                                                                       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  💡 Tip: Keep this tab open. Return here after selecting flights.           │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3. Sequential Display
+---
 
-Steps automatically update as workflow progresses:
-- Status changes: `pending` → `in-progress` → `completed`
-- Details populate from agent results
-- Progress bar updates in real-time
+## TripID Submission
 
-## Task-Specific API Operation Diagrams
+### Input Methods
 
-### 1. POST /api/flights/search - Search Available Flights
+1. **Natural Language in Chat:**
+   ```
+   User: "My TripID is A1B2C3D4"
+   User: "Trip ID: atrip-64956153"
+   User: "Here's the trip: A1B2C3D4"
+   ```
+
+2. **Dedicated Input Component:**
+   ```
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │ TripIDInput Component                                                    │
+   ├─────────────────────────────────────────────────────────────────────────┤
+   │                                                                          │
+   │  📝 Enter TripID from Avinode                                           │
+   │                                                                          │
+   │  ┌─────────────────────────────────────┐  ┌──────────────────┐          │
+   │  │  atrip-64956153                     │  │  Load Trip  →    │          │
+   │  │  [Text Input with validation]       │  │  [Primary Btn]   │          │
+   │  └─────────────────────────────────────┘  └──────────────────┘          │
+   │                                                                          │
+   │  ℹ️ Find the TripID in Avinode under "My Trips" after                    │
+   │     operators have responded to your request.                            │
+   │                                                                          │
+   └─────────────────────────────────────────────────────────────────────────┘
+   ```
+
+### Validation Rules
+
+- TripID format: Alphanumeric, typically `atrip-XXXXXXXX`
+- Real-time validation as user types
+- API verification before accepting
+- Error states: Invalid format, Trip not found, Already added
+
+---
+
+## API Integration Flow
+
+### 1. POST /trips - Create Trip Container
 
 ```mermaid
 sequenceDiagram
@@ -205,68 +364,19 @@ sequenceDiagram
     participant API as Avinode API
     participant DB as Supabase
 
-    Agent->>MCP: callTool('search_flights', params)
+    Agent->>MCP: callTool('create_trip', tripData)
     activate MCP
 
-    MCP->>MCP: Validate Input Parameters
-    alt Invalid Parameters
-        MCP-->>Agent: Error: Invalid parameters
-    end
-
-    MCP->>MCP: Build Request Headers
-    Note right of MCP: X-Avinode-ApiToken<br/>Authorization: Bearer<br/>X-Avinode-SentTimestamp
-
-    MCP->>API: POST /api/flights/search
-    activate API
-
-    alt Rate Limited (429)
-        API-->>MCP: 429 Too Many Requests
-        MCP->>MCP: Exponential Backoff (2^n seconds)
-        MCP->>API: Retry POST /api/flights/search
-    end
-
-    alt Authentication Error (401/403)
-        API-->>MCP: 401/403 Unauthorized
-        MCP-->>Agent: Error: Authentication failed
-    end
-
-    API->>API: Query Operator Database
-    API->>API: Filter by Criteria
-    API-->>MCP: 200 OK + Search Results
-    deactivate API
-
-    MCP->>MCP: Parse Response
-    MCP->>MCP: Extract Aircraft Data
-    MCP-->>Agent: Success + Results Array
-    deactivate MCP
-
-    Agent->>DB: Store search results
-    Agent->>DB: Update workflow_data.step2
-```
-
-### 2. POST /api/rfp/create - Create Request for Proposal
-
-```mermaid
-sequenceDiagram
-    participant Agent as FlightSearchAgent
-    participant MCP as Avinode MCP Server
-    participant API as Avinode API
-    participant DB as Supabase
-    participant Watch as Watch Service
-
-    Agent->>MCP: callTool('create_rfp', rfpData)
-    activate MCP
-
-    MCP->>MCP: Validate RFP Data
+    MCP->>MCP: Validate Trip Data
     alt Missing Required Fields
-        MCP-->>Agent: Error: Invalid RFP data
+        MCP-->>Agent: Error: Invalid trip data
     end
 
     MCP->>MCP: Format Flight Details
-    Note right of MCP: ISO 8601 dates<br/>ISO 4217 currency<br/>ISO 3166 country codes
+    Note right of MCP: ISO 8601 dates<br/>ICAO airport codes<br/>Passenger count
 
     MCP->>MCP: Build Request Headers
-    MCP->>API: POST /api/rfp/create
+    MCP->>API: POST /trips
     activate API
 
     alt Rate Limited (429)
@@ -275,53 +385,45 @@ sequenceDiagram
         MCP->>API: Retry POST
     end
 
-    alt Validation Error (422)
-        API-->>MCP: 422 Unprocessable Entity
-        API-->>MCP: Validation errors array
-        MCP-->>Agent: Error: Validation failed
-    end
-
-    API->>API: Create RFP Record
-    API->>API: Assign RFP ID
-    API->>API: Notify Selected Operators
-    API-->>MCP: 201 Created + RFP Object
+    API->>API: Create Trip Container
+    API->>API: Generate Trip ID
+    API->>API: Create Deep Links
+    API-->>MCP: 201 Created + Trip Object
     deactivate API
 
-    MCP->>MCP: Extract RFP ID
-    MCP-->>Agent: Success + rfp_id
+    Note right of MCP: Response includes:<br/>tripId: "atrip-64956153"<br/>searchInAvinode: { href: "..." }<br/>viewInAvinode: { href: "..." }
+
+    MCP->>MCP: Extract Trip ID + Links
+    MCP-->>Agent: Success + { tripId, deepLinks }
     deactivate MCP
 
-    Agent->>DB: Store RFP ID
-    Agent->>DB: Update workflow_data.step3
-    Agent->>Watch: Create RFP watch
-    Note right of Watch: Monitor for quote updates
+    Agent->>DB: Store Trip ID + Deep Links
+    Agent->>DB: Update workflow_data.step2
+    Agent->>Agent: Display Deep Link Prompt
 ```
 
-### 3. GET /api/rfp/:id/status - Check RFP Status
+### 2. GET /trips/:tripId - Fetch Trip Details
 
 ```mermaid
 sequenceDiagram
-    participant Agent as ProposalAnalysisAgent
+    participant UI as User Interface
+    participant Agent as FlightSearchAgent
     participant MCP as Avinode MCP Server
     participant API as Avinode API
-    participant Cache as Redis Cache
+    participant DB as Supabase
 
-    Agent->>MCP: callTool('get_rfp_status', rfpId)
+    UI->>Agent: User provides TripID
+    Agent->>MCP: callTool('get_trip', tripId)
     activate MCP
 
-    MCP->>Cache: Check cached status
-    alt Cache Hit (< 30 seconds old)
-        Cache-->>MCP: Cached RFP Status
-        MCP-->>Agent: Success + Cached Data
-    end
-
     MCP->>MCP: Build Request Headers
-    MCP->>API: GET /api/rfp/{rfp_id}/status
+    MCP->>API: GET /trips/{tripId}
     activate API
 
-    alt RFP Not Found (404)
+    alt Trip Not Found (404)
         API-->>MCP: 404 Not Found
-        MCP-->>Agent: Error: RFP not found
+        MCP-->>Agent: Error: Trip not found
+        Agent-->>UI: Display "Invalid TripID" error
     end
 
     alt Rate Limited (429)
@@ -330,286 +432,347 @@ sequenceDiagram
         MCP->>API: Retry GET
     end
 
-    API->>API: Fetch RFP Record
-    API->>API: Count Received Quotes
-    API->>API: Calculate Status
-    API-->>MCP: 200 OK + RFP Status
+    API->>API: Fetch Trip Record
+    API->>API: Include Flight Details
+    API->>API: Include Quote Status
+    API-->>MCP: 200 OK + Trip Details
     deactivate API
 
-    MCP->>MCP: Parse Response
-    MCP->>Cache: Cache status (30s TTL)
-    MCP-->>Agent: Success + Status Object
+    MCP->>MCP: Parse Trip Data
+    MCP-->>Agent: Success + Trip Object
     deactivate MCP
 
-    alt Quotes Received
-        Agent->>Agent: Proceed to fetch quotes
-    else Waiting for Quotes
-        Agent->>Agent: Schedule retry
-    end
+    Agent->>DB: Store Trip Details
+    Agent->>DB: Update workflow_data.step3
+    Agent-->>UI: Display Trip Card + Details
 ```
 
-### 4. GET /api/rfp/:id/quotes - Fetch All Quotes for RFP
+### 3. Webhook: TripRequestSellerResponse
 
 ```mermaid
 sequenceDiagram
-    participant Agent as ProposalAnalysisAgent
-    participant MCP as Avinode MCP Server
-    participant API as Avinode API
-    participant DB as Supabase
-
-    Agent->>MCP: callTool('get_rfp_status', rfpId)
-    activate MCP
-
-    MCP->>MCP: Build Request Headers
-    MCP->>API: GET /api/rfp/{rfp_id}/quotes
-    activate API
-
-    alt RFP Not Found (404)
-        API-->>MCP: 404 Not Found
-        MCP-->>Agent: Error: RFP not found
-    end
-
-    alt Rate Limited (429)
-        API-->>MCP: 429 Too Many Requests
-        MCP->>MCP: Wait and Retry
-    end
-
-    API->>API: Fetch RFP Record
-    API->>API: Query Related Quotes
-    API->>API: Enrich Quote Data
-    Note right of API: Operator details<br/>Aircraft details<br/>Pricing breakdown
-
-    API-->>MCP: 200 OK + Quotes Array
-    deactivate API
-
-    MCP->>MCP: Parse Quotes
-    MCP->>MCP: Extract Key Fields
-    MCP-->>Agent: Success + Quotes Array
-    deactivate MCP
-
-    Agent->>Agent: Score Each Quote
-    Agent->>Agent: Rank by AI Score
-    Agent->>DB: Store quotes with scores
-    Agent->>DB: Update workflow_data.step4
-```
-
-### 5. POST /api/watch/create - Create RFP Watch
-
-```mermaid
-sequenceDiagram
-    participant Agent as FlightSearchAgent
-    participant MCP as Avinode MCP Server
-    participant API as Avinode API
-    participant Webhook as Webhook Handler
-
-    Agent->>MCP: callTool('create_watch', watchConfig)
-    activate MCP
-
-    MCP->>MCP: Validate Watch Config
-    alt Invalid Webhook URL
-        MCP-->>Agent: Error: Invalid webhook
-    end
-
-    MCP->>MCP: Build Request Body
-    Note right of MCP: type: 'rfp'<br/>rfp_id<br/>notifications config<br/>webhook_url
-
-    MCP->>API: POST /api/watch/create
-    activate API
-
-    alt Rate Limited (429)
-        API-->>MCP: 429 Too Many Requests
-        MCP->>MCP: Exponential Backoff
-        MCP->>API: Retry POST
-    end
-
-    API->>API: Create Watch Record
-    API->>API: Register Webhook
-    API->>API: Assign Watch ID
-    API-->>MCP: 201 Created + Watch Object
-    deactivate API
-
-    MCP->>MCP: Extract Watch ID
-    MCP-->>Agent: Success + watch_id
-    deactivate MCP
-
-    Agent->>Agent: Store Watch ID
-
-    Note over API,Webhook: Later: When quote received...
-    API->>Webhook: POST /api/webhooks/avinode
-    activate Webhook
-    Webhook->>Webhook: Validate Signature
-    Webhook->>Webhook: Process Quote Update
-    Webhook->>Agent: Trigger quote check
-    deactivate Webhook
-```
-
-### 6. GET /api/airports/search - Search Airport Database
-
-```mermaid
-sequenceDiagram
-    participant UI as User Interface
-    participant API as Next.js API Route
-    participant MCP as Avinode MCP Server
     participant Avinode as Avinode API
-    participant Cache as Redis Cache
+    participant Webhook as POST /api/webhooks/avinode
+    participant DB as Supabase
+    participant Realtime as Supabase Realtime
+    participant UI as User Interface
 
-    UI->>API: GET /api/airports?q=Teterboro
-    activate API
+    Note over Avinode: Operator submits quote in Avinode
 
-    API->>Cache: Check cached results
-    alt Cache Hit
-        Cache-->>API: Cached Airport Data
-        API-->>UI: 200 OK + Airports
+    Avinode->>Webhook: POST TripRequestSellerResponse
+    activate Webhook
+
+    Webhook->>Webhook: Verify Signature
+    alt Invalid Signature
+        Webhook-->>Avinode: 401 Unauthorized
     end
 
-    API->>MCP: callTool('search_airports', query)
-    activate MCP
+    Webhook->>Webhook: Parse Quote Data
+    Note right of Webhook: operatorName<br/>aircraftType<br/>price<br/>validUntil
 
-    MCP->>MCP: Build Request Headers
-    MCP->>Avinode: GET /api/airports/search?q=...
-    activate Avinode
+    Webhook->>DB: Store Quote
+    Webhook->>DB: Update Trip Status
 
-    alt Rate Limited (429)
-        Avinode-->>MCP: 429 Too Many Requests
-        MCP->>MCP: Exponential Backoff
-        MCP->>Avinode: Retry GET
-    end
+    DB->>Realtime: Emit Change Event
 
-    Avinode->>Avinode: Query Airport Database
-    Avinode->>Avinode: Filter by Country (if provided)
-    Avinode->>Avinode: Sort by Relevance
-    Avinode-->>MCP: 200 OK + Airports Array
-    deactivate Avinode
+    Webhook-->>Avinode: 200 OK
+    deactivate Webhook
 
-    MCP->>MCP: Parse Results
-    MCP-->>API: Success + Airports
-    deactivate MCP
-
-    API->>Cache: Cache results (1 hour TTL)
-    API-->>UI: 200 OK + Airports
-    deactivate API
-
-    UI->>UI: Display Airport Options
+    Realtime->>UI: Real-time Update
+    UI->>UI: Display New Quote Card
+    UI->>UI: Update Trip Card Badge
 ```
 
-### 7. Authentication Flow
+### 4. Webhook: TripChatSeller
 
 ```mermaid
-flowchart TD
-    Start([MCP Server Starts]) --> LoadEnv[Load Environment Variables]
-    LoadEnv --> CheckTokens{API Token &<br/>Bearer Token<br/>Present?}
+sequenceDiagram
+    participant Avinode as Avinode API
+    participant Webhook as POST /api/webhooks/avinode
+    participant DB as Supabase
+    participant Realtime as Supabase Realtime
+    participant UI as User Interface
 
-    CheckTokens -->|No| ThrowError[Throw: Missing Credentials]
-    CheckTokens -->|Yes| StoreTokens[Store Tokens in Memory]
+    Note over Avinode: Operator sends message in Avinode chat
 
-    StoreTokens --> Ready([Ready for Requests])
+    Avinode->>Webhook: POST TripChatSeller
+    activate Webhook
 
-    Ready --> Request[Incoming API Request]
-    Request --> BuildHeaders[Build Request Headers]
+    Webhook->>Webhook: Verify Signature
+    Webhook->>Webhook: Parse Message Data
+    Note right of Webhook: senderName<br/>senderCompany<br/>messageText<br/>timestamp
 
-    BuildHeaders --> AddToken1[Add X-Avinode-ApiToken]
-    AddToken1 --> AddToken2[Add Authorization: Bearer]
-    AddToken2 --> AddTimestamp[Add X-Avinode-SentTimestamp]
+    Webhook->>DB: Store Message
+    Webhook->>DB: Update Last Activity
 
-    AddTimestamp --> ValidateTime{Timestamp<br/>within 5 min?}
-    ValidateTime -->|No| AdjustClock[Adjust System Clock]
-    AdjustClock --> AddTimestamp
+    DB->>Realtime: Emit Change Event
 
-    ValidateTime -->|Yes| AddVersion[Add X-Avinode-ApiVersion]
-    AddVersion --> AddProduct[Add X-Avinode-Product]
+    Webhook-->>Avinode: 200 OK
+    deactivate Webhook
 
-    AddProduct --> SendRequest[Send Request to Avinode]
-    SendRequest --> CheckResponse{Response<br/>Status?}
-
-    CheckResponse -->|401| AuthFailed[Authentication Failed]
-    CheckResponse -->|403| PermDenied[Permission Denied]
-    CheckResponse -->|200/201| Success([Success])
-
-    AuthFailed --> LogError1[Log: Invalid token]
-    PermDenied --> LogError2[Log: Insufficient permissions]
-    LogError1 --> ReturnError[Return Error to Agent]
-    LogError2 --> ReturnError
-
-    Success --> ParseResponse[Parse Response Body]
-    ParseResponse --> ReturnData[Return Data to Agent]
-
-    ThrowError --> End([End])
-    ReturnError --> End
-    ReturnData --> Ready
-
-    style Start fill:#e1f5e1
-    style Success fill:#e1f5e1
-    style Ready fill:#e1f5e1
-    style ThrowError fill:#ffe1e1
-    style AuthFailed fill:#ffe1e1
-    style PermDenied fill:#ffe1e1
+    Realtime->>UI: Real-time Update
+    UI->>UI: Append Message to Chat Thread
+    UI->>UI: Show Notification Badge
 ```
 
-### 8. Error Handling & Retry Logic
+---
 
-```mermaid
-flowchart TD
-    Start([API Request]) --> MakeRequest[Execute HTTP Request]
-    MakeRequest --> CheckStatus{HTTP<br/>Status?}
+## Data Interfaces
 
-    CheckStatus -->|200/201| ParseSuccess[Parse Response]
-    ParseSuccess --> ReturnData([Return Success])
+### WorkflowStepData (Updated)
 
-    CheckStatus -->|429| RateLimited[Rate Limit Hit]
-    RateLimited --> GetResetTime[Extract X-Rate-Limit-Reset]
-    GetResetTime --> CalcBackoff[Calculate Backoff Delay]
-    CalcBackoff --> CheckAttempts1{Attempts<br/>< Max?}
-    CheckAttempts1 -->|Yes| Wait1[Wait backoff * 2^attempts]
-    Wait1 --> IncrementAttempts1[Increment Attempts]
-    IncrementAttempts1 --> MakeRequest
-    CheckAttempts1 -->|No| MaxRetries1[Max Retries Exceeded]
+```typescript
+export interface WorkflowStepData {
+  // Step 1: Understanding Request
+  requestParsed?: boolean
+  departure?: { icao: string; name: string; city: string }
+  arrival?: { icao: string; name: string; city: string }
+  date?: string
+  passengers?: number
 
-    CheckStatus -->|401/403| AuthError[Authentication Error]
-    AuthError --> LogAuth[Log Authentication Failure]
-    LogAuth --> ReturnAuthError([Return Auth Error])
+  // Step 2: Creating Trip
+  tripId?: string                    // e.g., "atrip-64956153"
+  searchDeepLink?: string            // URL to search in Avinode
+  viewDeepLink?: string              // URL to view trip in Avinode
+  tripCreatedAt?: string
 
-    CheckStatus -->|404| NotFound[Resource Not Found]
-    NotFound --> ReturnNotFound([Return 404 Error])
+  // Step 3: Awaiting Selection
+  tripIdSubmitted?: boolean
+  tripDetailsFetched?: boolean
+  aircraft?: AircraftInfo
+  operator?: OperatorInfo
 
-    CheckStatus -->|422| ValidationError[Validation Failed]
-    ValidationError --> ParseErrors[Parse Error Details]
-    ParseErrors --> ReturnValidation([Return Validation Errors])
+  // Step 4: Receiving Quotes
+  quotesReceived?: number
+  quotesTotal?: number               // Expected total
+  quotes?: QuoteInfo[]
+  quotesAnalyzed?: number
+  topQuotes?: QuoteInfo[]
 
-    CheckStatus -->|503| ServiceDown[Service Unavailable]
-    ServiceDown --> CheckAttempts2{Attempts<br/>< Max?}
-    CheckAttempts2 -->|Yes| Wait2[Wait 5 seconds]
-    Wait2 --> IncrementAttempts2[Increment Attempts]
-    IncrementAttempts2 --> MakeRequest
-    CheckAttempts2 -->|No| MaxRetries2[Max Retries Exceeded]
-
-    CheckStatus -->|Other| UnexpectedError[Unexpected Error]
-    UnexpectedError --> LogError[Log Error Details]
-    LogError --> ReturnError([Return Error])
-
-    MaxRetries1 --> LogMaxRetries1[Log: Rate limit retries exhausted]
-    MaxRetries2 --> LogMaxRetries2[Log: Service unavailable retries exhausted]
-    LogMaxRetries1 --> ReturnError
-    LogMaxRetries2 --> ReturnError
-
-    style ReturnData fill:#e1f5e1
-    style MaxRetries1 fill:#ffe1e1
-    style MaxRetries2 fill:#ffe1e1
-    style ReturnAuthError fill:#ffe1e1
-    style ReturnError fill:#ffe1e1
+  // Step 5: Generate Proposal
+  selectedQuoteId?: string
+  proposalGenerated?: boolean
+  proposalPdfUrl?: string
+  emailSent?: boolean
+  emailSentAt?: string
+}
 ```
 
-## Integration with Agents
+### Trip Interface
+
+```typescript
+export interface Trip {
+  tripId: string                     // Avinode Trip ID
+  requestId?: string                 // Initial request reference
+
+  // Deep Links
+  searchDeepLink: string             // Opens Avinode search
+  viewDeepLink: string               // Opens trip in Avinode
+
+  // Flight Details
+  departure: AirportInfo
+  arrival: AirportInfo
+  departureDate: string
+  departureTime?: string
+  passengers: number
+
+  // Operator/Aircraft (after selection)
+  operator?: OperatorInfo
+  aircraft?: AircraftInfo
+
+  // Status
+  status: TripStatus
+  createdAt: string
+  updatedAt: string
+
+  // Quotes
+  quotes: Quote[]
+  selectedQuoteId?: string
+
+  // Messages from Avinode chat
+  messages: ChatMessage[]
+
+  // Webhook tracking
+  lastWebhookAt?: string
+}
+
+type TripStatus =
+  | 'created'           // Trip container created
+  | 'pending'           // Awaiting user action in Avinode
+  | 'searching'         // User clicked deep link
+  | 'rfq_submitted'     // RFQs sent to operators
+  | 'quoting'           // Some quotes received
+  | 'quoted'            // All quotes received
+  | 'selected'          // Quote selected
+  | 'proposal_sent'     // Proposal emailed
+  | 'completed'         // Trip booked
+  | 'expired'           // Quotes expired
+  | 'cancelled'         // Trip cancelled
+```
+
+### AvinodeActionRequiredProps
+
+```typescript
+interface AvinodeActionRequiredProps {
+  tripId: string
+  searchLink: string
+  viewLink: string
+  status: 'pending' | 'searching' | 'selected' | 'quotes_received'
+  instructions: string[]
+  route: {
+    departure: { icao: string; city: string }
+    arrival: { icao: string; city: string }
+  }
+  date: string
+  passengers: number
+  onSearchClick?: () => void
+  onMarkComplete?: () => void
+}
+```
+
+---
+
+## Status Indicators
+
+| Status | Badge Color | Icon | Description |
+|--------|-------------|------|-------------|
+| `created` | Blue | 🔵 | Trip container created, awaiting user action |
+| `pending` | Yellow/Amber | 🟡 | Request submitted, awaiting user to search in Avinode |
+| `searching` | Blue | 🔍 | User clicked deep link, searching in Avinode |
+| `rfq_submitted` | Blue | 📤 | RFQs sent to operators |
+| `quoting` | Blue | 🔵 | Some quotes received, more expected |
+| `quoted` | Green | 🟢 | All quotes received, ready for selection |
+| `selected` | Purple | 🟣 | Quote selected, pending proposal |
+| `proposal_sent` | Cyan | 📧 | Proposal emailed to customer |
+| `completed` | Gray | ✅ | Trip booked/completed |
+| `expired` | Red | ⏰ | Quotes expired, needs refresh |
+| `cancelled` | Dark Gray | ❌ | Trip cancelled |
+
+---
+
+## Webhook Integration
+
+### Supported Events
+
+| Event Type | Handler Action |
+|------------|---------------|
+| `TripRequestSellerResponse` | Update quote status, store new quote, notify UI |
+| `TripChatSeller` | Store message, display in chat thread |
+| `TripChatMine` | Store message, display in chat thread |
+| `TripRequestMine` | Update trip status |
+
+### Processing Flow
+
+```
+Webhook Received
+       │
+       ▼
+┌──────────────────┐
+│ Verify Signature │ ──No──▶ Return 401
+└────────┬─────────┘
+         │ Yes
+         ▼
+┌──────────────────┐
+│ Parse Payload    │ ──Error──▶ Return 400
+└────────┬─────────┘
+         │ Valid
+         ▼
+┌──────────────────┐
+│ Store in DB      │
+│ (idempotent)     │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Process Event    │
+│ Type-specific    │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Emit to UI       │
+│ via Realtime     │
+└────────┬─────────┘
+         │
+         ▼
+    Return 200 OK
+```
+
+### Real-time Updates Hook
+
+```typescript
+// lib/hooks/use-avinode-quotes.ts
+
+export function useAvinodeQuotes(tripId: string) {
+  const [quotes, setQuotes] = useState<Quote[]>([])
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`trip:${tripId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'quotes',
+        filter: `trip_id=eq.${tripId}`
+      }, (payload) => {
+        setQuotes(prev => [...prev, payload.new as Quote])
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [tripId])
+
+  return quotes
+}
+```
+
+---
+
+## Agent Integration
 
 ### Step 1: Understanding Request (OrchestratorAgent)
 
 **Agent**: `OrchestratorAgent`
-**No special data needed** - Uses hardcoded details
+**Populates**: `workflowData.step1`
 
 ```typescript
-// No workflowData required for Step 1
+// agents/implementations/orchestrator-agent.ts
+
+async execute(context: AgentContext): Promise<AgentResult> {
+  // 1. Parse natural language input
+  const parsed = await this.parseFlightRequest(context.input)
+
+  // 2. Validate extracted data
+  if (!parsed.departure || !parsed.arrival) {
+    return { success: false, error: 'Could not parse flight details' }
+  }
+
+  // 3. Create workflow data
+  const step1Data: WorkflowStepData = {
+    requestParsed: true,
+    departure: parsed.departure,
+    arrival: parsed.arrival,
+    date: parsed.date,
+    passengers: parsed.passengers,
+  }
+
+  // 4. Update workflow
+  await updateChatWorkflowData(context.sessionId, {
+    step1: step1Data,
+    status: 'parsing_complete',
+  })
+
+  return {
+    success: true,
+    data: { parsed, workflowData: step1Data },
+  }
+}
 ```
 
-### Step 2: Searching Aircraft (FlightSearchAgent)
+### Step 2: Creating Trip (FlightSearchAgent)
 
 **Agent**: `FlightSearchAgent`
 **Populates**: `workflowData.step2`
@@ -618,30 +781,40 @@ flowchart TD
 // agents/implementations/flight-search-agent.ts
 
 async execute(context: AgentContext): Promise<AgentResult> {
-  // 1. Search for aircraft in Avinode
-  const searchResults = await avinodeMCP.searchFlights({
-    departure_airport: context.data.departureAirport,
-    arrival_airport: context.data.arrivalAirport,
+  // 1. Create trip container in Avinode
+  const tripResult = await avinodeMCP.createTrip({
+    departure_airport: context.data.departure.icao,
+    arrival_airport: context.data.arrival.icao,
+    departure_date: context.data.date,
     passengers: context.data.passengers,
-    // ... other params
   })
 
-  // 2. Create workflow data
+  // 2. Extract deep links
+  const { tripId, actions } = tripResult
+  const searchDeepLink = actions.searchInAvinode.href
+  const viewDeepLink = actions.viewInAvinode.href
+
+  // 3. Create workflow data
   const step2Data: WorkflowStepData = {
-    operatorsQueried: searchResults.operators_queried || 0,
-    aircraftFound: searchResults.aircraft_found || 0,
-    avinodeResults: searchResults,
+    tripId,
+    searchDeepLink,
+    viewDeepLink,
+    tripCreatedAt: new Date().toISOString(),
   }
 
-  // 3. Update chat session
+  // 4. Update workflow
   await updateChatWorkflowData(context.sessionId, {
     step2: step2Data,
+    tripId,
+    status: 'trip_created',
   })
 
   return {
     success: true,
     data: {
-      searchResults,
+      tripId,
+      searchDeepLink,
+      viewDeepLink,
       workflowData: step2Data,
     },
   }
@@ -650,122 +823,107 @@ async execute(context: AgentContext): Promise<AgentResult> {
 
 **Display Example**:
 ```
-Step 2: Searching Aircraft [Completed]
-  • Queried 15 operators
-  • Found 8 potential aircraft
-  • Filtered by capacity and range
+Step 2: Creating Trip [Completed]
+  • Trip ID: atrip-64956153
+  • Deep link generated
+  • ⚠️ Action required: Search in Avinode
 ```
 
-### Step 3: Requesting Quotes (FlightSearchAgent → Avinode RFP)
+### Step 3: Awaiting Selection
 
-**Agent**: `FlightSearchAgent` (creates RFP)
+**Agent**: `FlightSearchAgent` (triggered by TripID submission)
 **Populates**: `workflowData.step3`
 
 ```typescript
-// agents/implementations/flight-search-agent.ts
-
-async createRFP(context: AgentContext): Promise<AgentResult> {
-  // 1. Create RFP in Avinode
-  const rfp = await avinodeMCP.createRFP({
-    flight_details: {
-      departure_airport: context.data.departureAirport,
-      arrival_airport: context.data.arrivalAirport,
-      // ... flight details
-    },
-    operator_ids: operatorIds,
-  })
+async fetchTripDetails(tripId: string, context: AgentContext): Promise<AgentResult> {
+  // 1. Fetch trip details from Avinode
+  const tripDetails = await avinodeMCP.getTrip(tripId)
 
   // 2. Create workflow data
   const step3Data: WorkflowStepData = {
-    avinodeRfpId: rfp.rfp_id,
-    operatorsQueried: operatorIds.length,
-    quotesReceived: 0, // Initial value, updated later
+    tripIdSubmitted: true,
+    tripDetailsFetched: true,
+    aircraft: tripDetails.aircraft,
+    operator: tripDetails.operator,
   }
 
-  // 3. Update chat session
+  // 3. Update workflow
   await updateChatWorkflowData(context.sessionId, {
     step3: step3Data,
-    status: 'requesting_quotes',
+    status: 'trip_loaded',
+  })
+
+  // 4. Create watch for quote updates
+  await avinodeMCP.createWatch({
+    type: 'rfp',
+    rfpId: tripDetails.rfpId,
+    notifications: {
+      on_new_quote: true,
+      on_price_change: true,
+    },
   })
 
   return {
     success: true,
-    data: {
-      rfpId: rfp.rfp_id,
-      workflowData: step3Data,
-    },
-  }
-}
-```
-
-**Display Example (In Progress)**:
-```
-Step 3: Requesting Quotes [In Progress]
-  • RFP ID: AVN-2025-10-22-ABC123
-  • Sent requests to 6 operators
-```
-
-**Display Example (Completed)**:
-```
-Step 3: Requesting Quotes [Completed]
-  • RFP ID: AVN-2025-10-22-ABC123
-  • Received 6 quotes
-  • Sent requests to 6 operators
-```
-
-### Step 4: Analyzing Options (ProposalAnalysisAgent)
-
-**Agent**: `ProposalAnalysisAgent`
-**Populates**: `workflowData.step4`
-
-```typescript
-// agents/implementations/proposal-analysis-agent.ts
-
-async execute(context: AgentContext): Promise<AgentResult> {
-  const rfpId = context.data.rfpId
-
-  // 1. Fetch quotes from Avinode
-  const rfpStatus = await avinodeMCP.getRFPStatus(rfpId)
-  const quotes = rfpStatus.quotes || []
-
-  // 2. Score and rank quotes
-  const scoredQuotes = await this.scoreQuotes(quotes, context)
-
-  // 3. Create workflow data
-  const step4Data: WorkflowStepData = {
-    quotesAnalyzed: quotes.length,
-    avinodeQuotes: scoredQuotes,
-  }
-
-  // 4. Update chat session
-  await updateChatWorkflowData(context.sessionId, {
-    step4: step4Data,
-    quotes: scoredQuotes.map(q => ({
-      id: q.id,
-      operatorName: q.operator_name,
-      price: q.price,
-      aiScore: q.ai_score,
-      // ... other quote fields
-    })),
-    status: 'analyzing_options',
-  })
-
-  return {
-    success: true,
-    data: {
-      scoredQuotes,
-      workflowData: step4Data,
-    },
+    data: { tripDetails, workflowData: step3Data },
   }
 }
 ```
 
 **Display Example**:
 ```
-Step 4: Analyzing Options [Completed]
-  • Analyzed 6 quotes
-  • Compared 6 pricing options
-  • Selected top 3 options
+Step 3: Awaiting Selection [Completed]
+  • TripID submitted: atrip-64956153
+  • Flight details loaded
+  • Watching for quote updates
+```
+
+### Step 4: Receiving Quotes (Webhook-driven)
+
+**Agent**: `ProposalAnalysisAgent`
+**Populates**: `workflowData.step4`
+
+```typescript
+// Triggered by webhook or manual refresh
+async analyzeQuotes(context: AgentContext): Promise<AgentResult> {
+  const tripId = context.data.tripId
+
+  // 1. Get all quotes for this trip
+  const quotes = await supabase
+    .from('quotes')
+    .select('*')
+    .eq('trip_id', tripId)
+
+  // 2. Score and rank quotes
+  const scoredQuotes = await this.scoreQuotes(quotes.data, context)
+
+  // 3. Create workflow data
+  const step4Data: WorkflowStepData = {
+    quotesReceived: quotes.data.length,
+    quotesAnalyzed: quotes.data.length,
+    quotes: scoredQuotes,
+    topQuotes: scoredQuotes.slice(0, 3),
+  }
+
+  // 4. Update workflow
+  await updateChatWorkflowData(context.sessionId, {
+    step4: step4Data,
+    status: 'quotes_analyzed',
+  })
+
+  return {
+    success: true,
+    data: { scoredQuotes, workflowData: step4Data },
+  }
+}
+```
+
+**Display Example**:
+```
+Step 4: Receiving Quotes [Completed]
+  • Received 4 quotes
+  • Analyzed and ranked
+  • Top recommendation: Prime Jet - $37,036
 ```
 
 ### Step 5: Generate Proposal (CommunicationAgent)
@@ -774,20 +932,24 @@ Step 4: Analyzing Options [Completed]
 **Populates**: `workflowData.step5`
 
 ```typescript
-// agents/implementations/communication-agent.ts
-
-async execute(context: AgentContext): Promise<AgentResult> {
+async generateProposal(context: AgentContext): Promise<AgentResult> {
   const selectedQuote = context.data.selectedQuote
 
-  // 1. Generate proposal
-  const proposal = await this.generateProposal(selectedQuote, context)
+  // 1. Generate PDF proposal
+  const pdfUrl = await this.createProposalPDF({
+    quote: selectedQuote,
+    flightDetails: context.data.flightDetails,
+    customer: context.data.customer,
+  })
 
   // 2. Create workflow data
   const step5Data: WorkflowStepData = {
+    selectedQuoteId: selectedQuote.id,
     proposalGenerated: true,
+    proposalPdfUrl: pdfUrl,
   }
 
-  // 3. Update chat session
+  // 3. Update workflow
   await updateChatWorkflowData(context.sessionId, {
     step5: step5Data,
     status: 'proposal_ready',
@@ -795,10 +957,7 @@ async execute(context: AgentContext): Promise<AgentResult> {
 
   return {
     success: true,
-    data: {
-      proposal,
-      workflowData: step5Data,
-    },
+    data: { pdfUrl, workflowData: step5Data },
   }
 }
 ```
@@ -806,208 +965,152 @@ async execute(context: AgentContext): Promise<AgentResult> {
 **Display Example**:
 ```
 Step 5: Generate Proposal [Completed]
-  • Applied margin settings
-  • Created Jetvision branded quote
-  • Proposal ready for client
+  • Selected quote from Prime Jet
+  • Applied JetVision margin
+  • PDF proposal ready
+  • ✉️ Ready to send to customer
 ```
 
-## API Integration
+---
 
-### Update Chat Session with Workflow Data
+## Error Handling
 
-Create a helper function to update workflow data:
+### Expired Deep Links
 
-```typescript
-// lib/helpers/workflow-helpers.ts
+Deep links typically expire after 24-48 hours:
 
-export async function updateChatWorkflowData(
-  sessionId: string,
-  updates: {
-    step1?: WorkflowStepData
-    step2?: WorkflowStepData
-    step3?: WorkflowStepData
-    step4?: WorkflowStepData
-    step5?: WorkflowStepData
-    status?: string
-  }
-) {
-  // Update in-memory chat session (for real-time display)
-  const chatSession = getChatSession(sessionId)
-  if (chatSession) {
-    chatSession.workflowData = {
-      ...chatSession.workflowData,
-      ...updates,
-    }
-    if (updates.status) {
-      chatSession.status = updates.status
-    }
-  }
-
-  // Optionally persist to database
-  await supabase
-    .from('chat_sessions')
-    .update({
-      workflow_data: updates,
-      status: updates.status,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', sessionId)
-}
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ExpiredLinkNotice Component                                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ⏰ This search link has expired                                            │
+│                                                                              │
+│  The Avinode link from your original request is no longer valid.            │
+│  Would you like to create a new flight search?                              │
+│                                                                              │
+│  Original Request:                                                           │
+│  KTEB → KLAS • Dec 20, 2024 • 6 passengers                                  │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  🔄 Create New Search with Same Details                             │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  ✏️ Modify Search Details                                           │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Real-time Updates via Supabase
+### Invalid TripID
 
-```typescript
-// lib/hooks/use-workflow-realtime.ts
-
-export function useWorkflowRealtime(sessionId: string) {
-  const [workflowData, setWorkflowData] = useState({})
-  const supabase = createClientComponentClient()
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`workflow-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'chat_sessions',
-          filter: `id=eq.${sessionId}`,
-        },
-        (payload) => {
-          setWorkflowData(payload.new.workflow_data || {})
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [sessionId])
-
-  return workflowData
-}
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ TripIDInput - Error States                                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Invalid Format:                                                             │
+│  ┌─────────────────────────────────┐                                        │
+│  │  AB@#12                         │  ❌ Only letters and numbers allowed   │
+│  └─────────────────────────────────┘                                        │
+│                                                                              │
+│  Trip Not Found:                                                             │
+│  ┌─────────────────────────────────┐                                        │
+│  │  atrip-XXXXXX                   │  ❌ No trip found with this ID         │
+│  └─────────────────────────────────┘                                        │
+│     Double-check the TripID in Avinode                                      │
+│                                                                              │
+│  Already Added:                                                              │
+│  ┌─────────────────────────────────┐                                        │
+│  │  atrip-64956153                 │  ℹ️ This trip is already in your list  │
+│  └─────────────────────────────────┘                                        │
+│     [View Trip →]                                                            │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Usage in Chat Interface
+### Webhook Status Indicator
 
-Update the chat interface to pass workflow data:
-
-```typescript
-// components/chat-interface.tsx
-
-import { WorkflowVisualization, type WorkflowStepData } from './workflow-visualization'
-import { useWorkflowRealtime } from '@/lib/hooks/use-workflow-realtime'
-
-export function ChatInterface({ activeChat, ... }: ChatInterfaceProps) {
-  const workflowData = useWorkflowRealtime(activeChat.id)
-
-  return (
-    <div>
-      {/* ... other chat UI */}
-
-      {message.showWorkflow && (
-        <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border">
-          <WorkflowVisualization
-            isProcessing={activeChat.status !== "proposal_ready"}
-            embedded={true}
-            currentStep={activeChat.currentStep}
-            status={activeChat.status}
-            workflowData={workflowData}  {/* Pass real data */}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ WebhookStatusIndicator Component                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Normal State:                                                               │
+│  🟢 Live updates active                                                      │
+│                                                                              │
+│  Delayed State (>5 min since last update):                                  │
+│  🟡 Updates may be delayed • Last update: 8 min ago                         │
+│     [Refresh Now]                                                            │
+│                                                                              │
+│  Disconnected State:                                                         │
+│  🔴 Live updates unavailable • Reconnecting...                              │
+│     Some quote updates may not appear automatically.                        │
+│     [Manual Refresh]                                                         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Testing
+---
 
-### Manual Testing
+## Database Schema
 
-1. **Start a flight search**
-2. **Click each step** to verify expand/collapse works
-3. **Verify details display** for completed steps
-4. **Check progress bar** updates correctly
+### Trips Table (Migration 015+)
 
-### With Mock Data
+```sql
+CREATE TABLE trips (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id VARCHAR(50) UNIQUE NOT NULL,  -- Avinode TripID (atrip-XXXXXXXX)
+  request_id VARCHAR(50),                -- Initial request ID
 
-```typescript
-// Test with sample workflow data
-const sampleWorkflowData = {
-  step2: {
-    operatorsQueried: 15,
-    aircraftFound: 8,
-  },
-  step3: {
-    avinodeRfpId: 'AVN-2025-10-22-TEST123',
-    operatorsQueried: 6,
-    quotesReceived: 6,
-  },
-  step4: {
-    quotesAnalyzed: 6,
-    avinodeQuotes: [/* quote objects */],
-  },
-  step5: {
-    proposalGenerated: true,
-  },
-}
+  -- Deep Links
+  search_deep_link TEXT,
+  view_deep_link TEXT,
 
-<WorkflowVisualization
-  status="proposal_ready"
-  currentStep={5}
-  workflowData={sampleWorkflowData}
-  embedded={true}
-/>
+  -- Flight Details
+  departure_icao VARCHAR(4) NOT NULL,
+  departure_name VARCHAR(100),
+  arrival_icao VARCHAR(4) NOT NULL,
+  arrival_name VARCHAR(100),
+  departure_date DATE NOT NULL,
+  departure_time TIME,
+  passengers INTEGER NOT NULL,
+
+  -- Status
+  status VARCHAR(20) DEFAULT 'created',
+  user_id UUID REFERENCES users(id),
+
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+  -- Metadata
+  metadata JSONB DEFAULT '{}'
+);
+
+-- Enable RLS
+ALTER TABLE trips ENABLE ROW LEVEL SECURITY;
 ```
 
-### With Real Avinode Data
+### Webhook Events Table
 
-```typescript
-// Integration test with real Avinode MCP
-const rfp = await avinodeMCP.createRFP({
-  flight_details: { /* ... */ },
-  operator_ids: ['OP123', 'OP456'],
-})
+```sql
+CREATE TABLE webhook_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id VARCHAR(50) REFERENCES trips(trip_id),
+  event_type VARCHAR(50) NOT NULL,
+  payload JSONB NOT NULL,
+  processed BOOLEAN DEFAULT FALSE,
+  processed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-const rfpStatus = await avinodeMCP.getRFPStatus(rfp.rfp_id)
-
-const workflowData = {
-  step3: {
-    avinodeRfpId: rfp.rfp_id,
-    quotesReceived: rfpStatus.quotes_received,
-    operatorsQueried: rfpStatus.operators_queried,
-  },
-}
+CREATE INDEX idx_webhook_events_trip_id ON webhook_events(trip_id);
+CREATE INDEX idx_webhook_events_event_type ON webhook_events(event_type);
 ```
 
-## UI Behavior
-
-### Embedded View (In Chat)
-
-- Compact vertical list of steps
-- Click step header to expand/collapse
-- Shows + / − icon
-- Details indent with left border
-- Progress bar at bottom
-
-### Full View (Workflow Page)
-
-- Full-width cards
-- Click anywhere on card to expand/collapse
-- Shows + / − icon next to status badge
-- Details in gray box with bullets
-- Progress bar at bottom
-
-## Benefits
-
-✅ **User-friendly** - Click to see details on demand
-✅ **Real data** - Shows actual Avinode results, not mock data
-✅ **Sequential** - Updates automatically as workflow progresses
-✅ **Transparent** - Users see exactly what's happening (RFP IDs, quote counts)
-✅ **Reusable** - Same component works in chat and full-page views
+---
 
 ## Avinode API Setup
 
@@ -1018,7 +1121,7 @@ Before integrating with the real Avinode API, complete these steps:
 #### 1. Request Sandbox Access
 
 Contact your Avinode Group representative to:
-- Define your specific use case (schedule uploads, RFQ management, trip search, etc.)
+- Define your specific use case (trip management, RFQ flow)
 - Obtain sandbox environment access
 - Receive API credentials
 
@@ -1034,191 +1137,91 @@ AVINODE_API_TOKEN=your-api-token-here          // X-Avinode-ApiToken header
 AVINODE_BEARER_TOKEN=your-bearer-token-here    // Authorization: Bearer token
 ```
 
-**Security Note**: Treat these tokens like passwords. Never commit them to version control or share publicly.
-
 #### 3. Required HTTP Headers
-
-All Avinode API requests must include:
 
 ```typescript
 const headers = {
   'Content-Type': 'application/json',
   'X-Avinode-ApiToken': process.env.AVINODE_API_TOKEN,
   'Authorization': `Bearer ${process.env.AVINODE_BEARER_TOKEN}`,
-  'X-Avinode-SentTimestamp': new Date().toISOString(), // ISO-8601 UTC (must be within 5 minutes)
+  'X-Avinode-SentTimestamp': new Date().toISOString(),
   'X-Avinode-ApiVersion': 'v1.0',
   'X-Avinode-Product': 'Jetvision/1.0.0',
-  'Accept-Encoding': 'gzip', // Optional, for compression
+  'Accept-Encoding': 'gzip',
 }
 ```
 
-#### 4. Data Format Standards
+#### 4. Rate Limiting
 
-Follow these ISO standards for API requests:
-
-- **Dates/Times**: ISO 8601 format (e.g., `2025-11-20T14:00:00Z`)
-- **Currency**: ISO 4217 codes (e.g., `USD`, `EUR`, `GBP`)
-- **Countries**: ISO 3166-1 alpha-2 codes (e.g., `US`, `GB`, `FR`)
-- **Provinces/States**: ISO 3166-2 format (e.g., `US-FL`, `US-CA`)
-
-#### 5. Rate Limiting
-
-Avinode enforces rate limits of **~1 call per second** with burst tolerance:
+Avinode enforces rate limits of **~1 call per second**:
 
 - **429 Too Many Requests** response when rate limited
-- Response headers:
-  - `X-Rate-Limit-Limit`: Allowed calls per hour
-  - `X-Rate-Limit-Remaining`: Calls remaining in current window
-  - `X-Rate-Limit-Reset`: Seconds until counter resets
-
-**Recommendation**: Implement exponential backoff retry logic for 429 errors.
-
-#### 6. Sandbox Environment Notes
-
-**Important Limitations**:
-
-- **Shared environment**: Multiple customers may be testing simultaneously
-- **Weekly data reset**: Database rebuilds every Monday (6-8 AM UTC)
-- **Password reset required**: After each weekly reset
-- **Data confidentiality**: Do not extract or disclose sandbox data to third parties
-- **Lifecycle**: Sandbox access continues alongside production access
-
-**Test Data Setup**:
-1. Log in to https://sandbox.avinode.com
-2. Create test RFQs, quotes, and empty legs
-3. Use test data to verify your integration
-
-### MCP Server Configuration
-
-Update the Avinode MCP server to use real credentials:
-
-```typescript
-// mcp-servers/avinode-mcp-server/src/index.ts
-
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-
-const AVINODE_BASE_URL = process.env.AVINODE_SANDBOX_MODE === 'true'
-  ? 'https://sandbox.avinode.com/api'
-  : 'https://api.avinode.com';
-
-const AVINODE_API_TOKEN = process.env.AVINODE_API_TOKEN;
-const AVINODE_BEARER_TOKEN = process.env.AVINODE_BEARER_TOKEN;
-
-if (!AVINODE_API_TOKEN || !AVINODE_BEARER_TOKEN) {
-  throw new Error('Missing Avinode API credentials. Set AVINODE_API_TOKEN and AVINODE_BEARER_TOKEN in .env');
-}
-
-async function makeAvinodeRequest(endpoint: string, options: RequestInit = {}) {
-  const url = `${AVINODE_BASE_URL}${endpoint}`;
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'X-Avinode-ApiToken': AVINODE_API_TOKEN,
-    'Authorization': `Bearer ${AVINODE_BEARER_TOKEN}`,
-    'X-Avinode-SentTimestamp': new Date().toISOString(),
-    'X-Avinode-ApiVersion': 'v1.0',
-    'X-Avinode-Product': 'Jetvision/1.0.0',
-    'Accept-Encoding': 'gzip',
-    ...options.headers,
-  };
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
-  // Handle rate limiting
-  if (response.status === 429) {
-    const resetSeconds = parseInt(response.headers.get('X-Rate-Limit-Reset') || '60');
-    throw new Error(`Rate limited. Retry after ${resetSeconds} seconds`);
-  }
-
-  if (!response.ok) {
-    throw new Error(`Avinode API error: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json();
-}
-```
-
-### HTTP Status Codes
-
-Handle these common API responses:
-
-- **200 OK**: Successful GET/PUT request
-- **201 Created**: Successful POST request
-- **401 Unauthorized**: Invalid or missing authentication token
-- **403 Forbidden**: Valid token but insufficient permissions
-- **409 Conflict**: Simultaneous update conflict
-- **422 Unprocessable Entity**: Validation failure
-- **423 Locked**: Resource is locked
-- **429 Too Many Requests**: Rate limit exceeded
-- **503 Service Unavailable**: Temporary server issue
-
-### Error Handling Example
-
-```typescript
-async function createRFPWithRetry(rfpData: RFPRequest, maxRetries = 3): Promise<RFPResponse> {
-  let attempts = 0;
-
-  while (attempts < maxRetries) {
-    try {
-      return await makeAvinodeRequest('/rfp/create', {
-        method: 'POST',
-        body: JSON.stringify(rfpData),
-      });
-    } catch (error) {
-      attempts++;
-
-      if (error.message.includes('Rate limited')) {
-        // Exponential backoff
-        const delay = Math.pow(2, attempts) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-
-      throw error; // Non-rate-limit error, fail immediately
-    }
-  }
-
-  throw new Error('Max retries exceeded for Avinode API request');
-}
-```
+- Implement exponential backoff retry logic
 
 ---
 
-## Next Steps
+## Implementation Checklist
 
-### Phase 1: Sandbox Configuration (CURRENT)
-1. ✅ **Contact Avinode** for sandbox access
-2. ⏳ **Obtain API credentials** (API Token and Bearer Token)
-3. ⏳ **Configure MCP server** with authentication
-4. ⏳ **Test basic API calls** in sandbox environment
-5. ⏳ **Verify data format compliance** with ISO standards
+### Phase 1: Core Workflow
 
-### Phase 2: Agent Integration
-1. **Implement FlightSearchAgent** Avinode integration
-2. **Implement ProposalAnalysisAgent** quote fetching
-3. **Add real-time updates** via Supabase subscriptions
-4. **Test with live Avinode** sandbox data
-5. **Add error handling** for failed steps
+- [x] `AvinodeDeepLinks` component exists
+- [x] `AvinodeTripBadge` component exists
+- [ ] Create `AvinodeActionRequired` component
+- [ ] Create `DeepLinkPrompt` component
+- [ ] Create `TripIDInput` component
+- [ ] Update workflow visualization states
+- [ ] Update chat interface for trip creation flow
 
-### Phase 3: Production Deployment
-1. **Pass Avinode implementation review**
-2. **Obtain production API credentials**
-3. **Configure production environment variables**
-4. **Deploy to production**
-5. **Monitor API usage and rate limits**
+### Phase 2: Webhook Integration
+
+- [x] Webhook handler exists (needs enhancement)
+- [ ] Store webhook data in Supabase
+- [ ] Create real-time subscription hook (`useAvinodeQuotes`)
+- [ ] Create quote notification component
+- [ ] Bridge webhook events to chat thread
+
+### Phase 3: UX Polish
+
+- [ ] Add progress tracking for Avinode actions
+- [ ] Create operator message display in chat
+- [ ] Add quote comparison from webhook data
+- [ ] Implement proposal generation with real quotes
+- [ ] Add `WebhookStatusIndicator` component
+
+---
 
 ## Related Files
 
-- `components/workflow-visualization.tsx` - Main component
+- `components/workflow-visualization.tsx` - Main workflow component
+- `components/avinode/avinode-deep-links.tsx` - Deep link display
+- `components/avinode/avinode-action-required.tsx` - Action required prompt
+- `components/avinode/webhook-status-indicator.tsx` - Webhook status
+- `components/trips/trip-id-input.tsx` - TripID input
 - `agents/implementations/flight-search-agent.ts` - Step 2 & 3
 - `agents/implementations/proposal-analysis-agent.ts` - Step 4
 - `agents/implementations/communication-agent.ts` - Step 5
-- `lib/hooks/use-workflow-realtime.ts` - Real-time updates
-- `lib/helpers/workflow-helpers.ts` - Helper functions
+- `app/api/webhooks/avinode/route.ts` - Webhook handler
+- `lib/hooks/use-avinode-quotes.ts` - Real-time quote updates
+- `lib/hooks/use-workflow-realtime.ts` - Workflow state updates
+
+---
 
 ## Summary
 
-The workflow visualization is now **fully interactive** and ready to display **real Avinode results** from the agent workflow. Users can click each step to see detailed results, and the UI updates automatically as the workflow progresses through each stage! 🎯
+The Avinode integration uses a **human-in-loop workflow** where:
+
+1. **Agent creates a trip container** with deep link
+2. **User manually searches** in Avinode Marketplace
+3. **User provides TripID** after selecting flights
+4. **Webhooks deliver quotes** in real-time
+5. **Agent generates proposal** after user selects a quote
+
+This workflow respects Avinode's API restrictions while providing a seamless experience for JetVision sales reps.
+
+---
+
+**Document Version**: 2.0
+**Last Updated**: December 20, 2025
+**Related Docs**:
+- `docs/implementation/AVINODE-UX-WORKFLOW-ALIGNMENT.md`
+- `docs/UX_REQUIREMENTS_AVINODE_WORKFLOW.md`

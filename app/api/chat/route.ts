@@ -2,8 +2,9 @@
  * Chat API Route
  *
  * Direct OpenAI integration for chat messages with SSE streaming.
- * Replaces ChatKit with native OpenAI API calls.
+ * Integrates with Avinode MCP tools for flight search and RFP creation.
  *
+ * @see Linear issue ONEK-120 for Avinode integration
  * @see Linear issue ONEK-137 for multi-agent integration roadmap
  */
 
@@ -11,11 +12,22 @@ import { NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import OpenAI from 'openai'
 import { z } from 'zod'
+import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
+
+// Singleton MCP server for Avinode tools
+let avinodeMCP: AvinodeMCPServer | null = null
+
+function getAvinodeMCP(): AvinodeMCPServer {
+  if (!avinodeMCP) {
+    avinodeMCP = new AvinodeMCPServer()
+  }
+  return avinodeMCP
+}
 
 // Request validation schema
 const ChatRequestSchema = z.object({
@@ -29,36 +41,170 @@ const ChatRequestSchema = z.object({
     route: z.string().optional(),
     passengers: z.number().optional(),
     date: z.string().optional(),
+    tripId: z.string().optional(),
+    rfpId: z.string().optional(),
   }).optional(),
 })
 
-// System prompt for JetVision assistant
-const SYSTEM_PROMPT = `You are the JetVision AI Assistant, a professional private jet charter concierge. You help clients book private jet flights by:
+// System prompt for JetVision assistant with Avinode integration
+const SYSTEM_PROMPT = `You are the JetVision AI Assistant, a professional private jet charter concierge.
 
-1. Understanding their travel requirements (route, dates, passengers, preferences)
-2. Searching for available aircraft that match their criteria
-3. Analyzing quotes from operators to find the best options
-4. Presenting recommendations with clear pricing and details
-5. Facilitating the booking process
+CRITICAL: When a user provides flight details (airports, dates, passengers), you MUST IMMEDIATELY call the appropriate tools. Do NOT respond conversationally first - call the tools right away.
 
-Your communication style should be:
+Tool Usage Rules:
+- If user mentions origin/destination airports + date + passengers → IMMEDIATELY call search_flights
+- If user asks to "create RFP", "get quotes", "book", or "proceed" → IMMEDIATELY call create_rfp with search results
+- If user asks about quote status → IMMEDIATELY call get_quote_status or get_quotes
+
+Example: User says "I need a flight from KTEB to KVNY for 4 passengers on Jan 20"
+→ You MUST call search_flights with those exact parameters, then create_rfp
+
+Your workflow:
+1. When flight details are provided → call search_flights immediately
+2. Show results and ask if they want to proceed
+3. When confirmed → call create_rfp to get operator quotes
+4. Present the Avinode marketplace deep link to the user
+
+Communication style:
 - Professional yet warm and personable
 - Clear and concise, avoiding jargon
-- Proactive in offering relevant suggestions
-- Knowledgeable about private aviation
+- Proactive in using tools when information is available
 
-When users provide flight requirements, acknowledge them and explain the next steps in the booking process.
-
-Important context:
-- You work with a network of trusted operators
+Context:
+- You work with operators via the Avinode marketplace
 - Quotes typically take 10-30 minutes to receive
-- You can help with one-way, round-trip, and multi-leg flights
-- Aircraft types range from light jets to heavy jets and turboprops`
+- ICAO codes are 4-letter airport identifiers (e.g., KTEB for Teterboro, KVNY for Van Nuys)
+- Always use ICAO codes when calling tools`
+
+// OpenAI function definitions for Avinode tools
+const AVINODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'search_flights',
+      description: 'Search for available charter flights and aircraft via Avinode marketplace. Use this when a user asks about flight availability or wants to see options.',
+      parameters: {
+        type: 'object',
+        properties: {
+          departure_airport: {
+            type: 'string',
+            description: 'Departure airport ICAO code (4 letters, e.g., KTEB, KJFK)',
+          },
+          arrival_airport: {
+            type: 'string',
+            description: 'Arrival airport ICAO code (4 letters, e.g., KOPF, KMIA)',
+          },
+          passengers: {
+            type: 'number',
+            description: 'Number of passengers (1-19)',
+          },
+          departure_date: {
+            type: 'string',
+            description: 'Departure date in YYYY-MM-DD format',
+          },
+          aircraft_category: {
+            type: 'string',
+            enum: ['light', 'midsize', 'heavy', 'ultra-long-range'],
+            description: 'Optional aircraft category filter',
+          },
+        },
+        required: ['departure_airport', 'arrival_airport', 'passengers', 'departure_date'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_rfp',
+      description: 'Create a Request for Proposal (RFP) and send to operators to get quotes. Use this when the user wants to proceed with getting actual quotes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          flight_details: {
+            type: 'object',
+            description: 'Flight details for the RFP',
+            properties: {
+              departure_airport: { type: 'string' },
+              arrival_airport: { type: 'string' },
+              passengers: { type: 'number' },
+              departure_date: { type: 'string' },
+            },
+            required: ['departure_airport', 'arrival_airport', 'passengers', 'departure_date'],
+          },
+          operator_ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of operator IDs to send RFP to (from search results)',
+          },
+          special_requirements: {
+            type: 'string',
+            description: 'Optional special requirements or notes',
+          },
+        },
+        required: ['flight_details', 'operator_ids'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_quote_status',
+      description: 'Get the status of an RFP and how many operators have responded. Use this to check on pending quote requests.',
+      parameters: {
+        type: 'object',
+        properties: {
+          rfp_id: {
+            type: 'string',
+            description: 'The RFP ID to check status for',
+          },
+        },
+        required: ['rfp_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_quotes',
+      description: 'Get all quotes received for an RFP. Use this to see the actual quotes from operators.',
+      parameters: {
+        type: 'object',
+        properties: {
+          rfp_id: {
+            type: 'string',
+            description: 'The RFP ID to get quotes for',
+          },
+        },
+        required: ['rfp_id'],
+      },
+    },
+  },
+]
+
+/**
+ * Execute an Avinode tool and return the result
+ */
+async function executeAvinodeTool(
+  name: string,
+  args: Record<string, unknown>
+): Promise<{ success: boolean; data?: unknown; error?: string }> {
+  try {
+    const mcp = getAvinodeMCP()
+    const result = await mcp.callTool(name, args)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error(`[Chat API] Tool execution error (${name}):`, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
 
 /**
  * POST /api/chat
  *
- * Handle chat messages with streaming responses
+ * Handle chat messages with streaming responses and Avinode tool integration
  */
 export async function POST(req: NextRequest) {
   try {
@@ -109,6 +255,8 @@ export async function POST(req: NextRequest) {
       if (context.route) contextParts.push(`Route: ${context.route}`)
       if (context.passengers) contextParts.push(`Passengers: ${context.passengers}`)
       if (context.date) contextParts.push(`Date: ${context.date}`)
+      if (context.tripId) contextParts.push(`Trip ID: ${context.tripId}`)
+      if (context.rfpId) contextParts.push(`RFP ID: ${context.rfpId}`)
 
       if (contextParts.length > 0) {
         messages.push({
@@ -124,14 +272,146 @@ export async function POST(req: NextRequest) {
     // Add current user message
     messages.push({ role: 'user', content: message })
 
-    // Create streaming response
-    // Note: GPT-5.2 uses max_completion_tokens instead of max_tokens
+    // Check if Avinode MCP is available (for tool use)
+    const mcp = getAvinodeMCP()
+    const isMockMode = mcp.isUsingMockMode()
+
+    console.log(`[Chat API] Processing message with Avinode tools (mock mode: ${isMockMode})`)
+
+    // Detect if message contains flight details that should trigger tool usage
+    const messageText = message.toLowerCase()
+    const hasFlightDetails = (
+      (messageText.includes('kteb') || messageText.includes('teterboro') ||
+       messageText.includes('kvny') || messageText.includes('van nuys') ||
+       messageText.includes('klax') || messageText.includes('kjfk') ||
+       /[a-z]{4}/.test(messageText)) && // Has airport-like codes
+      (messageText.includes('passenger') || /\d+\s*(pax|people|person)/.test(messageText)) &&
+      (messageText.includes('202') || messageText.includes('january') ||
+       messageText.includes('february') || messageText.includes('march') ||
+       /\d{1,2}[\/\-]\d{1,2}/.test(messageText)) // Has date-like content
+    )
+    const wantsRFP = messageText.includes('rfp') || messageText.includes('quote') ||
+                     messageText.includes('book') || messageText.includes('proceed')
+
+    // Use 'required' for tool_choice when flight details are detected
+    const toolChoice = hasFlightDetails || wantsRFP ? 'required' : 'auto'
+    console.log(`[Chat API] Tool choice: ${toolChoice} (hasFlightDetails: ${hasFlightDetails}, wantsRFP: ${wantsRFP})`)
+
+    // First, make a non-streaming call to check for tool usage
+    const initialResponse = await openai.chat.completions.create({
+      model: 'gpt-4o', // Use GPT-4o for function calling (GPT-5.2 may not support tools yet)
+      messages,
+      tools: AVINODE_TOOLS,
+      tool_choice: toolChoice as 'auto' | 'required',
+      temperature: 0.7,
+      max_tokens: 1024,
+      user: userId,
+    })
+
+    const initialMessage = initialResponse.choices[0]?.message
+
+    // Check if the model wants to call a tool
+    if (initialMessage?.tool_calls && initialMessage.tool_calls.length > 0) {
+      // Execute all tool calls
+      const toolResults: OpenAI.Chat.ChatCompletionToolMessageParam[] = []
+
+      for (const toolCall of initialMessage.tool_calls) {
+        const args = JSON.parse(toolCall.function.arguments)
+        console.log(`[Chat API] Executing tool: ${toolCall.function.name}`, args)
+
+        const result = await executeAvinodeTool(toolCall.function.name, args)
+
+        toolResults.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(result.success ? result.data : { error: result.error }),
+        })
+
+        // If this was create_rfp, add special metadata to the response
+        if (toolCall.function.name === 'create_rfp' && result.success) {
+          console.log('[Chat API] RFP created:', result.data)
+        }
+      }
+
+      // Add the assistant message with tool calls and tool results
+      messages.push(initialMessage as OpenAI.Chat.ChatCompletionMessageParam)
+      messages.push(...toolResults)
+
+      // Get final response after tool execution
+      const finalResponse = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages,
+        temperature: 0.7,
+        max_tokens: 1024,
+        user: userId,
+      })
+
+      const finalContent = finalResponse.choices[0]?.message?.content || ''
+
+      // Check if RFP was created and include deep link
+      let rfpData = null
+      for (const toolCall of initialMessage.tool_calls) {
+        if (toolCall.function.name === 'create_rfp') {
+          const resultIndex = initialMessage.tool_calls.indexOf(toolCall)
+          const toolResult = toolResults[resultIndex]
+          try {
+            const parsed = JSON.parse(toolResult.content)
+            if (parsed.rfp_id) {
+              rfpData = parsed
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+
+      // Return non-streaming JSON response with tool results
+      const responseData: {
+        content: string
+        done: boolean
+        tool_calls?: Array<{ name: string; result: unknown }>
+        rfp_data?: unknown
+        mock_mode: boolean
+      } = {
+        content: finalContent,
+        done: true,
+        tool_calls: initialMessage.tool_calls.map((tc, i) => ({
+          name: tc.function.name,
+          result: JSON.parse(toolResults[i].content),
+        })),
+        mock_mode: isMockMode,
+      }
+
+      if (rfpData) {
+        responseData.rfp_data = rfpData
+      }
+
+      // Return as SSE format for consistency
+      const encoder = new TextEncoder()
+      const readableStream = new ReadableStream({
+        start(controller) {
+          const data = JSON.stringify(responseData)
+          controller.enqueue(encoder.encode(`data: ${data}\n\n`))
+          controller.close()
+        },
+      })
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      })
+    }
+
+    // No tool calls - stream the response directly
     const stream = await openai.chat.completions.create({
-      model: 'gpt-5.2',
+      model: 'gpt-4o',
       messages,
       stream: true,
       temperature: 0.7,
-      max_completion_tokens: 1024,
+      max_tokens: 1024,
       user: userId,
     })
 
@@ -145,13 +425,13 @@ export async function POST(req: NextRequest) {
             const content = chunk.choices[0]?.delta?.content || ''
             if (content) {
               // Send SSE formatted data
-              const data = JSON.stringify({ content, done: false })
+              const data = JSON.stringify({ content, done: false, mock_mode: isMockMode })
               controller.enqueue(encoder.encode(`data: ${data}\n\n`))
             }
 
             // Check if stream is complete
             if (chunk.choices[0]?.finish_reason === 'stop') {
-              const doneData = JSON.stringify({ content: '', done: true })
+              const doneData = JSON.stringify({ content: '', done: true, mock_mode: isMockMode })
               controller.enqueue(encoder.encode(`data: ${doneData}\n\n`))
             }
           }
@@ -209,13 +489,23 @@ export async function POST(req: NextRequest) {
  * Health check endpoint
  */
 export async function GET() {
-  const configured = !!process.env.OPENAI_API_KEY
+  const openaiConfigured = !!process.env.OPENAI_API_KEY
+  let avinodeStatus = 'unknown'
+
+  try {
+    const mcp = getAvinodeMCP()
+    avinodeStatus = mcp.isUsingMockMode() ? 'mock' : 'connected'
+  } catch {
+    avinodeStatus = 'error'
+  }
 
   return new Response(
     JSON.stringify({
       status: 'ok',
-      configured,
-      model: configured ? 'gpt-5.2' : null,
+      openai_configured: openaiConfigured,
+      avinode_status: avinodeStatus,
+      model: openaiConfigured ? 'gpt-4o' : null,
+      tools: AVINODE_TOOLS.map((t) => t.function.name),
     }),
     { headers: { 'Content-Type': 'application/json' } }
   )

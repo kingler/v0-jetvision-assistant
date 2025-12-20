@@ -2,17 +2,18 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Send, Loader2, Plane, FileText, Eye, Clock, CheckCircle } from "lucide-react"
+import { Send, Loader2, Plane, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { WorkflowVisualization } from "./workflow-visualization"
-import { ProposalPreview } from "./proposal-preview"
-import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "./chat-sidebar"
-import { AvinodeTripBadge } from "./avinode-trip-badge"
+
+// New components for conversational chat interface
+import { AgentMessage } from "./chat/agent-message"
+import { DynamicChatHeader } from "./chat/dynamic-chat-header"
+import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
+import type { QuoteRequest } from "./chat/quote-request-item"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -63,6 +64,10 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const latestMessagesRef = useRef(activeChat.messages)
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Drawer state for viewing quote details
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -265,11 +270,73 @@ export function ChatInterface({
 
               if (data.done) {
                 // Stream complete - add final message
+                // Determine workflow status based on tool calls
+                let newStatus: string = "understanding_request"
+                let newStep = 1
+                let showDeepLink = false
+                let deepLinkData: {
+                  rfpId?: string
+                  tripId?: string
+                  deepLink?: string
+                  departureAirport?: { icao: string; name?: string; city?: string }
+                  arrivalAirport?: { icao: string; name?: string; city?: string }
+                  departureDate?: string
+                  passengers?: number
+                } | undefined = undefined
+
+                // Check for tool calls in the response
+                if (data.tool_calls && Array.isArray(data.tool_calls)) {
+                  for (const toolCall of data.tool_calls) {
+                    if (toolCall.name === "search_flights") {
+                      newStatus = "searching_aircraft"
+                      newStep = 2
+                    } else if (toolCall.name === "create_rfp") {
+                      newStatus = "requesting_quotes"
+                      newStep = 3
+                      showDeepLink = true
+                      // Extract RFP data for deeplink
+                      if (toolCall.result) {
+                        deepLinkData = {
+                          rfpId: toolCall.result.rfp_id,
+                          tripId: toolCall.result.trip_id,
+                          deepLink: toolCall.result.deep_link || `https://marketplace.avinode.com/trip/${toolCall.result.trip_id}`,
+                          departureAirport: toolCall.result.departure_airport,
+                          arrivalAirport: toolCall.result.arrival_airport,
+                          departureDate: toolCall.result.departure_date,
+                          passengers: toolCall.result.passengers,
+                        }
+                      }
+                    } else if (toolCall.name === "get_quotes" || toolCall.name === "get_quote_status") {
+                      newStatus = "analyzing_options"
+                      newStep = 4
+                    }
+                  }
+                }
+
+                // Also check for rfp_data directly
+                if (data.rfp_data) {
+                  newStatus = "requesting_quotes"
+                  newStep = 3
+                  showDeepLink = true
+                  deepLinkData = {
+                    rfpId: data.rfp_data.rfp_id,
+                    tripId: data.rfp_data.trip_id,
+                    deepLink: data.rfp_data.deep_link || `https://marketplace.avinode.com/trip/${data.rfp_data.trip_id}`,
+                    departureAirport: data.rfp_data.departure_airport,
+                    arrivalAirport: data.rfp_data.arrival_airport,
+                    departureDate: data.rfp_data.departure_date,
+                    passengers: data.rfp_data.passengers,
+                  }
+                }
+
                 const agentMsg = {
                   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                   type: "agent" as const,
-                  content: fullContent,
+                  content: fullContent || data.content || "",
                   timestamp: new Date(),
+                  showWorkflow: newStep > 1,
+                  showDeepLink,
+                  deepLinkData,
                 }
 
                 const updatedMessages = [...latestMessagesRef.current, agentMsg]
@@ -277,8 +344,10 @@ export function ChatInterface({
 
                 onUpdateChat(activeChat.id, {
                   messages: updatedMessages,
-                  status: "understanding_request",
-                  currentStep: 1,
+                  status: newStatus as typeof activeChat.status,
+                  currentStep: newStep,
+                  rfpId: deepLinkData?.rfpId,
+                  tripId: deepLinkData?.tripId,
                 })
 
                 setStreamingContent("")
@@ -382,250 +451,192 @@ export function ChatInterface({
     onUpdateChat(activeChat.id, { selectedQuoteId: quoteId })
   }
 
-  const QuoteComparisonDisplay = () => {
-    const quotes = activeChat.quotes || []
-    const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
-
-    if (quotes.length === 0) {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium">Compare Flight Quotes</h4>
-            <Badge variant="outline" className="text-xs">
-              0 quotes received
-            </Badge>
-          </div>
-          <div className="p-8 text-center border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              Waiting for quotes from operators...
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Quotes will appear here once received from the flight search workflow.
-            </p>
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="font-medium">Compare Flight Quotes</h4>
-          <Badge variant="outline" className="text-xs">
-            {quotes.length} quote{quotes.length !== 1 ? 's' : ''} received
-          </Badge>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sortedQuotes.map((quote) => (
-            <QuoteCard
-              key={quote.id}
-              operatorName={quote.operatorName}
-              aircraftType={quote.aircraftType}
-              price={quote.price}
-              score={quote.score}
-              ranking={quote.ranking}
-              totalQuotes={quotes.length}
-              operatorRating={quote.operatorRating}
-              departureTime={quote.departureTime}
-              arrivalTime={quote.arrivalTime}
-              flightDuration={quote.flightDuration}
-              isRecommended={quote.isRecommended}
-              onSelect={() => handleSelectQuote(quote.id)}
-            />
-          ))}
-        </div>
-
-        {activeChat.selectedQuoteId && (
-          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              ✓ You've selected a quote. I can send this proposal to your client, or you can select a different option.
-            </p>
-          </div>
-        )}
-      </div>
-    )
+  /**
+   * Open the quote details drawer for a specific quote
+   */
+  const handleViewQuoteDetails = (quoteId: string) => {
+    setSelectedQuoteId(quoteId)
+    setIsDrawerOpen(true)
   }
 
-  const QuoteStatusDisplay = () => (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium text-sm">Live Quote Status:</h4>
-        <Badge variant="outline" className="text-xs">
-          {activeChat.quotesReceived || 2}/{activeChat.quotesTotal || 5} responded
-        </Badge>
-      </div>
-      <div className="space-y-2 text-sm">
-        <div className="flex items-center space-x-3 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <CheckCircle className="w-4 h-4 text-green-500" />
-          <span className="flex-1">NetJets - Challenger 350</span>
-          <span className="text-xs text-green-600">8 min</span>
-        </div>
-        <div className="flex items-center space-x-3 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <CheckCircle className="w-4 h-4 text-green-500" />
-          <span className="flex-1">Flexjet - Citation X</span>
-          <span className="text-xs text-green-600">12 min</span>
-        </div>
-        <div className="flex items-center space-x-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <Clock className="w-4 h-4 text-gray-400 animate-pulse" />
-          <span className="flex-1">Vista Global - Learjet 75</span>
-          <span className="text-xs text-gray-500">15 min ago</span>
-        </div>
-        <div className="flex items-center space-x-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <Clock className="w-4 h-4 text-gray-400 animate-pulse" />
-          <span className="flex-1">Wheels Up - Hawker 900XP</span>
-          <span className="text-xs text-gray-500">15 min ago</span>
-        </div>
-        <div className="flex items-center space-x-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <Clock className="w-4 h-4 text-gray-400 animate-pulse" />
-          <span className="flex-1">XOJET - Citation Excel</span>
-          <span className="text-xs text-gray-500">15 min ago</span>
-        </div>
-      </div>
-    </div>
-  )
+  /**
+   * Close the quote details drawer
+   */
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false)
+    setSelectedQuoteId(null)
+  }
 
-  const CustomerPreferencesDisplay = () => (
-    <div className="space-y-3">
-      <div className="flex items-center space-x-2">
-        <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">K</span>
-        </div>
-        <h4 className="font-medium text-sm">Customer Preferences - {activeChat.customer?.name}</h4>
-        <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
-          Returning Customer
-        </Badge>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-          <div className="flex items-center space-x-2 mb-1">
-            <span className="text-orange-600 dark:text-orange-400 font-medium">🌮 Catering</span>
-          </div>
-          <p className="text-orange-700 dark:text-orange-300">{activeChat.customer?.preferences?.catering}</p>
-        </div>
-        <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-          <div className="flex items-center space-x-2 mb-1">
-            <span className="text-purple-600 dark:text-purple-400 font-medium">🚗 Ground Transport</span>
-          </div>
-          <p className="text-purple-700 dark:text-purple-300">{activeChat.customer?.preferences?.groundTransport}</p>
-        </div>
-      </div>
-    </div>
-  )
+  /**
+   * Send a message to an operator (placeholder for future implementation)
+   */
+  const handleSendOperatorMessage = (message: string) => {
+    console.log('[Chat] Sending message to operator:', message, 'for quote:', selectedQuoteId)
+    // TODO: Implement actual message sending via Avinode API
+  }
+
+  /**
+   * Accept a quote (placeholder for future implementation)
+   */
+  const handleAcceptQuote = (quoteId: string) => {
+    console.log('[Chat] Accepting quote:', quoteId)
+    onUpdateChat(activeChat.id, { selectedQuoteId: quoteId })
+    // TODO: Implement actual quote acceptance via Avinode API
+  }
+
+  /**
+   * Convert ChatSession quote requests to QuoteRequest format for header display
+   */
+  const getQuoteRequestsForHeader = (): QuoteRequest[] => {
+    if (!activeChat.quoteRequests) return []
+    return activeChat.quoteRequests.map((qr) => ({
+      id: qr.id,
+      jetType: qr.jetType,
+      aircraftImageUrl: qr.aircraftImageUrl,
+      operatorName: qr.operatorName,
+      status: qr.status,
+      flightDuration: qr.flightDuration,
+      price: qr.price,
+      currency: qr.currency,
+      departureAirport: qr.departureAirport,
+      arrivalAirport: qr.arrivalAirport,
+    }))
+  }
+
+  /**
+   * Get selected quote details for the drawer
+   */
+  const getSelectedQuoteDetails = (): QuoteDetails | undefined => {
+    if (!selectedQuoteId) return undefined
+
+    // Try to find from quoteRequests first (header display data)
+    const quoteRequest = activeChat.quoteRequests?.find((q) => q.id === selectedQuoteId)
+    if (quoteRequest) {
+      return {
+        id: quoteRequest.id,
+        rfqId: activeChat.rfpId || '',
+        operator: {
+          name: quoteRequest.operatorName,
+          rating: 4.5, // Default rating - would come from actual data
+        },
+        aircraft: {
+          type: quoteRequest.jetType,
+          tail: 'N/A',
+          category: 'Jet',
+          maxPassengers: activeChat.passengers || 8,
+        },
+        price: {
+          amount: quoteRequest.price || 0,
+          currency: quoteRequest.currency || 'USD',
+        },
+        flightDetails: {
+          flightTimeMinutes: parseInt(quoteRequest.flightDuration || '0') || 120,
+          distanceNm: 500, // Would come from actual data
+          departureAirport: quoteRequest.departureAirport,
+          arrivalAirport: quoteRequest.arrivalAirport,
+        },
+        status: quoteRequest.status === 'received' ? 'quoted' : 'unanswered',
+      }
+    }
+
+    // Fallback to quotes array (from FlightSearchAgent)
+    const quote = activeChat.quotes?.find((q) => q.id === selectedQuoteId)
+    if (quote) {
+      return {
+        id: quote.id,
+        rfqId: activeChat.rfpId || '',
+        operator: {
+          name: quote.operatorName,
+          rating: quote.operatorRating,
+        },
+        aircraft: {
+          type: quote.aircraftType,
+          tail: 'N/A',
+          category: 'Jet',
+          maxPassengers: activeChat.passengers || 8,
+        },
+        price: {
+          amount: quote.price,
+          currency: 'USD',
+        },
+        flightDetails: {
+          flightTimeMinutes: parseInt(quote.flightDuration || '0') || 120,
+          distanceNm: 500,
+          departureTime: quote.departureTime,
+          arrivalTime: quote.arrivalTime,
+        },
+        status: 'quoted',
+      }
+    }
+
+    return undefined
+  }
+
+  /**
+   * Get operator messages for the selected quote
+   */
+  const getOperatorMessages = (): OperatorMessage[] => {
+    if (!selectedQuoteId || !activeChat.operatorMessages) return []
+    return activeChat.operatorMessages[selectedQuoteId] || []
+  }
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
-      {/* Chat Header */}
-      <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white">Flight Request #{activeChat.id}</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {activeChat.route} • {activeChat.passengers} passengers • {activeChat.date}
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            {activeChat.tripId && (
-              <AvinodeTripBadge
-                tripId={activeChat.tripId}
-                deepLink={activeChat.deepLink}
-                size="md"
-              />
-            )}
-            {activeChat.status === "proposal_ready" && (
-              <Badge className="bg-green-500 text-white">
-                <FileText className="w-3 h-3 mr-1" />
-                Proposal Ready
-              </Badge>
-            )}
-            {activeChat.status === "requesting_quotes" && (
-              <Badge className="bg-cyan-500 text-white">
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                Requesting Quotes
-              </Badge>
-            )}
-            {activeChat.status === "understanding_request" && (
-              <Badge className="bg-blue-500 text-white">
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                Understanding Request
-              </Badge>
-            )}
-            {activeChat.status === "searching_aircraft" && (
-              <Badge className="bg-purple-500 text-white">
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                Searching Aircraft
-              </Badge>
-            )}
-            {activeChat.status === "analyzing_options" && (
-              <Badge className="bg-orange-500 text-white">
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                Analyzing Options
-              </Badge>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Dynamic Chat Header - shows flight name, IDs, and quote requests */}
+      <DynamicChatHeader
+        activeChat={activeChat}
+        flightRequestName={activeChat.generatedName}
+        showTripId={!!activeChat.tripId}
+        quoteRequests={getQuoteRequestsForHeader()}
+        onViewQuoteDetails={handleViewQuoteDetails}
+        onCopyTripId={() => console.log('[Chat] Trip ID copied to clipboard')}
+      />
 
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {activeChat.messages.map((message) => (
             <div key={message.id} className={cn("flex", message.type === "user" ? "justify-end" : "justify-start")}>
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap shadow-sm",
-                  message.type === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700",
-                )}
-              >
-                {message.type === "agent" && (
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
-                      <Plane className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Jetvision Agent</span>
-                  </div>
-                )}
-                <p className="text-sm leading-relaxed">{stripMarkdown(message.content)}</p>
-
-                {message.showCustomerPreferences && activeChat.customer && (
-                  <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <CustomerPreferencesDisplay />
-                  </div>
-                )}
-
-                {message.showWorkflow && (
-                  <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <WorkflowVisualization
-                      isProcessing={activeChat.status !== "proposal_ready"}
-                      embedded={true}
-                      currentStep={activeChat.currentStep}
-                      status={activeChat.status}
-                    />
-                  </div>
-                )}
-
-                {message.showQuoteStatus && (
-                  <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <QuoteStatusDisplay />
-                  </div>
-                )}
-
-                {message.showQuotes && activeChat.quotes && activeChat.quotes.length > 0 && (
-                  <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <QuoteComparisonDisplay />
-                  </div>
-                )}
-
-                {message.showProposal && (
-                  <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <ProposalPreview embedded={true} chatData={activeChat} />
-                  </div>
-                )}
-
-                <p className="text-xs opacity-60 mt-2">{message.timestamp.toLocaleTimeString()}</p>
-              </div>
+              {message.type === "user" ? (
+                /* User messages - keep bubble styling */
+                <div className="max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap shadow-sm bg-blue-600 text-white">
+                  <p className="text-sm leading-relaxed">{message.content}</p>
+                  <p className="text-xs opacity-60 mt-2">{message.timestamp.toLocaleTimeString()}</p>
+                </div>
+              ) : (
+                /* Agent messages - plain text with avatar + badge, NO bubble */
+                <AgentMessage
+                  content={message.content}
+                  timestamp={message.timestamp}
+                  showWorkflow={message.showWorkflow}
+                  workflowProps={message.showWorkflow ? {
+                    isProcessing: activeChat.status !== "proposal_ready",
+                    currentStep: activeChat.currentStep,
+                    status: activeChat.status,
+                    tripId: activeChat.tripId,
+                    deepLink: activeChat.deepLink,
+                  } : undefined}
+                  showDeepLink={message.showDeepLink}
+                  deepLinkData={message.deepLinkData ? {
+                    rfpId: message.deepLinkData.rfpId || activeChat.rfpId,
+                    tripId: message.deepLinkData.tripId || activeChat.tripId,
+                    deepLink: message.deepLinkData.deepLink || (activeChat.tripId ? `https://marketplace.avinode.com/trip/${activeChat.tripId}` : undefined),
+                    departureAirport: message.deepLinkData.departureAirport || { icao: activeChat.route?.split(' → ')[0] || 'N/A' },
+                    arrivalAirport: message.deepLinkData.arrivalAirport || { icao: activeChat.route?.split(' → ')[1] || 'N/A' },
+                    departureDate: message.deepLinkData.departureDate || activeChat.date,
+                    passengers: message.deepLinkData.passengers || activeChat.passengers,
+                  } : undefined}
+                  showQuotes={message.showQuotes}
+                  quotes={activeChat.quotes}
+                  showProposal={message.showProposal}
+                  chatData={activeChat}
+                  showCustomerPreferences={message.showCustomerPreferences}
+                  customer={activeChat.customer}
+                  onSelectQuote={handleSelectQuote}
+                  onDeepLinkClick={() => console.log('[DeepLink] User clicked Avinode marketplace link')}
+                  onCopyDeepLink={() => console.log('[DeepLink] User copied deep link')}
+                />
+              )}
             </div>
           ))}
 
@@ -724,6 +735,16 @@ export function ChatInterface({
           </div>
         </div>
       </div>
+
+      {/* Quote Details Drawer - slides in from right */}
+      <QuoteDetailsDrawer
+        isOpen={isDrawerOpen}
+        onClose={handleCloseDrawer}
+        quote={getSelectedQuoteDetails()}
+        messages={getOperatorMessages()}
+        onSendMessage={handleSendOperatorMessage}
+        onAcceptQuote={handleAcceptQuote}
+      />
     </div>
   )
 }

@@ -7,6 +7,29 @@ import { Plus, MessageSquare, CheckCircle, Clock, Loader2, FileText } from "luci
 import { cn } from "@/lib/utils"
 import { AvinodeTripBadge } from "@/components/avinode-trip-badge"
 
+/** Operator message in conversation thread */
+export interface OperatorMessage {
+  id: string
+  type: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
+  content: string
+  timestamp: string
+  sender?: string
+}
+
+/** Quote request displayed in header */
+export interface QuoteRequestInfo {
+  id: string
+  jetType: string
+  aircraftImageUrl?: string
+  operatorName: string
+  status: 'pending' | 'received' | 'expired'
+  flightDuration?: string
+  price?: number
+  currency?: string
+  departureAirport: string
+  arrivalAirport: string
+}
+
 export interface ChatSession {
   id: string
   route: string
@@ -28,8 +51,16 @@ export interface ChatSession {
   tripId?: string
   /** Avinode RFQ ID when RFQ is created */
   rfqId?: string
+  /** Avinode RFP ID for the request */
+  rfpId?: string
   /** Deep link URL to open Avinode Web UI */
   deepLink?: string
+  /** AI-generated descriptive name for the flight request */
+  generatedName?: string
+  /** Quote requests displayed in header (when tripId exists) */
+  quoteRequests?: QuoteRequestInfo[]
+  /** Operator conversation threads keyed by quote ID */
+  operatorMessages?: Record<string, OperatorMessage[]>
   quotes?: Array<{
     id: string
     operatorName: string
@@ -59,6 +90,16 @@ export interface ChatSession {
     showQuoteStatus?: boolean
     showCustomerPreferences?: boolean
     showQuotes?: boolean
+    showDeepLink?: boolean
+    deepLinkData?: {
+      rfpId?: string
+      tripId?: string
+      deepLink?: string
+      departureAirport?: { icao: string; name?: string; city?: string }
+      arrivalAirport?: { icao: string; name?: string; city?: string }
+      departureDate?: string
+      passengers?: number
+    }
   }>
 }
 

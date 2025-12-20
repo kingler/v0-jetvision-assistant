@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, Clock, Loader2, Search, FileText, Calculator, Send } from "lucide-react"
+import { CheckCircle, Clock, Loader2, Search, FileText, Calculator, Send, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { OperatorResponses } from "./operator-responses"
 import { ProposalPreview } from "./proposal-preview"
@@ -48,6 +48,12 @@ interface WorkflowVisualizationProps {
     step4?: WorkflowStepData
     step5?: WorkflowStepData
   }
+  /** Avinode Trip ID */
+  tripId?: string
+  /** Avinode deep link URL */
+  deepLink?: string
+  /** Callback when deep link is clicked */
+  onDeepLinkClick?: () => void
 }
 
 export function WorkflowVisualization({
@@ -56,6 +62,9 @@ export function WorkflowVisualization({
   currentStep = 1,
   status = "understanding_request",
   workflowData = {},
+  tripId,
+  deepLink,
+  onDeepLinkClick,
 }: WorkflowVisualizationProps) {
   const getStepStatus = (stepId: string): "completed" | "in-progress" | "pending" => {
     const stepNumber = Number.parseInt(stepId)
@@ -199,13 +208,33 @@ export function WorkflowVisualization({
   }, [])
 
   useEffect(() => {
+    const computeStepStatus = (stepId: string): "completed" | "in-progress" | "pending" => {
+      const stepNumber = Number.parseInt(stepId)
+
+      switch (status) {
+        case "proposal_ready":
+          return "completed" // All steps completed
+        case "requesting_quotes":
+          if (stepNumber <= 2) return "completed"
+          if (stepNumber === 3) return "in-progress"
+          return "pending"
+        case "understanding_request":
+          if (stepNumber === 1) return "in-progress"
+          return "pending"
+        default:
+          if (stepNumber < currentStep) return "completed"
+          if (stepNumber === currentStep) return "in-progress"
+          return "pending"
+      }
+    }
+
     setSteps((prev) =>
       prev.map((step) => ({
         ...step,
-        status: getStepStatus(step.id),
+        status: computeStepStatus(step.id),
       })),
     )
-  }, [status])
+  }, [status, currentStep])
 
   useEffect(() => {
     const getStepDetails = (
@@ -343,6 +372,25 @@ export function WorkflowVisualization({
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Deep Link Button for Step 3 - Awaiting Selection */}
+              {step.id === "3" && step.status === "in-progress" && deepLink && (
+                <div className="ml-8 mt-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={(e) => {
+                      e.stopPropagation() // Prevent step toggle
+                      window.open(deepLink, '_blank', 'noopener,noreferrer')
+                      onDeepLinkClick?.()
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Goto Avinode Marketplace
+                  </Button>
                 </div>
               )}
             </div>

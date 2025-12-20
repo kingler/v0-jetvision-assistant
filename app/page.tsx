@@ -10,7 +10,6 @@ import { LandingPage } from "@/components/landing-page"
 import { Button } from "@/components/ui/button"
 import { Settings, ChevronRight, ChevronLeft } from "lucide-react"
 import Image from "next/image"
-import { useCaseChats } from "@/lib/mock-data"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 type View = "landing" | "chat" | "workflow" | "settings"
@@ -19,7 +18,7 @@ export default function JetvisionAgent() {
   const { user, isLoaded } = useUser()
   const [currentView, setCurrentView] = useState<View>("landing")
   const [isProcessing, setIsProcessing] = useState(false)
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>(useCaseChats)
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const isMobile = useIsMobile()
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile)
@@ -40,8 +39,8 @@ export default function JetvisionAgent() {
       route: "Select route",
       passengers: 1,
       date: "Select date",
-      status: "understanding_request",
-      currentStep: 1,
+      status: "searching_aircraft", // Step 1 (understanding) is complete, now on step 2
+      currentStep: 2,
       totalSteps: 5,
       messages: [
         {
@@ -56,6 +55,7 @@ export default function JetvisionAgent() {
           content:
             "Thank you for reaching out! I'll help you with that. Let me gather some details to provide you with the best options.",
           timestamp: new Date(),
+          showWorkflow: true, // Show workflow visualization in agent message
         },
       ],
     }

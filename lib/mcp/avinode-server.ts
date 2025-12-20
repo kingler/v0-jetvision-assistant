@@ -53,6 +53,40 @@ export class AvinodeMCPServer extends BaseMCPServer {
   }
 
   /**
+   * Call a tool directly (for API route usage)
+   * This bypasses the server state check and executes the tool directly
+   */
+  async callTool(name: string, params: any): Promise<any> {
+    // Ensure server is in a valid state for direct tool calls
+    // For API usage, we execute tools directly without requiring the full server to be running
+
+    switch (name) {
+      case 'search_flights':
+        return await this.client.searchFlights(params);
+
+      case 'create_rfp':
+        return await this.client.createRFP(params);
+
+      case 'get_quote_status':
+        return await this.client.getQuoteStatus(params.rfp_id);
+
+      case 'get_quotes':
+        return await this.client.getQuotes(params.rfp_id);
+
+      case 'search_airports':
+        // Only mock client has searchAirports
+        if ('searchAirports' in this.client && typeof this.client.searchAirports === 'function') {
+          return await (this.client as any).searchAirports(params);
+        }
+        // For real client, we'd need to implement this differently
+        return { airports: [], total: 0 };
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  }
+
+  /**
    * Register all Avinode tools
    */
   private registerAvinodeTools(): void {

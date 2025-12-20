@@ -9,6 +9,8 @@
  * - get_rfp_status: Get RFP status and quotes
  * - create_watch: Create watch for monitoring
  * - search_airports: Search airports by name/code
+ *
+ * Supports mock mode for development/testing when AVINODE_API_KEY is not set.
  */
 export {};
 //# sourceMappingURL=index.d.ts.map

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { clerkSetup } from '@clerk/testing/playwright';
 
 /**
  * Playwright configuration for E2E testing
@@ -6,6 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './__tests__/e2e',
+
+  /* Global setup for Clerk testing */
+  globalSetup: './__tests__/e2e/global.setup.ts',
 
   /* Run tests in files in parallel */
   fullyParallel: true,
