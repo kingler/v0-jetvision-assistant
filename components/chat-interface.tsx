@@ -14,6 +14,7 @@ import { AgentMessage } from "./chat/agent-message"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import type { QuoteRequest } from "./chat/quote-request-item"
+import { WorkflowVisualization } from "./workflow-visualization"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -64,10 +65,16 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const latestMessagesRef = useRef(activeChat.messages)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const hasCalledInitialApiRef = useRef(false)
 
   // Drawer state for viewing quote details
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
+
+  // Trip ID input state for human-in-the-loop workflow
+  const [isTripIdLoading, setIsTripIdLoading] = useState(false)
+  const [tripIdError, setTripIdError] = useState<string | undefined>(undefined)
+  const [tripIdSubmitted, setTripIdSubmitted] = useState(false)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -290,6 +297,23 @@ export function ChatInterface({
                     if (toolCall.name === "search_flights") {
                       newStatus = "searching_aircraft"
                       newStep = 2
+                    } else if (toolCall.name === "create_trip") {
+                      // PRIMARY workflow - create_trip returns deep link for Avinode marketplace
+                      newStatus = "requesting_quotes"
+                      newStep = 3
+                      showDeepLink = true
+                      // Extract trip data for deeplink
+                      if (toolCall.result) {
+                        deepLinkData = {
+                          tripId: toolCall.result.trip_id,
+                          deepLink: toolCall.result.deep_link || `https://marketplace.avinode.com/trip/${toolCall.result.trip_id}`,
+                          departureAirport: toolCall.result.departure_airport,
+                          arrivalAirport: toolCall.result.arrival_airport,
+                          // Date can be at route.departure.date (primary) or departure_date (legacy)
+                          departureDate: toolCall.result.route?.departure?.date || toolCall.result.departure_date,
+                          passengers: toolCall.result.passengers,
+                        }
+                      }
                     } else if (toolCall.name === "create_rfp") {
                       newStatus = "requesting_quotes"
                       newStep = 3
@@ -302,7 +326,8 @@ export function ChatInterface({
                           deepLink: toolCall.result.deep_link || `https://marketplace.avinode.com/trip/${toolCall.result.trip_id}`,
                           departureAirport: toolCall.result.departure_airport,
                           arrivalAirport: toolCall.result.arrival_airport,
-                          departureDate: toolCall.result.departure_date,
+                          // Date can be at route.departure.date (primary) or departure_date (legacy)
+                          departureDate: toolCall.result.route?.departure?.date || toolCall.result.departure_date,
                           passengers: toolCall.result.passengers,
                         }
                       }
@@ -310,6 +335,22 @@ export function ChatInterface({
                       newStatus = "analyzing_options"
                       newStep = 4
                     }
+                  }
+                }
+
+                // Also check for trip_data directly (PRIMARY workflow)
+                if (data.trip_data) {
+                  newStatus = "requesting_quotes"
+                  newStep = 3
+                  showDeepLink = true
+                  deepLinkData = {
+                    tripId: data.trip_data.trip_id,
+                    deepLink: data.trip_data.deep_link || `https://marketplace.avinode.com/trip/${data.trip_data.trip_id}`,
+                    departureAirport: data.trip_data.departure_airport,
+                    arrivalAirport: data.trip_data.arrival_airport,
+                    // Date can be at route.departure.date (primary) or departure_date (legacy)
+                    departureDate: data.trip_data.route?.departure?.date || data.trip_data.departure_date,
+                    passengers: data.trip_data.passengers,
                   }
                 }
 
@@ -324,7 +365,8 @@ export function ChatInterface({
                     deepLink: data.rfp_data.deep_link || `https://marketplace.avinode.com/trip/${data.rfp_data.trip_id}`,
                     departureAirport: data.rfp_data.departure_airport,
                     arrivalAirport: data.rfp_data.arrival_airport,
-                    departureDate: data.rfp_data.departure_date,
+                    // Date can be at route.departure.date (primary) or departure_date (legacy)
+                    departureDate: data.rfp_data.route?.departure?.date || data.rfp_data.departure_date,
                     passengers: data.rfp_data.passengers,
                   }
                 }
@@ -348,6 +390,7 @@ export function ChatInterface({
                   currentStep: newStep,
                   rfpId: deepLinkData?.rfpId,
                   tripId: deepLinkData?.tripId,
+                  deepLink: deepLinkData?.deepLink,
                 })
 
                 setStreamingContent("")
@@ -407,6 +450,37 @@ export function ChatInterface({
     }
   }
 
+  // Effect to trigger initial API call when chat is created from landing page
+  useEffect(() => {
+    const triggerInitialApiCall = async () => {
+      if (
+        activeChat.needsInitialApiCall &&
+        activeChat.initialUserMessage &&
+        !hasCalledInitialApiRef.current
+      ) {
+        hasCalledInitialApiRef.current = true
+
+        // Clear the flag so we don't call again
+        onUpdateChat(activeChat.id, {
+          needsInitialApiCall: false,
+        })
+
+        // Set typing state
+        setIsTyping(true)
+        onProcessingChange(true)
+
+        // Call the API
+        await sendMessageWithStreaming(activeChat.initialUserMessage)
+
+        setIsTyping(false)
+        onProcessingChange(false)
+      }
+    }
+
+    triggerInitialApiCall()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat.id]) // Only run when the chat changes (not on every render)
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return
 
@@ -433,8 +507,19 @@ export function ChatInterface({
       currentStep: 1,
     })
 
+    // Progress to Step 2 (Creating Trip) after a short delay to show workflow progress
+    const progressTimer = setTimeout(() => {
+      onUpdateChat(activeChat.id, {
+        status: "searching_aircraft",
+        currentStep: 2,
+      })
+    }, 2000)
+
     // Send message with streaming
     await sendMessageWithStreaming(userMessage)
+
+    // Clear the progress timer if API returns faster
+    clearTimeout(progressTimer)
 
     setIsTyping(false)
     onProcessingChange(false)
@@ -482,6 +567,154 @@ export function ChatInterface({
     console.log('[Chat] Accepting quote:', quoteId)
     onUpdateChat(activeChat.id, { selectedQuoteId: quoteId })
     // TODO: Implement actual quote acceptance via Avinode API
+  }
+
+  /**
+   * Handle Trip ID submission - Step 4: Receiving Quotes
+   * Calls get_rfq MCP tool to retrieve quotes from operators
+   */
+  const handleTripIdSubmit = async (tripId: string): Promise<void> => {
+    setIsTripIdLoading(true)
+    setTripIdError(undefined)
+
+    try {
+      // Build conversation history for context
+      const conversationHistory = activeChat.messages.map((msg) => ({
+        role: msg.type === "user" ? "user" as const : "assistant" as const,
+        content: msg.content,
+      }))
+
+      // Send Trip ID to the chat API - will trigger get_rfq tool
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Here is my Trip ID: ${tripId}`,
+          conversationHistory,
+          context: {
+            flightRequestId: activeChat.id,
+            route: activeChat.route,
+            passengers: activeChat.passengers,
+            date: activeChat.date,
+            tripId: tripId, // Include Trip ID in context to trigger get_rfq
+          },
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Failed to submit Trip ID" }))
+        throw new Error(errorData.message || `Request failed with status ${response.status}`)
+      }
+
+      // Handle SSE response
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error("No response body")
+      }
+
+      const decoder = new TextDecoder()
+      let fullContent = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n")
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.error) {
+                throw new Error(data.message || "Failed to retrieve quotes")
+              }
+
+              if (data.content) {
+                fullContent += data.content
+              }
+
+              if (data.done) {
+                // Mark Trip ID as submitted successfully
+                setTripIdSubmitted(true)
+
+                // Extract quotes data from rfq_data if available
+                let quotes = []
+                let newStatus = "analyzing_options"
+
+                if (data.rfq_data) {
+                  console.log('[TripID] RFQ data received:', data.rfq_data)
+                  quotes = data.rfq_data.quotes || []
+
+                  if (quotes.length > 0) {
+                    newStatus = "analyzing_options"
+                  }
+                }
+
+                // Also check tool_calls for get_rfq results
+                if (data.tool_calls) {
+                  for (const toolCall of data.tool_calls) {
+                    if (toolCall.name === "get_rfq" && toolCall.result) {
+                      console.log('[TripID] get_rfq result:', toolCall.result)
+                      if (toolCall.result.quotes) {
+                        quotes = toolCall.result.quotes
+                      }
+                    }
+                  }
+                }
+
+                // Create agent message with quotes
+                const agentMsg = {
+                  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                  type: "agent" as const,
+                  content: fullContent || "I've retrieved your quotes from Avinode. Here are the available options:",
+                  timestamp: new Date(),
+                  showQuotes: quotes.length > 0,
+                }
+
+                // Convert quotes to the expected format
+                const formattedQuotes = quotes.map((q: any, index: number) => ({
+                  id: q.quote_id || q.quoteId || `quote-${index}`,
+                  operatorName: q.operator_name || q.operatorName || "Unknown Operator",
+                  aircraftType: q.aircraft_type || q.aircraftType || "Unknown Aircraft",
+                  price: q.total_price || q.price || q.basePrice || 0,
+                  score: q.score,
+                  ranking: index + 1,
+                  operatorRating: q.operator_rating || q.operatorRating,
+                  departureTime: q.departure_time || q.departureTime,
+                  arrivalTime: q.arrival_time || q.arrivalTime,
+                  flightDuration: q.flight_duration || q.flightDuration,
+                  isRecommended: index === 0,
+                }))
+
+                const updatedMessages = [...latestMessagesRef.current, agentMsg]
+                latestMessagesRef.current = updatedMessages
+
+                onUpdateChat(activeChat.id, {
+                  messages: updatedMessages,
+                  status: newStatus as typeof activeChat.status,
+                  currentStep: 4,
+                  tripId: tripId,
+                  quotes: formattedQuotes.length > 0 ? formattedQuotes : activeChat.quotes,
+                })
+
+                setIsTripIdLoading(false)
+                return
+              }
+            } catch (parseError) {
+              console.warn("[TripID] Failed to parse SSE data:", line)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to submit Trip ID"
+      setTripIdError(errorMessage)
+      console.error("[TripID] Error:", error)
+    } finally {
+      setIsTripIdLoading(false)
+    }
   }
 
   /**
@@ -626,6 +859,13 @@ export function ChatInterface({
                     departureDate: message.deepLinkData.departureDate || activeChat.date,
                     passengers: message.deepLinkData.passengers || activeChat.passengers,
                   } : undefined}
+                  // Trip ID input props for human-in-the-loop workflow
+                  // Show Trip ID input when deep link is shown but no quotes received yet
+                  showTripIdInput={message.showDeepLink && activeChat.status === "requesting_quotes"}
+                  isTripIdLoading={isTripIdLoading}
+                  tripIdError={tripIdError}
+                  tripIdSubmitted={tripIdSubmitted}
+                  onTripIdSubmit={handleTripIdSubmit}
                   showQuotes={message.showQuotes}
                   quotes={activeChat.quotes}
                   showProposal={message.showProposal}
@@ -656,9 +896,20 @@ export function ChatInterface({
                     <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-0.5" />
                   </div>
                 ) : (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                    <span className="text-sm">Thinking...</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      <span className="text-sm">Processing your request...</span>
+                    </div>
+                    {/* Show workflow progress while processing */}
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <WorkflowVisualization
+                        isProcessing={true}
+                        embedded={true}
+                        currentStep={activeChat.currentStep}
+                        status={activeChat.status}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

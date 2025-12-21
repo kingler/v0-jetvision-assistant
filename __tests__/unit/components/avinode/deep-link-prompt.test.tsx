@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { DeepLinkPrompt } from '@/components/avinode/deep-link-prompt';
-import type { DeepLinkPromptProps } from '@/components/avinode/deep-link-prompt';
+import type { DeepLinkPromptProps } from '@/components/avinode/types';
 
 describe('DeepLinkPrompt', () => {
   const mockProps: DeepLinkPromptProps = {
@@ -24,6 +24,7 @@ describe('DeepLinkPrompt', () => {
     passengers: 6,
     requestId: 'REQ-12345',
     deepLink: 'https://marketplace.avinode.com/trip/12345',
+    autoOpen: false, // Disable auto-open in tests
   };
 
   beforeEach(() => {

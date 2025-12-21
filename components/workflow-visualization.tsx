@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -56,35 +56,21 @@ interface WorkflowVisualizationProps {
   onDeepLinkClick?: () => void
 }
 
+// Empty object for default workflowData to avoid creating new reference on every render
+const EMPTY_WORKFLOW_DATA: WorkflowVisualizationProps['workflowData'] = {}
+
 export function WorkflowVisualization({
   isProcessing,
   embedded = false,
   currentStep = 1,
   status = "understanding_request",
-  workflowData = {},
+  workflowData: workflowDataProp,
   tripId,
   deepLink,
   onDeepLinkClick,
 }: WorkflowVisualizationProps) {
-  const getStepStatus = (stepId: string): "completed" | "in-progress" | "pending" => {
-    const stepNumber = Number.parseInt(stepId)
-
-    switch (status) {
-      case "proposal_ready":
-        return "completed" // All steps completed
-      case "requesting_quotes":
-        if (stepNumber <= 2) return "completed"
-        if (stepNumber === 3) return "in-progress"
-        return "pending"
-      case "understanding_request":
-        if (stepNumber === 1) return "in-progress"
-        return "pending"
-      default:
-        if (stepNumber < currentStep) return "completed"
-        if (stepNumber === currentStep) return "in-progress"
-        return "pending"
-    }
-  }
+  // Stabilize workflowData reference to prevent infinite re-renders
+  const workflowData = workflowDataProp ?? EMPTY_WORKFLOW_DATA
 
   const toggleStepExpansion = (stepId: string) => {
     setSteps((prev) =>
@@ -94,12 +80,13 @@ export function WorkflowVisualization({
     )
   }
 
+  // Initialize steps with "pending" status - useEffect will update based on props
   const [steps, setSteps] = useState<WorkflowStep[]>([
     {
       id: "1",
       title: "Understanding Request",
       description: "Parsing natural language input and extracting flight details",
-      status: getStepStatus("1"),
+      status: "pending",
       icon: <CheckCircle className="w-5 h-5" />,
       isExpanded: false,
       data: workflowData.step1,
@@ -108,7 +95,7 @@ export function WorkflowVisualization({
       id: "2",
       title: "Creating Trip",
       description: "Creating trip container in Avinode marketplace",
-      status: getStepStatus("2"),
+      status: "pending",
       icon: <Search className="w-5 h-5" />,
       isExpanded: false,
       data: workflowData.step2,
@@ -117,7 +104,7 @@ export function WorkflowVisualization({
       id: "3",
       title: "Awaiting Selection",
       description: "Waiting for flight selection in Avinode",
-      status: getStepStatus("3"),
+      status: "pending",
       icon: <Clock className="w-5 h-5" />,
       isExpanded: false,
       data: workflowData.step3,
@@ -126,7 +113,7 @@ export function WorkflowVisualization({
       id: "4",
       title: "Receiving Quotes",
       description: "Processing operator quotes via webhook",
-      status: getStepStatus("4"),
+      status: "pending",
       icon: <Calculator className="w-5 h-5" />,
       isExpanded: false,
       data: workflowData.step4,
@@ -135,7 +122,7 @@ export function WorkflowVisualization({
       id: "5",
       title: "Generate Proposal",
       description: "Creating Jetvision branded quote",
-      status: getStepStatus("5"),
+      status: "pending",
       icon: <FileText className="w-5 h-5" />,
       isExpanded: false,
       data: workflowData.step5,
@@ -207,6 +194,7 @@ export function WorkflowVisualization({
     setAvailableOperators(operators.slice(0, 6)) // Show top 6 operators
   }, [])
 
+  // Combined useEffect to update steps status and details together to avoid infinite loop
   useEffect(() => {
     const computeStepStatus = (stepId: string): "completed" | "in-progress" | "pending" => {
       const stepNumber = Number.parseInt(stepId)
@@ -214,29 +202,32 @@ export function WorkflowVisualization({
       switch (status) {
         case "proposal_ready":
           return "completed" // All steps completed
+        case "analyzing_options":
+          // Quotes received and being analyzed
+          if (stepNumber <= 3) return "completed"
+          if (stepNumber === 4) return "in-progress"
+          return "pending"
         case "requesting_quotes":
+          // Trip created, awaiting user selection in Avinode
           if (stepNumber <= 2) return "completed"
           if (stepNumber === 3) return "in-progress"
+          return "pending"
+        case "searching_aircraft":
+          // Creating trip container
+          if (stepNumber === 1) return "completed"
+          if (stepNumber === 2) return "in-progress"
           return "pending"
         case "understanding_request":
           if (stepNumber === 1) return "in-progress"
           return "pending"
         default:
+          // Fallback to step-based logic
           if (stepNumber < currentStep) return "completed"
           if (stepNumber === currentStep) return "in-progress"
           return "pending"
       }
     }
 
-    setSteps((prev) =>
-      prev.map((step) => ({
-        ...step,
-        status: computeStepStatus(step.id),
-      })),
-    )
-  }, [status, currentStep])
-
-  useEffect(() => {
     const getStepDetails = (
       stepId: string,
       stepStatus: "completed" | "in-progress" | "pending",
@@ -257,9 +248,9 @@ export function WorkflowVisualization({
             if (stepData.operatorsQueried) details.push(`Queried ${stepData.operatorsQueried} operators`)
             if (stepData.aircraftFound) details.push(`Found ${stepData.aircraftFound} potential aircraft`)
             if (stepData.avinodeResults) details.push("Filtered by capacity and range")
-            return details.length > 0 ? details : ["Aircraft search completed"]
+            return details.length > 0 ? details : ["Trip container created in Avinode"]
           }
-          return ["Searching aircraft database..."]
+          return ["Creating trip container in Avinode..."]
 
         case "3":
           // Use real quote data from Avinode
@@ -302,13 +293,28 @@ export function WorkflowVisualization({
       }
     }
 
+    // Get workflow data for each step
+    const stepDataMap: Record<string, WorkflowStepData | undefined> = {
+      "1": workflowData.step1,
+      "2": workflowData.step2,
+      "3": workflowData.step3,
+      "4": workflowData.step4,
+      "5": workflowData.step5,
+    }
+
     setSteps((prev) =>
-      prev.map((step) => ({
-        ...step,
-        details: getStepDetails(step.id, step.status, step.data),
-      })),
+      prev.map((step) => {
+        const newStatus = computeStepStatus(step.id)
+        const stepData = stepDataMap[step.id]
+        return {
+          ...step,
+          status: newStatus,
+          details: getStepDetails(step.id, newStatus, stepData),
+          data: stepData,
+        }
+      }),
     )
-  }, [status, workflowData])
+  }, [status, currentStep, workflowData])
 
   const handleViewProposal = () => {
     if (selectedOperator) {

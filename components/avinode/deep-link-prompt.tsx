@@ -11,9 +11,10 @@ import type { DeepLinkPromptProps } from './types';
  * to open the Avinode marketplace via deep link.
  *
  * Features:
+ * - Auto-opens Avinode marketplace in new tab on mount
  * - Route visualization (departure → arrival)
  * - Flight details (date, passengers, request ID)
- * - Primary CTA to open Avinode marketplace
+ * - Primary CTA to open Avinode marketplace (manual fallback)
  * - Secondary CTA to copy link
  * - Help text with next steps
  * - Mobile responsive design
@@ -28,6 +29,7 @@ import type { DeepLinkPromptProps } from './types';
  *   passengers={6}
  *   requestId="REQ-12345"
  *   deepLink="https://marketplace.avinode.com/trip/12345"
+ *   autoOpen={true}
  *   onLinkClick={() => console.log('Link clicked')}
  *   onCopyLink={() => console.log('Link copied')}
  * />
@@ -40,11 +42,40 @@ export function DeepLinkPrompt({
   passengers,
   requestId,
   deepLink,
+  autoOpen = true,
   onLinkClick,
   onCopyLink,
 }: DeepLinkPromptProps) {
   const [copied, setCopied] = useState(false);
+  const [autoOpened, setAutoOpened] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoOpenAttemptedRef = useRef(false);
+
+  // Auto-open Avinode marketplace in new tab when component mounts
+  useEffect(() => {
+    if (autoOpen && deepLink && !autoOpenAttemptedRef.current) {
+      autoOpenAttemptedRef.current = true;
+
+      // Small delay to ensure UI renders first
+      const openTimer = setTimeout(() => {
+        try {
+          const newWindow = window.open(deepLink, '_blank', 'noopener,noreferrer');
+          if (newWindow) {
+            setAutoOpened(true);
+            console.log('[DeepLinkPrompt] Auto-opened Avinode marketplace:', deepLink);
+            onLinkClick?.();
+          } else {
+            // Popup might be blocked
+            console.warn('[DeepLinkPrompt] Auto-open blocked by browser. User can click the button manually.');
+          }
+        } catch (error) {
+          console.error('[DeepLinkPrompt] Failed to auto-open:', error);
+        }
+      }, 500);
+
+      return () => clearTimeout(openTimer);
+    }
+  }, [autoOpen, deepLink, onLinkClick]);
 
   // Cleanup timeout on unmount to prevent memory leaks
   useEffect(() => {
@@ -57,17 +88,42 @@ export function DeepLinkPrompt({
 
   /**
    * Format ISO date string to human-readable format
-   * @param dateString - ISO date string (YYYY-MM-DD)
-   * @returns Formatted date string (e.g., "December 25, 2025")
+   * @param dateString - ISO date string (YYYY-MM-DD) or other date formats
+   * @returns Formatted date string (e.g., "December 25, 2025") or fallback
    */
   const formatDate = (dateString: string): string => {
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    if (!dateString || dateString === 'Invalid Date' || dateString === 'N/A') {
+      return 'Date to be confirmed';
+    }
+
+    try {
+      // Try parsing YYYY-MM-DD format first
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
+        }
+      }
+
+      // Try parsing as generic date string
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+      }
+
+      return 'Date to be confirmed';
+    } catch {
+      return 'Date to be confirmed';
+    }
   };
 
   /**
@@ -106,7 +162,7 @@ export function DeepLinkPrompt({
   };
 
   return (
-    <Card className="w-full">
+    <Card data-testid="avinode-deep-link-prompt" className="w-full">
       <CardHeader>
         <CardTitle className="text-xl font-semibold">
           Your request has been created
@@ -116,11 +172,11 @@ export function DeepLinkPrompt({
         {/* Flight Summary */}
         <div className="space-y-4">
           {/* Route Visualization */}
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10">
+          <div data-testid="route-visualization" className="flex items-center justify-between gap-4 rounded-lg border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10">
             {/* Departure */}
             <div className="flex-1 text-left">
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-primary">
+                <span data-testid="departure-icao" className="text-2xl font-bold text-primary">
                   {departureAirport.icao}
                 </span>
               </div>
@@ -146,7 +202,7 @@ export function DeepLinkPrompt({
             {/* Arrival */}
             <div className="flex-1 text-right">
               <div className="flex items-center justify-end gap-2">
-                <span className="text-2xl font-bold text-primary">
+                <span data-testid="arrival-icao" className="text-2xl font-bold text-primary">
                   {arrivalAirport.icao}
                 </span>
               </div>
@@ -196,7 +252,7 @@ export function DeepLinkPrompt({
                 <span className="text-xs text-muted-foreground uppercase tracking-wider block">
                   Request ID
                 </span>
-                <p className="text-sm font-medium font-mono mt-1 truncate" title={requestId}>
+                <p data-testid="request-id" className="text-sm font-medium font-mono mt-1 truncate" title={requestId}>
                   {requestId}
                 </p>
               </div>
@@ -214,6 +270,7 @@ export function DeepLinkPrompt({
             className="w-full"
           >
             <a
+              data-testid="avinode-deep-link-button"
               href={deepLink}
               target="_blank"
               rel="noopener noreferrer"
@@ -227,6 +284,7 @@ export function DeepLinkPrompt({
 
           {/* Secondary CTA - Copy Link */}
           <Button
+            data-testid="copy-link-button"
             variant="outline"
             size="default"
             className="w-full"
@@ -250,8 +308,17 @@ export function DeepLinkPrompt({
         {/* Help Text */}
         <div className="rounded-lg bg-muted/50 p-4 dark:bg-muted/20">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Click the button above to open your request in Avinode Marketplace.
-            You can view quotes, communicate with operators, and manage your trip details.
+            {autoOpened ? (
+              <>
+                ✓ Avinode Marketplace has been opened in a new tab.{' '}
+                <span className="font-medium">Click the button above if the tab didn&apos;t open.</span>
+              </>
+            ) : (
+              <>
+                Click the button above to open your request in Avinode Marketplace.
+                You can view quotes, communicate with operators, and manage your trip details.
+              </>
+            )}
           </p>
         </div>
       </CardContent>
