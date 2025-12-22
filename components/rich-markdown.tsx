@@ -56,12 +56,7 @@ export const RichMarkdown = memo<RichMarkdownProps>(function RichMarkdown({
   onLinkClick,
   onImageClick,
 }) {
-  // Handle empty or null content
-  if (!content) {
-    return null;
-  }
-
-  // Configure rehype plugins
+  // Configure rehype plugins - must be before any conditional returns
   const rehypePlugins = useMemo(() => {
     const plugins: any[] = [
       // Syntax highlighting for code blocks
@@ -261,6 +256,11 @@ export const RichMarkdown = memo<RichMarkdownProps>(function RichMarkdown({
     }),
     [onLinkClick, onImageClick, customComponents]
   );
+
+  // Handle empty or null content - must be after all hooks
+  if (!content) {
+    return null;
+  }
 
   return (
     <div
