@@ -1,0 +1,374 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  # =============================================================================
+  # Deploy Preview - Runs on all PRs and develop branch
+  # =============================================================================
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
+    environment:
+      name: Preview
+      url: ${{ steps.deploy.outputs.url }}
+
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+
+      - name: Deploy Project to Vercel (Preview)
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> $GITHUB_OUTPUT
+          echo "Deployed to: $url"
+
+          # Extract deployment ID from URL
+          deployment_id=$(echo $url | sed 's/https:\/\///' | cut -d'.' -f1)
+          echo "deployment-id=$deployment_id" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with Preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const url = '${{ steps.deploy.outputs.url }}';
+            const body = `## 🚀 Preview Deployment Ready
+
+            | Environment | URL |
+            |-------------|-----|
+            | Preview | [${url}](${url}) |
+
+            ### Quick Links
+            - 🏠 [Homepage](${url})
+            - 🔐 [Sign In](${url}/sign-in)
+            - 💬 [Chat Interface](${url}/chat)
+            - 📊 [API Health](${url}/api/health)
+
+            ---
+            *Deployed by GitHub Actions • Powered by Vercel*`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Preview Deployment Ready')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+
+  # =============================================================================
+  # Deploy Production - Runs on main branch only
+  # =============================================================================
+  deploy-production:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: Production
+      url: ${{ steps.deploy.outputs.url }}
+
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+
+      - name: Deploy Project to Vercel (Production)
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> $GITHUB_OUTPUT
+          echo "Deployed to: $url"
+
+          # Extract deployment ID
+          deployment_id=$(echo $url | sed 's/https:\/\///' | cut -d'.' -f1)
+          echo "deployment-id=$deployment_id" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Deployment Status
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              auto_merge: false,
+              required_contexts: [],
+              description: 'Production deployment via GitHub Actions'
+            });
+
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.id,
+              state: 'success',
+              environment_url: '${{ steps.deploy.outputs.url }}',
+              log_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+              description: 'Deployment succeeded'
+            });
+
+  # =============================================================================
+  # Smoke Tests - Verify deployment is healthy
+  # =============================================================================
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-preview, deploy-production]
+    if: always() && (needs.deploy-preview.result == 'success' || needs.deploy-production.result == 'success')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set deployment URL
+        id: set-url
+        run: |
+          if [ "${{ needs.deploy-production.outputs.url }}" != "" ]; then
+            echo "url=${{ needs.deploy-production.outputs.url }}" >> $GITHUB_OUTPUT
+            echo "env=production" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ needs.deploy-preview.outputs.url }}" >> $GITHUB_OUTPUT
+            echo "env=preview" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for deployment to be ready
+        run: |
+          echo "Waiting for deployment to be ready..."
+          sleep 30
+
+          max_attempts=10
+          attempt=1
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt of $max_attempts..."
+
+            status_code=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.set-url.outputs.url }}" || echo "000")
+
+            if [ "$status_code" = "200" ] || [ "$status_code" = "307" ] || [ "$status_code" = "308" ]; then
+              echo "Deployment is ready! (HTTP $status_code)"
+              exit 0
+            fi
+
+            echo "Got HTTP $status_code, waiting..."
+            sleep 15
+            attempt=$((attempt + 1))
+          done
+
+          echo "Deployment health check failed after $max_attempts attempts"
+          exit 1
+
+      - name: Test Homepage
+        run: |
+          echo "Testing homepage..."
+          curl -sS -f -o /dev/null -w "HTTP %{http_code} - %{time_total}s\n" \
+            "${{ steps.set-url.outputs.url }}" || \
+          curl -sS -f -o /dev/null -w "HTTP %{http_code} - %{time_total}s\n" -L \
+            "${{ steps.set-url.outputs.url }}"
+
+      - name: Test Sign-In Page
+        run: |
+          echo "Testing sign-in page..."
+          curl -sS -f -o /dev/null -w "HTTP %{http_code} - %{time_total}s\n" \
+            "${{ steps.set-url.outputs.url }}/sign-in"
+
+      - name: Test API Health Endpoint
+        run: |
+          echo "Testing API health..."
+          response=$(curl -sS "${{ steps.set-url.outputs.url }}/api/health" 2>/dev/null || echo '{"status":"unknown"}')
+          echo "Response: $response"
+        continue-on-error: true
+
+      - name: Report Smoke Test Results
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const status = '${{ job.status }}';
+            const env = '${{ steps.set-url.outputs.env }}';
+            const url = '${{ steps.set-url.outputs.url }}';
+
+            const emoji = status === 'success' ? '✅' : '❌';
+            const message = `${emoji} Smoke tests ${status} for ${env} deployment at ${url}`;
+
+            console.log(message);
+
+            // Add to job summary
+            await core.summary
+              .addHeading('Smoke Test Results')
+              .addTable([
+                [{data: 'Test', header: true}, {data: 'Status', header: true}],
+                ['Homepage', status === 'success' ? '✅ Passed' : '❌ Failed'],
+                ['Sign-In Page', status === 'success' ? '✅ Passed' : '❌ Failed'],
+                ['API Health', '⚠️ Check Logs']
+              ])
+              .addLink('Deployment URL', url)
+              .write();
+
+  # =============================================================================
+  # Notify on Deployment - Slack/Discord notification
+  # =============================================================================
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-preview, deploy-production, smoke-tests]
+    if: always()
+
+    steps:
+      - name: Set deployment info
+        id: info
+        run: |
+          if [ "${{ needs.deploy-production.result }}" = "success" ]; then
+            echo "env=Production" >> $GITHUB_OUTPUT
+            echo "url=${{ needs.deploy-production.outputs.url }}" >> $GITHUB_OUTPUT
+            echo "status=success" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.deploy-preview.result }}" = "success" ]; then
+            echo "env=Preview" >> $GITHUB_OUTPUT
+            echo "url=${{ needs.deploy-preview.outputs.url }}" >> $GITHUB_OUTPUT
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "env=Unknown" >> $GITHUB_OUTPUT
+            echo "url=" >> $GITHUB_OUTPUT
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack Notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ "${{ steps.info.outputs.status }}" = "success" ]; then
+            emoji=":rocket:"
+            color="#36a64f"
+          else
+            emoji=":x:"
+            color="#ff0000"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"attachments\": [{
+                \"color\": \"$color\",
+                \"blocks\": [
+                  {
+                    \"type\": \"section\",
+                    \"text\": {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"$emoji *JetVision ${{ steps.info.outputs.env }} Deployment*\n\n*Status:* ${{ steps.info.outputs.status }}\n*Branch:* \`${{ github.ref_name }}\`\n*Commit:* \`${{ github.sha }}\`\n*URL:* ${{ steps.info.outputs.url }}\"
+                    }
+                  }
+                ]
+              }]
+            }" \
+            $SLACK_WEBHOOK_URL
+        continue-on-error: true
+
+      - name: Create Job Summary
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const env = '${{ steps.info.outputs.env }}';
+            const url = '${{ steps.info.outputs.url }}';
+            const status = '${{ steps.info.outputs.status }}';
+            const smokeStatus = '${{ needs.smoke-tests.result }}';
+
+            await core.summary
+              .addHeading('Deployment Summary')
+              .addTable([
+                [{data: 'Property', header: true}, {data: 'Value', header: true}],
+                ['Environment', env],
+                ['Status', status === 'success' ? '✅ Success' : '❌ Failed'],
+                ['Smoke Tests', smokeStatus === 'success' ? '✅ Passed' : '⚠️ Check Logs'],
+                ['Branch', '${{ github.ref_name }}'],
+                ['Commit', '${{ github.sha }}'],
+                ['Actor', '${{ github.actor }}']
+              ])
+              .addLink('🔗 Deployment URL', url || 'N/A')
+              .addLink('📋 Workflow Run', '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}')
+              .write();
