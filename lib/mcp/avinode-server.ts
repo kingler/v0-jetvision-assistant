@@ -85,6 +85,11 @@ export class AvinodeMCPServer extends BaseMCPServer {
         // Create trip and return deep link for manual operator selection
         return await this.client.createTrip(params);
 
+      case 'get_rfq':
+        // Get RFQ details including all received quotes
+        // Called when user provides a Trip ID after completing Avinode selection
+        return await this.client.getRFQ(params.rfq_id);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }

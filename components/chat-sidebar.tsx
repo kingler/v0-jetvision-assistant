@@ -227,9 +227,17 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center space-x-2 min-w-0 flex-1">
                     <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
-                    <h3 className="font-medium text-xs sm:text-sm text-gray-900 dark:text-white truncate">
-                      Flight Request #{session.id}
-                    </h3>
+                    {session.tripId ? (
+                      <AvinodeTripBadge
+                        tripId={session.tripId}
+                        deepLink={session.deepLink}
+                        size="sm"
+                      />
+                    ) : (
+                      <h3 className="font-medium text-xs sm:text-sm text-gray-900 dark:text-white truncate">
+                        Flight Request #{session.id}
+                      </h3>
+                    )}
                   </div>
                   <div className="flex-shrink-0">{getStatusBadge(session)}</div>
                 </div>
@@ -243,15 +251,6 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
                     <p className="text-xs text-green-600 dark:text-green-400 truncate">
                       {session.aircraft} • {session.operator}
                     </p>
-                  )}
-                  {session.tripId && (
-                    <div className="flex items-center">
-                      <AvinodeTripBadge
-                        tripId={session.tripId}
-                        deepLink={session.deepLink}
-                        size="sm"
-                      />
-                    </div>
                   )}
                 </div>
 

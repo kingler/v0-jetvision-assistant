@@ -605,6 +605,68 @@ export class MockAvinodeClient {
   }
 
   /**
+   * Get RFQ details by ID including all received quotes
+   * This is called when the user provides a Trip ID after completing Avinode selection
+   */
+  async getRFQ(rfqId: string): Promise<{
+    rfq_id: string;
+    trip_id: string;
+    status: 'pending' | 'quotes_received' | 'completed' | 'expired';
+    created_at: string;
+    quote_deadline: string;
+    route: {
+      departure: { airport: string; date: string; time?: string };
+      arrival: { airport: string };
+    };
+    passengers: number;
+    operators_contacted: number;
+    quotes_received: number;
+    quotes: DatabaseQuote[];
+    deep_link: string;
+  }> {
+    await this.delay(300, 800);
+
+    // Handle different ID formats (trip ID, RFQ ID, or raw numeric ID)
+    // Trip IDs: atrip-64956151 or TSHXK4 (short alphanumeric)
+    // RFQ IDs: arfq-12345671
+    let tripId = rfqId;
+    let requestId = rfqId;
+
+    // Normalize the ID format
+    if (rfqId.startsWith('atrip-')) {
+      tripId = rfqId;
+      requestId = rfqId.replace('atrip-', 'arfq-');
+    } else if (rfqId.startsWith('arfq-')) {
+      requestId = rfqId;
+      tripId = rfqId.replace('arfq-', 'atrip-');
+    } else {
+      // Handle short alphanumeric IDs like "TSHXK4" - treat as trip ID
+      tripId = `atrip-${rfqId}`;
+      requestId = `arfq-${rfqId}`;
+    }
+
+    // Generate mock quotes for this RFQ
+    const quotes = this.generateMockQuotes(requestId, tripId);
+
+    return {
+      rfq_id: requestId,
+      trip_id: tripId,
+      status: quotes.length >= 2 ? 'quotes_received' : 'pending',
+      created_at: new Date(Date.now() - 3600000).toISOString(),
+      quote_deadline: new Date(Date.now() + 86400000).toISOString(),
+      route: {
+        departure: { airport: 'KTEB', date: new Date().toISOString().split('T')[0] },
+        arrival: { airport: 'KVNY' },
+      },
+      passengers: 4,
+      operators_contacted: 5,
+      quotes_received: quotes.length,
+      quotes,
+      deep_link: `https://sandbox.avinode.com/marketplace/mvc/trips/selling/rfq?source=api&rfq=${requestId}`,
+    };
+  }
+
+  /**
    * Search airports by name, code, or city
    */
   async searchAirports(params: { query: string; country?: string }): Promise<{

@@ -104,6 +104,26 @@ export class AvinodeClient {
   }
 
   /**
+   * Get RFQ details by ID including all received quotes
+   * Uses the /rfqs/{id} endpoint per Avinode API spec
+   * @see https://developer.avinodegroup.com/reference/readbynumericid
+   */
+  async getRFQ(rfqId: string) {
+    try {
+      // Handle different ID formats - extract numeric ID if prefixed
+      let numericId = rfqId;
+      if (rfqId.startsWith('atrip-') || rfqId.startsWith('arfq-')) {
+        numericId = rfqId.split('-')[1];
+      }
+
+      const response = await this.client.get(`/rfqs/${numericId}`);
+      return response.data;
+    } catch (error) {
+      throw this.sanitizeError(error);
+    }
+  }
+
+  /**
    * Create a trip container and return deep link for manual operator selection
    * This is the primary tool for the deep link workflow
    */
