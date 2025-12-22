@@ -1,8 +1,12 @@
 'use client';
 
 /**
- * Quote Card Component
- * Displays individual quote information with ranking badge and recommendation indicator
+ * Quote Card Components
+ *
+ * Consolidated quote card implementations with composition pattern:
+ * - QuoteCard: Full-featured card with animations, scores, and multiple actions
+ * - SimpleQuoteCard: Lightweight card for message contexts and simple displays
+ *
  * @module components/quotes/quote-card
  */
 
@@ -19,22 +23,65 @@ import {
   CheckCircle2,
   TrendingUp,
   Plane,
+  CheckCircle,
 } from 'lucide-react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import type { Quote, QuoteAction } from './types';
+import { formatCurrency, formatTime, formatDuration } from '@/lib/utils/format';
+import type { StrictQuote, SimpleQuote, QuoteAction } from './types';
 
-interface QuoteCardProps {
-  quote: Quote;
-  onAction?: (action: QuoteAction, quote: Quote) => void;
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * Props for the full-featured QuoteCard component
+ */
+export interface QuoteCardProps {
+  quote: StrictQuote;
+  onAction?: (action: QuoteAction, quote: StrictQuote) => void;
   isSelected?: boolean;
   showComparison?: boolean;
   className?: string;
 }
+
+/**
+ * Props for the simplified QuoteCard component
+ */
+export interface SimpleQuoteCardProps {
+  quote: SimpleQuote;
+  onSelect?: (quoteId: string) => void;
+  onViewDetails?: (quoteId: string) => void;
+  className?: string;
+}
+
+/**
+ * Props for flat-style quote display (backwards compatibility)
+ */
+export interface FlatQuoteCardProps {
+  operatorName: string;
+  aircraftType: string;
+  price: number;
+  currency?: string;
+  score?: number;
+  ranking?: number;
+  totalQuotes?: number;
+  departureTime?: string;
+  arrivalTime?: string;
+  flightDuration?: string;
+  operatorRating?: number;
+  isRecommended?: boolean;
+  onSelect?: () => void;
+  className?: string;
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
 
 /**
  * Get ranking badge color based on rank
@@ -43,37 +90,6 @@ const getRankBadgeVariant = (rank: number): 'default' | 'secondary' | 'outline' 
   if (rank === 1) return 'default';
   if (rank === 2) return 'secondary';
   return 'outline';
-};
-
-/**
- * Format currency
- */
-const formatCurrency = (amount: number, currency: string): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
-
-/**
- * Format time
- */
-const formatTime = (isoString: string): string => {
-  return new Date(isoString).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-/**
- * Format duration
- */
-const formatDuration = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hours}h ${mins}m`;
 };
 
 /**
@@ -346,6 +362,232 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
         </CardFooter>
       </Card>
     </motion.div>
+  );
+};
+
+// =============================================================================
+// SIMPLE QUOTE CARD - For message contexts and simple displays
+// =============================================================================
+
+/**
+ * SimpleQuoteCard Component
+ *
+ * A lightweight quote card for use in message contexts where less detail is needed.
+ * Uses the SimpleQuote type which has pre-formatted string values.
+ */
+export const SimpleQuoteCard: React.FC<SimpleQuoteCardProps> = ({
+  quote,
+  onSelect,
+  onViewDetails,
+  className,
+}) => {
+  const {
+    id,
+    operatorName,
+    aircraftType,
+    price,
+    departureTime,
+    arrivalTime,
+    flightDuration,
+    operatorRating,
+    isRecommended,
+    isSelected,
+  } = quote;
+
+  return (
+    <Card className={`relative ${isSelected ? 'ring-2 ring-primary' : ''} ${className || ''}`}>
+      {isRecommended && (
+        <Badge className="absolute -top-2 -right-2 bg-green-500">
+          Recommended
+        </Badge>
+      )}
+
+      {isSelected && (
+        <div className="absolute -top-2 -left-2">
+          <CheckCircle className="h-6 w-6 text-primary fill-primary" />
+        </div>
+      )}
+
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Plane className="h-5 w-5" />
+            <span>{operatorName}</span>
+          </div>
+          {operatorRating && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <span>{operatorRating.toFixed(1)}</span>
+            </div>
+          )}
+        </CardTitle>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Aircraft Type */}
+        <div>
+          <p className="text-sm text-muted-foreground">Aircraft</p>
+          <p className="font-medium">{aircraftType}</p>
+        </div>
+
+        {/* Flight Times */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Departure</p>
+            <p className="font-medium">{departureTime}</p>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span className="text-sm">{flightDuration}</span>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Arrival</p>
+            <p className="font-medium">{arrivalTime}</p>
+          </div>
+        </div>
+
+        {/* Price */}
+        <div className="pt-4 border-t">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Price</p>
+              <p className="text-2xl font-bold">
+                {typeof price === 'number' ? `$${price.toLocaleString()}` : price}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {onViewDetails && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onViewDetails(id)}
+                >
+                  Details
+                </Button>
+              )}
+              {onSelect && !isSelected && (
+                <Button
+                  size="sm"
+                  onClick={() => onSelect(id)}
+                >
+                  Select
+                </Button>
+              )}
+              {isSelected && (
+                <Button size="sm" disabled>
+                  Selected
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// =============================================================================
+// FLAT QUOTE CARD - For backwards compatibility with flat props
+// =============================================================================
+
+/**
+ * FlatQuoteCard Component
+ *
+ * A quote card that accepts individual props instead of a quote object.
+ * Provides backwards compatibility with the aviation/quote-card.tsx pattern.
+ */
+export const FlatQuoteCard: React.FC<FlatQuoteCardProps> = ({
+  operatorName,
+  aircraftType,
+  price,
+  currency = 'USD',
+  score,
+  ranking,
+  totalQuotes,
+  departureTime,
+  arrivalTime,
+  flightDuration,
+  operatorRating,
+  isRecommended = false,
+  onSelect,
+  className,
+}) => {
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg">{operatorName}</CardTitle>
+              {isRecommended && (
+                <Badge variant="default" className="bg-accent">
+                  Recommended
+                </Badge>
+              )}
+              {ranking && (
+                <Badge variant="secondary">
+                  #{ranking} of {totalQuotes}
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+              <Plane className="h-3 w-3" />
+              {aircraftType}
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-primary">
+              {formatCurrency(price, currency)}
+            </div>
+            {operatorRating && (
+              <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                {operatorRating.toFixed(1)}
+              </div>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-3">
+        {score !== undefined && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">AI Score</span>
+              <span className="font-medium">{score}/100</span>
+            </div>
+            <Progress value={score} className="h-2" />
+          </div>
+        )}
+
+        {(departureTime || arrivalTime || flightDuration) && (
+          <div className="flex items-center justify-between rounded-lg bg-muted p-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div>
+                {departureTime && <div className="font-medium">{departureTime}</div>}
+                {flightDuration && (
+                  <div className="text-xs text-muted-foreground">{flightDuration}</div>
+                )}
+              </div>
+            </div>
+            {arrivalTime && (
+              <div className="text-right">
+                <div className="font-medium">{arrivalTime}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+
+      {onSelect && (
+        <CardFooter>
+          <Button onClick={onSelect} className="w-full" variant={isRecommended ? 'default' : 'outline'}>
+            Select Quote
+          </Button>
+        </CardFooter>
+      )}
+    </Card>
   );
 };
 

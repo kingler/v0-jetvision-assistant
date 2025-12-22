@@ -81,6 +81,10 @@ export class AvinodeMCPServer extends BaseMCPServer {
         // For real client, we'd need to implement this differently
         return { airports: [], total: 0 };
 
+      case 'create_trip':
+        // Create trip and return deep link for manual operator selection
+        return await this.client.createTrip(params);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -94,6 +98,7 @@ export class AvinodeMCPServer extends BaseMCPServer {
     this.registerTool(this.createCreateRFPTool());
     this.registerTool(this.createGetQuoteStatusTool());
     this.registerTool(this.createGetQuotesTool());
+    this.registerTool(this.createCreateTripTool());
   }
 
   /**
@@ -238,6 +243,71 @@ export class AvinodeMCPServer extends BaseMCPServer {
       },
       execute: async (params: any) => {
         return await this.client.getQuotes(params.rfp_id);
+      },
+    };
+  }
+
+  /**
+   * Create create_trip tool - the primary tool for deep link workflow
+   * Creates a trip container in Avinode and returns a deep link for manual operator selection
+   */
+  private createCreateTripTool(): MCPToolDefinition {
+    return {
+      name: 'create_trip',
+      description: 'Create a trip container in Avinode and return a deep link for manual operator selection. This is the primary tool for initiating the flight search workflow. The deep link allows users to open the Avinode marketplace to select aircraft and send RFPs to operators.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          departure_airport: {
+            type: 'string',
+            description: 'Departure airport ICAO code (e.g., KTEB, KJFK)',
+            pattern: '^[A-Z]{4}$',
+          },
+          arrival_airport: {
+            type: 'string',
+            description: 'Arrival airport ICAO code',
+            pattern: '^[A-Z]{4}$',
+          },
+          departure_date: {
+            type: 'string',
+            description: 'Departure date in YYYY-MM-DD format',
+          },
+          passengers: {
+            type: 'number',
+            description: 'Number of passengers',
+            minimum: 1,
+            maximum: 19,
+          },
+          departure_time: {
+            type: 'string',
+            description: 'Optional departure time in HH:MM format',
+          },
+          return_date: {
+            type: 'string',
+            description: 'Optional return date for round-trip in YYYY-MM-DD format',
+          },
+          return_time: {
+            type: 'string',
+            description: 'Optional return time in HH:MM format',
+          },
+          aircraft_category: {
+            type: 'string',
+            description: 'Optional aircraft category preference',
+            enum: ['light', 'midsize', 'heavy', 'ultra-long-range'],
+          },
+          special_requirements: {
+            type: 'string',
+            description: 'Optional special requirements or notes',
+          },
+          client_reference: {
+            type: 'string',
+            description: 'Optional internal reference ID for tracking',
+          },
+        },
+        required: ['departure_airport', 'arrival_airport', 'departure_date', 'passengers'],
+      },
+      execute: async (params: any) => {
+        return await this.client.createTrip(params);
       },
     };
   }

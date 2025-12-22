@@ -2,9 +2,8 @@
 
 import type React from "react"
 import { Plane } from "lucide-react"
-import { WorkflowVisualization } from "../workflow-visualization"
 import { ProposalPreview } from "../proposal-preview"
-import { DeepLinkPrompt } from "../avinode/deep-link-prompt"
+import { FlightSearchProgress, type SelectedFlight } from "../avinode/flight-search-progress"
 import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "../chat-sidebar"
 
@@ -54,9 +53,9 @@ export interface AgentMessageProps {
   content: string
   /** Timestamp of the message */
   timestamp: Date
-  /** Whether to show the workflow visualization */
+  /** Whether to show the flight search progress workflow */
   showWorkflow?: boolean
-  /** Workflow props when showing embedded workflow */
+  /** Workflow props - determines which step we're on */
   workflowProps?: {
     isProcessing: boolean
     currentStep: number
@@ -64,9 +63,9 @@ export interface AgentMessageProps {
     tripId?: string
     deepLink?: string
   }
-  /** Whether to show deep link prompt */
+  /** Whether to show deep link prompt (triggers Step 2-3 of workflow) */
   showDeepLink?: boolean
-  /** Deep link data */
+  /** Deep link data - contains flight request details */
   deepLinkData?: {
     rfpId?: string
     tripId?: string
@@ -75,7 +74,19 @@ export interface AgentMessageProps {
     arrivalAirport?: { icao: string; name?: string; city?: string }
     departureDate?: string
     passengers?: number
+    aircraftPreferences?: string
+    specialRequirements?: string
   }
+  /** Whether to show Trip ID input form for human-in-the-loop workflow */
+  showTripIdInput?: boolean
+  /** Whether Trip ID is currently being submitted/validated */
+  isTripIdLoading?: boolean
+  /** Error message from Trip ID submission */
+  tripIdError?: string
+  /** Whether Trip ID has been successfully submitted */
+  tripIdSubmitted?: boolean
+  /** Callback when Trip ID is submitted */
+  onTripIdSubmit?: (tripId: string) => Promise<void>
   /** Whether to show quote comparison */
   showQuotes?: boolean
   /** Quotes data */
@@ -94,11 +105,15 @@ export interface AgentMessageProps {
   onDeepLinkClick?: () => void
   /** Callback when deep link is copied */
   onCopyDeepLink?: () => void
+  /** Selected flights for Step 4 display */
+  selectedFlights?: SelectedFlight[]
+  /** Callback when View Chat is clicked for a flight */
+  onViewChat?: (flightId: string) => void
 }
 
 /**
  * AgentMessage - Displays agent messages as plain text with proper typography
- * NO bubble wrapper - just avatar, badge, content, and embedded components
+ * Uses the unified FlightSearchProgress component for workflow visualization
  */
 export function AgentMessage({
   content,
@@ -107,6 +122,11 @@ export function AgentMessage({
   workflowProps,
   showDeepLink,
   deepLinkData,
+  showTripIdInput,
+  isTripIdLoading,
+  tripIdError,
+  tripIdSubmitted,
+  onTripIdSubmit,
   showQuotes,
   quotes = [],
   showProposal,
@@ -116,11 +136,32 @@ export function AgentMessage({
   onSelectQuote,
   onDeepLinkClick,
   onCopyDeepLink,
+  selectedFlights = [],
+  onViewChat,
 }: AgentMessageProps) {
   const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
 
+  /**
+   * Determine the current workflow step based on status and props
+   */
+  const getCurrentStep = (): number => {
+    // Step 4: Quotes received
+    if (tripIdSubmitted && quotes.length > 0) return 4
+    // Step 4: Fetching details after Trip ID submitted
+    if (tripIdSubmitted) return 4
+    // Step 3: Awaiting selection (Trip ID input shown)
+    if (showTripIdInput || showDeepLink) return 3
+    // Step 2: Deep link ready
+    if (deepLinkData?.deepLink) return 2
+    // Step 1: Request created
+    return 1
+  }
+
+  // Check if we should show the unified workflow component
+  const shouldShowFlightSearchProgress = showDeepLink || showTripIdInput || (showWorkflow && workflowProps)
+
   return (
-    <div className="flex flex-col space-y-3 max-w-[85%]">
+    <div data-testid="agent-message" className="flex flex-col space-y-3 max-w-[85%]">
       {/* Avatar + Badge Header */}
       <div className="flex items-center space-x-2">
         <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
@@ -143,30 +184,42 @@ export function AgentMessage({
         </div>
       )}
 
-      {/* Embedded Workflow - SINGLE card level */}
-      {showWorkflow && workflowProps && (
-        <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-          <WorkflowVisualization
-            isProcessing={workflowProps.isProcessing}
-            embedded={true}
-            currentStep={workflowProps.currentStep}
-            status={workflowProps.status}
-            tripId={workflowProps.tripId}
-            deepLink={workflowProps.deepLink}
-          />
-        </div>
+      {/* Unified Flight Search Progress Component */}
+      {shouldShowFlightSearchProgress && deepLinkData && (
+        <FlightSearchProgress
+          currentStep={getCurrentStep()}
+          flightRequest={{
+            departureAirport: deepLinkData.departureAirport || { icao: 'N/A' },
+            arrivalAirport: deepLinkData.arrivalAirport || { icao: 'N/A' },
+            departureDate: deepLinkData.departureDate || new Date().toISOString().split('T')[0],
+            passengers: deepLinkData.passengers || 1,
+            requestId: deepLinkData.rfpId,
+            aircraftPreferences: deepLinkData.aircraftPreferences,
+            specialRequirements: deepLinkData.specialRequirements,
+          }}
+          deepLink={deepLinkData.deepLink || (deepLinkData.tripId ? `https://sandbox.avinode.com/marketplace/mvc/search#preSearch` : undefined)}
+          tripId={deepLinkData.tripId}
+          isTripIdLoading={isTripIdLoading}
+          tripIdError={tripIdError}
+          tripIdSubmitted={tripIdSubmitted}
+          selectedFlights={selectedFlights}
+          onTripIdSubmit={onTripIdSubmit}
+          onDeepLinkClick={onDeepLinkClick}
+          onCopyDeepLink={onCopyDeepLink}
+          onViewChat={onViewChat}
+        />
       )}
 
-      {/* Quote Status Display */}
-      {showQuotes && quotes.length === 0 && (
-        <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+      {/* Quote Status Display - only when waiting for quotes (no workflow shown) */}
+      {showQuotes && quotes.length === 0 && !shouldShowFlightSearchProgress && (
+        <div data-testid="quote-status-waiting" className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <QuoteStatusDisplay />
         </div>
       )}
 
       {/* Quote Comparison - embedded in single card level */}
       {showQuotes && quotes.length > 0 && (
-        <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div data-testid="quote-comparison" className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <QuoteComparisonDisplay
             quotes={sortedQuotes}
             onSelectQuote={onSelectQuote}
@@ -178,22 +231,6 @@ export function AgentMessage({
       {showProposal && chatData && (
         <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <ProposalPreview embedded={true} chatData={chatData} />
-        </div>
-      )}
-
-      {/* Deep Link Prompt - shown when RFP is created */}
-      {showDeepLink && deepLinkData && (
-        <div className="mt-2">
-          <DeepLinkPrompt
-            departureAirport={deepLinkData.departureAirport || { icao: 'N/A' }}
-            arrivalAirport={deepLinkData.arrivalAirport || { icao: 'N/A' }}
-            departureDate={deepLinkData.departureDate || new Date().toISOString().split('T')[0]}
-            passengers={deepLinkData.passengers || 1}
-            requestId={deepLinkData.rfpId || 'N/A'}
-            deepLink={deepLinkData.deepLink || `https://marketplace.avinode.com/trip/${deepLinkData.tripId}`}
-            onLinkClick={onDeepLinkClick}
-            onCopyLink={onCopyDeepLink}
-          />
         </div>
       )}
 

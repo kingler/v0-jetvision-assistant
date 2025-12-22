@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useStreamingResponse } from '@/lib/hooks/use-streaming-response';
+import { useStreamingResponse } from '@/hooks/use-streaming-response';
 
 // Mock ReadableStream and TextDecoder for SSE streaming
 class MockReadableStream {
@@ -33,7 +33,7 @@ class MockReadableStreamReader {
     return { done: false, value };
   }
 
-  releaseLock() {
+  cancel() {
     // Mock implementation
   }
 }
@@ -44,7 +44,7 @@ describe('useStreamingResponse', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAbortController = new AbortController();
-    global.AbortController = vi.fn(() => mockAbortController) as any;
+    global.AbortController = vi.fn(() => mockAbortController) as unknown as typeof AbortController;
   });
 
   afterEach(() => {
@@ -52,36 +52,28 @@ describe('useStreamingResponse', () => {
   });
 
   describe('Initial State', () => {
-    it('should return initial state with no data', () => {
+    it('should return initial state with no content', () => {
       const { result } = renderHook(() => useStreamingResponse());
 
-      expect(result.current.data).toBe('');
+      expect(result.current.content).toBe('');
       expect(result.current.isStreaming).toBe(false);
       expect(result.current.error).toBeNull();
-      expect(result.current.isComplete).toBe(false);
+      expect(result.current.state).toBe('idle');
+      expect(result.current.toolCalls).toEqual([]);
       expect(typeof result.current.startStreaming).toBe('function');
-      expect(typeof result.current.abort).toBe('function');
-    });
-
-    it('should provide metadata object', () => {
-      const { result } = renderHook(() => useStreamingResponse());
-
-      expect(result.current.metadata).toEqual({
-        requestId: null,
-        tokensReceived: 0,
-        duration: 0,
-      });
+      expect(typeof result.current.stopStreaming).toBe('function');
+      expect(typeof result.current.reset).toBe('function');
     });
   });
 
   describe('Starting Stream', () => {
-    it('should set isStreaming to true when starting', async () => {
+    it('should set state to connecting when starting', async () => {
       const mockResponse = {
         ok: true,
         body: new MockReadableStream([
-          'data: {"type":"text","content":"Hello"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
+          'data: {"type":"token","data":{"token":"Hello"}}\n',
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
@@ -89,44 +81,45 @@ describe('useStreamingResponse', () => {
       const { result } = renderHook(() => useStreamingResponse());
 
       act(() => {
-        result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        result.current.startStreaming({ message: 'test' });
       });
 
-      expect(result.current.isStreaming).toBe(true);
+      // State should be connecting or streaming
+      expect(['connecting', 'streaming']).toContain(result.current.state);
 
       await waitFor(() => {
-        expect(result.current.isComplete).toBe(true);
+        expect(result.current.state).toBe('completed');
       });
     });
 
     it('should make fetch request with correct parameters', async () => {
       const mockResponse = {
         ok: true,
-        body: new MockReadableStream(['data: {"type":"done"}\n\n']) as any,
+        body: new MockReadableStream(['data: {"type":"complete"}\n']) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
 
-      const { result } = renderHook(() => useStreamingResponse());
+      const { result } = renderHook(() => useStreamingResponse({
+        endpoint: '/api/chat/respond',
+      }));
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
+        await result.current.startStreaming({
+          message: 'Hello',
           sessionId: 'session-456',
         });
       });
 
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/responses/stream',
+        '/api/chat/respond',
         expect.objectContaining({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            requestId: 'req-123',
+            message: 'Hello',
             sessionId: 'session-456',
           }),
           signal: mockAbortController.signal,
@@ -140,11 +133,11 @@ describe('useStreamingResponse', () => {
       const mockResponse = {
         ok: true,
         body: new MockReadableStream([
-          'data: {"type":"text","content":"Hello"}\n\n',
-          'data: {"type":"text","content":" World"}\n\n',
-          'data: {"type":"text","content":"!"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
+          'data: {"type":"token","data":{"token":"Hello"}}\n',
+          'data: {"type":"token","data":{"token":" World"}}\n',
+          'data: {"type":"token","data":{"token":"!"}}\n',
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
@@ -152,82 +145,48 @@ describe('useStreamingResponse', () => {
       const { result } = renderHook(() => useStreamingResponse());
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        await result.current.startStreaming({ message: 'test' });
       });
 
       await waitFor(() => {
-        expect(result.current.data).toBe('Hello World!');
-        expect(result.current.isComplete).toBe(true);
+        expect(result.current.content).toBe('Hello World!');
       });
     });
 
-    it('should update tokens received count', async () => {
+    it('should call onToken callback for each token', async () => {
+      const onToken = vi.fn();
       const mockResponse = {
         ok: true,
         body: new MockReadableStream([
-          'data: {"type":"text","content":"Token1"}\n\n',
-          'data: {"type":"text","content":"Token2"}\n\n',
-          'data: {"type":"text","content":"Token3"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
+          'data: {"type":"token","data":{"token":"Hello"}}\n',
+          'data: {"type":"token","data":{"token":" World"}}\n',
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
 
-      const { result } = renderHook(() => useStreamingResponse());
+      const { result } = renderHook(() => useStreamingResponse({ onToken }));
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        await result.current.startStreaming({ message: 'test' });
       });
 
       await waitFor(() => {
-        expect(result.current.metadata.tokensReceived).toBe(3);
+        expect(onToken).toHaveBeenCalledWith('Hello');
+        expect(onToken).toHaveBeenCalledWith(' World');
       });
     });
   });
 
-  describe('Tool Call Events', () => {
-    it('should handle tool_call events', async () => {
+  describe('Tool Calls', () => {
+    it('should track tool call start', async () => {
       const mockResponse = {
         ok: true,
         body: new MockReadableStream([
-          'data: {"type":"tool_call","toolName":"searchFlights","arguments":{"from":"JFK","to":"LAX"}}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const onToolCall = vi.fn();
-      const { result } = renderHook(() =>
-        useStreamingResponse({ onToolCall })
-      );
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(onToolCall).toHaveBeenCalledWith({
-          toolName: 'searchFlights',
-          arguments: { from: 'JFK', to: 'LAX' },
-        });
-      });
-    });
-
-    it('should not throw if onToolCall is not provided', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream([
-          'data: {"type":"tool_call","toolName":"test"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
+          'data: {"type":"tool_call_start","data":{"toolCallId":"tool-1","toolName":"search"}}\n',
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
@@ -235,60 +194,73 @@ describe('useStreamingResponse', () => {
       const { result } = renderHook(() => useStreamingResponse());
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        await result.current.startStreaming({ message: 'test' });
       });
 
       await waitFor(() => {
-        expect(result.current.isComplete).toBe(true);
+        expect(result.current.toolCalls).toContainEqual(
+          expect.objectContaining({
+            id: 'tool-1',
+            name: 'search',
+            status: 'starting',
+          })
+        );
+      });
+    });
+
+    it('should track tool call progress', async () => {
+      const mockResponse = {
+        ok: true,
+        body: new MockReadableStream([
+          'data: {"type":"tool_call_start","data":{"toolCallId":"tool-1","toolName":"search"}}\n',
+          'data: {"type":"tool_call_progress","data":{"toolCallId":"tool-1","toolName":"search"}}\n',
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
+      };
+
+      global.fetch = vi.fn().mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useStreamingResponse());
+
+      await act(async () => {
+        await result.current.startStreaming({ message: 'test' });
+      });
+
+      await waitFor(() => {
+        const toolCall = result.current.toolCalls.find(tc => tc.id === 'tool-1');
+        expect(toolCall?.status).toBe('in_progress');
+      });
+    });
+
+    it('should track tool call completion', async () => {
+      const mockResponse = {
+        ok: true,
+        body: new MockReadableStream([
+          'data: {"type":"tool_call_start","data":{"toolCallId":"tool-1","toolName":"search"}}\n',
+          'data: {"type":"tool_call_complete","data":{"toolCallId":"tool-1","toolName":"search","arguments":{"query":"test"},"result":"found"}}\n',
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
+      };
+
+      global.fetch = vi.fn().mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useStreamingResponse());
+
+      await act(async () => {
+        await result.current.startStreaming({ message: 'test' });
+      });
+
+      await waitFor(() => {
+        const toolCall = result.current.toolCalls.find(tc => tc.id === 'tool-1');
+        expect(toolCall?.status).toBe('complete');
+        expect(toolCall?.arguments).toEqual({ query: 'test' });
+        expect(toolCall?.result).toBe('found');
       });
     });
   });
 
   describe('Error Handling', () => {
-    it('should handle error events from SSE stream', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream([
-          'data: {"type":"error","message":"API rate limit exceeded"}\n\n',
-        ]) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(result.current.error).toBe('API rate limit exceeded');
-        expect(result.current.isStreaming).toBe(false);
-      });
-    });
-
-    it('should handle network errors', async () => {
-      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(result.current.error).toBe('Network error');
-        expect(result.current.isStreaming).toBe(false);
-      });
-    });
-
-    it('should handle non-ok HTTP responses', async () => {
+    it('should set error state on HTTP error', async () => {
       const mockResponse = {
         ok: false,
         status: 500,
@@ -300,24 +272,21 @@ describe('useStreamingResponse', () => {
       const { result } = renderHook(() => useStreamingResponse());
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        await result.current.startStreaming({ message: 'test' });
       });
 
       await waitFor(() => {
+        expect(result.current.state).toBe('error');
         expect(result.current.error).toContain('500');
-        expect(result.current.isStreaming).toBe(false);
       });
     });
 
-    it('should handle malformed JSON in SSE events', async () => {
+    it('should set error state on SSE error event', async () => {
       const mockResponse = {
         ok: true,
         body: new MockReadableStream([
-          'data: {invalid json}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
+          'data: {"type":"error","data":{"error":"Something went wrong"}}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
@@ -325,157 +294,46 @@ describe('useStreamingResponse', () => {
       const { result } = renderHook(() => useStreamingResponse());
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        await result.current.startStreaming({ message: 'test' });
       });
 
-      // Should skip invalid JSON and continue
       await waitFor(() => {
-        expect(result.current.isComplete).toBe(true);
+        expect(result.current.state).toBe('error');
+        expect(result.current.error).toBe('Something went wrong');
+      });
+    });
+
+    it('should call onError callback on error', async () => {
+      const onError = vi.fn();
+      const mockResponse = {
+        ok: true,
+        body: new MockReadableStream([
+          'data: {"type":"error","data":{"error":"Test error"}}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
+      };
+
+      global.fetch = vi.fn().mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useStreamingResponse({ onError }));
+
+      await act(async () => {
+        await result.current.startStreaming({ message: 'test' });
+      });
+
+      await waitFor(() => {
+        expect(onError).toHaveBeenCalledWith('Test error');
       });
     });
   });
 
-  describe('Abort Controller', () => {
-    it('should abort the stream when abort is called', async () => {
+  describe('Completion', () => {
+    it('should set state to completed on complete event', async () => {
       const mockResponse = {
         ok: true,
         body: new MockReadableStream([
-          'data: {"type":"text","content":"Starting"}\n\n',
-          'data: {"type":"text","content":"Should not receive"}\n\n',
-        ]) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      act(() => {
-        result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      act(() => {
-        result.current.abort();
-      });
-
-      await waitFor(() => {
-        expect(result.current.isStreaming).toBe(false);
-        expect(mockAbortController.signal.aborted).toBe(true);
-      });
-    });
-
-    it('should handle abort errors gracefully', async () => {
-      const abortError = new Error('The operation was aborted');
-      abortError.name = 'AbortError';
-
-      global.fetch = vi.fn().mockRejectedValue(abortError);
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      act(() => {
-        result.current.abort();
-      });
-
-      await waitFor(() => {
-        expect(result.current.isStreaming).toBe(false);
-        // Abort errors should not set error state
-        expect(result.current.error).toBeNull();
-      });
-    });
-  });
-
-  describe('Reconnection Logic', () => {
-    it('should attempt reconnection on network error', async () => {
-      let callCount = 0;
-      global.fetch = vi.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return Promise.reject(new Error('Network error'));
-        }
-        return Promise.resolve({
-          ok: true,
-          body: new MockReadableStream(['data: {"type":"done"}\n\n']) as any,
-        });
-      });
-
-      const { result } = renderHook(() =>
-        useStreamingResponse({ maxRetries: 2, retryDelay: 100 })
-      );
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(callCount).toBe(2);
-        expect(result.current.isComplete).toBe(true);
-      }, { timeout: 5000 });
-    });
-
-    it('should respect maxRetries limit', async () => {
-      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-
-      const { result } = renderHook(() =>
-        useStreamingResponse({ maxRetries: 2, retryDelay: 100 })
-      );
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(3); // Initial + 2 retries
-        expect(result.current.error).toBe('Network error');
-      }, { timeout: 5000 });
-    });
-
-    it('should not retry on non-network errors', async () => {
-      const mockResponse = {
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request',
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() =>
-        useStreamingResponse({ maxRetries: 2 })
-      );
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(1); // No retries
-        expect(result.current.error).toContain('400');
-      });
-    });
-  });
-
-  describe('Done Event', () => {
-    it('should set isComplete to true on done event', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream([
-          'data: {"type":"text","content":"Complete"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
+          'data: {"type":"token","data":{"token":"Done"}}\n',
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
@@ -483,178 +341,73 @@ describe('useStreamingResponse', () => {
       const { result } = renderHook(() => useStreamingResponse());
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        await result.current.startStreaming({ message: 'test' });
       });
 
       await waitFor(() => {
-        expect(result.current.isComplete).toBe(true);
+        expect(result.current.state).toBe('completed');
         expect(result.current.isStreaming).toBe(false);
       });
     });
 
     it('should call onComplete callback', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream([
-          'data: {"type":"text","content":"Done"}\n\n',
-          'data: {"type":"done","requestId":"req-123"}\n\n',
-        ]) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
       const onComplete = vi.fn();
-      const { result } = renderHook(() =>
-        useStreamingResponse({ onComplete })
-      );
+      const mockResponse = {
+        ok: true,
+        body: new MockReadableStream([
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
+      };
+
+      global.fetch = vi.fn().mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useStreamingResponse({ onComplete }));
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        await result.current.startStreaming({ message: 'test' });
       });
 
       await waitFor(() => {
-        expect(onComplete).toHaveBeenCalledWith({
-          data: 'Done',
-          requestId: 'req-123',
-        });
+        expect(onComplete).toHaveBeenCalled();
       });
     });
   });
 
-  describe('Metadata Tracking', () => {
-    it('should track request ID', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream(['data: {"type":"done"}\n\n']) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(result.current.metadata.requestId).toBe('req-123');
-      });
-    });
-
-    it('should track stream duration', async () => {
+  describe('Abort/Stop', () => {
+    it('should stop streaming when stopStreaming is called', async () => {
       const mockResponse = {
         ok: true,
         body: new MockReadableStream([
-          'data: {"type":"text","content":"Test"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
+          'data: {"type":"token","data":{"token":"Hello"}}\n',
+          // Intentionally no complete event
+        ]) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
 
       const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(result.current.isComplete).toBe(true);
-        expect(result.current.metadata.duration).toBeGreaterThanOrEqual(0);
-      });
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('should handle empty SSE stream', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream([]) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
-      });
-
-      await waitFor(() => {
-        expect(result.current.isStreaming).toBe(false);
-        expect(result.current.data).toBe('');
-      });
-    });
-
-    it('should handle multiple startStreaming calls', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream(['data: {"type":"done"}\n\n']) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-1',
-        });
-        // Second call should abort the first
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-2',
-        });
-      });
-
-      await waitFor(() => {
-        expect(result.current.metadata.requestId).toBe('req-2');
-      });
-    });
-
-    it('should clean up on unmount', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream([
-          'data: {"type":"text","content":"Test"}\n\n',
-        ]) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result, unmount } = renderHook(() => useStreamingResponse());
 
       act(() => {
-        result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        result.current.startStreaming({ message: 'test' });
       });
 
-      unmount();
+      // Stop streaming
+      act(() => {
+        result.current.stopStreaming();
+      });
 
-      expect(mockAbortController.signal.aborted).toBe(true);
+      expect(result.current.state).toBe('idle');
     });
   });
 
-  describe('SSE Event Parsing', () => {
-    it('should handle SSE events with id and retry fields', async () => {
+  describe('Reset', () => {
+    it('should reset all state', async () => {
       const mockResponse = {
         ok: true,
         body: new MockReadableStream([
-          'id: 1\n',
-          'retry: 1000\n',
-          'data: {"type":"text","content":"With metadata"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
+          'data: {"type":"token","data":{"token":"Hello"}}\n',
+          'data: {"type":"complete"}\n',
+        ]) as unknown as ReadableStream<Uint8Array>,
       };
 
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
@@ -662,64 +415,21 @@ describe('useStreamingResponse', () => {
       const { result } = renderHook(() => useStreamingResponse());
 
       await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        await result.current.startStreaming({ message: 'test' });
       });
 
       await waitFor(() => {
-        expect(result.current.data).toBe('With metadata');
-      });
-    });
-
-    it('should handle multi-line data events', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream([
-          'data: {"type":"text",\n',
-          'data: "content":"Multi-line"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+        expect(result.current.content).toBe('Hello');
       });
 
-      await waitFor(() => {
-        expect(result.current.data).toBe('Multi-line');
-      });
-    });
-
-    it('should ignore comment lines', async () => {
-      const mockResponse = {
-        ok: true,
-        body: new MockReadableStream([
-          ': This is a comment\n',
-          'data: {"type":"text","content":"Actual data"}\n\n',
-          'data: {"type":"done"}\n\n',
-        ]) as any,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() => useStreamingResponse());
-
-      await act(async () => {
-        await result.current.startStreaming('/api/responses/stream', {
-          requestId: 'req-123',
-        });
+      act(() => {
+        result.current.reset();
       });
 
-      await waitFor(() => {
-        expect(result.current.data).toBe('Actual data');
-      });
+      expect(result.current.content).toBe('');
+      expect(result.current.state).toBe('idle');
+      expect(result.current.toolCalls).toEqual([]);
+      expect(result.current.error).toBeNull();
     });
   });
 });

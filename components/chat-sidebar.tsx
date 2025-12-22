@@ -101,6 +101,10 @@ export interface ChatSession {
       passengers?: number
     }
   }>
+  /** Flag to indicate this chat needs an initial API call (set when created from landing page) */
+  needsInitialApiCall?: boolean
+  /** The initial user message to send when API call is triggered */
+  initialUserMessage?: string
 }
 
 interface ChatSidebarProps {

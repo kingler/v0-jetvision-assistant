@@ -39,8 +39,8 @@ export default function JetvisionAgent() {
       route: "Select route",
       passengers: 1,
       date: "Select date",
-      status: "searching_aircraft", // Step 1 (understanding) is complete, now on step 2
-      currentStep: 2,
+      status: "understanding_request", // Start at step 1 - will be updated by API response
+      currentStep: 1,
       totalSteps: 5,
       messages: [
         {
@@ -49,15 +49,11 @@ export default function JetvisionAgent() {
           content: message,
           timestamp: new Date(),
         },
-        {
-          id: "2",
-          type: "agent",
-          content:
-            "Thank you for reaching out! I'll help you with that. Let me gather some details to provide you with the best options.",
-          timestamp: new Date(),
-          showWorkflow: true, // Show workflow visualization in agent message
-        },
+        // No static agent message - ChatInterface will call the API and add the real response
       ],
+      // Flag to indicate this chat needs an initial API call
+      needsInitialApiCall: true,
+      initialUserMessage: message,
     }
     setChatSessions([newChat, ...chatSessions])
     setActiveChatId(newChat.id)

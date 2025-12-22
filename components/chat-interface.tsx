@@ -14,7 +14,6 @@ import { AgentMessage } from "./chat/agent-message"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import type { QuoteRequest } from "./chat/quote-request-item"
-import { WorkflowVisualization } from "./workflow-visualization"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -306,7 +305,7 @@ export function ChatInterface({
                       if (toolCall.result) {
                         deepLinkData = {
                           tripId: toolCall.result.trip_id,
-                          deepLink: toolCall.result.deep_link || `https://marketplace.avinode.com/trip/${toolCall.result.trip_id}`,
+                          deepLink: toolCall.result.deep_link || `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
                           departureAirport: toolCall.result.departure_airport,
                           arrivalAirport: toolCall.result.arrival_airport,
                           // Date can be at route.departure.date (primary) or departure_date (legacy)
@@ -323,7 +322,7 @@ export function ChatInterface({
                         deepLinkData = {
                           rfpId: toolCall.result.rfp_id,
                           tripId: toolCall.result.trip_id,
-                          deepLink: toolCall.result.deep_link || `https://marketplace.avinode.com/trip/${toolCall.result.trip_id}`,
+                          deepLink: toolCall.result.deep_link || `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
                           departureAirport: toolCall.result.departure_airport,
                           arrivalAirport: toolCall.result.arrival_airport,
                           // Date can be at route.departure.date (primary) or departure_date (legacy)
@@ -345,7 +344,7 @@ export function ChatInterface({
                   showDeepLink = true
                   deepLinkData = {
                     tripId: data.trip_data.trip_id,
-                    deepLink: data.trip_data.deep_link || `https://marketplace.avinode.com/trip/${data.trip_data.trip_id}`,
+                    deepLink: data.trip_data.deep_link || `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
                     departureAirport: data.trip_data.departure_airport,
                     arrivalAirport: data.trip_data.arrival_airport,
                     // Date can be at route.departure.date (primary) or departure_date (legacy)
@@ -362,7 +361,7 @@ export function ChatInterface({
                   deepLinkData = {
                     rfpId: data.rfp_data.rfp_id,
                     tripId: data.rfp_data.trip_id,
-                    deepLink: data.rfp_data.deep_link || `https://marketplace.avinode.com/trip/${data.rfp_data.trip_id}`,
+                    deepLink: data.rfp_data.deep_link || `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
                     departureAirport: data.rfp_data.departure_airport,
                     arrivalAirport: data.rfp_data.arrival_airport,
                     // Date can be at route.departure.date (primary) or departure_date (legacy)
@@ -853,7 +852,7 @@ export function ChatInterface({
                   deepLinkData={message.deepLinkData ? {
                     rfpId: message.deepLinkData.rfpId || activeChat.rfpId,
                     tripId: message.deepLinkData.tripId || activeChat.tripId,
-                    deepLink: message.deepLinkData.deepLink || (activeChat.tripId ? `https://marketplace.avinode.com/trip/${activeChat.tripId}` : undefined),
+                    deepLink: message.deepLinkData.deepLink || (activeChat.tripId ? `https://sandbox.avinode.com/marketplace/mvc/search#preSearch` : undefined),
                     departureAirport: message.deepLinkData.departureAirport || { icao: activeChat.route?.split(' → ')[0] || 'N/A' },
                     arrivalAirport: message.deepLinkData.arrivalAirport || { icao: activeChat.route?.split(' → ')[1] || 'N/A' },
                     departureDate: message.deepLinkData.departureDate || activeChat.date,
@@ -875,6 +874,28 @@ export function ChatInterface({
                   onSelectQuote={handleSelectQuote}
                   onDeepLinkClick={() => console.log('[DeepLink] User clicked Avinode marketplace link')}
                   onCopyDeepLink={() => console.log('[DeepLink] User copied deep link')}
+                  // Pass selected flights for Step 4 display
+                  selectedFlights={tripIdSubmitted && activeChat.quotes ? activeChat.quotes.map(q => ({
+                    id: q.id,
+                    aircraftType: q.aircraftType,
+                    aircraftCategory: 'Heavy jet',
+                    yearOfMake: 1992,
+                    operatorName: q.operatorName,
+                    operatorEmail: 'operator@example.com',
+                    price: q.price,
+                    currency: 'USD',
+                    passengerCapacity: 13,
+                    hasMedical: false,
+                    hasPackage: false,
+                    petsAllowed: true,
+                    smokingAllowed: true,
+                    hasWifi: true,
+                    rfqStatus: 'unanswered' as const,
+                  })) : []}
+                  onViewChat={(flightId) => {
+                    console.log('[Chat] View chat for flight:', flightId)
+                    handleViewQuoteDetails(flightId)
+                  }}
                 />
               )}
             </div>
@@ -896,20 +917,15 @@ export function ChatInterface({
                     <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-0.5" />
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                      <span className="text-sm">Processing your request...</span>
-                    </div>
-                    {/* Show workflow progress while processing */}
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <WorkflowVisualization
-                        isProcessing={true}
-                        embedded={true}
-                        currentStep={activeChat.currentStep}
-                        status={activeChat.status}
-                      />
-                    </div>
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    <span className="text-sm">
+                      {activeChat.status === 'searching_aircraft' ? 'Searching for flights...' :
+                       activeChat.status === 'analyzing_options' ? 'Analyzing quotes...' :
+                       activeChat.status === 'requesting_quotes' ? 'Requesting quotes from operators...' :
+                       activeChat.status === 'understanding_request' ? 'Understanding your request...' :
+                       'Processing your request...'}
+                    </span>
                   </div>
                 )}
               </div>

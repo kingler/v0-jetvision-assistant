@@ -2,6 +2,8 @@ export { TripSummaryCard } from './trip-summary-card';
 export type { TripSummaryCardProps } from './trip-summary-card';
 export { AvinodeDeepLinks } from './avinode-deep-links';
 export type { AvinodeDeepLinksProps } from './avinode-deep-links';
+export { FlightSearchProgress } from './flight-search-progress';
+export type { FlightSearchProgressProps, FlightRequestDetails } from './flight-search-progress';
 export { RfqQuoteDetailsCard } from './rfq-quote-details-card';
 export type { RfqQuoteDetailsCardProps } from './rfq-quote-details-card';
 export { AvinodeSidebarCard } from './avinode-sidebar-card';

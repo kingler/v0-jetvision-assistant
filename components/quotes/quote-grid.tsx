@@ -36,7 +36,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { QuoteCard } from './quote-card';
 import type {
-  Quote,
+  StrictQuote,
   QuoteAction,
   QuoteFilters,
   QuoteSortOption,
@@ -46,8 +46,8 @@ import type {
 } from './types';
 
 interface QuoteGridProps {
-  quotes: Quote[];
-  onQuoteAction?: (action: QuoteAction, quote: Quote) => void;
+  quotes: StrictQuote[];
+  onQuoteAction?: (action: QuoteAction, quote: StrictQuote) => void;
   selectedQuotes?: string[];
   showComparison?: boolean;
   className?: string;
@@ -56,7 +56,7 @@ interface QuoteGridProps {
 /**
  * Calculate quote statistics
  */
-const calculateStats = (quotes: Quote[]): QuoteStats => {
+const calculateStats = (quotes: StrictQuote[]): QuoteStats => {
   if (quotes.length === 0) {
     return {
       total: 0,
@@ -82,7 +82,7 @@ const calculateStats = (quotes: Quote[]): QuoteStats => {
 /**
  * Apply filters to quotes
  */
-const applyFilters = (quotes: Quote[], filters: QuoteFilters): Quote[] => {
+const applyFilters = (quotes: StrictQuote[], filters: QuoteFilters): StrictQuote[] => {
   return quotes.filter((quote) => {
     // Price range
     if (
@@ -117,7 +117,7 @@ const applyFilters = (quotes: Quote[], filters: QuoteFilters): Quote[] => {
 /**
  * Apply sorting to quotes
  */
-const applySorting = (quotes: Quote[], sortOption: QuoteSortOption): Quote[] => {
+const applySorting = (quotes: StrictQuote[], sortOption: QuoteSortOption): StrictQuote[] => {
   const sorted = [...quotes];
 
   switch (sortOption) {
@@ -164,14 +164,14 @@ export const QuoteGrid: React.FC<QuoteGridProps> = ({
   const [showFilters, setShowFilters] = useState(false);
 
   // Calculate initial price range
-  const initialPriceRange = useMemo(() => {
+  const initialPriceRange = useMemo((): [number, number] => {
     if (quotes.length === 0) return [0, 100000];
     const prices = quotes.map((q) => q.pricing.total);
     return [Math.min(...prices), Math.max(...prices)];
   }, [quotes]);
 
   const [filters, setFilters] = useState<QuoteFilters>({
-    priceRange: initialPriceRange,
+    priceRange: initialPriceRange as [number, number],
     aircraftTypes: [],
     departureTimeRange: ['', ''],
     operatorRating: 0,
@@ -229,7 +229,7 @@ export const QuoteGrid: React.FC<QuoteGridProps> = ({
   // Reset filters
   const resetFilters = () => {
     setFilters({
-      priceRange: initialPriceRange,
+      priceRange: initialPriceRange as [number, number],
       aircraftTypes: [],
       departureTimeRange: ['', ''],
       operatorRating: 0,

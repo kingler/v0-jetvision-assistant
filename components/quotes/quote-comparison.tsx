@@ -52,10 +52,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Quote } from './types';
+import type { StrictQuote } from './types';
 
 interface QuoteComparisonProps {
-  quotes: Quote[];
+  quotes: StrictQuote[];
   maxQuotes?: number;
   onRemoveQuote?: (quoteId: string) => void;
   onSelectQuote?: (quoteId: string) => void;
@@ -96,7 +96,7 @@ const formatDuration = (minutes: number): string => {
 /**
  * Get price difference indicator
  */
-const getPriceDifference = (quote: Quote, baselinePrice: number): React.ReactNode => {
+const getPriceDifference = (quote: StrictQuote, baselinePrice: number): React.ReactNode => {
   const diff = quote.pricing.total - baselinePrice;
   const percentDiff = ((diff / baselinePrice) * 100).toFixed(1);
 
@@ -124,7 +124,7 @@ const getPriceDifference = (quote: Quote, baselinePrice: number): React.ReactNod
 /**
  * Value indicator component
  */
-const ValueIndicator: React.FC<{ quote: Quote; quotes: Quote[] }> = ({ quote, quotes }) => {
+const ValueIndicator: React.FC<{ quote: StrictQuote; quotes: StrictQuote[] }> = ({ quote, quotes }) => {
   // Calculate value score based on price vs quality
   const avgPrice = quotes.reduce((sum, q) => sum + q.pricing.total, 0) / quotes.length;
   const avgQuality = quotes.reduce((sum, q) => sum + q.scores.overall, 0) / quotes.length;

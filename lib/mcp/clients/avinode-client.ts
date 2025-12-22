@@ -104,6 +104,51 @@ export class AvinodeClient {
   }
 
   /**
+   * Create a trip container and return deep link for manual operator selection
+   * This is the primary tool for the deep link workflow
+   */
+  async createTrip(params: {
+    departure_airport: string;
+    arrival_airport: string;
+    departure_date: string;
+    passengers: number;
+    departure_time?: string;
+    return_date?: string;
+    return_time?: string;
+    aircraft_category?: string;
+    special_requirements?: string;
+    client_reference?: string;
+  }) {
+    try {
+      const response = await this.client.post('/v1/trips', {
+        route: {
+          departure: {
+            airport: params.departure_airport,
+            date: params.departure_date,
+            time: params.departure_time,
+          },
+          arrival: {
+            airport: params.arrival_airport,
+          },
+          return: params.return_date
+            ? {
+                date: params.return_date,
+                time: params.return_time,
+              }
+            : undefined,
+        },
+        passengers: params.passengers,
+        aircraft_category: params.aircraft_category,
+        special_requirements: params.special_requirements,
+        client_reference: params.client_reference,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.sanitizeError(error);
+    }
+  }
+
+  /**
    * Handle API errors
    */
   private handleError(error: AxiosError): Promise<never> {

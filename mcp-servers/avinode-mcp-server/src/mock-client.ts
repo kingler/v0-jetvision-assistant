@@ -291,8 +291,8 @@ export class MockAvinodeClient {
       created_at: new Date().toISOString(),
       operators_notified: operatorCount,
       quote_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      deep_link: `https://marketplace.avinode.com/trip/${tripId}`,
-      watch_url: `https://marketplace.avinode.com/trip/${tripId}/watch`,
+      deep_link: `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
+      watch_url: `https://sandbox.avinode.com/marketplace/mvc/trips/selling/rfq?source=api&rfq=${requestId}`,
     };
   }
 
@@ -312,7 +312,7 @@ export class MockAvinodeClient {
       operators_contacted: 5,
       quotes_received: quotes.length,
       quotes: quotes,
-      deep_link: `https://marketplace.avinode.com/trip/${tripId}`,
+      deep_link: `https://sandbox.avinode.com/marketplace/mvc/trips/selling/rfq?source=api&rfq=${rfpId}`,
     };
   }
 
@@ -591,8 +591,8 @@ export class MockAvinodeClient {
 
     return {
       trip_id: tripId,
-      deep_link: `https://marketplace.avinode.com/trip/${tripId}`,
-      search_link: `https://marketplace.avinode.com/trip/${tripId}/search`,
+      deep_link: `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
+      search_link: `https://sandbox.avinode.com/marketplace/mvc/search/load/${tripId}?source=api&origin=api_action`,
       status: 'created',
       created_at: new Date().toISOString(),
       route: {

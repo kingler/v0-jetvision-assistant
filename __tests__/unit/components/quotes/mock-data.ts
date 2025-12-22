@@ -3,9 +3,9 @@
  * @module __tests__/unit/components/quotes/mock-data
  */
 
-import type { Quote } from '@/components/quotes/types';
+import type { StrictQuote } from '@/components/quotes/types';
 
-export const mockQuote1: Quote = {
+export const mockQuote1: StrictQuote = {
   id: 'quote-1',
   operator: {
     id: 'op-1',
@@ -93,7 +93,7 @@ export const mockQuote1: Quote = {
   updatedAt: '2025-12-13T10:00:00Z',
 };
 
-export const mockQuote2: Quote = {
+export const mockQuote2: StrictQuote = {
   id: 'quote-2',
   operator: {
     id: 'op-2',
@@ -175,7 +175,7 @@ export const mockQuote2: Quote = {
   updatedAt: '2025-12-13T10:00:00Z',
 };
 
-export const mockQuote3: Quote = {
+export const mockQuote3: StrictQuote = {
   id: 'quote-3',
   operator: {
     id: 'op-3',
@@ -269,4 +269,4 @@ export const mockQuote3: Quote = {
   updatedAt: '2025-12-13T10:00:00Z',
 };
 
-export const mockQuotes: Quote[] = [mockQuote1, mockQuote2, mockQuote3];
+export const mockQuotes: StrictQuote[] = [mockQuote1, mockQuote2, mockQuote3];

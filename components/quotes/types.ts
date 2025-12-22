@@ -1,163 +1,58 @@
 /**
  * TypeScript types for Quote Comparison & Selection Interface
  * @module components/quotes/types
+ *
+ * @deprecated Import from '@/lib/types/quotes' instead.
+ * This file re-exports types for backwards compatibility.
  */
 
-/**
- * Operator information for a quote
- */
-export interface OperatorInfo {
-  id: string;
-  name: string;
-  logo?: string;
-  rating: number;
-  totalFlights: number;
-  certifications: string[];
-  location: string;
-}
-
-/**
- * Aircraft information for a quote
- */
-export interface AircraftInfo {
-  id: string;
-  type: string;
-  model: string;
-  year: number;
-  capacity: number;
-  range: number;
-  speed: number;
-  amenities: string[];
-  imageUrl?: string;
-}
-
-/**
- * Pricing details for a quote
- */
-export interface PricingDetails {
-  basePrice: number;
-  taxes: number;
-  fees: number;
-  total: number;
-  currency: string;
-  pricePerHour?: number;
-  fuelSurcharge?: number;
-}
-
-/**
- * Individual score breakdown
- */
-export interface ScoreBreakdown {
-  category: string;
-  score: number;
-  maxScore: number;
-  weight: number;
-  description: string;
-}
-
-/**
- * Quote scoring information
- */
-export interface QuoteScores {
-  overall: number;
-  price: number;
-  safety: number;
-  availability: number;
-  operatorRating: number;
-  aircraftQuality: number;
-  breakdown: ScoreBreakdown[];
-}
-
-/**
- * Pros and cons for a quote
- */
-export interface ProsCons {
-  pros: string[];
-  cons: string[];
-}
-
-/**
- * Complete quote information
- */
-export interface Quote {
-  id: string;
-  operator: OperatorInfo;
-  aircraft: AircraftInfo;
-  pricing: PricingDetails;
-  scores: QuoteScores;
-  departureTime: string;
-  arrivalTime: string;
-  flightDuration: number; // in minutes
-  features: string[];
-  prosCons: ProsCons;
-  rank?: number;
-  recommended?: boolean;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
- * Filter options for quotes
- */
-export interface QuoteFilters {
-  priceRange: [number, number];
-  aircraftTypes: string[];
-  departureTimeRange: [string, string];
-  operatorRating: number;
-  minCapacity?: number;
-  amenities?: string[];
-  certifications?: string[];
-}
-
-/**
- * Sort options for quotes
- */
-export type QuoteSortOption =
-  | 'price-asc'
-  | 'price-desc'
-  | 'rating-asc'
-  | 'rating-desc'
-  | 'departure-asc'
-  | 'departure-desc'
-  | 'recommended';
-
-/**
- * View mode for quote display
- */
-export type QuoteViewMode = 'grid' | 'list';
-
-/**
- * Quick filter presets
- */
-export type QuickFilterPreset = 'best-value' | 'fastest' | 'cheapest' | 'highest-rated';
-
-/**
- * Quote action types
- */
-export type QuoteAction =
-  | 'select'
-  | 'compare'
-  | 'download-pdf'
-  | 'add-note'
-  | 'share'
-  | 'request-details';
-
-/**
- * Quote comparison state
- */
-export interface ComparisonState {
-  selectedQuotes: Quote[];
-  maxSelections: number;
-}
-
-/**
- * Quote statistics
- */
-export interface QuoteStats {
-  total: number;
-  averagePrice: number;
-  priceRange: [number, number];
-  averageRating: number;
-  recommendedCount: number;
-}
+// Re-export all quote types from centralized location
+export {
+  // Core entities
+  type QuoteOperator,
+  type QuoteAircraft,
+  type QuotePricing,
+  type AirportInfo,
+  type BuyerInfo,
+  type FlightDetails,
+  type LinkInfo,
+  // Scoring
+  type ScoreBreakdown,
+  type QuoteScores,
+  type ProsCons,
+  // Status types
+  type TripStatus,
+  type QuoteStatus,
+  type WebhookStatus,
+  type WorkflowStatus,
+  type AvinodeMessageType,
+  type AuthMethod,
+  type EnvironmentType,
+  // Quote interfaces
+  type Quote,
+  type SimpleQuote,
+  type SidebarQuote,
+  // Strict quote variants (all fields required)
+  type StrictQuote,
+  type StrictQuoteOperator,
+  type StrictQuoteAircraft,
+  type StrictQuotePricing,
+  // Filtering & sorting
+  type QuoteFilters,
+  type QuoteSortOption,
+  type QuoteViewMode,
+  type QuickFilterPreset,
+  type QuoteAction,
+  // Comparison & stats
+  type ComparisonState,
+  type QuoteStats,
+  // Quick actions
+  type QuickAction,
+  // Legacy aliases (deprecated)
+  type OperatorInfo,
+  type AircraftInfo,
+  type PricingDetails,
+  type PriceInfo,
+  type FlightDetailsInfo,
+  type QuoteInfo,
+} from '@/lib/types/quotes';

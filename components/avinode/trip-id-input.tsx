@@ -149,12 +149,13 @@ export function TripIDInput({
   const validationErrorId = `trip-id-validation-error-${instanceId}`;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
+    <form data-testid="trip-id-form" onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
       <div className="space-y-2">
         <Label htmlFor={inputId} className="text-sm font-medium">
           Avinode Trip ID
         </Label>
         <Input
+          data-testid="trip-id-input"
           ref={inputRef}
           id={inputId}
           type="text"
@@ -180,7 +181,7 @@ export function TripIDInput({
 
       {/* Validation error */}
       {showValidationError && (
-        <div id={validationErrorId} className="text-sm text-destructive flex items-start gap-2">
+        <div data-testid="trip-id-validation-error" id={validationErrorId} className="text-sm text-destructive flex items-start gap-2">
           <span className="text-destructive">⚠</span>
           <span>{validationError}</span>
         </div>
@@ -188,7 +189,7 @@ export function TripIDInput({
 
       {/* External error */}
       {error && (
-        <div className="text-sm text-destructive flex items-start gap-2">
+        <div data-testid="trip-id-error" className="text-sm text-destructive flex items-start gap-2">
           <span className="text-destructive">✕</span>
           <span id={errorId} className="text-destructive">{error}</span>
         </div>
@@ -197,6 +198,7 @@ export function TripIDInput({
       {/* Action buttons */}
       <div className="flex gap-3 pt-2">
         <Button
+          data-testid="trip-id-submit-button"
           type="submit"
           disabled={!isValid || isLoading}
           className="flex-1"

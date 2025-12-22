@@ -11,8 +11,16 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import OpenAI from 'openai'
+import type { ChatCompletionMessageToolCall } from 'openai/resources/chat/completions'
 import { z } from 'zod'
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
+
+// Type guard for standard function tool calls
+function isFunctionToolCall(
+  toolCall: ChatCompletionMessageToolCall
+): toolCall is ChatCompletionMessageToolCall & { type: 'function'; function: { name: string; arguments: string } } {
+  return toolCall.type === 'function' && 'function' in toolCall
+}
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -49,40 +57,105 @@ const ChatRequestSchema = z.object({
 // System prompt for JetVision assistant with Avinode integration
 const SYSTEM_PROMPT = `You are the JetVision AI Assistant, a professional private jet charter concierge.
 
-CRITICAL: When a user provides flight details (airports, dates, passengers), you MUST IMMEDIATELY call the appropriate tools. Do NOT respond conversationally first - call the tools right away.
+CRITICAL WORKFLOW: When a user provides flight details (airports, dates, passengers), you MUST:
+1. Call create_trip to create a trip container and get the deep link
+2. Present the deep link prominently so the user can access Avinode marketplace
+3. The deep link is ESSENTIAL - it's how users select flights and get quotes
 
 Tool Usage Rules:
-- If user mentions origin/destination airports + date + passengers → IMMEDIATELY call search_flights
-- If user asks to "create RFP", "get quotes", "book", or "proceed" → IMMEDIATELY call create_rfp with search results
-- If user asks about quote status → IMMEDIATELY call get_quote_status or get_quotes
+- Flight request with airports + date + passengers → Call create_trip (returns deep_link)
+- User provides a Trip ID → Call get_rfq to retrieve quotes
+- User asks about quote status → Call get_quote_status or get_quotes
+- For flight search preview → Call search_flights (optional, for showing options)
 
 Example: User says "I need a flight from KTEB to KVNY for 4 passengers on Jan 20"
-→ You MUST call search_flights with those exact parameters, then create_rfp
+→ Call create_trip with departure_airport, arrival_airport, passengers, departure_date
+→ Present the deep_link prominently in your response
+→ The deep link opens Avinode marketplace where user selects operators
 
-Your workflow:
-1. When flight details are provided → call search_flights immediately
-2. Show results and ask if they want to proceed
-3. When confirmed → call create_rfp to get operator quotes
-4. Present the Avinode marketplace deep link to the user
+Human-in-the-Loop Workflow:
+1. User provides flight details → You call create_trip
+2. You present the Avinode marketplace deep link prominently
+3. The user opens the deep link in Avinode, reviews operators, and selects which ones to contact
+4. After operators respond (10-30 minutes), user gets quotes with a Trip ID
+5. User provides the Trip ID → You call get_rfq to retrieve all quotes
+6. You display the received quotes with pricing and aircraft details
 
 Communication style:
 - Professional yet warm and personable
 - Clear and concise, avoiding jargon
-- Proactive in using tools when information is available
+- ALWAYS present the deep link prominently - it's the key to the marketplace
 
 Context:
 - You work with operators via the Avinode marketplace
-- Quotes typically take 10-30 minutes to receive
+- The deep link (from create_trip) is how users access the marketplace to select operators
+- After creating the trip, the user must MANUALLY select operators in Avinode via the deep link
+- Quotes typically take 10-30 minutes to receive after operators are contacted
 - ICAO codes are 4-letter airport identifiers (e.g., KTEB for Teterboro, KVNY for Van Nuys)
-- Always use ICAO codes when calling tools`
+- Always use ICAO codes when calling tools
+- Trip IDs are alphanumeric identifiers like atrip-64956150`
 
 // OpenAI function definitions for Avinode tools
 const AVINODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'create_trip',
+      description: 'Create a trip container in Avinode and return a deep link for manual operator selection. This is the PRIMARY tool for initiating the flight booking workflow. The deep link allows users to open the Avinode marketplace to select aircraft and send RFPs to operators. Use this FIRST when a user provides flight details.',
+      parameters: {
+        type: 'object',
+        properties: {
+          departure_airport: {
+            type: 'string',
+            description: 'Departure airport ICAO code (4 letters, e.g., KTEB, KJFK)',
+          },
+          arrival_airport: {
+            type: 'string',
+            description: 'Arrival airport ICAO code (4 letters, e.g., KOPF, KVNY)',
+          },
+          departure_date: {
+            type: 'string',
+            description: 'Departure date in YYYY-MM-DD format',
+          },
+          passengers: {
+            type: 'number',
+            description: 'Number of passengers (1-19)',
+          },
+          departure_time: {
+            type: 'string',
+            description: 'Optional departure time in HH:MM format',
+          },
+          return_date: {
+            type: 'string',
+            description: 'Optional return date for round-trip in YYYY-MM-DD format',
+          },
+          return_time: {
+            type: 'string',
+            description: 'Optional return time in HH:MM format',
+          },
+          aircraft_category: {
+            type: 'string',
+            enum: ['light', 'midsize', 'heavy', 'ultra-long-range'],
+            description: 'Optional aircraft category preference',
+          },
+          special_requirements: {
+            type: 'string',
+            description: 'Optional special requirements or notes',
+          },
+          client_reference: {
+            type: 'string',
+            description: 'Optional internal reference ID for tracking',
+          },
+        },
+        required: ['departure_airport', 'arrival_airport', 'departure_date', 'passengers'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'search_flights',
-      description: 'Search for available charter flights and aircraft via Avinode marketplace. Use this when a user asks about flight availability or wants to see options.',
+      description: 'Search for available charter flights and aircraft via Avinode marketplace. Use this when a user wants to preview available options before creating a trip.',
       parameters: {
         type: 'object',
         properties: {
@@ -116,7 +189,7 @@ const AVINODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'create_rfp',
-      description: 'Create a Request for Proposal (RFP) and send to operators to get quotes. Use this when the user wants to proceed with getting actual quotes.',
+      description: 'Create a Request for Proposal (RFP) and send to operators to get quotes. Use this as an alternative to create_trip for automated RFP distribution.',
       parameters: {
         type: 'object',
         properties: {
@@ -176,6 +249,40 @@ const AVINODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           },
         },
         required: ['rfp_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_rfq',
+      description: 'Get RFQ (Request for Quote) details including all received quotes from operators. Use this when the user provides a Trip ID to retrieve their quotes after completing selection in Avinode marketplace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          rfq_id: {
+            type: 'string',
+            description: 'The RFQ/Trip ID to retrieve quotes for (6-12 alphanumeric characters)',
+          },
+        },
+        required: ['rfq_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_quote',
+      description: 'Get detailed information about a specific quote from an operator, including pricing breakdown, aircraft details, and availability.',
+      parameters: {
+        type: 'object',
+        properties: {
+          quote_id: {
+            type: 'string',
+            description: 'The quote identifier (e.g., aquote-12345678)',
+          },
+        },
+        required: ['quote_id'],
       },
     },
   },
@@ -280,22 +387,63 @@ export async function POST(req: NextRequest) {
 
     // Detect if message contains flight details that should trigger tool usage
     const messageText = message.toLowerCase()
-    const hasFlightDetails = (
-      (messageText.includes('kteb') || messageText.includes('teterboro') ||
-       messageText.includes('kvny') || messageText.includes('van nuys') ||
-       messageText.includes('klax') || messageText.includes('kjfk') ||
-       /[a-z]{4}/.test(messageText)) && // Has airport-like codes
-      (messageText.includes('passenger') || /\d+\s*(pax|people|person)/.test(messageText)) &&
-      (messageText.includes('202') || messageText.includes('january') ||
-       messageText.includes('february') || messageText.includes('march') ||
-       /\d{1,2}[\/\-]\d{1,2}/.test(messageText)) // Has date-like content
-    )
+
+    // Check for ICAO airport codes (4 uppercase letters) - case-insensitive pattern
+    const hasAirportCode = /\b[a-z]{4}\b/i.test(message) || // ICAO codes like KTEB, KLAX
+      messageText.includes('teterboro') ||
+      messageText.includes('van nuys') ||
+      messageText.includes('los angeles') ||
+      messageText.includes('new york') ||
+      messageText.includes('jfk') ||
+      messageText.includes('lax')
+
+    // Check for passenger count
+    const hasPassengers = messageText.includes('passenger') ||
+      /\d+\s*(pax|people|person|guests?)/i.test(message)
+
+    // Check for date reference
+    const hasDate = messageText.includes('202') || // Years 2020-2029
+      /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(message) ||
+      /\d{1,2}[\/\-]\d{1,2}/.test(message) || // Date formats like 1/25 or 12-25
+      messageText.includes('tomorrow') ||
+      messageText.includes('next week')
+
+    // Check for flight-related keywords
+    const hasFlightKeywords = messageText.includes('flight') ||
+      messageText.includes('charter') ||
+      messageText.includes('jet') ||
+      messageText.includes('fly') ||
+      messageText.includes('travel')
+
+    const hasFlightDetails = hasAirportCode && hasPassengers && (hasDate || hasFlightKeywords)
+
     const wantsRFP = messageText.includes('rfp') || messageText.includes('quote') ||
                      messageText.includes('book') || messageText.includes('proceed')
 
-    // Use 'required' for tool_choice when flight details are detected
-    const toolChoice = hasFlightDetails || wantsRFP ? 'required' : 'auto'
-    console.log(`[Chat API] Tool choice: ${toolChoice} (hasFlightDetails: ${hasFlightDetails}, wantsRFP: ${wantsRFP})`)
+    // Detect if message contains a Trip ID (6-12 alphanumeric characters)
+    // Pattern: standalone alphanumeric string that looks like a Trip ID
+    const tripIdPattern = /\b[A-Z0-9]{6,12}\b/i
+    const hasTripId = tripIdPattern.test(message) &&
+                      (messageText.includes('trip id') ||
+                       messageText.includes('tripid') ||
+                       messageText.includes('trip:') ||
+                       messageText.includes('here is') ||
+                       messageText.includes("here's") ||
+                       messageText.includes('my trip') ||
+                       // Also match if context indicates we're waiting for a trip ID
+                       context?.tripId !== undefined)
+
+    // Use 'required' for tool_choice when flight details, RFP request, or Trip ID is detected
+    const toolChoice = hasFlightDetails || wantsRFP || hasTripId ? 'required' : 'auto'
+    console.log(`[Chat API] Message analysis:`)
+    console.log(`  - hasAirportCode: ${hasAirportCode}`)
+    console.log(`  - hasPassengers: ${hasPassengers}`)
+    console.log(`  - hasDate: ${hasDate}`)
+    console.log(`  - hasFlightKeywords: ${hasFlightKeywords}`)
+    console.log(`  - hasFlightDetails: ${hasFlightDetails}`)
+    console.log(`  - wantsRFP: ${wantsRFP}`)
+    console.log(`  - hasTripId: ${hasTripId}`)
+    console.log(`[Chat API] Tool choice: ${toolChoice}`)
 
     // First, make a non-streaming call to check for tool usage
     const initialResponse = await openai.chat.completions.create({
@@ -310,16 +458,35 @@ export async function POST(req: NextRequest) {
 
     const initialMessage = initialResponse.choices[0]?.message
 
+    console.log(`[Chat API] OpenAI response:`)
+    console.log(`  - finish_reason: ${initialResponse.choices[0]?.finish_reason}`)
+    console.log(`  - tool_calls count: ${initialMessage?.tool_calls?.length || 0}`)
+    if (initialMessage?.tool_calls) {
+      for (const tc of initialMessage.tool_calls) {
+        if ('function' in tc) {
+          console.log(`  - tool: ${tc.function.name}`)
+        }
+      }
+    }
+
     // Check if the model wants to call a tool
     if (initialMessage?.tool_calls && initialMessage.tool_calls.length > 0) {
       // Execute all tool calls
       const toolResults: OpenAI.Chat.ChatCompletionToolMessageParam[] = []
 
+      // Track if we need to auto-chain create_rfp after search_flights
+      let searchFlightsArgs: Record<string, unknown> | null = null
+      let searchFlightsResult: { success: boolean; data?: unknown } | null = null
+
       for (const toolCall of initialMessage.tool_calls) {
+        // Skip non-function tool calls
+        if (!isFunctionToolCall(toolCall)) continue
+
         const args = JSON.parse(toolCall.function.arguments)
         console.log(`[Chat API] Executing tool: ${toolCall.function.name}`, args)
 
         const result = await executeAvinodeTool(toolCall.function.name, args)
+        console.log(`[Chat API] Tool ${toolCall.function.name} result:`, JSON.stringify(result, null, 2))
 
         toolResults.push({
           role: 'tool',
@@ -327,9 +494,67 @@ export async function POST(req: NextRequest) {
           content: JSON.stringify(result.success ? result.data : { error: result.error }),
         })
 
+        // Track search_flights for auto-chaining to create_rfp
+        if (toolCall.function.name === 'search_flights' && result.success) {
+          searchFlightsArgs = args
+          searchFlightsResult = result
+          console.log('[Chat API] search_flights succeeded, will auto-chain create_rfp')
+        }
+
         // If this was create_rfp, add special metadata to the response
         if (toolCall.function.name === 'create_rfp' && result.success) {
           console.log('[Chat API] RFP created:', result.data)
+        }
+      }
+
+      // AUTO-CHAIN: If search_flights was called but create_rfp was not, call it automatically
+      // This ensures the deep link is always generated after a successful flight search
+      const functionToolCalls = initialMessage.tool_calls.filter(isFunctionToolCall)
+      const hasCreateRfp = functionToolCalls.some(tc => tc.function.name === 'create_rfp')
+
+      if (searchFlightsArgs && searchFlightsResult && !hasCreateRfp) {
+        console.log('[Chat API] Auto-chaining create_rfp after search_flights')
+
+        // Extract operator IDs from search results if available
+        const searchData = searchFlightsResult.data as { operators?: Array<{ id: string }> } | undefined
+        const operatorIds = searchData?.operators?.map((op: { id: string }) => op.id) || ['auto-selected']
+
+        const createRfpArgs = {
+          flight_details: {
+            departure_airport: searchFlightsArgs.departure_airport,
+            arrival_airport: searchFlightsArgs.arrival_airport,
+            passengers: searchFlightsArgs.passengers,
+            departure_date: searchFlightsArgs.departure_date,
+          },
+          operator_ids: operatorIds,
+        }
+
+        console.log('[Chat API] Auto-calling create_rfp with:', createRfpArgs)
+
+        const rfpResult = await executeAvinodeTool('create_rfp', createRfpArgs)
+
+        // Add a synthetic tool call for create_rfp
+        const syntheticToolCallId = `auto_create_rfp_${Date.now()}`
+        const syntheticToolCall = {
+          id: syntheticToolCallId,
+          type: 'function' as const,
+          function: {
+            name: 'create_rfp',
+            arguments: JSON.stringify(createRfpArgs),
+          },
+        }
+
+        // Add to the assistant message's tool_calls
+        initialMessage.tool_calls.push(syntheticToolCall)
+
+        toolResults.push({
+          role: 'tool',
+          tool_call_id: syntheticToolCallId,
+          content: JSON.stringify(rfpResult.success ? rfpResult.data : { error: rfpResult.error }),
+        })
+
+        if (rfpResult.success) {
+          console.log('[Chat API] Auto-chained RFP created:', rfpResult.data)
         }
       }
 
@@ -348,16 +573,59 @@ export async function POST(req: NextRequest) {
 
       const finalContent = finalResponse.choices[0]?.message?.content || ''
 
-      // Check if RFP was created and include deep link
+      // Check if trip/RFP was created and include deep link
+      let tripData = null
       let rfpData = null
-      for (const toolCall of initialMessage.tool_calls) {
-        if (toolCall.function.name === 'create_rfp') {
-          const resultIndex = initialMessage.tool_calls.indexOf(toolCall)
-          const toolResult = toolResults[resultIndex]
+      let rfqData = null
+      // Re-filter to include any auto-chained tool calls
+      const allFunctionToolCalls = initialMessage.tool_calls.filter(isFunctionToolCall)
+
+      for (let i = 0; i < allFunctionToolCalls.length; i++) {
+        const toolCall = allFunctionToolCalls[i]
+        const toolResult = toolResults[i]
+        if (!toolResult) continue
+
+        const toolResultContent = typeof toolResult.content === 'string'
+          ? toolResult.content
+          : JSON.stringify(toolResult.content)
+
+        // Handle create_trip tool - returns deep_link (PRIMARY workflow)
+        if (toolCall.function.name === 'create_trip') {
           try {
-            const parsed = JSON.parse(toolResult.content)
+            const parsed = JSON.parse(toolResultContent)
+            if (parsed.trip_id && parsed.deep_link) {
+              tripData = parsed
+              console.log('[Chat API] Trip created with deep link:', {
+                tripId: parsed.trip_id,
+                deepLink: parsed.deep_link,
+              })
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        if (toolCall.function.name === 'create_rfp') {
+          try {
+            const parsed = JSON.parse(toolResultContent)
             if (parsed.rfp_id) {
               rfpData = parsed
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        // Handle get_rfq tool - returns quotes data
+        if (toolCall.function.name === 'get_rfq') {
+          try {
+            const parsed = JSON.parse(toolResultContent)
+            if (parsed.rfq_id || parsed.quotes) {
+              rfqData = parsed
+              console.log('[Chat API] RFQ data retrieved:', {
+                rfqId: parsed.rfq_id,
+                quotesCount: parsed.quotes?.length || 0,
+              })
             }
           } catch {
             // Ignore parse errors
@@ -370,20 +638,35 @@ export async function POST(req: NextRequest) {
         content: string
         done: boolean
         tool_calls?: Array<{ name: string; result: unknown }>
+        trip_data?: unknown
         rfp_data?: unknown
+        rfq_data?: unknown
         mock_mode: boolean
       } = {
         content: finalContent,
         done: true,
-        tool_calls: initialMessage.tool_calls.map((tc, i) => ({
+        tool_calls: allFunctionToolCalls.map((tc, i) => ({
           name: tc.function.name,
-          result: JSON.parse(toolResults[i].content),
+          result: toolResults[i] ? JSON.parse(
+            typeof toolResults[i].content === 'string'
+              ? toolResults[i].content
+              : JSON.stringify(toolResults[i].content)
+          ) : null,
         })),
         mock_mode: isMockMode,
       }
 
+      if (tripData) {
+        responseData.trip_data = tripData
+        console.log(`[Chat API] Including trip_data in response:`, JSON.stringify(tripData, null, 2))
+      }
+
       if (rfpData) {
         responseData.rfp_data = rfpData
+      }
+
+      if (rfqData) {
+        responseData.rfq_data = rfqData
       }
 
       // Return as SSE format for consistency
@@ -505,7 +788,9 @@ export async function GET() {
       openai_configured: openaiConfigured,
       avinode_status: avinodeStatus,
       model: openaiConfigured ? 'gpt-4o' : null,
-      tools: AVINODE_TOOLS.map((t) => t.function.name),
+      tools: AVINODE_TOOLS.filter((t): t is OpenAI.Chat.ChatCompletionTool & { type: 'function'; function: { name: string } } =>
+        t.type === 'function' && 'function' in t
+      ).map((t) => t.function.name),
     }),
     { headers: { 'Content-Type': 'application/json' } }
   )

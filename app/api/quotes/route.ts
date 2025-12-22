@@ -1,68 +1,74 @@
 /**
  * Quotes API Route - Quote management
+ *
+ * Uses consolidated API utilities from lib/utils/api.ts
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
+import {
+  withErrorHandling,
+  withAuth,
+  parseJsonBody,
+  validateRequiredFields,
+  isErrorResponse,
+  ErrorResponses,
+  SuccessResponses,
+  type AuthenticatedUser,
+} from '@/lib/utils/api';
 import type { Database } from '@/lib/types/database';
-
-type User = Database['public']['Tables']['users']['Row'];
-type Quote = Database['public']['Tables']['quotes']['Row'];
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+/**
+ * GET /api/quotes
+ * Fetch quotes with optional filters
+ */
+export const GET = withErrorHandling(
+  withAuth(async (request: NextRequest, user: AuthenticatedUser) => {
     const { searchParams } = new URL(request.url);
     const requestId = searchParams.get('request_id');
     const status = searchParams.get('status');
 
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('clerk_user_id', userId)
-      .single<Pick<User, 'id' | 'role'>>();
-
-    if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    let query = supabase
-      .from('quotes')
-      .select('*');
+    let query = supabase.from('quotes').select('*');
 
     if (requestId) query = query.eq('request_id', requestId);
     if (status) query = query.eq('status', status as Database['public']['Enums']['quote_status']);
 
     const { data: quotes, error } = await query;
-    if (error) return NextResponse.json({ error: 'Failed to fetch quotes' }, { status: 500 });
 
-    return NextResponse.json({ quotes });
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const body = await request.json() as Record<string, any>;
-    const { quote_id, status, notes } = body;
-    if (!quote_id || !status) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (error) {
+      return ErrorResponses.internalError('Failed to fetch quotes');
     }
 
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('clerk_user_id', userId)
-      .single<Pick<User, 'id' | 'role'>>();
+    return SuccessResponses.ok({ quotes });
+  })
+);
 
-    if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+/**
+ * PATCH /api/quotes
+ * Update a quote's status and notes
+ */
+export const PATCH = withErrorHandling(
+  withAuth(async (request: NextRequest, user: AuthenticatedUser) => {
+    const bodyOrError = await parseJsonBody<{
+      quote_id: string;
+      status: string;
+      notes?: string;
+    }>(request);
+
+    if (isErrorResponse(bodyOrError)) {
+      return bodyOrError;
+    }
+
+    const body = bodyOrError;
+    const validationError = validateRequiredFields(body, ['quote_id', 'status']);
+
+    if (validationError) {
+      return validationError;
+    }
+
+    const { quote_id, status, notes } = body;
 
     const updateData: Database['public']['Tables']['quotes']['Update'] = {
       status: status as Database['public']['Enums']['quote_status'],
@@ -76,8 +82,11 @@ export async function PATCH(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: 'Failed to update quote' }, { status: 500 });
+    if (error) {
+      return ErrorResponses.internalError('Failed to update quote');
+    }
 
+    // If quote accepted, mark the request as completed
     if (status === 'accepted' && updatedQuote) {
       await supabase
         .from('requests')
@@ -85,8 +94,6 @@ export async function PATCH(request: NextRequest) {
         .eq('id', updatedQuote.request_id);
     }
 
-    return NextResponse.json({ quote: updatedQuote });
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
+    return SuccessResponses.ok({ quote: updatedQuote });
+  })
+);

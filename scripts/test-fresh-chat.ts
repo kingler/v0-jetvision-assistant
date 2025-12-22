@@ -1,57 +1,102 @@
 /**
- * Test Fresh Chat - Starts a new chat from landing page
+ * Start a fresh chat and test the deep link workflow
  */
-import { chromium, type Page, type Browser } from 'playwright'
+import { chromium } from 'playwright';
 
-const CHROME_DEBUG_URL = 'http://localhost:9222'
+async function testFreshChat() {
+  console.log('Connecting to Chrome...');
 
-async function runTest() {
-  console.log('🔌 Connecting to Chrome...')
-  const browser = await chromium.connectOverCDP(CHROME_DEBUG_URL)
-  const contexts = browser.contexts()
-  const page = contexts[0].pages()[0]
-  
-  // Click "New" button to start fresh
-  console.log('📤 Starting fresh chat...')
-  const newButton = page.locator('button:has-text("New")')
-  if (await newButton.count() > 0) {
-    await newButton.click()
-    await page.waitForTimeout(1000)
-    console.log('✅ Clicked New button')
+  const browser = await chromium.connectOverCDP('http://localhost:9222');
+  const context = browser.contexts()[0];
+
+  if (!context) {
+    console.log('No browser context found');
+    await browser.close();
+    return;
   }
-  
-  // Check if we're on landing page
-  const isLanding = await page.locator('text="How can I help you today?"').count() > 0
-  console.log(`  - On landing page: ${isLanding}`)
-  
-  if (!isLanding) {
-    console.log('⚠️ Not on landing page, navigating...')
-    await page.goto('http://localhost:3000')
-    await page.waitForTimeout(2000)
+
+  const pages = context.pages();
+  let page = pages.find(p => p.url().includes('localhost:3000'));
+
+  if (!page) {
+    page = await context.newPage();
+    await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
   }
-  
-  // Type message and submit
-  const input = page.locator('input[placeholder*="Type your message"]').first()
-  await input.fill('Book a flight from KTEB to KPBI for 6 passengers on February 1st')
-  await page.waitForTimeout(300)
-  await input.press('Enter')
-  console.log('✅ Message submitted')
-  
-  // Wait for transition
-  await page.waitForTimeout(3000)
-  
-  // Take screenshot
-  await page.screenshot({ path: 'screenshots/fresh-chat-test.png', fullPage: true })
-  console.log('📸 Screenshot saved: screenshots/fresh-chat-test.png')
-  
-  // Check for workflow
-  const workflowSteps = await page.locator('text="Understanding Request"').count()
-  const workflowCard = await page.locator('text="Flight Search Progress"').count()
-  console.log(`  - Workflow steps visible: ${workflowSteps > 0}`)
-  console.log(`  - Workflow card visible: ${workflowCard > 0}`)
-  
-  console.log('🔚 Test complete')
+
+  console.log('Current URL:', page.url());
+
+  // Click "+ New" button to start fresh
+  console.log('Clicking "+ New" button...');
+  await page.click('button:has-text("New")');
+  await page.waitForTimeout(1000);
+
+  await page.screenshot({ path: 'screenshots/fresh-01-new-chat.png', fullPage: true });
+  console.log('Screenshot 1: New chat started');
+
+  // Type the flight request
+  const input = page.locator('input[placeholder*="Type your message"]');
+  await input.fill('I need a flight from KTEB to KVNY for 4 passengers on January 20, 2025');
+
+  await page.screenshot({ path: 'screenshots/fresh-02-typed.png', fullPage: true });
+  console.log('Screenshot 2: Message typed');
+
+  // Submit
+  await page.click('button[type="submit"]');
+  console.log('Message submitted, waiting for response...');
+
+  await page.screenshot({ path: 'screenshots/fresh-03-submitted.png', fullPage: true });
+  console.log('Screenshot 3: Message submitted');
+
+  // Wait for the response with progress checks
+  let deepLinkFound = false;
+  for (let i = 0; i < 24; i++) {  // 24 x 5 seconds = 2 minutes max
+    await page.waitForTimeout(5000);
+
+    await page.screenshot({ path: `screenshots/fresh-04-progress-${String(i+1).padStart(2, '0')}.png`, fullPage: true });
+
+    const pageText = await page.evaluate(() => document.body.innerText);
+
+    // Check for deep link
+    const hasDeepLink = pageText.includes('marketplace.avinode') ||
+                        pageText.includes('Open in Avinode') ||
+                        pageText.includes('Goto Avinode') ||
+                        pageText.includes('atrip-');
+
+    // Check workflow state
+    const creatingTrip = pageText.includes('Creating Trip');
+    const awaitingSelection = pageText.includes('Awaiting Selection');
+
+    console.log(`Progress ${(i+1)*5}s: Creating=${creatingTrip}, Awaiting=${awaitingSelection}, DeepLink=${hasDeepLink}`);
+
+    if (hasDeepLink) {
+      console.log('✅ Deep link found!');
+      deepLinkFound = true;
+      break;
+    }
+
+    // Check if response is complete (no longer loading)
+    const hasLoading = await page.$('[class*="animate-spin"], [class*="loading"]');
+    const hasStep3InProgress = pageText.includes('Step 3') && pageText.includes('in-progress');
+
+    // If we see step 3 content appearing without a spinner on step 2
+    if (awaitingSelection && !creatingTrip) {
+      console.log('Step 3 active, checking for deep link UI...');
+    }
+  }
+
+  // Final screenshot
+  await page.screenshot({ path: 'screenshots/fresh-05-final.png', fullPage: true });
+  console.log('Screenshot 5: Final state');
+
+  if (deepLinkFound) {
+    console.log('\n✅ SUCCESS: Deep link workflow completed!');
+  } else {
+    console.log('\n⚠️ Deep link not visible after 2 minutes');
+  }
+
+  await browser.close();
 }
 
-runTest().catch(console.error)
-export {}
+testFreshChat().catch(console.error);
+
+export {};

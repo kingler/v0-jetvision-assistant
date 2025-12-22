@@ -27,8 +27,11 @@ export { MessageRenderer } from './message-renderer';
 export type { MessageRendererProps } from './message-renderer';
 
 // Individual Components
-export { QuoteCard } from './quote-card';
-export type { QuoteCardProps } from './quote-card';
+// Re-export SimpleQuoteCard from consolidated location as QuoteCard for backwards compatibility
+export {
+  SimpleQuoteCard as QuoteCard,
+  type SimpleQuoteCardProps as QuoteCardProps,
+} from '@/components/quotes/quote-card';
 
 export { QuoteComparison } from './quote-comparison';
 export type { QuoteComparisonProps } from './quote-comparison';

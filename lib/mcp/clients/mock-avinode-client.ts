@@ -213,8 +213,8 @@ export class MockAvinodeClient {
       operators_notified: params.operator_ids?.length || 5,
       created_at: new Date().toISOString(),
       quote_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      deep_link: `https://marketplace.avinode.com/trip/${tripId}`,
-      watch_url: `https://marketplace.avinode.com/trip/${tripId}/watch`,
+      deep_link: `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
+      watch_url: `https://sandbox.avinode.com/marketplace/mvc/trips/selling/rfq?source=api&rfq=${requestId}`,
       departure_airport: departureAirportInfo,
       arrival_airport: arrivalAirportInfo,
       departure_date: flightDetails.departure_date,
@@ -260,7 +260,7 @@ export class MockAvinodeClient {
       quotes_received: quotes.length,
       created_at: new Date(Date.now() - 3600000).toISOString(),
       quote_deadline: new Date(Date.now() + 86400000).toISOString(),
-      deep_link: `https://marketplace.avinode.com/trip/${tripId}`,
+      deep_link: `https://sandbox.avinode.com/marketplace/mvc/trips/selling/rfq?source=api&rfq=${requestId}`,
       quotes,
     };
   }
@@ -284,6 +284,77 @@ export class MockAvinodeClient {
       request_id: requestId,
       quotes,
       total: quotes.length,
+    };
+  }
+
+  /**
+   * Create a trip container and return deep link for manual operator selection
+   * This is the primary tool for the deep link workflow
+   */
+  async createTrip(params: {
+    departure_airport: string;
+    arrival_airport: string;
+    departure_date: string;
+    passengers: number;
+    departure_time?: string;
+    return_date?: string;
+    return_time?: string;
+    aircraft_category?: 'light' | 'midsize' | 'heavy' | 'ultra-long-range';
+    special_requirements?: string;
+    client_reference?: string;
+  }): Promise<{
+    trip_id: string;
+    deep_link: string;
+    search_link: string;
+    status: string;
+    created_at: string;
+    route: {
+      departure: { airport: string; date: string; time?: string };
+      arrival: { airport: string };
+      return?: { date: string; time?: string };
+    };
+    passengers: number;
+    departure_airport: { icao: string; name: string; city: string };
+    arrival_airport: { icao: string; name: string; city: string };
+  }> {
+    await this.delay(800, 1500);
+
+    this.tripCounter++;
+    const tripId = `atrip-${64956150 + this.tripCounter}`;
+
+    // Get airport details
+    const departureAirportInfo = this.getAirportInfo(params.departure_airport);
+    const arrivalAirportInfo = this.getAirportInfo(params.arrival_airport);
+
+    // Avinode deep link format: Pre-search URL for initial flight search
+    const deepLink = `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`;
+    const searchLink = `https://sandbox.avinode.com/marketplace/mvc/search/load/${tripId}?source=api&origin=api_action`;
+
+    return {
+      trip_id: tripId,
+      deep_link: deepLink,
+      search_link: searchLink,
+      status: 'created',
+      created_at: new Date().toISOString(),
+      route: {
+        departure: {
+          airport: params.departure_airport,
+          date: params.departure_date,
+          time: params.departure_time,
+        },
+        arrival: {
+          airport: params.arrival_airport,
+        },
+        return: params.return_date
+          ? {
+              date: params.return_date,
+              time: params.return_time,
+            }
+          : undefined,
+      },
+      passengers: params.passengers,
+      departure_airport: departureAirportInfo,
+      arrival_airport: arrivalAirportInfo,
     };
   }
 

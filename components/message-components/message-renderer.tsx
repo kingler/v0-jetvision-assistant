@@ -8,7 +8,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { MessageComponent, MessageComponentProps } from './types';
-import { QuoteCard } from './quote-card';
+import { SimpleQuoteCard } from '@/components/quotes/quote-card';
 import { QuoteComparison } from './quote-comparison';
 import { WorkflowStatus } from './workflow-status';
 import { ProposalPreview } from './proposal-preview';
@@ -51,7 +51,7 @@ export function MessageRenderer({ component, onAction, className }: MessageRende
 
     case 'quote_card':
       return (
-        <QuoteCard
+        <SimpleQuoteCard
           quote={component.quote}
           onSelect={(quoteId) => handleAction('select_quote', { quoteId })}
           onViewDetails={(quoteId) => handleAction('view_quote_details', { quoteId })}

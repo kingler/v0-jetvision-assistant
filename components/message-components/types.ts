@@ -3,9 +3,20 @@
  *
  * Type definitions for all message components that can be rendered
  * inline within chat messages in the unified chat interface.
+ *
+ * Core types (AirportInfo, TripStatus, QuoteStatus, etc.) are imported
+ * from the centralized '@/lib/types/quotes' module.
  */
 
 import { ReactNode } from 'react';
+import type {
+  AirportInfo,
+  TripStatus,
+  QuoteStatus,
+  AuthMethod,
+  EnvironmentType,
+  AvinodeMessageType,
+} from '@/lib/types/quotes';
 
 /**
  * Base message component interface
@@ -192,19 +203,11 @@ export interface AvinodeConnectionStatusComponent extends BaseMessageComponent {
 export interface AvinodeTripSummaryComponent extends BaseMessageComponent {
   type: 'avinode_trip_summary';
   tripId: string;
-  departureAirport: {
-    icao: string;
-    name: string;
-    city: string;
-  };
-  arrivalAirport: {
-    icao: string;
-    name: string;
-    city: string;
-  };
+  departureAirport: AirportInfo & { name: string; city: string };
+  arrivalAirport: AirportInfo & { name: string; city: string };
   departureDate: string;
   passengers: number;
-  status: 'active' | 'pending' | 'completed' | 'cancelled';
+  status: TripStatus;
   onCopyTripId?: () => void;
 }
 
@@ -235,8 +238,8 @@ export interface AvinodeDeepLinksComponent extends BaseMessageComponent {
  */
 export interface AvinodeAuthStatusComponent extends BaseMessageComponent {
   type: 'avinode_auth_status';
-  method: 'bearer' | 'api_key';
-  environment: 'sandbox' | 'production';
+  method: AuthMethod;
+  environment: EnvironmentType;
   baseUrl: string;
   expiresAt?: Date;
   isValid: boolean;
@@ -267,7 +270,7 @@ export interface AvinodeRfqQuoteDetailsComponent extends BaseMessageComponent {
     flightTimeMinutes: number;
     distanceNm: number;
   };
-  status: 'unanswered' | 'quoted' | 'accepted' | 'declined' | 'expired';
+  status: QuoteStatus;
   statusDescription?: string;
 }
 
@@ -278,21 +281,13 @@ export interface AvinodeTripDetailsComponent extends BaseMessageComponent {
   type: 'avinode_trip_details';
   tripId: string;
   displayTripId?: string;
-  departureAirport: {
-    icao: string;
-    name: string;
-    city: string;
-  };
-  arrivalAirport: {
-    icao: string;
-    name: string;
-    city: string;
-  };
+  departureAirport: AirportInfo & { name: string; city: string };
+  arrivalAirport: AirportInfo & { name: string; city: string };
   departureDate: string;
   departureTime?: string;
   timezone?: string;
   passengers: number;
-  status: 'active' | 'pending' | 'completed' | 'cancelled';
+  status: TripStatus;
   buyer?: {
     company: string;
     contact: string;
@@ -305,7 +300,7 @@ export interface AvinodeTripDetailsComponent extends BaseMessageComponent {
  */
 export interface AvinodeMessageComponent extends BaseMessageComponent {
   type: 'avinode_message';
-  messageType: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION';
+  messageType: AvinodeMessageType;
   content: string;
   timestamp: string;
   sender?: string;
