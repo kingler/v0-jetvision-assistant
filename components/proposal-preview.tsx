@@ -5,6 +5,30 @@ import { Separator } from "@/components/ui/separator"
 import { Send, Download, Edit } from "lucide-react"
 import type { ChatSession } from "./chat-sidebar"
 
+interface ProposalData {
+  aircraft?: string
+  operator?: string
+  route?: string
+  departureCode?: string
+  arrivalCode?: string
+  passengers?: number
+  date?: string
+  flightTime?: string
+  basePrice?: number
+  margin?: number
+  totalPrice?: number
+  agentCommission?: number
+  jetvisionNet?: number
+  customer?: {
+    name: string
+    isReturning?: boolean
+    preferences?: {
+      catering?: string
+      groundTransport?: string
+    }
+  }
+}
+
 interface ProposalPreviewProps {
   embedded?: boolean
   chatData?: ChatSession
@@ -20,79 +44,20 @@ export function ProposalPreview({
   onEditProposal,
   onDownloadPdf,
 }: ProposalPreviewProps) {
-  const getProposalData = () => {
-    if (chatData?.id === "1") {
-      // TEB → VNY use case
-      return {
-        aircraft: "Gulfstream G200",
-        operator: "Executive Jets LLC",
-        route: "Teterboro → Van Nuys",
-        departureCode: "TEB",
-        arrivalCode: "VNY",
-        passengers: 6,
-        date: "October 15, 2025",
-        flightTime: "5h 30min",
-        basePrice: 25000,
-        margin: 7500,
-        totalPrice: 32500,
-        agentCommission: 1500,
-        jetvisionNet: 6000,
-      }
-    } else if (chatData?.id === "2") {
-      // MIA → ASE use case
-      return {
-        aircraft: "Challenger 350",
-        operator: "NetJets",
-        route: "Miami → Aspen",
-        departureCode: "MIA",
-        arrivalCode: "ASE",
-        passengers: 4,
-        date: "November 20, 2025",
-        flightTime: "3h 45min",
-        basePrice: 18000,
-        margin: 5400,
-        totalPrice: 23400,
-        agentCommission: 1080,
-        jetvisionNet: 4320,
-      }
-    } else if (chatData?.id === "4") {
-      return {
-        aircraft: "Citation CJ3+",
-        operator: "West Coast Aviation",
-        route: "Los Angeles → San Francisco",
-        departureCode: "LAX",
-        arrivalCode: "SFO",
-        passengers: 2,
-        date: "January 12, 2026",
-        flightTime: "1h 15min",
-        basePrice: 8500,
-        margin: 2700,
-        totalPrice: 11200,
-        agentCommission: 540,
-        jetvisionNet: 2160,
-        customer: chatData.customer,
-      }
-    } else {
-      // VNY → DAL use case (default)
-      return {
-        aircraft: "Citation Excel",
-        operator: "XOJET",
-        route: "Van Nuys → Dallas Love Field",
-        departureCode: "VNY",
-        arrivalCode: "DAL",
-        passengers: 3,
-        date: "December 8, 2025",
-        flightTime: "2h 30min",
-        basePrice: 12000,
-        margin: 3600,
-        totalPrice: 15600,
-        agentCommission: 720,
-        jetvisionNet: 2880,
-      }
-    }
+  // Get proposal data from chatData props - no more hardcoded values
+  const proposal: ProposalData = {
+    aircraft: chatData?.aircraft || "Aircraft TBD",
+    operator: chatData?.operator || "Operator TBD",
+    route: chatData?.route || "Route TBD",
+    passengers: chatData?.passengers || 1,
+    date: chatData?.date || "Date TBD",
+    basePrice: chatData?.basePrice || 0,
+    margin: chatData?.margin || 0,
+    totalPrice: chatData?.totalPrice || 0,
+    agentCommission: chatData?.margin ? Math.round(chatData.margin * 0.2) : 0,
+    jetvisionNet: chatData?.margin ? Math.round(chatData.margin * 0.8) : 0,
+    customer: chatData?.customer,
   }
-
-  const proposal = getProposalData()
 
   if (embedded) {
     return (
@@ -114,7 +79,7 @@ export function ProposalPreview({
           <div className="flex items-center justify-between text-sm">
             <span>Client:</span>
             <span className="font-medium">
-              {proposal.customer?.name || "ABC Corporation"}
+              {proposal.customer?.name || "Client TBD"}
               {proposal.customer?.isReturning && (
                 <Badge
                   variant="outline"
@@ -140,7 +105,9 @@ export function ProposalPreview({
           <Separator />
           <div className="flex items-center justify-between">
             <span className="font-semibold">Total Price:</span>
-            <span className="text-lg font-bold text-blue-600">${proposal.totalPrice.toLocaleString()}</span>
+            <span className="text-lg font-bold text-blue-600">
+              {proposal.totalPrice ? `$${proposal.totalPrice.toLocaleString()}` : "Price TBD"}
+            </span>
           </div>
         </div>
 
@@ -152,64 +119,70 @@ export function ProposalPreview({
               </span>
             </div>
             <div className="space-y-2 text-xs">
+              {proposal.customer.preferences.catering && (
+                <div className="flex justify-between">
+                  <span>In-Flight Catering:</span>
+                  <span className="font-medium">{proposal.customer.preferences.catering}</span>
+                </div>
+              )}
+              {proposal.customer.preferences.groundTransport && (
+                <div className="flex justify-between">
+                  <span>Ground Transport:</span>
+                  <span className="font-medium">{proposal.customer.preferences.groundTransport}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {proposal.basePrice !== undefined && proposal.basePrice > 0 && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800">
+            <div className="flex items-center space-x-1 mb-2">
+              <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">
+                💰 Commission & Margin (Internal Only)
+              </span>
+            </div>
+            <div className="space-y-1 text-xs">
               <div className="flex justify-between">
-                <span>In-Flight Catering:</span>
-                <span className="font-medium">{proposal.customer.preferences.catering}</span>
+                <span>Operator Cost:</span>
+                <span>${proposal.basePrice.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>Ground Transport:</span>
-                <span className="font-medium">{proposal.customer.preferences.groundTransport}</span>
+                <span>Jetvision Margin:</span>
+                <span>+ ${(proposal.margin || 0).toLocaleString()}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-medium">
+                <span>Client Price:</span>
+                <span>${(proposal.totalPrice || 0).toLocaleString()}</span>
+              </div>
+              <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-700">
+                <div className="flex justify-between text-xs">
+                  <span>Agent Commission (20%):</span>
+                  <span className="text-green-600">${(proposal.agentCommission || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span>Jetvision Net (80%):</span>
+                  <span>${(proposal.jetvisionNet || 0).toLocaleString()}</span>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800">
-          <div className="flex items-center space-x-1 mb-2">
-            <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">
-              💰 Commission & Margin (Internal Only)
-            </span>
-          </div>
-          <div className="space-y-1 text-xs">
-            <div className="flex justify-between">
-              <span>Operator Cost:</span>
-              <span>${proposal.basePrice.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Jetvision Margin (30%):</span>
-              <span>+ ${proposal.margin.toLocaleString()}</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between font-medium">
-              <span>Client Price:</span>
-              <span>${proposal.totalPrice.toLocaleString()}</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-700">
-              <div className="flex justify-between text-xs">
-                <span>Agent Commission (20%):</span>
-                <span className="text-green-600">${proposal.agentCommission.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span>Jetvision Net (80%):</span>
-                <span>${proposal.jetvisionNet.toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="flex gap-2">
-          <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700">
+          <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={onSendToClient}>
             <Send className="w-3 h-3 mr-1" />
             Send Proposal to Client
           </Button>
-          <Button size="sm" variant="outline" className="bg-transparent">
+          <Button size="sm" variant="outline" className="bg-transparent" onClick={onDownloadPdf}>
             <Download className="w-3 h-3 mr-1" />
             Download PDF
           </Button>
         </div>
 
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+          <Button size="sm" variant="outline" className="flex-1 bg-transparent" onClick={onEditProposal}>
             <Edit className="w-3 h-3 mr-1" />
             Adjust Pricing
           </Button>

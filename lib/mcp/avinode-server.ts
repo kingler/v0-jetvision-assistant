@@ -2,20 +2,18 @@
  * Avinode MCP Server
  *
  * Provides MCP tools for interacting with the Avinode API.
- * Supports both mock mode (for testing) and real API mode.
+ * Uses the production AvinodeClient which handles API communication.
  */
 
 import { BaseMCPServer, MCPToolDefinition, MCPServerConfig } from './base-server';
 import { AvinodeClient } from './clients/avinode-client';
-import { MockAvinodeClient } from './clients/mock-avinode-client';
 
 /**
  * Avinode MCP Server
- * Implements 4 tools: search_flights, create_rfp, get_quote_status, get_quotes
+ * Implements tools: search_flights, create_rfp, get_quote_status, get_quotes, get_rfq, get_rfq_flights
  */
 export class AvinodeMCPServer extends BaseMCPServer {
-  private client: AvinodeClient | MockAvinodeClient;
-  private useMockMode: boolean;
+  private client: AvinodeClient;
 
   constructor() {
     const config: MCPServerConfig = {
@@ -27,29 +25,17 @@ export class AvinodeMCPServer extends BaseMCPServer {
 
     super(config);
 
-    // Detect mock mode
+    // Initialize Avinode client
     const apiKey = process.env.AVINODE_API_KEY || '';
-    this.useMockMode = !apiKey || apiKey.startsWith('mock_');
+    const baseUrl = process.env.AVINODE_BASE_URL || 'https://api.avinode.com';
 
-    // Initialize appropriate client
-    if (this.useMockMode) {
-      this.client = new MockAvinodeClient();
-    } else {
-      this.client = new AvinodeClient({
-        apiKey,
-        baseUrl: process.env.AVINODE_BASE_URL || 'https://api.avinode.com',
-      });
-    }
+    this.client = new AvinodeClient({
+      apiKey,
+      baseUrl,
+    });
 
     // Register all tools
     this.registerAvinodeTools();
-  }
-
-  /**
-   * Check if server is using mock mode
-   */
-  isUsingMockMode(): boolean {
-    return this.useMockMode;
   }
 
   /**

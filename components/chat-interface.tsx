@@ -14,6 +14,7 @@ import { AgentMessage } from "./chat/agent-message"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import type { QuoteRequest } from "./chat/quote-request-item"
+import type { RFQFlight } from "./avinode/rfq-flight-card"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -74,6 +75,49 @@ export function ChatInterface({
   const [isTripIdLoading, setIsTripIdLoading] = useState(false)
   const [tripIdError, setTripIdError] = useState<string | undefined>(undefined)
   const [tripIdSubmitted, setTripIdSubmitted] = useState(false)
+
+  // RFQ flight selection state for Step 3
+  const [selectedRfqFlightIds, setSelectedRfqFlightIds] = useState<string[]>([])
+
+  // Convert quotes to RFQ flights format for display in Step 3
+  const rfqFlights: RFQFlight[] = (activeChat.quotes || []).map((quote) => {
+    // Parse route to get airport info
+    const routeParts = activeChat.route?.split(' → ') || ['N/A', 'N/A']
+    return {
+      id: quote.id,
+      quoteId: quote.id,
+      departureAirport: {
+        icao: routeParts[0] || 'N/A',
+        name: routeParts[0] || 'N/A',
+      },
+      arrivalAirport: {
+        icao: routeParts[1] || 'N/A',
+        name: routeParts[1] || 'N/A',
+      },
+      departureDate: activeChat.date || new Date().toISOString().split('T')[0],
+      departureTime: quote.departureTime || '09:00',
+      flightDuration: quote.flightDuration || 'N/A',
+      aircraftType: quote.aircraftType,
+      aircraftModel: quote.aircraftType,
+      operatorName: quote.operatorName,
+      operatorRating: quote.operatorRating,
+      price: quote.price,
+      currency: 'USD',
+      passengerCapacity: activeChat.passengers || 0,
+      amenities: {
+        wifi: true,
+        pets: true,
+        smoking: false,
+        galley: true,
+        lavatory: true,
+        medical: false,
+      },
+      rfqStatus: 'quoted' as const,
+      lastUpdated: new Date().toISOString(),
+      isSelected: selectedRfqFlightIds.includes(quote.id),
+      validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    }
+  })
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -569,6 +613,22 @@ export function ChatInterface({
   }
 
   /**
+   * Handle "Review and Book" button click on RFQ flight card
+   * Selects the flight and transitions to Step 4 (Send Proposal)
+   */
+  const handleReviewAndBook = (flightId: string) => {
+    console.log('[Chat] Review and Book clicked for flight:', flightId)
+    // Select this single flight for the proposal
+    setSelectedRfqFlightIds([flightId])
+    // Update chat status to proposal step
+    onUpdateChat(activeChat.id, {
+      currentStep: 4,
+      status: 'proposal_ready',
+      selectedQuoteId: flightId,
+    })
+  }
+
+  /**
    * Handle Trip ID submission - Step 4: Receiving Quotes
    * Calls get_rfq MCP tool to retrieve quotes from operators
    */
@@ -865,7 +925,8 @@ export function ChatInterface({
                   tripIdError={tripIdError}
                   tripIdSubmitted={tripIdSubmitted}
                   onTripIdSubmit={handleTripIdSubmit}
-                  showQuotes={message.showQuotes}
+                  // Hide legacy quote comparison when Trip ID is submitted (quotes shown in RFQ list instead)
+                  showQuotes={message.showQuotes && !tripIdSubmitted}
                   quotes={activeChat.quotes}
                   showProposal={message.showProposal}
                   chatData={activeChat}
@@ -874,7 +935,14 @@ export function ChatInterface({
                   onSelectQuote={handleSelectQuote}
                   onDeepLinkClick={() => console.log('[DeepLink] User clicked Avinode marketplace link')}
                   onCopyDeepLink={() => console.log('[DeepLink] User copied deep link')}
-                  // Pass selected flights for Step 4 display
+                  // RFQ flights for Step 3 display (converted from quotes)
+                  rfqFlights={tripIdSubmitted ? rfqFlights : []}
+                  selectedRfqFlightIds={selectedRfqFlightIds}
+                  onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                  onReviewAndBook={handleReviewAndBook}
+                  customerEmail={activeChat.customer?.name ? `${activeChat.customer.name.toLowerCase().replace(/\s+/g, '.')}@example.com` : ''}
+                  customerName={activeChat.customer?.name || ''}
+                  // Pass selected flights for legacy Step 4 display
                   selectedFlights={tripIdSubmitted && activeChat.quotes ? activeChat.quotes.map(q => ({
                     id: q.id,
                     aircraftType: q.aircraftType,

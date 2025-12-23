@@ -1,16 +1,12 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, Clock, Loader2, Search, FileText, Calculator, Send, ExternalLink } from "lucide-react"
+import { CheckCircle, Clock, Loader2, Search, FileText, Calculator, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { OperatorResponses } from "./operator-responses"
-import { ProposalPreview } from "./proposal-preview"
-import { mockRoutes, getOperatorsForRoute, generateProposal } from "@/lib/mock-data"
-import type { Operator } from "@/lib/mock-data"
 
 export interface WorkflowStepData {
   // Real data from agents/API
@@ -89,7 +85,7 @@ export function WorkflowVisualization({
       status: "pending",
       icon: <CheckCircle className="w-5 h-5" />,
       isExpanded: false,
-      data: workflowData.step1,
+      data: workflowData?.step1,
     },
     {
       id: "2",
@@ -98,7 +94,7 @@ export function WorkflowVisualization({
       status: "pending",
       icon: <Search className="w-5 h-5" />,
       isExpanded: false,
-      data: workflowData.step2,
+      data: workflowData?.step2,
     },
     {
       id: "3",
@@ -107,7 +103,7 @@ export function WorkflowVisualization({
       status: "pending",
       icon: <Clock className="w-5 h-5" />,
       isExpanded: false,
-      data: workflowData.step3,
+      data: workflowData?.step3,
     },
     {
       id: "4",
@@ -116,7 +112,7 @@ export function WorkflowVisualization({
       status: "pending",
       icon: <Calculator className="w-5 h-5" />,
       isExpanded: false,
-      data: workflowData.step4,
+      data: workflowData?.step4,
     },
     {
       id: "5",
@@ -125,7 +121,7 @@ export function WorkflowVisualization({
       status: "pending",
       icon: <FileText className="w-5 h-5" />,
       isExpanded: false,
-      data: workflowData.step5,
+      data: workflowData?.step5,
     },
   ])
 
@@ -183,16 +179,6 @@ export function WorkflowVisualization({
     }
   }
 
-  const [availableOperators, setAvailableOperators] = useState<Operator[]>([])
-  const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null)
-  const [showProposal, setShowProposal] = useState(false)
-
-  useEffect(() => {
-    // Simulate getting operators for the NYC to LA route
-    const route = mockRoutes[0] // NYC to LA
-    const operators = getOperatorsForRoute(route, 4)
-    setAvailableOperators(operators.slice(0, 6)) // Show top 6 operators
-  }, [])
 
   // Combined useEffect to update steps status and details together to avoid infinite loop
   useEffect(() => {
@@ -295,11 +281,11 @@ export function WorkflowVisualization({
 
     // Get workflow data for each step
     const stepDataMap: Record<string, WorkflowStepData | undefined> = {
-      "1": workflowData.step1,
-      "2": workflowData.step2,
-      "3": workflowData.step3,
-      "4": workflowData.step4,
-      "5": workflowData.step5,
+      "1": workflowData?.step1,
+      "2": workflowData?.step2,
+      "3": workflowData?.step3,
+      "4": workflowData?.step4,
+      "5": workflowData?.step5,
     }
 
     setSteps((prev) =>
@@ -315,16 +301,6 @@ export function WorkflowVisualization({
       }),
     )
   }, [status, currentStep, workflowData])
-
-  const handleViewProposal = () => {
-    if (selectedOperator) {
-      setShowProposal(true)
-    }
-  }
-
-  const proposal = selectedOperator
-    ? generateProposal(selectedOperator, mockRoutes[0], 4, "Tuesday, Sept 24, 2025")
-    : null
 
   if (embedded) {
     return (
@@ -416,32 +392,6 @@ export function WorkflowVisualization({
         <div className="text-xs text-gray-600 dark:text-gray-400 text-center">
           Click steps to expand/collapse details
         </div>
-      </div>
-    )
-  }
-
-  if (showProposal && proposal) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-foreground font-[family-name:var(--font-space-grotesk)]">
-            Proposal Preview
-          </h2>
-          <Button variant="outline" onClick={() => setShowProposal(false)}>
-            Back to Workflow
-          </Button>
-        </div>
-        <ProposalPreview
-          operator={proposal.operator}
-          route={proposal.route}
-          passengers={proposal.passengers}
-          date={proposal.date}
-          basePrice={proposal.basePrice}
-          margin={proposal.margin}
-          totalPrice={proposal.totalPrice}
-          onDownloadPdf={() => alert("PDF download would start here")}
-          onEditProposal={() => alert("Edit proposal functionality would open here")}
-        />
       </div>
     )
   }
@@ -542,39 +492,14 @@ export function WorkflowVisualization({
         ))}
       </div>
 
-      {steps.find((s) => s.id === "3")?.status === "completed" && availableOperators.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-[family-name:var(--font-space-grotesk)]">Operator Responses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <OperatorResponses
-              operators={availableOperators}
-              onSelectOperator={setSelectedOperator}
-              selectedOperatorId={selectedOperator?.id}
-            />
-          </CardContent>
-        </Card>
-      )}
-
       {/* Progress Summary */}
       <Card>
         <CardHeader>
           <CardTitle className="font-[family-name:var(--font-space-grotesk)]">Progress Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {steps.filter((s) => s.status === "completed").length} of {steps.length} steps completed
-            </div>
-            <div className="flex space-x-2">
-              {selectedOperator && steps.find((s) => s.id === "5")?.status === "completed" && (
-                <Button onClick={handleViewProposal} size="sm">
-                  <Send className="w-4 h-4 mr-2" />
-                  View Proposal
-                </Button>
-              )}
-            </div>
+          <div className="text-sm text-muted-foreground">
+            {steps.filter((s) => s.status === "completed").length} of {steps.length} steps completed
           </div>
 
           {/* Progress Bar */}

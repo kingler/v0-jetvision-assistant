@@ -2,46 +2,47 @@
  * OpenAI Model Configuration
  *
  * This file contains the configuration for OpenAI models used throughout the application.
- * Update these values to use different models as they become available.
+ * Now loads from database (admin-configured) with fallback to environment variables.
  *
- * Latest available model: GPT-5 (as of October 2025)
+ * Latest available model: GPT-4 (default, configurable via admin panel)
  * Reference: https://openai.github.io/openai-agents-python/ref/
  */
 
+import { getLLMConfig, getModelForAgent as getDBModelForAgent, getModelParameters } from './llm-config';
+
+/**
+ * Legacy static configuration (for backward compatibility)
+ * Use getLLMConfig() for database-backed configuration
+ * 
+ * @deprecated Use getLLMConfig() instead for admin-configured settings
+ */
 export const OPENAI_CONFIG = {
   /**
    * Primary model for all AI agents
-   * Current: gpt-5 (Enhanced reasoning, 256K context window)
-   *
-   * Note: Using the OpenAI Agents Python SDK with GPT-5
-   * Alternative models:
-   * - gpt-5-preview (preview version)
-   * - o1 (reasoning model)
-   * - gpt-4-turbo-preview (fallback)
+   * @deprecated Use getLLMConfig() to get the configured default model
    */
-  DEFAULT_MODEL: 'gpt-5',
+  DEFAULT_MODEL: 'gpt-4',
 
   /**
    * Model for specific agent types
-   * Allows customization per agent if needed
-   * All agents use GPT-5 for optimal performance
+   * @deprecated Use getModelForAgent() instead
    */
   AGENT_MODELS: {
-    orchestrator: 'gpt-5',
-    clientData: 'gpt-5',
-    flightSearch: 'gpt-5',
-    proposalAnalysis: 'gpt-5',
-    communication: 'gpt-5',
-    errorMonitor: 'gpt-5',
+    orchestrator: 'gpt-4',
+    clientData: 'gpt-4',
+    flightSearch: 'gpt-4',
+    proposalAnalysis: 'gpt-4',
+    communication: 'gpt-4',
+    errorMonitor: 'gpt-4',
   },
 
   /**
    * Model parameters
-   * Optimized for GPT-5 capabilities
+   * @deprecated Use getModelParameters() instead
    */
   PARAMETERS: {
     temperature: 0.7,
-    maxTokens: 8192, // Increased for GPT-5 (supports up to 256K context)
+    maxTokens: 8192,
     topP: 1,
     frequencyPenalty: 0,
     presencePenalty: 0,
@@ -52,7 +53,7 @@ export const OPENAI_CONFIG = {
    * Reference: https://openai.github.io/openai-agents-python/ref/tool_context/
    */
   AGENTS: {
-    // Use latest API version compatible with GPT-5
+    // Use latest API version compatible with GPT-4
     apiVersion: '2024-10-01',
 
     // Response format for structured outputs
@@ -94,9 +95,18 @@ export const OPENAI_CONFIG = {
 
 /**
  * Get model for specific agent type
+ * Now loads from database configuration
+ * 
+ * @param agentType - Agent type identifier
+ * @returns Model name to use for the agent
  */
-export function getModelForAgent(agentType: keyof typeof OPENAI_CONFIG.AGENT_MODELS): string {
-  return OPENAI_CONFIG.AGENT_MODELS[agentType] || OPENAI_CONFIG.DEFAULT_MODEL
+export async function getModelForAgent(agentType: keyof typeof OPENAI_CONFIG.AGENT_MODELS): Promise<string> {
+  try {
+    return await getDBModelForAgent(agentType);
+  } catch (error) {
+    console.warn('Failed to load model from database, using fallback:', error);
+    return OPENAI_CONFIG.AGENT_MODELS[agentType] || OPENAI_CONFIG.DEFAULT_MODEL;
+  }
 }
 
 /**

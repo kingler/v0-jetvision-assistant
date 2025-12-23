@@ -3,7 +3,13 @@
 import type React from "react"
 import { Plane } from "lucide-react"
 import { ProposalPreview } from "../proposal-preview"
-import { FlightSearchProgress, type SelectedFlight } from "../avinode/flight-search-progress"
+import {
+  FlightSearchProgress,
+  type SelectedFlight,
+  type FlightRequestDetails,
+} from "../avinode/flight-search-progress"
+import type { RFQFlight } from "../avinode/rfq-flight-card"
+import type { RFQFlight as AvinodeRFQFlight } from "@/lib/mcp/clients/avinode-client"
 import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "../chat-sidebar"
 
@@ -109,6 +115,50 @@ export interface AgentMessageProps {
   selectedFlights?: SelectedFlight[]
   /** Callback when View Chat is clicked for a flight */
   onViewChat?: (flightId: string) => void
+  /** RFQ flights retrieved from Avinode */
+  rfqFlights?: RFQFlight[]
+  /** Whether RFQ flights are loading */
+  isRfqFlightsLoading?: boolean
+  /** Selected RFQ flight IDs for proposal */
+  selectedRfqFlightIds?: string[]
+  /** Customer email for proposal */
+  customerEmail?: string
+  /** Customer name for proposal */
+  customerName?: string
+  /** Callback when RFQ flight selection changes */
+  onRfqFlightSelectionChange?: (selectedIds: string[]) => void
+  /** Callback when user clicks continue to proposal */
+  onContinueToProposal?: (selectedFlights: RFQFlight[]) => void
+  /** Callback when user clicks "Review and Book" button on a flight card */
+  onReviewAndBook?: (flightId: string) => void
+  /** Callback when PDF preview is generated */
+  onGeneratePreview?: (data: {
+    customerEmail: string
+    customerName: string
+    selectedFlights: AvinodeRFQFlight[]
+    tripDetails: {
+      departureAirport: FlightRequestDetails['departureAirport']
+      arrivalAirport: FlightRequestDetails['arrivalAirport']
+      departureDate: string
+      passengers: number
+      tripId?: string
+    }
+  }) => Promise<{ success: boolean; previewUrl?: string; error?: string }>
+  /** Callback when proposal is sent */
+  onSendProposal?: (data: {
+    customerEmail: string
+    customerName: string
+    selectedFlights: AvinodeRFQFlight[]
+    tripDetails: {
+      departureAirport: FlightRequestDetails['departureAirport']
+      arrivalAirport: FlightRequestDetails['arrivalAirport']
+      departureDate: string
+      passengers: number
+      tripId?: string
+    }
+  }) => Promise<{ success: boolean; error?: string }>
+  /** Callback when user goes back from Step 4 */
+  onGoBackFromProposal?: () => void
 }
 
 /**
@@ -138,6 +188,17 @@ export function AgentMessage({
   onCopyDeepLink,
   selectedFlights = [],
   onViewChat,
+  rfqFlights = [],
+  isRfqFlightsLoading = false,
+  selectedRfqFlightIds = [],
+  customerEmail,
+  customerName,
+  onRfqFlightSelectionChange,
+  onContinueToProposal,
+  onReviewAndBook,
+  onGeneratePreview,
+  onSendProposal,
+  onGoBackFromProposal,
 }: AgentMessageProps) {
   const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
 
@@ -203,10 +264,21 @@ export function AgentMessage({
           tripIdError={tripIdError}
           tripIdSubmitted={tripIdSubmitted}
           selectedFlights={selectedFlights}
+          rfqFlights={rfqFlights}
+          isRfqFlightsLoading={isRfqFlightsLoading}
+          selectedRfqFlightIds={selectedRfqFlightIds}
+          customerEmail={customerEmail}
+          customerName={customerName}
           onTripIdSubmit={onTripIdSubmit}
           onDeepLinkClick={onDeepLinkClick}
           onCopyDeepLink={onCopyDeepLink}
           onViewChat={onViewChat}
+          onRfqFlightSelectionChange={onRfqFlightSelectionChange}
+          onContinueToProposal={onContinueToProposal}
+          onReviewAndBook={onReviewAndBook}
+          onGeneratePreview={onGeneratePreview}
+          onSendProposal={onSendProposal}
+          onGoBackFromProposal={onGoBackFromProposal}
         />
       )}
 

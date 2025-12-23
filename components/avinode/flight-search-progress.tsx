@@ -34,6 +34,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripIDInput } from './trip-id-input';
+import { RFQFlightsList } from './rfq-flights-list';
+import { SendProposalStep } from './send-proposal-step';
+import type { RFQFlight } from './rfq-flight-card';
+import type { RFQFlight as AvinodeRFQFlight } from '@/lib/mcp/clients/avinode-client';
 
 // =============================================================================
 // TYPES
@@ -91,8 +95,18 @@ export interface FlightSearchProgressProps {
   tripIdError?: string;
   /** Whether Trip ID has been successfully submitted */
   tripIdSubmitted?: boolean;
-  /** Selected flights sent to operators */
+  /** Selected flights sent to operators (legacy) */
   selectedFlights?: SelectedFlight[];
+  /** RFQ flights retrieved from Avinode (new Step 3) */
+  rfqFlights?: RFQFlight[];
+  /** Whether RFQ flights are loading */
+  isRfqFlightsLoading?: boolean;
+  /** Selected flight IDs for proposal */
+  selectedRfqFlightIds?: string[];
+  /** Customer email for proposal */
+  customerEmail?: string;
+  /** Customer name for proposal */
+  customerName?: string;
   /** Callback when Trip ID is submitted */
   onTripIdSubmit?: (tripId: string) => Promise<void>;
   /** Callback when deep link is clicked */
@@ -101,6 +115,40 @@ export interface FlightSearchProgressProps {
   onCopyDeepLink?: () => void;
   /** Callback when View Chat is clicked for a flight */
   onViewChat?: (flightId: string) => void;
+  /** Callback when RFQ flight selection changes */
+  onRfqFlightSelectionChange?: (selectedIds: string[]) => void;
+  /** Callback when user clicks continue to proposal */
+  onContinueToProposal?: (selectedFlights: RFQFlight[]) => void;
+  /** Callback when user clicks "Review and Book" button on a flight card */
+  onReviewAndBook?: (flightId: string) => void;
+  /** Callback when PDF preview is generated */
+  onGeneratePreview?: (data: {
+    customerEmail: string;
+    customerName: string;
+    selectedFlights: AvinodeRFQFlight[];
+    tripDetails: {
+      departureAirport: FlightRequestDetails['departureAirport'];
+      arrivalAirport: FlightRequestDetails['arrivalAirport'];
+      departureDate: string;
+      passengers: number;
+      tripId?: string;
+    };
+  }) => Promise<{ success: boolean; previewUrl?: string; error?: string }>;
+  /** Callback when proposal is sent */
+  onSendProposal?: (data: {
+    customerEmail: string;
+    customerName: string;
+    selectedFlights: AvinodeRFQFlight[];
+    tripDetails: {
+      departureAirport: FlightRequestDetails['departureAirport'];
+      arrivalAirport: FlightRequestDetails['arrivalAirport'];
+      departureDate: string;
+      passengers: number;
+      tripId?: string;
+    };
+  }) => Promise<{ success: boolean; error?: string }>;
+  /** Callback when user goes back from Step 4 */
+  onGoBackFromProposal?: () => void;
   /** Additional CSS class */
   className?: string;
 }
@@ -277,10 +325,21 @@ export function FlightSearchProgress({
   tripIdError,
   tripIdSubmitted = false,
   selectedFlights = [],
+  rfqFlights = [],
+  isRfqFlightsLoading = false,
+  selectedRfqFlightIds = [],
+  customerEmail,
+  customerName,
   onTripIdSubmit,
   onDeepLinkClick,
   onCopyDeepLink,
   onViewChat,
+  onRfqFlightSelectionChange,
+  onContinueToProposal,
+  onReviewAndBook,
+  onGeneratePreview,
+  onSendProposal,
+  onGoBackFromProposal,
   className,
 }: FlightSearchProgressProps) {
   const [copied, setCopied] = useState(false);
@@ -564,74 +623,158 @@ export function FlightSearchProgress({
             </div>
           )}
 
-          {/* Step 3: Retrieve Flight Details (Enter Trip ID) */}
-          {currentStep >= 3 && !tripIdSubmitted && (
+          {/* Step 3: Enter Trip ID & View RFQ Flights */}
+          {currentStep >= 3 && (
             <div
               data-testid="step-3-content"
-              className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-4"
+              className={cn(
+                "rounded-lg border p-4",
+                tripIdSubmitted && rfqFlights.length > 0
+                  ? "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                  : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30"
+              )}
             >
               <div className="flex items-center gap-2 mb-3">
-                <Clock className="h-5 w-5 text-amber-500" />
-                <h4 className="font-semibold text-sm">Step 3: Retrieve Flight Details - Enter the TripID</h4>
+                {tripIdSubmitted && rfqFlights.length > 0 ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                ) : (
+                  <Clock className="h-5 w-5 text-amber-500" />
+                )}
+                <h4 className="font-semibold text-sm">
+                  Step 3: {tripIdSubmitted ? 'View RFQ Flights' : 'Enter Trip ID & View RFQ Flights'}
+                </h4>
+                {tripIdSubmitted && tripId && (
+                  <span className="ml-2 px-2 py-0.5 text-xs font-mono bg-gray-100 dark:bg-gray-800 rounded">
+                    Trip ID: {tripId}
+                  </span>
+                )}
               </div>
 
-              {/* Instructions */}
-              <div className="mb-4 p-3 rounded-md bg-white dark:bg-gray-900">
-                <p className="text-sm font-medium mb-2">Complete these steps in Avinode:</p>
-                <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
-                  <li>Search for available flights using the details above</li>
-                  <li>Select your preferred aircraft and operator</li>
-                  <li>Submit your RFQ (Request for Quote) to operators</li>
-                  <li>Once complete, copy the <span className="font-semibold text-foreground">Trip ID</span> from Avinode</li>
-                  <li>Return here and enter the Trip ID below</li>
-                </ol>
-              </div>
+              {/* Before Trip ID submission - Show instructions and input */}
+              {!tripIdSubmitted && (
+                <>
+                  {/* Instructions */}
+                  <div className="mb-4 p-3 rounded-md bg-white dark:bg-gray-900">
+                    <p className="text-sm font-medium mb-2">Complete these steps in Avinode:</p>
+                    <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+                      <li>Search for available flights using the details above</li>
+                      <li>Select your preferred aircraft and operator</li>
+                      <li>Submit your RFQ (Request for Quote) to operators</li>
+                      <li>Once complete, copy the <span className="font-semibold text-foreground">Trip ID</span> from Avinode</li>
+                      <li>Return here and enter the Trip ID below</li>
+                    </ol>
+                  </div>
 
-              {/* Trip ID Input */}
-              <TripIDInput
-                onSubmit={onTripIdSubmit || (async () => {})}
-                isLoading={isTripIdLoading}
-                error={tripIdError}
-                helpText="Find the Trip ID in your Avinode confirmation email or on the trip details page."
-              />
+                  {/* Trip ID Input */}
+                  <TripIDInput
+                    onSubmit={onTripIdSubmit || (async () => {})}
+                    isLoading={isTripIdLoading}
+                    error={tripIdError}
+                    helpText="Find the Trip ID in your Avinode confirmation email or on the trip details page."
+                  />
+                </>
+              )}
+
+              {/* After Trip ID submission - Show RFQ Flights List */}
+              {tripIdSubmitted && (
+                <div className="mt-4">
+                  {/* Success message */}
+                  <div className="flex items-center gap-3 p-3 rounded-md bg-green-50 dark:bg-green-950/30 mb-4">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                    <div>
+                      <p className="font-medium text-green-700 dark:text-green-300 text-sm">
+                        Trip ID verified successfully!
+                      </p>
+                      <p className="text-xs text-green-600 dark:text-green-400">
+                        Select the flights you want to include in your proposal to the customer.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* RFQ Flights List */}
+                  <RFQFlightsList
+                    flights={rfqFlights.map(f => ({
+                      ...f,
+                      isSelected: selectedRfqFlightIds.includes(f.id)
+                    }))}
+                    isLoading={isRfqFlightsLoading}
+                    selectable={!onReviewAndBook}
+                    showSelectAll={!onReviewAndBook}
+                    sortable
+                    filterable
+                    showContinueButton={!onReviewAndBook}
+                    showPriceBreakdown
+                    showBookButton={!!onReviewAndBook}
+                    onSelectionChange={onRfqFlightSelectionChange}
+                    onContinue={onContinueToProposal}
+                    onReviewAndBook={onReviewAndBook}
+                  />
+                </div>
+              )}
             </div>
           )}
 
-          {/* Step 4: Send Proposal - Flight Details Retrieved */}
-          {tripIdSubmitted && (
+          {/* Step 4: Send Proposal to Customer */}
+          {currentStep >= 4 && selectedRfqFlightIds.length > 0 && (
             <div
               data-testid="step-4-content"
-              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+              className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 p-4"
             >
-              <div className="flex items-center gap-2 mb-3">
-                {tripId ? (
-                  <CheckCircle2 className="h-5 w-5 text-gray-500" />
-                ) : (
-                  <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
-                )}
-                <h4 className="font-semibold text-sm">
-                  Step 4: {tripId ? 'Send Proposal to Customer' : 'Fetching Flight Details'}
-                </h4>
-              </div>
+              {/* SendProposalStep component - handles PDF generation and email sending */}
+              <SendProposalStep
+                selectedFlights={
+                  // Convert RFQFlight to AvinodeRFQFlight format for SendProposalStep
+                  rfqFlights
+                    .filter((f) => selectedRfqFlightIds.includes(f.id))
+                    .map((f) => ({
+                      id: f.id,
+                      quoteId: f.quoteId || f.id,
+                      departureAirport: f.departureAirport,
+                      arrivalAirport: f.arrivalAirport,
+                      departureDate: f.departureDate,
+                      departureTime: f.departureTime,
+                      flightDuration: f.flightDuration || 'N/A',
+                      aircraftType: f.aircraftType || 'Unknown',
+                      aircraftModel: f.aircraftModel || f.aircraftType || 'Unknown',
+                      tailNumber: f.tailNumber,
+                      yearOfManufacture: f.yearOfManufacture,
+                      passengerCapacity: f.passengerCapacity || 0,
+                      operatorName: f.operatorName,
+                      operatorRating: f.operatorRating,
+                      price: f.price,
+                      currency: f.currency || 'USD',
+                      priceBreakdown: f.priceBreakdown,
+                      validUntil: f.validUntil,
+                      amenities: f.amenities || {
+                        wifi: false,
+                        pets: false,
+                        smoking: false,
+                        galley: false,
+                        lavatory: false,
+                        medical: false,
+                      },
+                      rfqStatus: f.rfqStatus,
+                      lastUpdated: f.lastUpdated || new Date().toISOString(),
+                      isSelected: true,
+                    }))
+                }
+                tripDetails={{
+                  departureAirport: flightRequest.departureAirport,
+                  arrivalAirport: flightRequest.arrivalAirport,
+                  departureDate: flightRequest.departureDate,
+                  passengers: flightRequest.passengers,
+                  tripId: tripId,
+                }}
+                customerEmail={customerEmail}
+                customerName={customerName}
+                onGeneratePreview={onGeneratePreview}
+                onSendProposal={onSendProposal}
+                onGoBack={onGoBackFromProposal}
+              />
 
-              {/* Success message with Trip ID */}
-              <div className="flex items-center gap-3 p-3 rounded-md bg-gray-50 dark:bg-gray-800 mb-4">
-                <CheckCircle2 className="h-6 w-6 text-green-500 shrink-0" />
-                <div>
-                  <p className="font-medium text-green-700 dark:text-green-300">
-                    Trip ID received successfully!
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {tripId
-                      ? `Retrieving flight details for Trip ID: ${tripId}`
-                      : 'Retrieving quotes from operators...'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Selected Flights List */}
+              {/* Legacy: Selected Flights List - kept for backward compatibility */}
               {selectedFlights.length > 0 && (
-                <div className="space-y-4">
+                <div className="space-y-4 mt-4">
                   <h5 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
                     Selected Flights - Quote Requests Sent to Operators
                   </h5>

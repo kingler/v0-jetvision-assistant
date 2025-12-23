@@ -100,22 +100,37 @@ export function SettingsPanel() {
               <Label>Dynamic Margin Rules</Label>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="client-pricing" className="text-sm">
+                  <Label htmlFor="client-pricing" className="text-sm cursor-pointer">
                     Enable client-based pricing
                   </Label>
-                  <Switch id="client-pricing" checked={enableClientPricing} onCheckedChange={setEnableClientPricing} />
+                  <Switch 
+                    id="client-pricing" 
+                    checked={enableClientPricing} 
+                    onCheckedChange={setEnableClientPricing}
+                    aria-label="Enable client-based pricing"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="route-pricing" className="text-sm">
+                  <Label htmlFor="route-pricing" className="text-sm cursor-pointer">
                     Enable route-based pricing
                   </Label>
-                  <Switch id="route-pricing" checked={enableRoutePricing} onCheckedChange={setEnableRoutePricing} />
+                  <Switch 
+                    id="route-pricing" 
+                    checked={enableRoutePricing} 
+                    onCheckedChange={setEnableRoutePricing}
+                    aria-label="Enable route-based pricing"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="demand-pricing" className="text-sm">
+                  <Label htmlFor="demand-pricing" className="text-sm cursor-pointer">
                     Enable demand-based pricing
                   </Label>
-                  <Switch id="demand-pricing" checked={enableDemandPricing} onCheckedChange={setEnableDemandPricing} />
+                  <Switch 
+                    id="demand-pricing" 
+                    checked={enableDemandPricing} 
+                    onCheckedChange={setEnableDemandPricing}
+                    aria-label="Enable demand-based pricing"
+                  />
                 </div>
               </div>
             </div>

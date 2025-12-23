@@ -1,29 +1,67 @@
 /**
  * Avinode API Client
  * Handles HTTP communication with Avinode API
+ *
+ * Required environment variables:
+ * - BASE_URI: API base URL (default: https://sandbox.avinode.com/api)
+ * - API_TOKEN: X-Avinode-ApiToken header value
+ * - AUTHENTICATION_TOKEN: Bearer token for Authorization header
+ *
+ * @see docs/implementation/AVINODE-API-SETUP.md
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 export class AvinodeClient {
   private client: AxiosInstance;
-  private readonly baseURL = 'https://api.avinode.com';
+  private readonly baseURL: string;
+  private readonly apiToken: string;
+  private readonly authToken: string;
 
   constructor() {
-    const apiKey = process.env.AVINODE_API_KEY;
-
-    if (!apiKey) {
-      throw new Error('AVINODE_API_KEY environment variable is required');
+    // Load configuration from environment
+    this.baseURL = process.env.BASE_URI || process.env.AVINODE_BASE_URL || 'https://sandbox.avinode.com/api';
+    
+    // Get and trim tokens, removing any "Bearer " prefix if present
+    let apiToken = (process.env.API_TOKEN || process.env.AVINODE_API_TOKEN || '').trim();
+    let authToken = (process.env.AUTHENTICATION_TOKEN || process.env.AVINODE_BEARER_TOKEN || '').trim();
+    
+    // Remove "Bearer " prefix if present (client will add it)
+    if (authToken.toLowerCase().startsWith('bearer ')) {
+      authToken = authToken.substring(7).trim();
     }
+
+    // Validate required credentials
+    if (!apiToken) {
+      throw new Error('API_TOKEN environment variable is required');
+    }
+    if (!authToken) {
+      throw new Error('AUTHENTICATION_TOKEN environment variable is required');
+    }
+
+    this.apiToken = apiToken;
+    this.authToken = authToken;
 
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'X-Avinode-ApiToken': this.apiToken,
+        'Authorization': `Bearer ${this.authToken}`,
+        'X-Avinode-ApiVersion': 'v1.0',
+        'X-Avinode-Product': 'Jetvision/1.0.0',
+        'Accept-Encoding': 'gzip',
       },
       timeout: 30000,
     });
+
+    // Add request interceptor to set timestamp on each request
+    this.client.interceptors.request.use(
+      (config: InternalAxiosRequestConfig) => {
+        config.headers['X-Avinode-SentTimestamp'] = new Date().toISOString();
+        return config;
+      }
+    );
 
     // Add response interceptor for error handling
     this.client.interceptors.response.use(
@@ -31,9 +69,17 @@ export class AvinodeClient {
       (error: AxiosError) => {
         if (error.response) {
           const status = error.response.status;
-          const message = (error.response.data as any)?.message || 'Unknown error';
+          const data = error.response.data as any;
+          const errorCode = data?.meta?.errors?.[0]?.code || 'UNKNOWN';
+          const errorTitle = data?.meta?.errors?.[0]?.title || data?.message || 'Unknown error';
 
-          throw new Error(`Avinode API error (${status}): ${message}`);
+          // Handle rate limiting
+          if (status === 429) {
+            const resetSeconds = error.response.headers['x-rate-limit-reset'] || '60';
+            throw new Error(`Rate limited. Retry after ${resetSeconds} seconds.`);
+          }
+
+          throw new Error(`Avinode API error (${status}/${errorCode}): ${errorTitle}`);
         } else if (error.request) {
           throw new Error('No response from Avinode API - network error');
         } else {

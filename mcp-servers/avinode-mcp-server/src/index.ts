@@ -58,20 +58,24 @@ import type {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables from project root
+// Load environment variables from MCP server directory first, then project root
+config({ path: resolve(__dirname, '../.env.local') });
 config({ path: resolve(__dirname, '../../../.env.local') });
 
-// Check for API key and determine mode
-const apiKey = process.env.AVINODE_API_KEY;
-const useMockMode = !apiKey || apiKey.startsWith('mock_');
+// Check for API token and determine mode
+const apiToken = process.env.API_TOKEN || process.env.AVINODE_API_TOKEN;
+const authToken = process.env.AUTHENTICATION_TOKEN || process.env.AVINODE_BEARER_TOKEN;
+const useMockMode = !apiToken || !authToken || apiToken.startsWith('mock_');
 
 // Get appropriate client (mock or real)
 let avinodeClient: AvinodeClient | MockAvinodeClient;
 
 if (useMockMode) {
   console.error('Running in MOCK MODE - using simulated Avinode data');
+  console.error('Set API_TOKEN and AUTHENTICATION_TOKEN for live API access');
   avinodeClient = new MockAvinodeClient();
 } else {
+  console.error(`Avinode API configured: ${process.env.BASE_URI || 'https://sandbox.avinode.com/api'}`);
   avinodeClient = getAvinodeClient();
 }
 
@@ -556,7 +560,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Tool implementation functions
 
 async function searchFlights(params: FlightSearchParams) {
-  const response = await avinodeClient.post('/v1/flights/search', {
+  const response = await avinodeClient.post('/flights/search', {
     departure: {
       airport: params.departure_airport,
       date: params.departure_date,
@@ -581,7 +585,7 @@ async function searchFlights(params: FlightSearchParams) {
 }
 
 async function searchEmptyLegs(params: EmptyLegSearchParams) {
-  const response = await avinodeClient.post('/v1/emptyLeg/search', {
+  const response = await avinodeClient.post('/emptyLeg/search', {
     departure_airport: params.departure_airport,
     arrival_airport: params.arrival_airport,
     date_range: params.date_range,
@@ -599,8 +603,16 @@ async function searchEmptyLegs(params: EmptyLegSearchParams) {
   };
 }
 
+/**
+ * Create an RFQ (Request for Quote)
+ * 
+ * @see https://developer.avinodegroup.com/reference/createrfq_1
+ * Endpoint: POST /api/rfqs (not /rfps)
+ */
 async function createRFP(params: CreateRFPParams) {
-  const response = await avinodeClient.post('/v1/rfps', {
+  // Use correct endpoint per Avinode API documentation
+  // @see https://developer.avinodegroup.com/reference/createrfq_1
+  const response = await avinodeClient.post('/rfqs', {
     flight_details: params.flight_details,
     operator_ids: params.operator_ids,
     message: params.message,
@@ -620,7 +632,7 @@ async function createRFP(params: CreateRFPParams) {
 }
 
 async function getRFPStatus(params: GetRFPStatusParams) {
-  const response = await avinodeClient.get(`/v1/rfps/${params.rfp_id}`);
+  const response = await avinodeClient.get(`/rfqs/${params.rfp_id}`);
 
   return {
     rfp_id: response.rfp_id,
@@ -635,7 +647,7 @@ async function getRFPStatus(params: GetRFPStatusParams) {
 }
 
 async function createWatch(params: CreateWatchParams) {
-  const response = await avinodeClient.post('/v1/watches', {
+  const response = await avinodeClient.post('/watches', {
     type: params.type,
     rfp_id: params.rfp_id,
     empty_leg_id: params.empty_leg_id,
@@ -651,7 +663,7 @@ async function createWatch(params: CreateWatchParams) {
 }
 
 async function searchAirports(params: SearchAirportsParams) {
-  const response = await avinodeClient.get('/v1/airports/search', {
+  const response = await avinodeClient.get('/airports/search', {
     params: {
       query: params.query,
       country: params.country,
@@ -670,6 +682,16 @@ async function searchAirports(params: SearchAirportsParams) {
 
 /**
  * Create a trip container and return deep link for manual operator selection
+ * 
+ * @see https://developer.avinodegroup.com/reference/createtrip
+ * 
+ * Request format per Avinode API documentation:
+ * {
+ *   "externalTripId": "",
+ *   "criteria": { ... },
+ *   "segments": [ ... ],
+ *   "sourcing": true
+ * }
  */
 async function createTrip(params: CreateTripParams) {
   // Validate required parameters
@@ -683,35 +705,102 @@ async function createTrip(params: CreateTripParams) {
     throw new Error('passengers must be at least 1');
   }
 
-  const response = await avinodeClient.post('/v1/trips', {
-    route: {
-      departure: {
-        airport: params.departure_airport,
-        date: params.departure_date,
-        time: params.departure_time,
+  // Build request body per Avinode API specification
+  // @see https://developer.avinodegroup.com/reference/createtrip
+  const requestBody: any = {
+    externalTripId: params.client_reference || '',
+    sourcing: true, // Required: enables sourcing/search functionality
+    segments: [
+      {
+        startAirport: {
+          icao: params.departure_airport,
+        },
+        endAirport: {
+          icao: params.arrival_airport,
+        },
+        dateTime: {
+          date: params.departure_date,
+          time: params.departure_time || '00:00',
+          departure: true,
+          local: true,
+        },
+        paxCount: params.passengers.toString(),
+        paxSegment: true,
+        paxTBD: false,
+        timeTBD: !params.departure_time, // Set to true if time not provided
       },
-      arrival: {
-        airport: params.arrival_airport,
-      },
-      return: params.return_date
-        ? {
-            date: params.return_date,
-            time: params.return_time,
-          }
-        : undefined,
+    ],
+    criteria: {
+      requiredLift: params.aircraft_category
+        ? [
+            {
+              aircraftCategory: params.aircraft_category,
+              aircraftType: '',
+              aircraftTail: '',
+            },
+          ]
+        : [],
+      requiredPartnerships: [],
+      maxFuelStopsPerSegment: 0,
+      includeLiftUpgrades: true,
+      maxInitialPositioningTimeMinutes: 0,
     },
-    passengers: params.passengers,
-    aircraft_category: params.aircraft_category,
-    special_requirements: params.special_requirements,
-    client_reference: params.client_reference,
-  });
+  };
+
+  // Add return segment if provided
+  if (params.return_date) {
+    requestBody.segments.push({
+      startAirport: {
+        icao: params.arrival_airport,
+      },
+      endAirport: {
+        icao: params.departure_airport,
+      },
+      dateTime: {
+        date: params.return_date,
+        time: params.return_time || '00:00',
+        departure: true,
+        local: true,
+      },
+      paxCount: params.passengers.toString(),
+      paxSegment: true,
+      paxTBD: false,
+      timeTBD: !params.return_time,
+    });
+  }
+
+  // Add special requirements if provided
+  if (params.special_requirements) {
+    requestBody.criteria.notes = params.special_requirements;
+  }
+
+  const response = await avinodeClient.post('/trips', requestBody);
+
+  // Avinode API response format per documentation:
+  // {
+  //   "data": {
+  //     "id": "atrip-64956153",
+  //     "href": "https://sandbox.avinode.com/api/trips/atrip-64956153",
+  //     "actions": {
+  //       "searchInAvinode": { "href": "...", "description": "..." },
+  //       "viewInAvinode": { "href": "...", "description": "..." }
+  //     }
+  //   }
+  // }
+  // @see https://developer.avinodegroup.com/reference/createtrip
+  const tripData = response.data || response;
+  const tripId = tripData.id || tripData.trip_id;
+  const actions = tripData.actions || {};
+  const deepLink = actions.searchInAvinode?.href || actions.viewInAvinode?.href || tripData.href;
 
   return {
-    trip_id: response.trip_id,
-    deep_link: response.deep_link,
-    search_link: response.search_link || response.deep_link,
-    status: response.status || 'created',
-    created_at: response.created_at || new Date().toISOString(),
+    trip_id: tripId,
+    deep_link: deepLink,
+    search_link: actions.searchInAvinode?.href || deepLink,
+    view_link: actions.viewInAvinode?.href,
+    cancel_link: actions.cancel?.href,
+    status: 'created',
+    created_at: new Date().toISOString(),
     route: {
       departure: {
         airport: params.departure_airport,
@@ -734,13 +823,37 @@ async function createTrip(params: CreateTripParams) {
 
 /**
  * Get RFQ details including status and quotes
+ * 
+ * @see https://developer.avinodegroup.com/reference/readbynumericid
+ * 
+ * Optional query parameters:
+ * - taildetails: Additional aircraft information
+ * - tailphotos: Links to aircraft photos
+ * - timestamps: Include updatedByBuyer and latestUpdatedDateBySeller
+ * - typedetails: Detailed aircraft type information
+ * - typephotos: Links to generic aircraft type photos
  */
 async function getRFQ(params: GetRFQParams) {
   if (!params.rfq_id) {
     throw new Error('rfq_id is required');
   }
 
-  const response = await avinodeClient.get(`/v1/rfqs/${params.rfq_id}`);
+  // Extract numeric ID if prefixed (e.g., "arfq-12345678" -> "12345678")
+  // Per Avinode API: endpoint accepts numeric ID or prefixed ID
+  let numericId = params.rfq_id;
+  if (params.rfq_id.startsWith('arfq-') || params.rfq_id.startsWith('atrip-')) {
+    numericId = params.rfq_id.split('-')[1];
+  }
+
+  // Request with optional query parameters for additional details
+  // @see https://developer.avinodegroup.com/reference/readbynumericid
+  const response = await avinodeClient.get(`/rfqs/${numericId}`, {
+    params: {
+      taildetails: true, // Include aircraft details
+      typedetails: true, // Include aircraft type details
+      timestamps: true, // Include update timestamps
+    },
+  });
 
   return {
     rfq_id: response.rfq_id || params.rfq_id,
@@ -765,7 +878,7 @@ async function getQuote(params: GetQuoteParams) {
     throw new Error('quote_id is required');
   }
 
-  const response = await avinodeClient.get(`/v1/quotes/${params.quote_id}`);
+  const response = await avinodeClient.get(`/quotes/${params.quote_id}`);
 
   return {
     quote_id: response.quote_id || params.quote_id,
@@ -784,13 +897,22 @@ async function getQuote(params: GetQuoteParams) {
 
 /**
  * Cancel an active trip
+ * 
+ * @see https://developer.avinodegroup.com/reference/readbynumericid
+ * Endpoint: PUT /api/rfqs/{id}/cancel
  */
 async function cancelTrip(params: CancelTripParams) {
   if (!params.trip_id) {
     throw new Error('trip_id is required');
   }
 
-  const response = await avinodeClient.put(`/v1/trips/${params.trip_id}/cancel`, {
+  // Extract numeric ID if prefixed
+  let numericId = params.trip_id;
+  if (params.trip_id.startsWith('atrip-') || params.trip_id.startsWith('arfq-')) {
+    numericId = params.trip_id.split('-')[1];
+  }
+
+  const response = await avinodeClient.put(`/rfqs/${numericId}/cancel`, {
     reason: params.reason,
   });
 
@@ -804,6 +926,9 @@ async function cancelTrip(params: CancelTripParams) {
 
 /**
  * Send a message in the trip conversation thread
+ * 
+ * @see https://developer.avinodegroup.com/reference/readmessage
+ * Endpoint: POST /api/tripmsgs/{tripId}
  */
 async function sendTripMessage(params: SendTripMessageParams) {
   if (!params.trip_id) {
@@ -816,7 +941,13 @@ async function sendTripMessage(params: SendTripMessageParams) {
     throw new Error('operator_id is required when recipient_type is specific_operator');
   }
 
-  const response = await avinodeClient.post(`/v1/tripmsgs/${params.trip_id}/sendMessage`, {
+  // Extract numeric ID if prefixed
+  let numericId = params.trip_id;
+  if (params.trip_id.startsWith('atrip-')) {
+    numericId = params.trip_id.split('-')[1];
+  }
+
+  const response = await avinodeClient.post(`/tripmsgs/${numericId}`, {
     message: params.message,
     recipient_type: params.recipient_type || 'all_operators',
     operator_id: params.operator_id,
@@ -833,13 +964,22 @@ async function sendTripMessage(params: SendTripMessageParams) {
 
 /**
  * Get message history for a trip
+ * 
+ * @see https://developer.avinodegroup.com/reference/readmessage
+ * Endpoint: GET /api/tripmsgs/{tripId}
  */
 async function getTripMessages(params: GetTripMessagesParams) {
   if (!params.trip_id) {
     throw new Error('trip_id is required');
   }
 
-  const response = await avinodeClient.get(`/v1/tripmsgs/${params.trip_id}`, {
+  // Extract numeric ID if prefixed
+  let numericId = params.trip_id;
+  if (params.trip_id.startsWith('atrip-')) {
+    numericId = params.trip_id.split('-')[1];
+  }
+
+  const response = await avinodeClient.get(`/tripmsgs/${numericId}`, {
     params: {
       limit: params.limit || 50,
       since: params.since,

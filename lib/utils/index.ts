@@ -44,3 +44,11 @@ export {
   formatDate,
   formatNumber,
 } from './format';
+
+// Encryption utilities
+export {
+  encrypt,
+  decrypt,
+  isEncrypted,
+  generateEncryptionKey,
+} from './encryption';
