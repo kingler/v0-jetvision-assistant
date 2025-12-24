@@ -3,14 +3,20 @@
 /**
  * Supabase MCP Server
  *
- * Provides MCP tools for interacting with Supabase database:
- * - query: Execute SELECT queries with filters
- * - insert: Insert records into tables
- * - update: Update records
- * - delete: Delete records
- * - rpc: Call stored procedures/functions
- * - list_tables: List all accessible tables
- * - describe_table: Get table schema information
+ * Provides MCP tools for interacting with Supabase database.
+ * Uses shared helpers from lib/supabase/ for consistency.
+ *
+ * Tools:
+ * - supabase_query: Execute SELECT queries with filters
+ * - supabase_insert: Insert records into tables
+ * - supabase_update: Update records
+ * - supabase_delete: Delete records
+ * - supabase_rpc: Call stored procedures/functions
+ * - supabase_list_tables: List all accessible tables
+ * - supabase_describe_table: Get table schema information
+ * - supabase_count: Count records with optional filters
+ *
+ * @module mcp-servers/supabase-mcp-server
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -20,17 +26,23 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import type {
-  QueryParams,
-  InsertParams,
-  UpdateParams,
-  DeleteParams,
-  RpcParams,
-} from './types.js';
+
+// Import shared helpers from lib/supabase/
+// Note: Uses relative path for standalone MCP server execution
+import {
+  queryTable,
+  insertRow,
+  updateRow,
+  deleteRow,
+  countRows,
+  callRpc,
+  listTables,
+  describeTable,
+  type QueryOptions,
+} from '../../../lib/supabase/mcp-helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -38,25 +50,10 @@ const __dirname = dirname(__filename);
 // Load environment variables from project root
 config({ path: resolve(__dirname, '../../../.env.local') });
 
-// Validate environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// ============================================================================
+// MCP TOOL DEFINITIONS
+// ============================================================================
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Error: Missing Supabase credentials in .env.local');
-  console.error('Required: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
-  process.exit(1);
-}
-
-// Create Supabase admin client (bypasses RLS)
-const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
-
-// Define MCP tools
 const tools: Tool[] = [
   {
     name: 'supabase_query',
@@ -112,10 +109,6 @@ const tools: Tool[] = [
           type: ['object', 'array'],
           description: 'Single record or array of records to insert',
         },
-        returning: {
-          type: 'boolean',
-          description: 'Return the inserted records (default: true)',
-        },
       },
       required: ['table', 'data'],
     },
@@ -138,10 +131,6 @@ const tools: Tool[] = [
           type: 'object',
           description: 'Data to update',
         },
-        returning: {
-          type: 'boolean',
-          description: 'Return the updated records (default: true)',
-        },
       },
       required: ['table', 'filters', 'data'],
     },
@@ -159,10 +148,6 @@ const tools: Tool[] = [
         filters: {
           type: 'object',
           description: 'Filters to match records to delete (e.g., {"id": "123"})',
-        },
-        returning: {
-          type: 'boolean',
-          description: 'Return the deleted records (default: false)',
         },
       },
       required: ['table', 'filters'],
@@ -228,7 +213,10 @@ const tools: Tool[] = [
   },
 ];
 
-// Initialize MCP server
+// ============================================================================
+// MCP SERVER INITIALIZATION
+// ============================================================================
+
 const server = new Server(
   {
     name: 'supabase-mcp-server',
@@ -246,319 +234,168 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return { tools };
 });
 
-// Handle tool execution
+// ============================================================================
+// TOOL EXECUTION HANDLERS
+// ============================================================================
+
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
     switch (name) {
       case 'supabase_query': {
-        const params = args as QueryParams;
-        let query = supabase.from(params.table).select(params.select || '*');
+        const { table, select, filters, orderBy, limit, offset } = args as {
+          table: string;
+          select?: string;
+          filters?: Record<string, unknown>;
+          orderBy?: { column: string; ascending?: boolean };
+          limit?: number;
+          offset?: number;
+        };
 
-        // Apply filters
-        if (params.filters) {
-          Object.entries(params.filters).forEach(([key, value]) => {
-            query = query.eq(key, value);
-          });
-        }
+        const options: QueryOptions = {
+          select,
+          filter: filters,
+          orderBy,
+          limit,
+          offset,
+        };
 
-        // Apply ordering
-        if (params.orderBy) {
-          query = query.order(params.orderBy.column, {
-            ascending: params.orderBy.ascending ?? true,
-          });
-        }
+        const result = await queryTable(table, options);
 
-        // Apply pagination
-        if (params.limit) {
-          query = query.limit(params.limit);
-        }
-        if (params.offset) {
-          query = query.range(params.offset, params.offset + (params.limit || 10) - 1);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
+        if (result.error) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `Error: ${error.message}`,
-              },
-            ],
+            content: [{ type: 'text', text: `Error: ${result.error}` }],
           };
         }
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(data, null, 2),
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
         };
       }
 
       case 'supabase_insert': {
-        const params = args as InsertParams;
-        const returning = params.returning ?? true;
+        const { table, data } = args as {
+          table: string;
+          data: Record<string, unknown>;
+        };
 
-        let query = supabase.from(params.table).insert(params.data);
+        const result = await insertRow(table, data);
 
-        if (returning) {
-          query = query.select();
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
+        if (result.error) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `Error: ${error.message}`,
-              },
-            ],
+            content: [{ type: 'text', text: `Error: ${result.error}` }],
           };
         }
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: returning
-                ? JSON.stringify(data, null, 2)
-                : 'Insert successful',
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
         };
       }
 
       case 'supabase_update': {
-        const params = args as UpdateParams;
-        const returning = params.returning ?? true;
+        const { table, filters, data } = args as {
+          table: string;
+          filters: Record<string, unknown>;
+          data: Record<string, unknown>;
+        };
 
-        let query = supabase.from(params.table).update(params.data);
+        const result = await updateRow(table, filters, data);
 
-        // Apply filters
-        Object.entries(params.filters).forEach(([key, value]) => {
-          query = query.eq(key, value);
-        });
-
-        if (returning) {
-          query = query.select();
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
+        if (result.error) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `Error: ${error.message}`,
-              },
-            ],
+            content: [{ type: 'text', text: `Error: ${result.error}` }],
           };
         }
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: returning
-                ? JSON.stringify(data, null, 2)
-                : 'Update successful',
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
         };
       }
 
       case 'supabase_delete': {
-        const params = args as DeleteParams;
-        const returning = params.returning ?? false;
+        const { table, filters } = args as {
+          table: string;
+          filters: Record<string, unknown>;
+        };
 
-        let query = supabase.from(params.table).delete();
+        const result = await deleteRow(table, filters);
 
-        // Apply filters
-        Object.entries(params.filters).forEach(([key, value]) => {
-          query = query.eq(key, value);
-        });
-
-        if (returning) {
-          query = query.select();
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
+        if (result.error) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `Error: ${error.message}`,
-              },
-            ],
+            content: [{ type: 'text', text: `Error: ${result.error}` }],
           };
         }
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: returning
-                ? JSON.stringify(data, null, 2)
-                : 'Delete successful',
-            },
-          ],
+          content: [{ type: 'text', text: 'Delete successful' }],
         };
       }
 
       case 'supabase_rpc': {
-        const params = args as RpcParams;
-        const { data, error } = await supabase.rpc(
-          params.functionName,
-          params.params || {}
-        );
+        const { functionName, params } = args as {
+          functionName: string;
+          params?: Record<string, unknown>;
+        };
 
-        if (error) {
+        const result = await callRpc(functionName, params);
+
+        if (result.error) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `Error: ${error.message}`,
-              },
-            ],
+            content: [{ type: 'text', text: `Error: ${result.error}` }],
           };
         }
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(data, null, 2),
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
         };
       }
 
       case 'supabase_list_tables': {
-        const { data, error } = await supabase.rpc('list_tables');
-
-        if (error) {
-          // Fallback to information_schema query
-          const { data: tables, error: tablesError } = await supabase
-            .from('information_schema.tables')
-            .select('table_name')
-            .eq('table_schema', 'public');
-
-          if (tablesError) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `Error: ${tablesError.message}`,
-                },
-              ],
-            };
-          }
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(tables, null, 2),
-              },
-            ],
-          };
-        }
-
+        const tables = listTables();
         return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(data, null, 2),
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(tables, null, 2) }],
         };
       }
 
       case 'supabase_describe_table': {
         const { table } = args as { table: string };
 
-        const { data, error } = await supabase
-          .from('information_schema.columns')
-          .select('column_name, data_type, is_nullable, column_default')
-          .eq('table_schema', 'public')
-          .eq('table_name', table);
+        const result = await describeTable(table);
 
-        if (error) {
+        if (result.error) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `Error: ${error.message}`,
-              },
-            ],
+            content: [{ type: 'text', text: `Error: ${result.error}` }],
           };
         }
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(data, null, 2),
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
         };
       }
 
       case 'supabase_count': {
-        const params = args as QueryParams;
-        let query = supabase
-          .from(params.table)
-          .select('*', { count: 'exact', head: true });
+        const { table, filters } = args as {
+          table: string;
+          filters?: Record<string, unknown>;
+        };
 
-        // Apply filters
-        if (params.filters) {
-          Object.entries(params.filters).forEach(([key, value]) => {
-            query = query.eq(key, value);
-          });
-        }
+        const result = await countRows(table, filters);
 
-        const { count, error } = await query;
-
-        if (error) {
+        if (result.error) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `Error: ${error.message}`,
-              },
-            ],
+            content: [{ type: 'text', text: `Error: ${result.error}` }],
           };
         }
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: `Count: ${count}`,
-            },
-          ],
+          content: [{ type: 'text', text: `Count: ${result.count}` }],
         };
       }
 
       default:
         return {
-          content: [
-            {
-              type: 'text',
-              text: `Unknown tool: ${name}`,
-            },
-          ],
+          content: [{ type: 'text', text: `Unknown tool: ${name}` }],
           isError: true,
         };
     }
@@ -575,7 +412,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Start the server
+// ============================================================================
+// SERVER STARTUP
+// ============================================================================
+
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
