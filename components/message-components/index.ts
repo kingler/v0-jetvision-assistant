@@ -18,6 +18,7 @@ export type {
   FormFieldComponent,
   FileAttachmentComponent,
   ProgressIndicatorComponent,
+  PipelineDashboardComponent,
 } from './types';
 
 export { isComponentType } from './types';
@@ -56,3 +57,6 @@ export type { FileAttachmentProps } from './file-attachment';
 
 export { ProgressIndicator } from './progress-indicator';
 export type { ProgressIndicatorProps } from './progress-indicator';
+
+export { PipelineDashboard } from './pipeline-dashboard';
+export type { PipelineDashboardProps } from './pipeline-dashboard';

@@ -12,6 +12,8 @@ import type { RFQFlight } from "../avinode/rfq-flight-card"
 import type { RFQFlight as AvinodeRFQFlight } from "@/lib/mcp/clients/avinode-client"
 import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "../chat-sidebar"
+import { PipelineDashboard } from "../message-components/pipeline-dashboard"
+import type { PipelineData } from "@/lib/types/chat-agent"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -159,6 +161,14 @@ export interface AgentMessageProps {
   }) => Promise<{ success: boolean; error?: string }>
   /** Callback when user goes back from Step 4 */
   onGoBackFromProposal?: () => void
+  /** Whether to show pipeline/deals dashboard inline */
+  showPipeline?: boolean
+  /** Pipeline data to display */
+  pipelineData?: PipelineData
+  /** Callback when a request is clicked in pipeline */
+  onViewRequest?: (requestId: string) => void
+  /** Callback when pipeline refresh is clicked */
+  onRefreshPipeline?: () => void
 }
 
 /**
@@ -199,6 +209,10 @@ export function AgentMessage({
   onGeneratePreview,
   onSendProposal,
   onGoBackFromProposal,
+  showPipeline,
+  pipelineData,
+  onViewRequest,
+  onRefreshPipeline,
 }: AgentMessageProps) {
   const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
 
@@ -304,6 +318,17 @@ export function AgentMessage({
         <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <ProposalPreview embedded={true} chatData={chatData} />
         </div>
+      )}
+
+      {/* Pipeline Dashboard - inline deals/requests view */}
+      {showPipeline && pipelineData && (
+        <PipelineDashboard
+          stats={pipelineData.stats}
+          requests={pipelineData.recentRequests}
+          onViewRequest={onViewRequest}
+          onRefresh={onRefreshPipeline}
+          className="mt-2"
+        />
       )}
 
       {/* Timestamp */}

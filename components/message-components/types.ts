@@ -307,6 +307,32 @@ export interface AvinodeMessageComponent extends BaseMessageComponent {
 }
 
 /**
+ * Pipeline Dashboard component - displays deals/requests inline
+ */
+export interface PipelineDashboardComponent extends BaseMessageComponent {
+  type: 'pipeline_dashboard';
+  stats: {
+    totalRequests: number;
+    pendingRequests: number;
+    completedRequests: number;
+    totalQuotes: number;
+    activeWorkflows: number;
+  };
+  requests: Array<{
+    id: string;
+    departureAirport: string;
+    arrivalAirport: string;
+    departureDate: string;
+    passengers: number;
+    status: string;
+    createdAt: string;
+    clientName?: string;
+  }>;
+  onViewRequest?: (requestId: string) => void;
+  onRefresh?: () => void;
+}
+
+/**
  * Union type of all message components
  */
 export type MessageComponent =
@@ -325,7 +351,8 @@ export type MessageComponent =
   | AvinodeAuthStatusComponent
   | AvinodeRfqQuoteDetailsComponent
   | AvinodeTripDetailsComponent
-  | AvinodeMessageComponent;
+  | AvinodeMessageComponent
+  | PipelineDashboardComponent;
 
 /**
  * Message component props

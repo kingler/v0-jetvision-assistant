@@ -15,6 +15,7 @@ import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
+import type { PipelineData } from "@/lib/types/chat-agent"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -511,6 +512,14 @@ export function ChatInterface({
                   }
                 }
 
+                // Handle pipeline_data for deals/pipeline view
+                let showPipeline = false
+                let pipelineData: PipelineData | undefined = undefined
+                if (data.pipeline_data) {
+                  showPipeline = true
+                  pipelineData = data.pipeline_data as PipelineData
+                }
+
                 const agentMsg = {
                   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                   type: "agent" as const,
@@ -519,6 +528,8 @@ export function ChatInterface({
                   showWorkflow: newStep > 1,
                   showDeepLink,
                   deepLinkData,
+                  showPipeline,
+                  pipelineData,
                 }
 
                 const updatedMessages = [...latestMessagesRef.current, agentMsg]
@@ -1066,6 +1077,25 @@ export function ChatInterface({
                   onViewChat={(flightId) => {
                     console.log('[Chat] View chat for flight:', flightId)
                     handleViewQuoteDetails(flightId)
+                  }}
+                  // Pipeline dashboard props for inline deals/requests view
+                  showPipeline={message.showPipeline}
+                  pipelineData={message.pipelineData}
+                  onViewRequest={(requestId) => {
+                    console.log('[Pipeline] View request:', requestId)
+                    // TODO: Navigate to request details or open drawer
+                  }}
+                  onRefreshPipeline={() => {
+                    console.log('[Pipeline] Refresh requested')
+                    // Re-send the pipeline query to get fresh data
+                    setInputValue("show my pipeline")
+                    // Trigger send after a brief delay for state update
+                    setTimeout(() => {
+                      const form = document.querySelector('form')
+                      if (form) {
+                        form.dispatchEvent(new Event('submit', { bubbles: true }))
+                      }
+                    }, 100)
                   }}
                 />
               )}

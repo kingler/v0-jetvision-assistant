@@ -15,6 +15,8 @@ import OpenAI from 'openai'
 import type { ChatCompletionMessageToolCall } from 'openai/resources/chat/completions'
 import { z } from 'zod'
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
+import { supabaseAdmin } from '@/lib/supabase'
+import type { PipelineData, PipelineStats, PipelineRequest } from '@/lib/types/chat-agent'
 
 // Agent integration imports
 import {
@@ -321,6 +323,77 @@ async function executeAvinodeTool(
 }
 
 /**
+ * Fetch pipeline data for the current user
+ * Returns stats and recent requests for inline dashboard display
+ *
+ * @see ONEK-139 Inline Deals/Pipeline View in Chat
+ */
+async function fetchPipelineData(userId: string): Promise<PipelineData> {
+  console.log(`[Chat API] Fetching pipeline data for user: ${userId}`)
+
+  // Fetch requests with stats
+  const { data: requests, error } = await supabaseAdmin
+    .from('requests')
+    .select('id, departure_airport, arrival_airport, departure_date, passengers, status, created_at, client_name')
+    .eq('clerk_user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  if (error) {
+    console.error('[Chat API] Error fetching pipeline data:', error)
+    // Return empty data on error
+    return {
+      stats: {
+        totalRequests: 0,
+        pendingRequests: 0,
+        completedRequests: 0,
+        totalQuotes: 0,
+        activeWorkflows: 0,
+      },
+      recentRequests: [],
+      lastUpdated: new Date().toISOString(),
+    }
+  }
+
+  // Calculate stats
+  const stats: PipelineStats = {
+    totalRequests: requests?.length || 0,
+    pendingRequests: requests?.filter(r => r.status === 'pending' || r.status === 'in_progress').length || 0,
+    completedRequests: requests?.filter(r => r.status === 'completed').length || 0,
+    totalQuotes: 0, // Will be populated from quotes table if needed
+    activeWorkflows: requests?.filter(r => r.status === 'in_progress' || r.status === 'awaiting_quotes').length || 0,
+  }
+
+  // Fetch quote count
+  const { count: quoteCount } = await supabaseAdmin
+    .from('quotes')
+    .select('*', { count: 'exact', head: true })
+    .in('request_id', requests?.map(r => r.id) || [])
+
+  stats.totalQuotes = quoteCount || 0
+
+  // Map requests to PipelineRequest format
+  const recentRequests: PipelineRequest[] = (requests || []).map(r => ({
+    id: r.id,
+    departureAirport: r.departure_airport || 'N/A',
+    arrivalAirport: r.arrival_airport || 'N/A',
+    departureDate: r.departure_date || '',
+    passengers: r.passengers || 0,
+    status: r.status || 'pending',
+    createdAt: r.created_at || new Date().toISOString(),
+    clientName: r.client_name,
+  }))
+
+  console.log(`[Chat API] Pipeline data fetched: ${stats.totalRequests} requests, ${stats.totalQuotes} quotes`)
+
+  return {
+    stats,
+    recentRequests,
+    lastUpdated: new Date().toISOString(),
+  }
+}
+
+/**
  * POST /api/chat
  *
  * Handle chat messages with streaming responses and Avinode tool integration
@@ -485,6 +558,17 @@ export async function POST(req: NextRequest) {
     const wantsRFP = messageText.includes('rfp') || messageText.includes('quote') ||
                      messageText.includes('book') || messageText.includes('proceed')
 
+    // ONEK-139: Detect pipeline/deals view intent
+    const wantsPipeline = messageText.includes('pipeline') ||
+      messageText.includes('deals') ||
+      messageText.includes('my requests') ||
+      messageText.includes('my flights') ||
+      messageText.includes('show me my') ||
+      messageText.includes('my bookings') ||
+      messageText.includes('active requests') ||
+      messageText.includes('pending requests') ||
+      (messageText.includes('show') && messageText.includes('request'))
+
     // Detect if message contains a Trip ID (6-12 alphanumeric characters)
     // Pattern: standalone alphanumeric string that looks like a Trip ID
     const tripIdPattern = /\b[A-Z0-9]{6,12}\b/i
@@ -507,8 +591,46 @@ export async function POST(req: NextRequest) {
     console.log(`  - hasFlightKeywords: ${hasFlightKeywords}`)
     console.log(`  - hasFlightDetails: ${hasFlightDetails}`)
     console.log(`  - wantsRFP: ${wantsRFP}`)
+    console.log(`  - wantsPipeline: ${wantsPipeline}`)
     console.log(`  - hasTripId: ${hasTripId}`)
     console.log(`[Chat API] Tool choice: ${toolChoice}`)
+
+    // ONEK-139: Handle pipeline requests with early return (no OpenAI call needed)
+    if (wantsPipeline) {
+      console.log('[Chat API] Pipeline intent detected - fetching pipeline data')
+      const pipelineData = await fetchPipelineData(userId)
+      const mcp = getAvinodeMCP()
+      const isMockMode = mcp.isUsingMockMode()
+
+      // Generate a friendly response message
+      const pipelineContent = pipelineData.stats.totalRequests > 0
+        ? `Here's your current pipeline! You have ${pipelineData.stats.totalRequests} total request${pipelineData.stats.totalRequests !== 1 ? 's' : ''}, with ${pipelineData.stats.pendingRequests} pending and ${pipelineData.stats.completedRequests} completed.`
+        : `Your pipeline is empty. Start by creating a new flight request - just tell me where you'd like to fly!`
+
+      const responseData = {
+        content: pipelineContent,
+        done: true,
+        mock_mode: isMockMode,
+        pipeline_data: pipelineData,
+      }
+
+      const encoder = new TextEncoder()
+      const readableStream = new ReadableStream({
+        start(controller) {
+          const data = JSON.stringify(responseData)
+          controller.enqueue(encoder.encode(`data: ${data}\n\n`))
+          controller.close()
+        },
+      })
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      })
+    }
 
     // First, make a non-streaming call to check for tool usage
     const initialResponse = await openai.chat.completions.create({

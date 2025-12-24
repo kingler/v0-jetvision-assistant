@@ -46,6 +46,9 @@ export enum ChatIntent {
   LIST_ARCHIVED_RFPS = 'list_archived_rfps',
   VIEW_ARCHIVED_RFP = 'view_archived_rfp',
 
+  // Pipeline/Dashboard
+  VIEW_PIPELINE = 'view_pipeline',
+
   // General
   HELP = 'help',
   CLARIFY = 'clarify',
@@ -146,8 +149,46 @@ export enum ChatResponseType {
   CLIENT_INFO = 'client_info',
   ARCHIVED_RFPS_LIST = 'archived_rfps_list',
   ARCHIVED_RFP_DETAIL = 'archived_rfp_detail',
+  PIPELINE_VIEW = 'pipeline_view',
   ERROR = 'error',
   CLARIFICATION_NEEDED = 'clarification_needed',
+}
+
+/**
+ * Pipeline Stats
+ * Summary statistics for the pipeline dashboard
+ */
+export interface PipelineStats {
+  totalRequests: number
+  pendingRequests: number
+  completedRequests: number
+  totalQuotes: number
+  activeWorkflows: number
+}
+
+/**
+ * Pipeline Request Item
+ * Individual request in the pipeline
+ */
+export interface PipelineRequest {
+  id: string
+  departureAirport: string
+  arrivalAirport: string
+  departureDate: string
+  passengers: number
+  status: string
+  createdAt: string
+  clientName?: string
+}
+
+/**
+ * Pipeline Data
+ * Complete pipeline/dashboard data for inline display
+ */
+export interface PipelineData {
+  stats: PipelineStats
+  recentRequests: PipelineRequest[]
+  lastUpdated: string
 }
 
 /**
@@ -254,6 +295,9 @@ export interface ChatResponseData {
   archivedRfpDetail?: ArchivedRFPDetail
   totalCount?: number
   hasMore?: boolean
+
+  // Pipeline data
+  pipelineData?: PipelineData
 
   // Other structured data
   [key: string]: unknown
@@ -432,6 +476,7 @@ export interface ChatMessage {
   showCustomerPreferences?: boolean
   showArchivedRFPsList?: boolean
   showArchivedRFPDetail?: boolean
+  showPipeline?: boolean
   metadata?: Record<string, unknown>
 }
 
