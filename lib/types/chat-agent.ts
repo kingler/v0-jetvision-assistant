@@ -511,3 +511,148 @@ export interface ChatErrorResponse {
   details?: Record<string, unknown>
   suggestedActions?: SuggestedAction[]
 }
+
+// ============================================================================
+// SSE STREAMING TYPES (for /api/chat → OrchestratorAgent integration)
+// ============================================================================
+
+/**
+ * User Intent Types (from OrchestratorAgent)
+ * Maps to IntentParser output
+ */
+export type UserIntent =
+  | 'RFP_CREATION'
+  | 'INFORMATION_QUERY'
+  | 'GENERAL_CONVERSATION'
+  | 'CONFIRMATION'
+  | 'CLARIFICATION'
+
+/**
+ * Conversation Phase
+ * Tracks where we are in the RFP gathering flow
+ */
+export type ConversationPhase =
+  | 'greeting'
+  | 'gathering_info'
+  | 'confirming'
+  | 'processing'
+  | 'complete'
+
+/**
+ * Action Button for UI
+ * Suggested next actions the user can take
+ */
+export interface ActionButton {
+  label: string
+  action: string
+  priority: 'primary' | 'secondary'
+}
+
+/**
+ * Conversation State
+ * Current state of the conversation flow
+ */
+export interface ConversationState {
+  phase: ConversationPhase
+  extractedData: Partial<RFPData>
+  pendingQuestions: string[]
+  conversationHistory?: Array<{ role: string; content: string }>
+}
+
+/**
+ * Trip Data from Avinode
+ * Returned when create_trip tool is called
+ */
+export interface TripData {
+  tripId: string
+  deepLink: string
+  departureAirport: string
+  arrivalAirport: string
+  departureDate: string
+  passengers: number
+  status: string
+  createdAt: string
+}
+
+/**
+ * RFQ Data from Avinode
+ * Quote/RFQ information
+ */
+export interface RFQData {
+  rfqId: string
+  tripId: string
+  status: string
+  quotes?: Array<{
+    quoteId: string
+    operatorName: string
+    aircraftType: string
+    price: number
+    currency: string
+  }>
+  receivedAt?: string
+}
+
+/**
+ * Tool Call Result
+ * Result from executing an Avinode tool
+ */
+export interface ToolCallResult {
+  name: string
+  result: unknown
+  status?: 'success' | 'error'
+  error?: string
+}
+
+/**
+ * Agent Metadata in SSE Response
+ * Additional data from OrchestratorAgent
+ */
+export interface AgentMetadata {
+  intent: UserIntent
+  conversationState: ConversationState
+  nextActions?: ActionButton[]
+  workflowState?: WorkflowState
+  agentChain?: string[]
+  processingTime?: number
+}
+
+/**
+ * Agent Stream Response
+ * The SSE response format from /api/chat when using OrchestratorAgent
+ *
+ * Backward compatible with existing fields while adding agent metadata
+ */
+export interface AgentStreamResponse {
+  // ========== Existing Fields (Backward Compatible) ==========
+  /** Response content text */
+  content: string
+
+  /** Whether this is the final message */
+  done: boolean
+
+  /** Tool calls executed during processing */
+  tool_calls?: ToolCallResult[]
+
+  /** Trip data from create_trip */
+  trip_data?: TripData | null
+
+  /** RFP data from flight search */
+  rfp_data?: Partial<RFPData> | null
+
+  /** RFQ data from Avinode */
+  rfq_data?: RFQData | null
+
+  /** Whether using mock mode */
+  mock_mode: boolean
+
+  // ========== New Agent Fields ==========
+  /** Agent metadata (only present when using OrchestratorAgent) */
+  agent?: AgentMetadata
+
+  /** Error information */
+  error?: {
+    code: string
+    message: string
+    recoverable: boolean
+  }
+}

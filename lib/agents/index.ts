@@ -30,3 +30,23 @@ export { RFPOrchestratorAgent };
  */
 export { AgentFactory };
 export * from '@/agents/core/types';
+
+/**
+ * Session management for chat integration
+ */
+export {
+  getOrCreateOrchestrator,
+  clearOrchestratorSession,
+  clearAllSessions,
+  getSessionInfo,
+} from './orchestrator-session';
+
+/**
+ * SSE streaming utilities
+ */
+export {
+  convertAgentResultToStreamResponse,
+  createAgentSSEStream,
+  createIncrementalSSEStream,
+  SSE_HEADERS,
+} from './stream-adapter';

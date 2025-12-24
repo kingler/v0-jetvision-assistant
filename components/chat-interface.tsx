@@ -365,8 +365,17 @@ export function ChatInterface({
             try {
               const data = JSON.parse(line.slice(6))
 
+              // ONEK-137: Handle both legacy string errors and new structured format
               if (data.error) {
-                throw new Error(data.message || "Stream error")
+                // New structured format: { code, message, recoverable }
+                if (typeof data.error === 'object' && data.error.message) {
+                  const errorInfo = data.error as { code: string; message: string; recoverable: boolean }
+                  console.error(`[Chat] Agent error [${errorInfo.code}]:`, errorInfo.message)
+                  // If recoverable, we could allow retry - for now just show the message
+                  throw new Error(errorInfo.message)
+                }
+                // Legacy string format
+                throw new Error(data.message || data.error || "Stream error")
               }
 
               if (data.content) {
@@ -376,7 +385,7 @@ export function ChatInterface({
 
               if (data.done) {
                 // Stream complete - add final message
-                // Determine workflow status based on tool calls
+                // Determine workflow status based on tool calls and agent metadata
                 let newStatus: string = "understanding_request"
                 let newStep = 1
                 let showDeepLink = false
@@ -389,6 +398,38 @@ export function ChatInterface({
                   departureDate?: string
                   passengers?: number
                 } | undefined = undefined
+
+                // ONEK-137: Extract agent metadata for richer UI state
+                const agentMetadata = data.agent
+                if (agentMetadata) {
+                  console.log('[Chat] Agent metadata received:', {
+                    intent: agentMetadata.intent,
+                    phase: agentMetadata.conversationState?.phase,
+                    nextActions: agentMetadata.nextActions?.length || 0,
+                  })
+
+                  // Use conversation phase to set workflow status
+                  const phase = agentMetadata.conversationState?.phase
+                  if (phase === 'gathering_info') {
+                    newStatus = 'understanding_request'
+                    newStep = 1
+                  } else if (phase === 'confirming') {
+                    newStatus = 'searching_aircraft'
+                    newStep = 2
+                  } else if (phase === 'processing') {
+                    newStatus = 'requesting_quotes'
+                    newStep = 3
+                  } else if (phase === 'complete') {
+                    newStatus = 'proposal_ready'
+                    newStep = 5
+                  }
+
+                  // Use intent for more specific status
+                  if (agentMetadata.intent === 'RFP_CREATION') {
+                    newStatus = 'searching_aircraft'
+                    newStep = 2
+                  }
+                }
 
                 // Check for tool calls in the response
                 if (data.tool_calls && Array.isArray(data.tool_calls)) {
@@ -742,8 +783,14 @@ export function ChatInterface({
             try {
               const data = JSON.parse(line.slice(6))
 
+              // ONEK-137: Handle both legacy string errors and new structured format
               if (data.error) {
-                throw new Error(data.message || "Failed to retrieve quotes")
+                if (typeof data.error === 'object' && data.error.message) {
+                  const errorInfo = data.error as { code: string; message: string; recoverable: boolean }
+                  console.error(`[Chat] Quote retrieval error [${errorInfo.code}]:`, errorInfo.message)
+                  throw new Error(errorInfo.message)
+                }
+                throw new Error(data.message || data.error || "Failed to retrieve quotes")
               }
 
               if (data.content) {

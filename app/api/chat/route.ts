@@ -1,11 +1,12 @@
 /**
  * Chat API Route
  *
- * Direct OpenAI integration for chat messages with SSE streaming.
- * Integrates with Avinode MCP tools for flight search and RFP creation.
+ * Multi-Agent System integration for chat messages with SSE streaming.
+ * Routes through OrchestratorAgent for intelligent conversation handling.
+ * Falls back to direct OpenAI for simple queries.
  *
  * @see Linear issue ONEK-120 for Avinode integration
- * @see Linear issue ONEK-137 for multi-agent integration roadmap
+ * @see Linear issue ONEK-137 for multi-agent integration (IMPLEMENTED)
  */
 
 import { NextRequest } from 'next/server'
@@ -14,6 +15,17 @@ import OpenAI from 'openai'
 import type { ChatCompletionMessageToolCall } from 'openai/resources/chat/completions'
 import { z } from 'zod'
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
+
+// Agent integration imports
+import {
+  getOrCreateOrchestrator,
+  createAgentSSEStream,
+  SSE_HEADERS,
+} from '@/lib/agents'
+import type { AgentStreamResponse } from '@/lib/types/chat-agent'
+
+// Feature flag for agent-based processing
+const USE_AGENT_ORCHESTRATION = process.env.USE_AGENT_ORCHESTRATION !== 'false'
 
 // Type guard for standard function tool calls
 function isFunctionToolCall(
@@ -349,6 +361,59 @@ export async function POST(req: NextRequest) {
     }
 
     const { message, conversationHistory, context } = validationResult.data
+
+    // =========================================================================
+    // ONEK-137: Multi-Agent System Integration
+    // When USE_AGENT_ORCHESTRATION is enabled, route through OrchestratorAgent
+    // for intelligent conversation handling with full MAS coordination.
+    // Falls back to direct OpenAI for simple queries or when disabled.
+    // =========================================================================
+    if (USE_AGENT_ORCHESTRATION) {
+      try {
+        console.log('[Chat API] Using OrchestratorAgent for processing')
+
+        // Generate session ID (use existing or create new)
+        const sessionId = context?.flightRequestId || `chat-${userId}-${Date.now()}`
+
+        // Get or create orchestrator for this session
+        const orchestrator = await getOrCreateOrchestrator(sessionId)
+
+        // Execute with full conversation context
+        const result = await orchestrator.execute({
+          sessionId,
+          userId,
+          requestId: `msg-${Date.now()}`,
+          metadata: {
+            userMessage: message,
+            conversationHistory,
+            context,
+          },
+        })
+
+        console.log('[Chat API] OrchestratorAgent result:', {
+          hasResponse: !!result.response,
+          hasError: !!result.error,
+          toolCallsCount: result.toolCalls?.length || 0,
+        })
+
+        // Check if MCP is using mock mode for response metadata
+        const mcp = getAvinodeMCP()
+        const isMockMode = mcp.isUsingMockMode()
+
+        // Stream response using the new adapter
+        return new Response(createAgentSSEStream(result, isMockMode), {
+          headers: SSE_HEADERS,
+        })
+      } catch (agentError) {
+        // Log but don't fail - fall back to direct OpenAI
+        console.error('[Chat API] OrchestratorAgent error, falling back to OpenAI:', agentError)
+        // Continue to traditional OpenAI processing below
+      }
+    }
+
+    // =========================================================================
+    // Legacy: Direct OpenAI Processing (fallback or when agent disabled)
+    // =========================================================================
 
     // Build messages array for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
