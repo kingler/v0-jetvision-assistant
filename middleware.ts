@@ -1,5 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
+
+// Check if auth should be bypassed in development
+const BYPASS_AUTH = process.env.BYPASS_AUTH === 'true' ||
+  (process.env.NODE_ENV === 'development' && process.env.VERCEL !== '1')
 
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
@@ -10,7 +14,14 @@ const isPublicRoute = createRouteMatcher([
   '/component-demo(.*)', // Component demo pages for testing/screenshots
 ])
 
-export default clerkMiddleware(async (auth, request) => {
+// Simple passthrough middleware for development
+function devMiddleware(request: NextRequest) {
+  // In dev mode, just pass through all requests
+  return NextResponse.next()
+}
+
+// Production middleware with Clerk auth
+const productionMiddleware = clerkMiddleware(async (auth, request) => {
   const { userId } = await auth()
 
   // Redirect authenticated users away from auth pages to home
@@ -25,6 +36,9 @@ export default clerkMiddleware(async (auth, request) => {
     return NextResponse.redirect(signInUrl)
   }
 })
+
+// Export the appropriate middleware based on environment
+export default BYPASS_AUTH ? devMiddleware : productionMiddleware
 
 export const config = {
   matcher: [

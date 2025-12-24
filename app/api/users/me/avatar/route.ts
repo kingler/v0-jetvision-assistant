@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
 
     // Update user's avatar_url in database
     const { data, error } = await supabase
-      .from('users')
+      .from('iso_agents')
       .update({ avatar_url: avatarUrl })
-      .eq('clerk_id', user.id)
+      .eq('clerk_user_id', user.id)
       .select()
       .single();
 

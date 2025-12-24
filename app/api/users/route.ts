@@ -40,7 +40,7 @@ export const GET = withRBAC(
 
       const supabase = await createClient();
       let query = supabase
-        .from('users')
+        .from('iso_agents')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range((page - 1) * limit, page * limit - 1);
@@ -126,7 +126,7 @@ export const PATCH = withRBAC(
       const supabase = await createClient();
 
       const { data: user, error } = await supabase
-        .from('users')
+        .from('iso_agents')
         .update({
           ...allowedUpdates,
           updated_at: new Date().toISOString(),

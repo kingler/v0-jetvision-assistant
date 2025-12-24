@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const requestId = searchParams.get('request_id');
 
-    const { data: user } = await supabase.from('users').select('id, role').eq('clerk_user_id', userId).single();
+    const { data: user } = await supabase.from('iso_agents').select('id, role').eq('clerk_user_id', userId).single();
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     let query = supabase

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useUserRole } from "@/lib/hooks/use-user-role"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,9 +10,24 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Calculator, DollarSign, Users, Save } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Calculator, DollarSign, Users, Save, Settings } from "lucide-react"
 
-export function SettingsPanel() {
+/**
+ * Settings Dropdown Menu Component
+ * 
+ * Complete dropdown menu component with trigger button.
+ * This is the main component to use for the Settings dropdown.
+ */
+export function SettingsDropdownMenu() {
+  const { isAdmin, loading } = useUserRole()
   const [marginType, setMarginType] = useState<"fixed" | "percentage">("fixed")
   const [marginValue, setMarginValue] = useState(5000)
   const [marginPercentage, setMarginPercentage] = useState(50)
@@ -22,6 +37,10 @@ export function SettingsPanel() {
   const [enableDemandPricing, setEnableDemandPricing] = useState(false)
   const [enableTieredRates, setEnableTieredRates] = useState(false)
 
+  // Only show settings for admin users
+  if (loading) return null
+  if (!isAdmin) return null
+
   // Sample calculation
   const operatorCost = 10000
   const appliedMargin = marginType === "fixed" ? marginValue : (operatorCost * marginPercentage) / 100
@@ -30,26 +49,43 @@ export function SettingsPanel() {
   const jetvisionNet = appliedMargin - agentCommission
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground font-[family-name:var(--font-space-grotesk)] mb-2">
-          Settings Panel
-        </h2>
-        <p className="text-muted-foreground font-[family-name:var(--font-dm-sans)]">
-          Configure margins and commission structures
-        </p>
-      </div>
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex items-center space-x-2 rounded-lg transition-all text-gray-300 hover:text-white hover:bg-gray-800 data-[state=open]:bg-cyan-600 data-[state=open]:hover:bg-cyan-700 data-[state=open]:text-white data-[state=open]:shadow-sm"
+        >
+          <Settings className="w-4 h-4" />
+          <span className="hidden sm:inline">Settings</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent 
+        className="w-[600px] p-4"
+        align="end"
+        sideOffset={8}
+      >
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h2 className="text-xl font-bold text-foreground font-[family-name:var(--font-space-grotesk)] mb-1">
+            Settings Panel
+          </h2>
+          <p className="text-sm text-muted-foreground font-[family-name:var(--font-dm-sans)]">
+            Configure margins and commission structures
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Margin Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 font-[family-name:var(--font-space-grotesk)]">
-              <DollarSign className="w-5 h-5" />
-              <span>Margin Configuration</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <DropdownMenuSeparator />
+
+        {/* Margin Configuration Section */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center space-x-2 px-0 py-2 font-[family-name:var(--font-space-grotesk)]">
+            <DollarSign className="w-4 h-4" />
+            <span className="text-base font-semibold">Margin Configuration</span>
+          </DropdownMenuLabel>
+          
+          <div className="space-y-4 pl-6">
             <div className="space-y-2">
               <Label>Base Margin Type</Label>
               <Select value={marginType} onValueChange={(value: "fixed" | "percentage") => setMarginType(value)}>
@@ -134,18 +170,19 @@ export function SettingsPanel() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </DropdownMenuGroup>
 
-        {/* Commission Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 font-[family-name:var(--font-space-grotesk)]">
-              <Users className="w-5 h-5" />
-              <span>Commission Split Configuration</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <DropdownMenuSeparator />
+
+        {/* Commission Split Configuration Section */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center space-x-2 px-0 py-2 font-[family-name:var(--font-space-grotesk)]">
+            <Users className="w-4 h-4" />
+            <span className="text-base font-semibold">Commission Split Configuration</span>
+          </DropdownMenuLabel>
+          
+          <div className="space-y-4 pl-6">
             <div className="space-y-2">
               <Label>Agent/ISO Commission Split</Label>
               <div className="px-3">
@@ -213,47 +250,50 @@ export function SettingsPanel() {
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </DropdownMenuGroup>
 
-      {/* Margin Calculator Preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2 font-[family-name:var(--font-space-grotesk)]">
-            <Calculator className="w-5 h-5" />
-            <span>Margin Calculator Preview</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-muted rounded-lg p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-sm text-muted-foreground">Operator Cost</p>
-                <p className="text-2xl font-bold">${operatorCost.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Margin Applied ({marginType === "fixed" ? "$" + marginValue.toLocaleString() : marginPercentage + "%"}
-                  )
-                </p>
-                <p className="text-2xl font-bold text-accent">+ ${appliedMargin.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Quote</p>
-                <p className="text-2xl font-bold text-primary">${totalQuote.toLocaleString()}</p>
+        <DropdownMenuSeparator />
+
+        {/* Margin Calculator Preview Section */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center space-x-2 px-0 py-2 font-[family-name:var(--font-space-grotesk)]">
+            <Calculator className="w-4 h-4" />
+            <span className="text-base font-semibold">Margin Calculator Preview</span>
+          </DropdownMenuLabel>
+          
+          <div className="space-y-4 pl-6">
+            <div className="bg-muted rounded-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Operator Cost</p>
+                  <p className="text-2xl font-bold">${operatorCost.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Margin Applied ({marginType === "fixed" ? "$" + marginValue.toLocaleString() : marginPercentage + "%"}
+                    )
+                  </p>
+                  <p className="text-2xl font-bold text-accent">+ ${appliedMargin.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Quote</p>
+                  <p className="text-2xl font-bold text-primary">${totalQuote.toLocaleString()}</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-end mt-4">
-            <Button className="flex items-center space-x-2">
-              <Save className="w-4 h-4" />
-              <span>Save Settings</span>
-            </Button>
+            <div className="flex justify-end pt-2">
+              <Button className="flex items-center space-x-2">
+                <Save className="w-4 h-4" />
+                <span>Save Settings</span>
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </DropdownMenuGroup>
+      </div>
+    </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
+

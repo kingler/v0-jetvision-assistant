@@ -34,7 +34,7 @@ export const GET = withRBAC(
       const supabase = await createClient();
 
       const { data: user, error } = await supabase
-        .from('users')
+        .from('iso_agents')
         .select('*')
         .eq('clerk_user_id', userId)
         .single();
@@ -98,7 +98,7 @@ export const PATCH = withRBAC(
       const supabase = await createClient();
 
       const { data: user, error } = await supabase
-        .from('users')
+        .from('iso_agents')
         .update({
           ...allowedUpdates,
           updated_at: new Date().toISOString(),

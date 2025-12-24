@@ -96,9 +96,9 @@ export async function POST(req: Request) {
           console.warn(`[WEBHOOK] Invalid role "${proposedRole}" from Clerk for user ${id}, defaulting to sales_rep`);
         }
 
-        // Create user in Supabase users table
+        // Create user in Supabase iso_agents table
         const { data, error } = await supabase
-          .from('users')
+          .from('iso_agents')
           .insert({
             clerk_user_id: id,
             email: email,
@@ -150,7 +150,7 @@ export async function POST(req: Request) {
 
         // Update user in Supabase
         const { data, error } = await supabase
-          .from('users')
+          .from('iso_agents')
           .update(updateData)
           .eq('clerk_user_id', id)
           .select()
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
 
         // Soft delete: mark user as inactive instead of deleting
         const { data, error } = await supabase
-          .from('users')
+          .from('iso_agents')
           .update({
             is_active: false,
             updated_at: new Date().toISOString(),

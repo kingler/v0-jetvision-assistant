@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const { data: user, error: userError } = await supabase
-      .from('users')
+      .from('iso_agents')
       .select('id, role')
       .eq('clerk_user_id', userId)
       .single<Pick<User, 'id' | 'role'>>();
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: user, error: userError } = await supabase
-      .from('users')
+      .from('iso_agents')
       .select('id, role')
       .eq('clerk_user_id', userId)
       .single<Pick<User, 'id' | 'role'>>();
