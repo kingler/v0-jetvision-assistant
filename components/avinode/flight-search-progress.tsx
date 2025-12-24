@@ -346,6 +346,15 @@ export function FlightSearchProgress({
   const [copied, setCopied] = useState(false);
 
   /**
+   * Memoized no-op function for Trip ID submission fallback.
+   * Prevents creating new function instances on every render,
+   * which can cause React serialization issues with server actions.
+   */
+  const handleTripIdSubmitNoOp = useCallback(async () => {
+    // No-op: do nothing if onTripIdSubmit is not provided
+  }, []);
+
+  /**
    * Memoized conversion of selected RFQ flights to AvinodeRFQFlight format.
    * Filters rfqFlights by selectedRfqFlightIds and maps via convertToAvinodeRFQFlight.
    * Only recalculates when rfqFlights or selectedRfqFlightIds change.
@@ -679,7 +688,7 @@ export function FlightSearchProgress({
 
                   {/* Trip ID Input */}
                   <TripIDInput
-                    onSubmit={onTripIdSubmit || (async () => {})}
+                    onSubmit={onTripIdSubmit || handleTripIdSubmitNoOp}
                     isLoading={isTripIdLoading}
                     error={tripIdError}
                     helpText="Find the Trip ID in your Avinode confirmation email or on the trip details page."

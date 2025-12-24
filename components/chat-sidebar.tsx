@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, MessageSquare, CheckCircle, Clock, Loader2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AvinodeTripBadge } from "@/components/avinode-trip-badge"
+import type { PipelineData } from "@/lib/types/chat-agent"
 
 /** Operator message in conversation thread */
 export interface OperatorMessage {
@@ -100,6 +101,10 @@ export interface ChatSession {
       departureDate?: string
       passengers?: number
     }
+    /** Whether to show pipeline dashboard inline */
+    showPipeline?: boolean
+    /** Pipeline data for inline deals/requests view */
+    pipelineData?: PipelineData
   }>
   /** Flag to indicate this chat needs an initial API call (set when created from landing page) */
   needsInitialApiCall?: boolean

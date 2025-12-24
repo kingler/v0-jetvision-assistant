@@ -42,6 +42,10 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
 function formatDate(dateString: string): string {
   try {
     const date = new Date(dateString);
+    // Check if the date is valid (Invalid Date returns NaN for getTime())
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
