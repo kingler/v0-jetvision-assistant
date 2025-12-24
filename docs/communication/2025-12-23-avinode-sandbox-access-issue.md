@@ -270,8 +270,10 @@ curl -X POST "https://sandbox.avinode.com/api/oauth/token" \
 
 **Credentials Used:**
 
-- `CLIENT_ID=f0b9992a-d539-4760-8cb2-3a5d81ad5e30`
-- `CLIENT_SECRET_JWT=avinode_xZq1Ak139E1++nY5Uek2!S3lh3+@V+56uyi!@Uy6Jc!Wy#z1`
+- `CLIENT_ID=<REDACTED_CLIENT_ID>`
+- `CLIENT_SECRET_JWT=<REDACTED_CLIENT_SECRET>`
+
+**Note**: Real OAuth credentials are stored in `.env.local` and secure internal tracking system. Never commit actual credentials to version control.
 
 **Actual Response:**
 
@@ -378,8 +380,10 @@ curl -X POST "https://sandbox.avinode.com/api/oauth/token" \
 ```
 
 **We have these credentials but are NOT using OAuth:**
-- `CLIENT_ID=f0b9992a-d539-4760-8cb2-3a5d81ad5e30`
-- `CLIENT_SECRET_JWT=avinode_xZq1Ak139E1++nY5Uek2!S3lh3+@V+56uyi!@Uy6Jc!Wy#z1`
+- `CLIENT_ID=<REDACTED_CLIENT_ID>`
+- `CLIENT_SECRET_JWT=<REDACTED_CLIENT_SECRET>`
+
+**Note**: Real OAuth credentials are stored in `.env.local` and secure internal tracking system. Never commit actual credentials to version control.
 
 #### 2. Deep Links Are Returned IN Responses, Not Created
 
@@ -421,7 +425,7 @@ If the API connection was inactive, it may have been deactivated.
 ```bash
 curl -X POST "https://sandbox.avinode.com/api/oauth/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials&client_id=f0b9992a-d539-4760-8cb2-3a5d81ad5e30&client_secret=avinode_xZq1Ak139E1..."
+  -d "grant_type=client_credentials&client_id=<REDACTED_CLIENT_ID>&client_secret=<REDACTED_CLIENT_SECRET>"
 ```
 
 **Response:**

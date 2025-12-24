@@ -313,6 +313,12 @@ describe('executeToolWithRetry()', () => {
     it('should respect custom max retries option', async () => {
       mockClient.callTool.mockRejectedValue(new Error('ETIMEDOUT'));
 
+      // Mock setTimeout to execute immediately (no actual delays)
+      const originalSetTimeout = global.setTimeout;
+      global.setTimeout = vi.fn((fn: any, _delay: number) => {
+        return originalSetTimeout(fn, 0); // Execute immediately
+      }) as any;
+
       const executeToolWithRetry = (await import('@/app/api/chat/respond/route')).executeToolWithRetry;
 
       await expect(
@@ -325,6 +331,8 @@ describe('executeToolWithRetry()', () => {
           { maxRetries: 5 }
         )
       ).rejects.toThrow();
+
+      global.setTimeout = originalSetTimeout;
 
       expect(mockClient.callTool).toHaveBeenCalledTimes(5);
     });

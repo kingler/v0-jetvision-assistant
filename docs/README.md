@@ -29,7 +29,6 @@ Welcome to the comprehensive documentation for the Jetvision AI Assistant projec
 - [Authentication Final Setup](AUTHENTICATION_FINAL_SETUP.md) - Production auth setup
 - [Clerk-Supabase Sync](CLERK_SUPABASE_SYNC.md) - User sync between Clerk and Supabase
 - [Clerk Webhook Setup](CLERK_WEBHOOK_SETUP_GUIDE.md) - Setting up Clerk webhooks
-- [User Management Migration Plan](USER_MANAGEMENT_MIGRATION_PLAN.md) - Migration strategy
 
 ## Architecture
 

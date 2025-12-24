@@ -17,7 +17,7 @@
  * - Selection checkbox for legacy proposal workflow
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Plane,
@@ -133,8 +133,31 @@ function formatDate(dateString: string): string {
   }
 }
 
+/**
+ * Formats a price amount with proper currency symbol and formatting.
+ * Uses Intl.NumberFormat for locale-aware currency formatting.
+ *
+ * @param amount - The numeric price amount
+ * @param currency - ISO 4217 currency code (e.g., 'USD', 'EUR', 'GBP')
+ * @returns Formatted price string with currency symbol (e.g., "$50,000" or "€45,000.50")
+ */
 function formatPrice(amount: number, currency: string): string {
-  return `$${amount.toLocaleString('en-US')} ${currency}`;
+  try {
+    // Use Intl.NumberFormat for proper currency formatting with correct symbol placement
+    // minimumFractionDigits: 0 allows whole numbers without decimals
+    // maximumFractionDigits: 2 allows up to 2 decimal places when needed
+    const formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+    return formatter.format(amount);
+  } catch (error) {
+    // Fallback if currency code is invalid or Intl formatting fails
+    // Returns formatted number with currency code appended (no hardcoded $ symbol)
+    return `${amount.toLocaleString('en-US')} ${currency}`;
+  }
 }
 
 function getStatusBadgeClasses(status: RFQFlight['rfqStatus']): string {
@@ -249,6 +272,17 @@ export function RFQFlightCard({
   onReviewAndBook,
 }: RFQFlightCardProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
+  // Track image loading errors to show placeholder when image fails to load
+  const [imageError, setImageError] = useState(false);
+
+  /**
+   * Reset image error state when the aircraft image URL changes.
+   * This ensures that if a new flight is loaded with a valid image URL,
+   * we attempt to load it even if the previous flight's image failed.
+   */
+  useEffect(() => {
+    setImageError(false);
+  }, [flight.aircraftImageUrl]);
 
   const handleSelectionChange = (checked: boolean) => {
     onSelect?.(flight.id, checked);
@@ -258,6 +292,15 @@ export function RFQFlightCard({
     if (flight.rfqStatus === 'quoted') {
       onReviewAndBook?.(flight.id);
     }
+  };
+
+  /**
+   * Handles image load errors by setting the error state,
+   * which triggers the placeholder to be displayed instead.
+   * This prevents broken image icons from being displayed to users.
+   */
+  const handleImageError = () => {
+    setImageError(true);
   };
 
   const isBookingEnabled = flight.rfqStatus === 'quoted';
@@ -278,11 +321,12 @@ export function RFQFlightCard({
           'bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0',
           compact ? 'w-full h-32 sm:w-24 sm:h-auto' : 'w-36 h-48'
         )}>
-          {flight.aircraftImageUrl ? (
+          {flight.aircraftImageUrl && !imageError ? (
             <img
               src={flight.aircraftImageUrl}
               alt={flight.aircraftModel}
               className="w-full h-full object-cover"
+              onError={handleImageError}
             />
           ) : (
             <div data-testid="aircraft-placeholder" className="flex items-center justify-center w-full h-full">

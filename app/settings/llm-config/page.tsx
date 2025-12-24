@@ -64,13 +64,46 @@ export default function LLMConfigPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ valid: boolean; message?: string } | null>(null);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    provider: 'openai' as const,
+  /**
+   * Safely parses a numeric input value, falling back to a default when NaN
+   * Prevents storing NaN in form state when inputs are empty or invalid
+   * @param value - The string value from the input field
+   * @param fallback - The fallback value to use if parsing results in NaN
+   * @param parser - The parsing function to use (parseFloat or parseInt)
+   * @returns The parsed number or the fallback value
+   */
+  const safeParseNumeric = (
+    value: string,
+    fallback: number,
+    parser: (val: string) => number = parseFloat
+  ): number => {
+    const parsed = parser(value);
+    return isNaN(parsed) ? fallback : parsed;
+  };
+
+  // Form state - derive available_models from AVAILABLE_MODELS constant
+  const initialProvider: 'openai' | 'anthropic' | 'google' | 'azure' = 'openai';
+  const initialAvailableModels = AVAILABLE_MODELS[initialProvider];
+  const [formData, setFormData] = useState<{
+    provider: 'openai' | 'anthropic' | 'google' | 'azure';
+    provider_name: string;
+    api_key: string;
+    default_model: string;
+    available_models: string[];
+    default_temperature: number;
+    default_max_tokens: number;
+    default_top_p: number;
+    default_frequency_penalty: number;
+    default_presence_penalty: number;
+    organization_id: string;
+    is_active: boolean;
+    is_default: boolean;
+  }>({
+    provider: initialProvider,
     provider_name: 'OpenAI',
     api_key: '',
-    default_model: 'gpt-4',
-    available_models: ['gpt-4', 'gpt-4-turbo'] as string[],
+    default_model: initialAvailableModels[0] || 'gpt-4',
+    available_models: initialAvailableModels,
     default_temperature: 0.7,
     default_max_tokens: 8192,
     default_top_p: 1.0,
@@ -110,12 +143,20 @@ export default function LLMConfigPage() {
         // Set form to default config if exists
         const defaultConfig = result.data?.find((c: LLMConfig) => c.is_default);
         if (defaultConfig) {
+          // Ensure default_model is in available_models, fallback to first available model
+          // Type guard to ensure provider is a valid key for AVAILABLE_MODELS
+          const provider = defaultConfig.provider as keyof typeof AVAILABLE_MODELS;
+          const availableModels = defaultConfig.available_models || AVAILABLE_MODELS[provider] || [];
+          const validDefaultModel = availableModels.includes(defaultConfig.default_model)
+            ? defaultConfig.default_model
+            : availableModels[0] || AVAILABLE_MODELS[provider]?.[0] || 'gpt-4';
+          
           setFormData({
             provider: defaultConfig.provider,
             provider_name: defaultConfig.provider_name,
             api_key: '', // Never pre-fill API key for security
-            default_model: defaultConfig.default_model,
-            available_models: defaultConfig.available_models,
+            default_model: validDefaultModel,
+            available_models: availableModels,
             default_temperature: defaultConfig.default_temperature,
             default_max_tokens: defaultConfig.default_max_tokens,
             default_top_p: defaultConfig.default_top_p,
@@ -219,8 +260,39 @@ export default function LLMConfigPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || error.details || 'Failed to save configuration');
+        // Safely parse error response - may be JSON, HTML, or plain text
+        // Read as text first to avoid body consumption issues, then try JSON parse
+        let errorBody: string | Record<string, unknown>;
+        let errorMessage = 'Failed to save configuration';
+        
+        try {
+          // Read response body as text (can only be read once)
+          const textBody = await response.text();
+          
+          // Attempt to parse text as JSON
+          try {
+            errorBody = JSON.parse(textBody);
+            if (typeof errorBody === 'object' && errorBody !== null) {
+              errorMessage = (errorBody as { error?: string; details?: string }).error || 
+                            (errorBody as { error?: string; details?: string }).details || 
+                            errorMessage;
+            }
+          } catch (jsonError) {
+            // JSON parsing failed - use text body as-is
+            errorBody = textBody;
+            errorMessage = textBody.trim() || errorMessage;
+          }
+        } catch (textError) {
+          // Text reading also failed - use generic message with status
+          errorBody = 'Unable to read error response';
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        
+        // Create error with status and body for debugging
+        const error = new Error(errorMessage);
+        (error as Error & { status?: number; body?: string | Record<string, unknown> }).status = response.status;
+        (error as Error & { status?: number; body?: string | Record<string, unknown> }).body = errorBody;
+        throw error;
       }
 
       const result = await response.json();
@@ -420,7 +492,10 @@ export default function LLMConfigPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_MODELS[formData.provider].map((model) => (
+                  {(formData.available_models && formData.available_models.length > 0
+                    ? formData.available_models
+                    : AVAILABLE_MODELS[formData.provider] || []
+                  ).map((model) => (
                     <SelectItem key={model} value={model}>
                       {model}
                     </SelectItem>
@@ -442,7 +517,10 @@ export default function LLMConfigPage() {
                   max="2"
                   step="0.1"
                   value={formData.default_temperature}
-                  onChange={(e) => setFormData({ ...formData, default_temperature: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    default_temperature: safeParseNumeric(e.target.value, formData.default_temperature, parseFloat)
+                  })}
                 />
               </div>
 
@@ -454,7 +532,10 @@ export default function LLMConfigPage() {
                   min="1"
                   max="256000"
                   value={formData.default_max_tokens}
-                  onChange={(e) => setFormData({ ...formData, default_max_tokens: parseInt(e.target.value) })}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    default_max_tokens: safeParseNumeric(e.target.value, formData.default_max_tokens, parseInt)
+                  })}
                 />
               </div>
 
@@ -467,7 +548,10 @@ export default function LLMConfigPage() {
                   max="1"
                   step="0.1"
                   value={formData.default_top_p}
-                  onChange={(e) => setFormData({ ...formData, default_top_p: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    default_top_p: safeParseNumeric(e.target.value, formData.default_top_p, parseFloat)
+                  })}
                 />
               </div>
 
@@ -482,7 +566,10 @@ export default function LLMConfigPage() {
                   max="2"
                   step="0.1"
                   value={formData.default_frequency_penalty}
-                  onChange={(e) => setFormData({ ...formData, default_frequency_penalty: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    default_frequency_penalty: safeParseNumeric(e.target.value, formData.default_frequency_penalty, parseFloat)
+                  })}
                 />
               </div>
             </div>

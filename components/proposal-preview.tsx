@@ -45,6 +45,12 @@ export function ProposalPreview({
   onDownloadPdf,
 }: ProposalPreviewProps) {
   // Get proposal data from chatData props - no more hardcoded values
+  // Calculate commission and net to ensure they sum to margin exactly
+  // Use numeric margin value to avoid rounding errors in sum
+  const margin = typeof chatData?.margin === 'number' ? chatData.margin : 0
+  const agentCommission = margin > 0 ? Math.round(margin * 0.2) : 0
+  const jetvisionNet = margin > 0 ? margin - agentCommission : 0
+
   const proposal: ProposalData = {
     aircraft: chatData?.aircraft || "Aircraft TBD",
     operator: chatData?.operator || "Operator TBD",
@@ -52,10 +58,10 @@ export function ProposalPreview({
     passengers: chatData?.passengers || 1,
     date: chatData?.date || "Date TBD",
     basePrice: chatData?.basePrice || 0,
-    margin: chatData?.margin || 0,
+    margin: margin,
     totalPrice: chatData?.totalPrice || 0,
-    agentCommission: chatData?.margin ? Math.round(chatData.margin * 0.2) : 0,
-    jetvisionNet: chatData?.margin ? Math.round(chatData.margin * 0.8) : 0,
+    agentCommission: agentCommission,
+    jetvisionNet: jetvisionNet,
     customer: chatData?.customer,
   }
 

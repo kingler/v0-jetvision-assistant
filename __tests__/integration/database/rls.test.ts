@@ -19,7 +19,7 @@ import {
  * - Service role bypass (for system operations)
  */
 
-describe('RLS Policies - users Table', () => {
+describe('RLS Policies - iso_agents Table', () => {
   let serviceClient: TestSupabaseClient
   let anonClient: TestSupabaseClient
   let testUser1ClerkId: string
@@ -52,9 +52,9 @@ describe('RLS Policies - users Table', () => {
     await cleanupTestData(serviceClient, testUser2ClerkId)
   })
 
-  it('should prevent anon client from reading users without auth', async () => {
+  it('should prevent anon client from reading iso_agents without auth', async () => {
     const { data, error } = await anonClient
-      .from('users')
+      .from('iso_agents')
       .select('*')
       .eq('id', testUser1Id)
 
@@ -62,9 +62,9 @@ describe('RLS Policies - users Table', () => {
     expect(data).toEqual([]) // Empty array or null
   })
 
-  it('should prevent anon client from inserting into users', async () => {
+  it('should prevent anon client from inserting into iso_agents', async () => {
     const { error } = await anonClient
-      .from('users')
+      .from('iso_agents')
       .insert({
         clerk_user_id: `test_anon_insert_${Date.now()}`,
         email: `anon@test.com`,

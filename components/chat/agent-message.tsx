@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 import { Plane } from "lucide-react"
 import { ProposalPreview } from "../proposal-preview"
 import {

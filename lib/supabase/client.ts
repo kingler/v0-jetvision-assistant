@@ -43,7 +43,7 @@ export const supabase = createClient<Database>(
  */
 export async function getUserProfile(clerkUserId: string) {
   const { data, error } = await supabase
-    .from('users')
+    .from('iso_agents')
     .select('*')
     .eq('clerk_user_id', clerkUserId)
     .single();

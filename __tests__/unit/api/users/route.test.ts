@@ -93,16 +93,15 @@ describe('/api/users (Admin)', () => {
 
       const mockUsers = [mockUser({ role: 'admin' })];
 
-      const mockRangeFn = vi.fn().mockResolvedValueOnce({
+      // Route chain is: .from().select().order().range().eq() when role filter is applied
+      const mockEqFn2 = vi.fn().mockResolvedValueOnce({
         data: mockUsers,
         error: null,
         count: 1,
       });
-
-      const mockEqFn2 = vi.fn().mockReturnValueOnce({ range: mockRangeFn });
-      const mockOrderFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
+      const mockRangeFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
+      const mockOrderFn = vi.fn().mockReturnValueOnce({ range: mockRangeFn });
       const mockSelectFn = vi.fn().mockReturnValueOnce({ order: mockOrderFn });
-      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       // Mock getUserRole
       const mockSingleFn = vi.fn().mockResolvedValueOnce({

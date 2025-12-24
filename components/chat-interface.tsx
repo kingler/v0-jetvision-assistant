@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
@@ -79,10 +79,73 @@ export function ChatInterface({
   // RFQ flight selection state for Step 3
   const [selectedRfqFlightIds, setSelectedRfqFlightIds] = useState<string[]>([])
 
+  /**
+   * Maps amenity/feature strings to the RFQFlight amenities boolean object.
+   * Safely handles arrays of strings and provides false defaults for missing values.
+   * 
+   * @param amenityStrings - Array of amenity strings (e.g., ['wifi', 'pets', 'galley'])
+   * @returns Amenities object with boolean values, defaults to false for missing amenities
+   */
+  const mapAmenitiesFromStrings = (
+    amenityStrings?: string[] | readonly string[]
+  ): RFQFlight['amenities'] => {
+    // Normalize input to array and convert to lowercase for case-insensitive matching
+    const normalized = (amenityStrings || []).map((s) => s.toLowerCase().trim())
+    
+    return {
+      wifi: normalized.includes('wifi') || normalized.includes('wi-fi'),
+      pets: normalized.includes('pets') || normalized.includes('pet'),
+      smoking: normalized.includes('smoking') || normalized.includes('smoke'),
+      galley: normalized.includes('galley') || normalized.includes('kitchen'),
+      lavatory: normalized.includes('lavatory') || normalized.includes('bathroom') || normalized.includes('restroom'),
+      medical: normalized.includes('medical') || normalized.includes('medevac'),
+    }
+  }
+
   // Convert quotes to RFQ flights format for display in Step 3
   const rfqFlights: RFQFlight[] = (activeChat.quotes || []).map((quote) => {
     // Parse route to get airport info
     const routeParts = activeChat.route?.split(' → ') || ['N/A', 'N/A']
+    
+    // Safely coerce operatorRating to number or undefined
+    // Handles string, number, or undefined/null inputs
+    // Uses nullish coalescing (??) to avoid treating 0 as falsy
+    const operatorRating = quote.operatorRating != null
+      ? (typeof quote.operatorRating === 'number' 
+          ? quote.operatorRating 
+          : Number(quote.operatorRating))
+      : null
+    
+    // Coerce to number if valid (not NaN), otherwise undefined to avoid type mismatches
+    // Allows 0 as a valid rating value
+    const normalizedOperatorRating = (operatorRating != null && !isNaN(operatorRating))
+      ? operatorRating
+      : undefined
+    
+    // Get currency from quote or activeChat, fallback to USD
+    // Note: quote may have currency field even if not in type definition
+    const currency = (quote as any).currency || (activeChat as any).currency || 'USD'
+    
+    // Use departureTime from quote if present, otherwise undefined (let UI handle display)
+    // Avoids hardcoded '09:00' fallback that could be misleading
+    const departureTime = quote.departureTime || undefined
+    
+    // Use flightDuration from quote if present, otherwise 'TBD' to indicate unknown
+    // Avoids 'N/A' which is less clear than 'TBD' (To Be Determined)
+    const flightDuration = quote.flightDuration || 'TBD'
+    
+    // Set passengerCapacity from activeChat.passengers only if positive number exists
+    // Note: RFQFlight interface requires number type, so we use 0 as fallback for missing values
+    // UI components should treat 0 as "unknown/not provided" rather than actual zero passengers
+    const passengerCapacity = (activeChat.passengers != null && activeChat.passengers > 0)
+      ? activeChat.passengers
+      : 0
+    
+    // Map amenities from quote.amenities or quote.features with safe defaults
+    // Checks both amenities and features arrays, defaults to all false if neither exists
+    const amenityStrings = (quote as any).amenities || (quote as any).features || []
+    const amenities = mapAmenitiesFromStrings(amenityStrings)
+    
     return {
       id: quote.id,
       quoteId: quote.id,
@@ -95,23 +158,16 @@ export function ChatInterface({
         name: routeParts[1] || 'N/A',
       },
       departureDate: activeChat.date || new Date().toISOString().split('T')[0],
-      departureTime: quote.departureTime || '09:00',
-      flightDuration: quote.flightDuration || 'N/A',
+      departureTime,
+      flightDuration,
       aircraftType: quote.aircraftType,
       aircraftModel: quote.aircraftType,
       operatorName: quote.operatorName,
-      operatorRating: quote.operatorRating,
+      operatorRating: normalizedOperatorRating,
       price: quote.price,
-      currency: 'USD',
-      passengerCapacity: activeChat.passengers || 0,
-      amenities: {
-        wifi: true,
-        pets: true,
-        smoking: false,
-        galley: true,
-        lavatory: true,
-        medical: false,
-      },
+      currency,
+      passengerCapacity,
+      amenities,
       rfqStatus: 'quoted' as const,
       lastUpdated: new Date().toISOString(),
       isSelected: selectedRfqFlightIds.includes(quote.id),

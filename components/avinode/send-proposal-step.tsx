@@ -12,6 +12,9 @@
  * - PDF preview generation
  * - Send proposal with status tracking
  * - Success/error feedback
+ *
+ * @requires onSendProposal - Required for production use. The component will
+ *   disable the send button and show an error if this prop is not provided.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -28,6 +31,7 @@ import {
   ArrowRight,
   Star,
   Eye,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +70,10 @@ export interface SendProposalStepProps {
     selectedFlights: RFQFlight[];
     tripDetails: SendProposalStepProps['tripDetails'];
   }) => Promise<{ success: boolean; previewUrl?: string; error?: string }>;
+  /**
+   * Handler for sending the proposal to the customer.
+   * @required For production use - component will be disabled if not provided.
+   */
   onSendProposal?: (data: {
     customerEmail: string;
     customerName: string;
@@ -80,8 +88,33 @@ export interface SendProposalStepProps {
 // HELPER FUNCTIONS
 // =============================================================================
 
+/**
+ * Formats a price amount with the specified currency code using Intl.NumberFormat.
+ * Provides proper currency symbols and formatting based on the currency code.
+ *
+ * @param amount - The numeric amount to format
+ * @param currency - The currency code (e.g., 'USD', 'EUR', 'GBP')
+ * @returns Formatted currency string with proper symbol and formatting, or fallback if formatting fails
+ */
 function formatPrice(amount: number, currency: string): string {
-  return `$${amount.toLocaleString('en-US')} ${currency}`;
+  try {
+    // Validate currency code - must be non-empty string
+    if (!currency || currency.trim().length === 0) {
+      return `${amount.toLocaleString('en-US')} ${currency || ''}`.trim();
+    }
+
+    // Use Intl.NumberFormat for proper currency formatting with locale-specific symbols
+    const formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.trim().toUpperCase(),
+    });
+
+    return formatter.format(amount);
+  } catch (error) {
+    // Fallback: return amount + ' ' + currency if Intl fails or currency is invalid
+    // This handles cases where currency code is malformed or not supported
+    return `${amount.toLocaleString('en-US')} ${currency}`;
+  }
 }
 
 function formatDate(dateString: string): string {
@@ -278,11 +311,16 @@ export function SendProposalStep({
 
   const handleSendProposal = async () => {
     if (!validateEmail(email)) return;
+    
+    // Check if send handler is provided - required for production use
     if (!onSendProposal) {
-      // Simulate sending if no handler provided
-      setStatus('sending');
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setStatus('sent');
+      console.warn(
+        'SendProposalStep: onSendProposal handler not provided. ' +
+        'The send proposal functionality requires this handler to be implemented. ' +
+        'Please provide the onSendProposal prop to enable sending proposals.'
+      );
+      setStatus('error');
+      setError('Send handler not provided');
       return;
     }
 
@@ -398,7 +436,7 @@ export function SendProposalStep({
               placeholder="John Smith"
               className="pl-9"
             />
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           </div>
           {name && (
             <p className="text-sm text-muted-foreground">Sending to: {name}</p>
@@ -455,7 +493,7 @@ export function SendProposalStep({
 
         <Button
           onClick={handleSendProposal}
-          disabled={isLoading || !hasFlights || status === 'sent'}
+          disabled={isLoading || !hasFlights || status === 'sent' || !onSendProposal}
           className="flex-1 bg-blue-600 hover:bg-blue-700"
         >
           {status === 'sending' ? (

@@ -146,7 +146,7 @@ describe('POST /api/webhooks/clerk', () => {
 
       expect(response.status).toBe(200);
       expect(text).toBe('Webhook processed successfully');
-      expect(mockFrom).toHaveBeenCalledWith('users');
+      expect(mockFrom).toHaveBeenCalledWith('iso_agents');
     });
 
     it('should create user with admin role from public_metadata', async () => {

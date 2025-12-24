@@ -85,6 +85,9 @@ print_step() {
 }
 
 show_help() {
+    # Accept optional exit code parameter (defaults to 0 for normal help display)
+    local exit_code=${1:-0}
+    
     cat << EOF
 Avinode API End-to-End Test Script
 
@@ -110,7 +113,7 @@ Examples:
   $0 --verbose    # Run with detailed output
   $0 --dry-run    # Preview commands only
 EOF
-    exit 0
+    exit $exit_code
 }
 
 load_env() {
@@ -507,6 +510,13 @@ test_oauth_refresh() {
         return 0
     fi
 
+    # Early return for dry-run mode to prevent network calls and secret exposure
+    if [[ "$DRY_RUN" == "true" ]]; then
+        print_info "DRY_RUN mode: Skipping OAuth token refresh (no network call)"
+        print_info "Using existing AUTHENTICATION_TOKEN for subsequent tests"
+        return 0
+    fi
+
     local timestamp=$(get_timestamp)
     local response=$(curl -s -w '\n%{http_code}' -X POST "${BASE_URL}/oauth/token" \
         -H "Content-Type: application/x-www-form-urlencoded" \
@@ -518,10 +528,6 @@ test_oauth_refresh() {
         --data-urlencode "client_id=$client_id" \
         --data-urlencode "client_secret=$client_secret" \
         --data-urlencode "expiresInMinutes=60")
-
-    if [[ "$DRY_RUN" == "true" ]]; then
-        return 0
-    fi
 
     local parsed=$(parse_response "$response")
     local status=$(echo "$parsed" | cut -d'|' -f1)
@@ -653,7 +659,7 @@ main() {
                 ;;
             *)
                 echo "Unknown option: $1"
-                show_help
+                show_help 1
                 ;;
         esac
     done

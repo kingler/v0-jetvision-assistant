@@ -184,9 +184,7 @@ Create RBAC middleware and make tests pass.
 
 ### Pre-Implementation Checklist
 
-- [ ] Review `docs/USER_MANAGEMENT_MIGRATION_PLAN.md` Phase 3
-- [ ] Ensure TASK-045 (Code Refactoring) is complete
-- [ ] Database using `users` table with `role` column
+- [ ] Database using `iso_agents` table with `role` column
 - [ ] User roles properly seeded in database
 
 ### Step-by-Step Implementation
@@ -911,12 +909,10 @@ describe('Protected Routes', () => {
 ## 9. RESOURCES & REFERENCES
 
 ### Documentation
-- [User Management Migration Plan](../../docs/USER_MANAGEMENT_MIGRATION_PLAN.md) - Phase 3
 - [Clerk Auth Documentation](https://clerk.com/docs)
 - [Next.js Middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware)
 
 ### Related Tasks
-- TASK-045: Code Refactoring (prerequisite)
 - TASK-047: User Profile UI (uses this)
 
 ---
@@ -941,5 +937,4 @@ describe('Protected Routes', () => {
 ---
 
 **Task Status**: ⏳ PENDING
-**Depends On**: TASK-045 (Code Refactoring)
 **Blocks**: TASK-047 (Profile UI)

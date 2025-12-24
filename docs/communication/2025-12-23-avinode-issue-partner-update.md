@@ -7,13 +7,6 @@
 
 ---
 
-## Email to One Kaleidoscope Partners
-
-**To:** One Kaleidoscope Partners
-**Subject:** Avinode API Integration Blocked - Account/Permission Issue Requiring Avinode Support
-
----
-
 Dear Partners,
 
 I wanted to update you on a blocking issue we've encountered with our Avinode API integration for the Jetvision application.
@@ -24,72 +17,69 @@ Following the weekly Avinode sandbox reset (which occurs every Monday between 6-
 
 ### What Happened
 
-1. **Account Access Lost:** We can no longer switch accounts from "Jetvision LLC" to "Sandbox Dev Operator" where API permissions are configured.
+In docs/communication/2025-12-23-avinode-issue-partner-update.md around lines 35 to 46, the phrase "for brevity" should be reworded to reflect audience appropriateness; change the sentence to say the detailed technical information is excluded "for clarity in this partner update" (or "to keep this partner update focused and clear for its audience"), while retaining a note that the full technical details remain available to Avinode Support in the referenced internal technical document.Following the weekly Avinode sandbox reset, we encountered an API access misconfiguration that is preventing authentication and API access. The issue appears to be related to account permissions and credential configuration on Avinode's side, rather than our integration code.
 
-2. **Permission Downgrade:** The "Company APIs" permission now shows as "View Only" instead of "Full" access, and is non-editable.
+**Business Impact:**
 
-3. **Both Token Types Failing:** We tested two different authentication token types after regenerating credentials:
-   - `avitype=16` (Interactive) → `AUTHENTICATION_COMPANY_ACCESS` error
-   - `avitype=15` (REST/Sandbox) → `ERR_INPUT_GENERIC_INVALID` on buyer endpoints
-
-4. **OAuth Also Failing:** The OAuth Client Credentials flow returns `invalid_client` even with freshly regenerated credentials.
+- **Blocking Development Progress:** We cannot proceed with Avinode API integration development
+- **Timeline Risk:** Delays in integration testing and feature completion
+- **Resource Impact:** Development team time redirected to troubleshooting instead of feature development
 
 ### What We've Tried
 
-- Regenerated API Token, Authentication Secret (JWT), and OAuth credentials from the Avinode Sandbox UI
-- Tested both token types (avitype 15 and 16)
-- Tested OAuth 2.0 Client Credentials flow
-- Reviewed Avinode documentation thoroughly
+Our development team has exhausted standard troubleshooting steps, including:
 
-All approaches fail with different errors, indicating the issue is on Avinode's account configuration side.
+- Regenerating all authentication credentials
+- Testing multiple authentication methods
+- Reviewing Avinode documentation and integration guides
+- Verifying account configuration settings
+
+All attempts result in authentication failures, confirming this requires Avinode Support intervention to resolve account-level configuration issues.
+
+**Note:** Detailed technical information, including specific error codes, authentication flows, and diagnostic logs, can be found in the internal technical document referenced below. This information is available for Avinode Support but has been excluded from this partner update for brevity.
 
 ### Action Required
 
-We need to contact Avinode Support to request:
+We need Avinode Support to resolve the account configuration and permission issues. The detailed technical support request has been prepared and includes all necessary information for Avinode to diagnose and resolve the issue.
 
-1. **Restore account switching** to "Sandbox Dev Operator" account
-2. **Upgrade "Company APIs" permission** from "View Only" to "Full"
-3. **Verify OAuth credentials** are properly activated after the sandbox reset
-4. **Clarify which token type** (`avitype=15` vs `avitype=16`) should be used for REST API integration as a buyer/broker
+### Technical Documentation (Internal Reference)
 
-### Attached Documentation
+**For Avinode Support:** A comprehensive technical support document has been prepared and is available for sharing with Avinode Support. This internal document contains:
 
-Please find attached the detailed support email we've prepared for Avinode Support:
-- [2025-12-23-avinode-sandbox-access-issue.md](./2025-12-23-avinode-sandbox-access-issue.md)
+- Complete diagnostic logs and API response details
+- Authentication flow testing results
+- Account configuration details
+- Screenshots of permission issues
+- Test commands and verification steps
 
-This document includes:
-- Complete error logs and API responses
-- Both authentication token types tested with their specific errors
-- curl commands used for testing
-- Screenshots showing the permission issues
-- Our account configuration details
+**Location:** `docs/communication/2025-12-23-avinode-sandbox-access-issue.md`
+
+This technical document should be included when contacting Avinode Support to ensure they have all necessary information to diagnose and resolve the issue efficiently.
 
 ### Impact on Development
 
-This issue is **blocking our Avinode integration development**. We cannot:
+This issue is **blocking critical Avinode integration development work**, preventing:
 
-- Create trips via the API
-- Retrieve RFQ data and operator quotes
-- Test the deep link workflow
-- Process webhook events
+- API integration testing and validation
+- Flight request and quote processing workflows
+- End-to-end feature testing
+- Integration milestone completion
 
-### Recommended Next Steps
+### Next Steps & Owners
 
-1. **Review the attached support email** and let me know if any changes are needed
-2. **Forward the email to Avinode Support** (or let me know who should send it)
-3. **Follow up with Avinode** to ensure timely resolution
+| Step | Owner | Timeline | Status |
+|------|-------|----------|--------|
+| 1. Review internal technical document | Partner Lead | Immediate | Pending |
+| 2. Forward support request to Avinode Support | Partner Lead / Account Manager | Within 24 hours | Pending |
+| 3. Follow up with Avinode for status update | Partner Lead | 48 hours after submission | Pending |
+| 4. Coordinate resolution timeline with Avinode | Partner Lead | As needed | Pending |
+| 5. Verify API access restored | Development Team | Upon Avinode confirmation | Pending |
+| 6. Resume integration development | Development Team | After access restored | Blocked |
 
-Please let me know if you have any questions or need additional information.
+**Contact:** Please coordinate with the Development Team Lead for any technical questions or clarifications needed before contacting Avinode Support.
 
 Best regards,
 
 Jetvision Development Team
 
 ---
-
-## Attachment Reference
-
-The detailed Avinode support email is located at:
-`docs/communication/2025-12-23-avinode-sandbox-access-issue.md`
-
-This contains the complete technical documentation needed for Avinode to diagnose and resolve the issue.

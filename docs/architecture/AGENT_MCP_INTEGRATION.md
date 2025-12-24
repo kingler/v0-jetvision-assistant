@@ -349,9 +349,61 @@ console.log('MCP server connected:', isConnected)
 
 3. **Handle Tool Errors**: LLM will handle errors, but you can add custom error handling
 
-4. **Cache Connections**: MCP servers are managed by singleton, connections are reused
+4. **Cache Connections**: Use the `MCPServerManager` singleton pattern to obtain and reuse MCP server connections. The manager caches client instances centrally, so always retrieve connections via `MCPServerManager.getInstance().getClient(serverId)` rather than creating new connections. The singleton ensures that:
+   - Client instances are cached in `metadata.client` (see `lib/services/mcp-server-manager.ts:263-264`)
+   - Existing clients are returned if available, preventing duplicate connections
+   - All agents share the same connection pool for each MCP server
 
-5. **Monitor Tool Usage**: Track which tools are called most frequently via metrics
+   Example:
+   ```typescript
+   // In BaseAgent.connectMCPServer() or agent code
+   const manager = MCPServerManager.getInstance()
+   const client = await manager.getClient('avinode-mcp')
+   // Client is cached and reused across all agent instances
+   ```
+
+5. **Monitor Tool Usage**: Track comprehensive metrics for MCP tool operations to identify performance bottlenecks and usage patterns. Emit the following metrics:
+   - **Latency (p95)**: Tool execution time histograms with labels `tool_name` and `server_id`
+   - **Error Rate**: Counter for failed tool calls with `tool_name`, `server_id`, and `error_type` labels
+   - **Tool Call Frequency**: Counter tracking total invocations per tool with `tool_name` and `server_id` labels
+   - **Success Rate**: Counter for successful executions with `tool_name` and `server_id` labels
+   - **Concurrent Connections**: Gauge tracking active MCP server connections per `server_id`
+
+   Implementation pattern:
+   ```typescript
+   // Use project telemetry/metrics client (or Prometheus client)
+   // Record latency histogram
+   metrics.histogram('mcp.tool.latency', duration, {
+     tool_name: 'search_flights',
+     server_id: 'avinode-mcp'
+   })
+   
+   // Record error counter
+   metrics.counter('mcp.tool.errors', 1, {
+     tool_name: 'search_flights',
+     server_id: 'avinode-mcp',
+     error_type: 'timeout'
+   })
+   
+   // Record call frequency
+   metrics.counter('mcp.tool.calls', 1, {
+     tool_name: 'search_flights',
+     server_id: 'avinode-mcp'
+   })
+   
+   // Record success
+   metrics.counter('mcp.tool.success', 1, {
+     tool_name: 'search_flights',
+     server_id: 'avinode-mcp'
+   })
+   
+   // Track concurrent connections
+   metrics.gauge('mcp.connections.active', connectionCount, {
+     server_id: 'avinode-mcp'
+   })
+   ```
+
+   Export metrics to your existing monitoring backend (e.g., via `/api/analytics` endpoint) or scrape Prometheus-compatible metrics from a `/metrics` endpoint for integration with Grafana, Datadog, or similar observability platforms.
 
 ## Related Files
 

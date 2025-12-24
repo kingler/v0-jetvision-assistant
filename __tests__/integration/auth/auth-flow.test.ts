@@ -24,7 +24,7 @@ describe('Clerk + Supabase User Synchronization', () => {
 
       const supabase = await createClient()
       const { data: user, error } = await supabase
-        .from('users')
+        .from('iso_agents')
         .select('*')
         .eq('clerk_user_id', userId)
         .single()
@@ -41,7 +41,7 @@ describe('Clerk + Supabase User Synchronization', () => {
       const supabase = await createClient()
 
       const { data: user } = await supabase
-        .from('users')
+        .from('iso_agents')
         .select('*')
         .eq('clerk_user_id', userId)
         .single()
@@ -59,7 +59,7 @@ describe('Clerk + Supabase User Synchronization', () => {
       const supabase = await createClient()
 
       const { data: user } = await supabase
-        .from('users')
+        .from('iso_agents')
         .select('*')
         .eq('clerk_user_id', userId)
         .single()
@@ -85,7 +85,7 @@ describe('Clerk + Supabase User Synchronization', () => {
 
       // Update in Supabase (this would happen via webhook)
       const { data: updated } = await supabase
-        .from('users')
+        .from('iso_agents')
         .update({
           email: updatedEmail,
           full_name: updatedName,
@@ -119,7 +119,7 @@ describe('Clerk + Supabase User Synchronization', () => {
 
       // Soft delete or mark inactive
       const { data: deleted } = await supabase
-        .from('users')
+        .from('iso_agents')
         .update({ is_active: false })
         .eq('clerk_user_id', testUserId)
         .select()
@@ -308,7 +308,7 @@ describe('Webhook Handler', () => {
       // Verify user was created in Supabase
       const supabase = await createClient()
       const { data: user } = await supabase
-        .from('users')
+        .from('iso_agents')
         .select('*')
         .eq('clerk_user_id', 'user_test123')
         .single()
@@ -370,7 +370,7 @@ describe('Webhook Handler', () => {
       // Verify user was soft-deleted
       const supabase = await createClient()
       const { data: user } = await supabase
-        .from('users')
+        .from('iso_agents')
         .select('*')
         .eq('clerk_user_id', 'user_test123')
         .single()

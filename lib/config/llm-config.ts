@@ -7,7 +7,7 @@
  * @module lib/config/llm-config
  */
 
-import { createClient } from '@/lib/supabase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { decrypt } from '@/lib/utils/encryption';
 import OpenAI from 'openai';
 
@@ -56,7 +56,7 @@ export async function getLLMConfig(): Promise<LLMConfig> {
   }
 
   try {
-    const supabase = createClient();
+    const supabase = supabaseAdmin;
 
     // Fetch default active configuration from database
     const { data, error } = await supabase
@@ -82,16 +82,16 @@ export async function getLLMConfig(): Promise<LLMConfig> {
 
     // Build configuration object
     const config: LLMConfig = {
-      provider: data.provider,
+      provider: data.provider as LLMConfig['provider'],
       provider_name: data.provider_name,
       api_key: apiKey,
       default_model: data.default_model,
       available_models: data.available_models || [],
-      default_temperature: data.default_temperature,
-      default_max_tokens: data.default_max_tokens,
-      default_top_p: data.default_top_p,
-      default_frequency_penalty: data.default_frequency_penalty,
-      default_presence_penalty: data.default_presence_penalty,
+      default_temperature: data.default_temperature ?? 0.7,
+      default_max_tokens: data.default_max_tokens ?? 8192,
+      default_top_p: data.default_top_p ?? 1.0,
+      default_frequency_penalty: data.default_frequency_penalty ?? 0.0,
+      default_presence_penalty: data.default_presence_penalty ?? 0.0,
       organization_id: data.organization_id || undefined,
     };
 

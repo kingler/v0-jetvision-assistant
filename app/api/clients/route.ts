@@ -4,10 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
-import type { Database } from '@/lib/types/database';
-
-type User = Database['public']['Tables']['users']['Row'];
-type ClientProfile = Database['public']['Tables']['client_profiles']['Row'];
+import type { Database, User, ClientProfile } from '@/lib/types/database';
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';

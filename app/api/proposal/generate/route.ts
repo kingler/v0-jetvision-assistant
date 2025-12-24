@@ -14,9 +14,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateProposal } from '@/lib/pdf';
 import {
   getAuthenticatedAgent,
-  isErrorResponse,
+  isErrorNextResponse,
   ErrorResponses,
   parseJsonBody,
+  type ErrorResponse,
 } from '@/lib/utils/api';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
@@ -99,6 +100,14 @@ function validateRequest(body: GenerateProposalRequest): string | null {
   if (!body.tripDetails.departureDate) {
     return 'Departure date is required';
   }
+  // Validate passengers: must exist, be an integer, and >= 1
+  if (body.tripDetails.passengers === undefined || body.tripDetails.passengers === null) {
+    return 'Passengers must be an integer >= 1';
+  }
+  // Check if it's a number type, then validate it's an integer >= 1
+  if (typeof body.tripDetails.passengers !== 'number' || !Number.isInteger(body.tripDetails.passengers) || body.tripDetails.passengers < 1) {
+    return 'Passengers must be an integer >= 1';
+  }
 
   // Flights validation
   if (!body.selectedFlights || !Array.isArray(body.selectedFlights)) {
@@ -123,20 +132,21 @@ function validateRequest(body: GenerateProposalRequest): string | null {
  */
 export async function POST(
   request: NextRequest
-): Promise<NextResponse<GenerateProposalResponse>> {
+): Promise<NextResponse<GenerateProposalResponse> | NextResponse<ErrorResponse>> {
   try {
     // Authenticate user
     const authResult = await getAuthenticatedAgent();
-    if (isErrorResponse(authResult)) {
+    if (isErrorNextResponse(authResult)) {
       return authResult;
     }
 
     // Parse request body
     const bodyResult = await parseJsonBody<GenerateProposalRequest>(request);
-    if (isErrorResponse(bodyResult)) {
+    if (isErrorNextResponse(bodyResult)) {
       return bodyResult;
     }
 
+    // TypeScript has narrowed bodyResult to GenerateProposalRequest after the type guard
     const body = bodyResult;
 
     // Validate request

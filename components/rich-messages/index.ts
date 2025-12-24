@@ -31,7 +31,6 @@ export {
 
 export type {
   MessageComponent,
-  MessageRendererProps,
   TextComponent,
   QuoteCardComponent,
   QuoteComparisonComponent,
@@ -42,3 +41,6 @@ export type {
   FileAttachmentComponent,
   ProgressIndicatorComponent,
 } from '../message-components/types';
+
+// MessageRendererProps is exported from the message-renderer module, not types
+export type { MessageRendererProps } from '../message-components/message-renderer';

@@ -1,24 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { POST } from '@/app/api/users/me/avatar/route';
 import { currentUser } from '@clerk/nextjs/server';
-import { createClient } from '@supabase/supabase-js';
+
+// Shared mock state that can be modified per-test
+let mockDbResponse = {
+  data: { id: 'test-user', avatar_url: '/avatars/test.jpg' },
+  error: null as { message: string } | null,
+};
 
 // Mock Clerk
 vi.mock('@clerk/nextjs/server', () => ({
   currentUser: vi.fn(),
 }));
 
-// Mock Supabase with default resolved value
+// Mock Supabase with controllable response
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
     from: vi.fn(() => ({
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
           select: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: { id: 'test-user', avatar_url: '/avatars/test.jpg' },
-              error: null,
-            }),
+            single: vi.fn(() => Promise.resolve(mockDbResponse)),
           })),
         })),
       })),
@@ -29,12 +30,15 @@ vi.mock('@supabase/supabase-js', () => ({
 // Mock NextResponse
 vi.mock('next/server', () => ({
   NextResponse: {
-    json: (data: any, init?: ResponseInit) => ({
+    json: (data: unknown, init?: ResponseInit) => ({
       json: async () => data,
       status: init?.status || 200,
     }),
   },
 }));
+
+// Import after mocks are set up
+import { POST } from '@/app/api/users/me/avatar/route';
 
 describe('POST /api/users/me/avatar', () => {
   const mockUser = {
@@ -44,10 +48,15 @@ describe('POST /api/users/me/avatar', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mock database response to default success
+    mockDbResponse = {
+      data: { id: 'test-user', avatar_url: '/avatars/test.jpg' },
+      error: null,
+    };
   });
 
   it('should require authentication', async () => {
-    (currentUser as any).mockResolvedValue(null);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     const request = new Request('http://localhost:3000/api/users/me/avatar', {
       method: 'POST',
@@ -61,7 +70,7 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should validate file presence', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
     const formData = new FormData();
     // No file added
@@ -79,7 +88,7 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should validate file type', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
     const formData = new FormData();
     const file = new File(['test'], 'test.txt', { type: 'text/plain' });
@@ -98,7 +107,7 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should validate file size', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
     const formData = new FormData();
     // Create a file larger than 5MB
@@ -119,28 +128,7 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should accept valid image files', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
-
-    const mockSupabase = {
-      from: vi.fn(() => ({
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'user-123',
-                  clerk_id: 'clerk-user-123',
-                  avatar_url: `/avatars/clerk-user-123-${Date.now()}.jpg`,
-                },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      })),
-    };
-
-    (createClient as any).mockReturnValue(mockSupabase);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
     const formData = new FormData();
     const file = new File(['avatar'], 'avatar.jpg', { type: 'image/jpeg' });
@@ -160,24 +148,7 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should handle JPEG files', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
-
-    const mockSupabase = {
-      from: vi.fn(() => ({
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { avatar_url: `/avatars/test.jpg` },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      })),
-    };
-
-    (createClient as any).mockReturnValue(mockSupabase);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
     const formData = new FormData();
     const file = new File(['avatar'], 'avatar.jpeg', { type: 'image/jpeg' });
@@ -194,24 +165,7 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should handle PNG files', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
-
-    const mockSupabase = {
-      from: vi.fn(() => ({
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { avatar_url: `/avatars/test.png` },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      })),
-    };
-
-    (createClient as any).mockReturnValue(mockSupabase);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
     const formData = new FormData();
     const file = new File(['avatar'], 'avatar.png', { type: 'image/png' });
@@ -228,24 +182,7 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should handle GIF files', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
-
-    const mockSupabase = {
-      from: vi.fn(() => ({
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { avatar_url: `/avatars/test.gif` },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      })),
-    };
-
-    (createClient as any).mockReturnValue(mockSupabase);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
     const formData = new FormData();
     const file = new File(['avatar'], 'avatar.gif', { type: 'image/gif' });
@@ -262,24 +199,7 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should handle WebP files', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
-
-    const mockSupabase = {
-      from: vi.fn(() => ({
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { avatar_url: `/avatars/test.webp` },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      })),
-    };
-
-    (createClient as any).mockReturnValue(mockSupabase);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
     const formData = new FormData();
     const file = new File(['avatar'], 'avatar.webp', { type: 'image/webp' });
@@ -296,24 +216,13 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should handle database update error', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
-    const mockSupabase = {
-      from: vi.fn(() => ({
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'Database error' },
-              }),
-            })),
-          })),
-        })),
-      })),
+    // Set mock to return database error
+    mockDbResponse = {
+      data: null as unknown as { id: string; avatar_url: string },
+      error: { message: 'Database error' },
     };
-
-    (createClient as any).mockReturnValue(mockSupabase);
 
     const formData = new FormData();
     const file = new File(['avatar'], 'avatar.jpg', { type: 'image/jpeg' });
@@ -332,46 +241,39 @@ describe('POST /api/users/me/avatar', () => {
   });
 
   it('should generate unique avatar URLs', async () => {
-    (currentUser as any).mockResolvedValue(mockUser);
+    (currentUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
+
+    // Mock Date.now() to return incrementing values for deterministic timestamps
+    // Start with a base timestamp and increment by 1ms for each call
+    let timestampCounter = 1000000000000; // Base timestamp (arbitrary starting point)
+    const dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => {
+      return timestampCounter++;
+    });
 
     const avatarUrls: string[] = [];
 
-    for (let i = 0; i < 3; i++) {
-      const mockSupabase = {
-        from: vi.fn(() => ({
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    avatar_url: `/avatars/clerk-user-123-${Date.now()}-${i}.jpg`,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        })),
-      };
+    try {
+      for (let i = 0; i < 3; i++) {
+        const formData = new FormData();
+        const file = new File(['avatar'], 'avatar.jpg', { type: 'image/jpeg' });
+        formData.append('avatar', file);
 
-      (createClient as any).mockReturnValue(mockSupabase);
+        const request = new Request('http://localhost:3000/api/users/me/avatar', {
+          method: 'POST',
+          body: formData,
+        });
 
-      const formData = new FormData();
-      const file = new File(['avatar'], 'avatar.jpg', { type: 'image/jpeg' });
-      formData.append('avatar', file);
+        const response = await POST(request);
+        const data = await response.json();
+        avatarUrls.push(data.avatar_url);
+      }
 
-      const request = new Request('http://localhost:3000/api/users/me/avatar', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-      avatarUrls.push(data.avatar_url);
+      // All URLs should be unique (contain different timestamps)
+      const uniqueUrls = new Set(avatarUrls);
+      expect(uniqueUrls.size).toBe(3);
+    } finally {
+      // Restore Date.now() to its original implementation
+      dateNowSpy.mockRestore();
     }
-
-    // All URLs should be unique
-    const uniqueUrls = new Set(avatarUrls);
-    expect(uniqueUrls.size).toBe(3);
   });
 });

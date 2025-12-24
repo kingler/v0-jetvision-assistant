@@ -35,8 +35,8 @@ export interface ISOAgent {
  * Result type for getAuthenticatedAgent/getAuthenticatedUser
  * Either returns the user data or an error response
  */
-export type AuthResult = ISOAgent | NextResponse;
-export type UserAuthResult = AuthenticatedUser | NextResponse;
+export type AuthResult = ISOAgent | NextResponse<ErrorResponse>;
+export type UserAuthResult = AuthenticatedUser | NextResponse<ErrorResponse>;
 
 /**
  * Options for API handler composition
@@ -46,6 +46,15 @@ export interface ApiHandlerOptions {
   requireRole?: string[];
 }
 
+/**
+ * Standard error response shape
+ */
+export interface ErrorResponse {
+  error: string;
+  message?: string;
+  details?: unknown;
+}
+
 // =============================================================================
 // AUTHENTICATION HELPERS
 // =============================================================================
@@ -53,53 +62,157 @@ export interface ApiHandlerOptions {
 /**
  * Authenticates the user and retrieves their ISO agent record
  *
- * @returns ISO agent data or error response
+ * Queries the `iso_agents` table using the authenticated Clerk user ID.
+ * Returns the ISO agent ID or an error response if not found.
+ *
+ * @returns ISO agent data with `id` field or error response
+ * @throws Never throws - always returns either ISOAgent or NextResponse
  */
 export async function getAuthenticatedAgent(): Promise<AuthResult> {
   const { userId } = await auth();
 
+  // Check if user is authenticated via Clerk
   if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'No authentication token provided' },
+      { status: 401 }
+    );
   }
 
+  // Query iso_agents table using clerk_user_id
+  // Schema: iso_agents(id UUID, clerk_user_id TEXT UNIQUE, role user_role, ...)
   const { data: isoAgent, error } = await supabase
-    .from('users')
+    .from('iso_agents')
     .select('id')
     .eq('clerk_user_id', userId)
     .single();
 
-  if (error || !isoAgent) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  // Handle database errors
+  if (error) {
+    console.error('[getAuthenticatedAgent] Database error:', {
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      clerkUserId: userId,
+    });
+
+    // Distinguish between "not found" and other database errors
+    if (error.code === 'PGRST116') {
+      // PGRST116 = no rows returned (Supabase specific)
+      return NextResponse.json(
+        {
+          error: 'ISO agent not found',
+          message: `No ISO agent record found for Clerk user ID: ${userId}. Please ensure your account has been synced to the database.`,
+        },
+        { status: 404 }
+      );
+    }
+
+    // Other database errors (connection, permission, etc.)
+    return NextResponse.json(
+      {
+        error: 'Database error',
+        message: 'Failed to retrieve ISO agent record',
+      },
+      { status: 500 }
+    );
   }
 
+  // Handle case where query succeeded but returned null data
+  if (!isoAgent) {
+    console.warn('[getAuthenticatedAgent] No ISO agent found for Clerk user:', userId);
+    return NextResponse.json(
+      {
+        error: 'ISO agent not found',
+        message: `No ISO agent record found for Clerk user ID: ${userId}. Please ensure your account has been synced to the database.`,
+      },
+      { status: 404 }
+    );
+  }
+
+  // Success - return ISO agent with id field
   return isoAgent as ISOAgent;
 }
 
 /**
  * Authenticates and retrieves user with role information
  *
- * @returns User data with role or error response
+ * Queries the `iso_agents` table using the authenticated Clerk user ID.
+ * Returns user data including `id`, `role`, and `clerkUserId` fields.
+ *
+ * @returns User data with role information or error response
+ * @throws Never throws - always returns either AuthenticatedUser or NextResponse
  */
 export async function getAuthenticatedUser(): Promise<UserAuthResult> {
   const { userId } = await auth();
 
+  // Check if user is authenticated via Clerk
   if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'No authentication token provided' },
+      { status: 401 }
+    );
   }
 
-  const { data: user, error } = await supabase
-    .from('users')
+  // Query iso_agents table using clerk_user_id
+  // Schema: iso_agents(id UUID, clerk_user_id TEXT UNIQUE, role user_role, ...)
+  // Select both id and role fields as required by AuthenticatedUser interface
+  const { data: isoAgent, error } = await supabase
+    .from('iso_agents')
     .select('id, role')
     .eq('clerk_user_id', userId)
     .single();
 
-  if (error || !user) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  // Handle database errors
+  if (error) {
+    console.error('[getAuthenticatedUser] Database error:', {
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      clerkUserId: userId,
+    });
+
+    // Distinguish between "not found" and other database errors
+    if (error.code === 'PGRST116') {
+      // PGRST116 = no rows returned (Supabase specific)
+      return NextResponse.json(
+        {
+          error: 'ISO agent not found',
+          message: `No ISO agent record found for Clerk user ID: ${userId}. Please ensure your account has been synced to the database.`,
+        },
+        { status: 404 }
+      );
+    }
+
+    // Other database errors (connection, permission, etc.)
+    return NextResponse.json(
+      {
+        error: 'Database error',
+        message: 'Failed to retrieve ISO agent record',
+      },
+      { status: 500 }
+    );
   }
 
+  // Handle case where query succeeded but returned null data
+  if (!isoAgent) {
+    console.warn('[getAuthenticatedUser] No ISO agent found for Clerk user:', userId);
+    return NextResponse.json(
+      {
+        error: 'ISO agent not found',
+        message: `No ISO agent record found for Clerk user ID: ${userId}. Please ensure your account has been synced to the database.`,
+      },
+      { status: 404 }
+    );
+  }
+
+  // Success - return formatted user data matching AuthenticatedUser interface
+  // Note: role can be null in database, so we convert null to undefined for TypeScript
   return {
-    id: user.id,
-    role: user.role ?? undefined,
+    id: isoAgent.id,
+    role: isoAgent.role ?? undefined,
     clerkUserId: userId,
   };
 }
@@ -111,6 +224,21 @@ export async function getAuthenticatedUser(): Promise<UserAuthResult> {
  * @returns True if the result is a NextResponse (error)
  */
 export function isErrorResponse<T>(result: T | NextResponse): result is NextResponse {
+  return result instanceof NextResponse;
+}
+
+/**
+ * Type guard to check if a result is an error NextResponse with ErrorResponse shape
+ *
+ * This is a more specific type guard that narrows the type to NextResponse<ErrorResponse>,
+ * allowing TypeScript to properly type-narrow error responses without manual type casts.
+ *
+ * @param result - Any result that might be an error response
+ * @returns True if the result is a NextResponse (error)
+ */
+export function isErrorNextResponse<T>(
+  result: T | NextResponse<ErrorResponse>
+): result is NextResponse<ErrorResponse> {
   return result instanceof NextResponse;
 }
 
@@ -126,7 +254,7 @@ export function isErrorResponse<T>(result: T | NextResponse): result is NextResp
  */
 export async function parseJsonBody<T = Record<string, unknown>>(
   request: NextRequest
-): Promise<T | NextResponse> {
+): Promise<T | NextResponse<ErrorResponse>> {
   try {
     const body = await request.json();
     return body as T;

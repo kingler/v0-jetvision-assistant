@@ -462,11 +462,6 @@ export const PERMISSIONS: PermissionMatrix = {
 
 ## Related Tasks
 
-- **ONEK-49**: User Management Migration (completed)
-  - Migrated `iso_agents` → `users` table
-  - Added `role` column
-  - Foundation for this RBAC implementation
-
 - **TASK-047**: User Profile UI (pending)
   - Will use `/api/users/me` endpoints
   - Requires `useUserRole()` hook

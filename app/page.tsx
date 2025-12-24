@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
 import { WorkflowVisualization } from "@/components/workflow-visualization"
-import { SettingsPanel } from "@/components/settings-panel"
+import { SettingsDropdownMenu } from "@/components/settings-panel"
 import { ChatSidebar, type ChatSession } from "@/components/chat-sidebar"
 import { LandingPage } from "@/components/landing-page"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { Settings, ChevronRight, ChevronLeft } from "lucide-react"
 import Image from "next/image"
 import { useIsMobile } from "@/hooks/use-mobile"
 
-type View = "landing" | "chat" | "workflow" | "settings"
+type View = "landing" | "chat" | "workflow"
 
 export default function JetvisionAgent() {
   const { user, isLoaded } = useUser()
@@ -141,19 +141,7 @@ export default function JetvisionAgent() {
               </div>
 
               <nav className="flex items-center space-x-2 sm:space-x-3">
-                <Button
-                  variant={currentView === "settings" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setCurrentView("settings")}
-                  className={`flex items-center space-x-2 rounded-lg transition-all ${
-                    currentView === "settings"
-                      ? "bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm"
-                      : "text-gray-300 hover:text-white hover:bg-gray-800"
-                  }`}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span className="hidden sm:inline">Settings</span>
-                </Button>
+                <SettingsDropdownMenu />
                 <div className="flex items-center space-x-2">
                   {user && (
                     <span className="hidden sm:inline text-sm text-gray-300">
@@ -202,7 +190,6 @@ export default function JetvisionAgent() {
               status={activeChat.status}
             />
           )}
-          {currentView === "settings" && <SettingsPanel />}
         </main>
       </div>
     </div>

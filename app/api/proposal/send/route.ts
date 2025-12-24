@@ -20,6 +20,7 @@ import {
   parseJsonBody,
 } from '@/lib/utils/api';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
+import type { Passenger } from '@/lib/types/quotes';
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -48,7 +49,8 @@ interface SendProposalRequest {
     };
     departureDate: string;
     departureTime?: string;
-    passengers: number;
+    /** Number of passengers (simple count) or array of passenger details */
+    passengers: number | Passenger[];
     tripId?: string;
   };
   selectedFlights: RFQFlight[];
@@ -111,6 +113,63 @@ function validateRequest(body: SendProposalRequest): string | null {
     return 'Departure date is required';
   }
 
+  // Passengers validation
+  // Support both number (simple count) and array (detailed passenger objects)
+  if (body.tripDetails.passengers === undefined || body.tripDetails.passengers === null) {
+    return 'At least one passenger is required';
+  }
+
+  // If passengers is a number, validate it's a positive integer
+  if (typeof body.tripDetails.passengers === 'number') {
+    if (!Number.isInteger(body.tripDetails.passengers) || body.tripDetails.passengers < 1) {
+      return 'At least one passenger is required';
+    }
+  }
+  // If passengers is an array, validate each passenger object
+  else if (Array.isArray(body.tripDetails.passengers)) {
+    if (body.tripDetails.passengers.length < 1) {
+      return 'At least one passenger is required';
+    }
+    
+    // Validate each passenger object has required fields
+    for (let i = 0; i < body.tripDetails.passengers.length; i++) {
+      const passenger = body.tripDetails.passengers[i];
+      
+      // Validate name is present and non-empty
+      if (!passenger.name || typeof passenger.name !== 'string' || passenger.name.trim().length === 0) {
+        return `Passenger ${i + 1}: name is required and must be a non-empty string`;
+      }
+      
+      // Validate type is one of the allowed values
+      if (!passenger.type || !['adult', 'child', 'infant'].includes(passenger.type)) {
+        return `Passenger ${i + 1}: type must be one of: 'adult', 'child', or 'infant'`;
+      }
+      
+      // Validate dateOfBirth format if provided (YYYY-MM-DD)
+      if (passenger.dateOfBirth !== undefined && passenger.dateOfBirth !== null) {
+        if (typeof passenger.dateOfBirth !== 'string') {
+          return `Passenger ${i + 1}: dateOfBirth must be a string in ISO format (YYYY-MM-DD)`;
+        }
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(passenger.dateOfBirth)) {
+          return `Passenger ${i + 1}: dateOfBirth must be in ISO format (YYYY-MM-DD)`;
+        }
+      }
+      
+      // Validate seatPreference if provided
+      if (passenger.seatPreference !== undefined && passenger.seatPreference !== null) {
+        const validSeatPreferences = ['window', 'aisle', 'middle', 'no-preference'];
+        if (!validSeatPreferences.includes(passenger.seatPreference)) {
+          return `Passenger ${i + 1}: seatPreference must be one of: ${validSeatPreferences.join(', ')}`;
+        }
+      }
+    }
+  }
+  // If it's neither a number nor an array, it's invalid
+  else {
+    return 'Passengers must be either a number (count) or an array of passenger objects';
+  }
+
   // Flights validation
   if (!body.selectedFlights || !Array.isArray(body.selectedFlights)) {
     return 'At least one flight must be selected';
@@ -138,13 +197,13 @@ export async function POST(
     // Authenticate user
     const authResult = await getAuthenticatedAgent();
     if (isErrorResponse(authResult)) {
-      return authResult;
+      return authResult as NextResponse<SendProposalResponse>;
     }
 
     // Parse request body
     const bodyResult = await parseJsonBody<SendProposalRequest>(request);
     if (isErrorResponse(bodyResult)) {
-      return bodyResult;
+      return bodyResult as NextResponse<SendProposalResponse>;
     }
 
     const body = bodyResult;
@@ -158,12 +217,22 @@ export async function POST(
       );
     }
 
+    // Normalize passengers value for generateProposal
+    // Convert array to count, or use number directly
+    const passengersCount =
+      typeof body.tripDetails.passengers === 'number'
+        ? body.tripDetails.passengers
+        : body.tripDetails.passengers.length;
+
     // Generate PDF proposal
     let proposalResult;
     try {
       proposalResult = await generateProposal({
         customer: body.customer,
-        tripDetails: body.tripDetails,
+        tripDetails: {
+          ...body.tripDetails,
+          passengers: passengersCount,
+        },
         selectedFlights: body.selectedFlights,
         jetvisionFeePercentage: body.jetvisionFeePercentage ?? 10,
       });

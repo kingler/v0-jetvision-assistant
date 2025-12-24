@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { redirect } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useUserRole } from '@/lib/hooks/use-user-role';
 import { toast } from 'sonner';
-import { UserRole } from '@/lib/types/database';
+import { UserRole, User } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,19 +24,6 @@ import {
 } from '@/components/ui/table';
 import { Loader2, RefreshCw, Search, Users, UserCheck, UserX } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface User {
-  id: string;
-  clerk_id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  status: 'active' | 'inactive';
-  phone?: string;
-  avatar_url?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export default function AdminUsersPage() {
   const { user, isLoaded } = useUser();
@@ -93,7 +80,7 @@ export default function AdminUsersPage() {
     if (searchTerm) {
       filtered = filtered.filter(
         (user) =>
-          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           user.email.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -107,22 +94,22 @@ export default function AdminUsersPage() {
   }, [searchTerm, roleFilter, users]);
 
   // Handle status toggle
-  const handleStatusToggle = async (userId: string, currentStatus: string) => {
+  const handleStatusToggle = async (userId: string, currentIsActive: boolean | null) => {
     setUpdatingStatus(userId);
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const newIsActive = !currentIsActive;
 
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(`/api/users`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ userId, is_active: newIsActive }),
       });
 
       if (response.ok) {
-        const updatedUser = await response.json();
+        const { user: updatedUser } = await response.json();
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
-            user.id === userId ? { ...user, status: newStatus as 'active' | 'inactive' } : user
+            user.id === userId ? { ...user, is_active: newIsActive } : user
           )
         );
         toast.success('User status updated successfully');
@@ -276,7 +263,7 @@ export default function AdminUsersPage() {
                 <TableBody>
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell className="font-medium">{user.full_name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <Badge
@@ -288,23 +275,23 @@ export default function AdminUsersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          {user.status === 'active' ? (
+                          {user.is_active ? (
                             <UserCheck className="h-4 w-4 text-green-500" />
                           ) : (
                             <UserX className="h-4 w-4 text-red-500" />
                           )}
-                          <span className="capitalize">{user.status}</span>
+                          <span className="capitalize">{user.is_active ? 'active' : 'inactive'}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {format(new Date(user.created_at), 'MMM d, yyyy')}
+                        {user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         <Switch
-                          checked={user.status === 'active'}
-                          onCheckedChange={() => handleStatusToggle(user.id, user.status)}
+                          checked={user.is_active ?? false}
+                          onCheckedChange={() => handleStatusToggle(user.id, user.is_active)}
                           disabled={updatingStatus === user.id}
-                          aria-label={`Toggle status for ${user.name}`}
+                          aria-label={`Toggle status for ${user.full_name}`}
                           data-testid={`toggle-status-${user.id}`}
                         />
                       </TableCell>

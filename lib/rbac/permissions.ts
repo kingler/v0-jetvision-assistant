@@ -25,6 +25,7 @@ export type Action =
   | 'update'
   | 'delete'
   | 'read_own'   // Read only own data
+  | 'update_own' // Update only own data
   | 'read_all';  // Read all data (admin/operator)
 
 /**
@@ -50,7 +51,7 @@ export const PERMISSIONS: PermissionMatrix = {
     clients: ['create', 'read', 'update', 'delete'],
     requests: ['create', 'read', 'update', 'delete'],
     quotes: ['read', 'update'],
-    users: ['read_own'],
+    users: ['read_own', 'update_own'],
     analytics: ['read_own'],
   },
   admin: {
@@ -64,7 +65,7 @@ export const PERMISSIONS: PermissionMatrix = {
     clients: [],
     requests: ['read_own'],
     quotes: ['read_own'],
-    users: ['read_own'],
+    users: ['read_own', 'update_own'],
     analytics: [],
   },
   operator: {

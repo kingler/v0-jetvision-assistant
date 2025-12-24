@@ -10,6 +10,7 @@
 
 import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
+import Decimal from 'decimal.js';
 import { ProposalDocument, type ProposalData } from './proposal-template';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
@@ -64,6 +65,81 @@ export interface GenerateProposalOutput {
 // =============================================================================
 
 /**
+ * Validate proposal input data
+ * 
+ * Ensures all required fields are present and well-formed before processing.
+ * Throws descriptive errors for immediate, actionable feedback.
+ * 
+ * @param input - Proposal generation input to validate
+ * @throws {Error} If validation fails with descriptive error message
+ */
+function validateProposalInput(input: GenerateProposalInput): void {
+  // Validate selectedFlights: must be a non-empty array
+  if (!input.selectedFlights || !Array.isArray(input.selectedFlights)) {
+    throw new Error(
+      'selectedFlights must be a non-empty array of flight objects'
+    );
+  }
+  if (input.selectedFlights.length === 0) {
+    throw new Error('At least one flight must be selected to generate a proposal');
+  }
+
+  // Validate customer: must have name and email (required fields)
+  if (!input.customer) {
+    throw new Error('Customer information is required');
+  }
+  if (!input.customer.name || typeof input.customer.name !== 'string' || input.customer.name.trim().length === 0) {
+    throw new Error('Customer name is required and must be a non-empty string');
+  }
+  if (!input.customer.email || typeof input.customer.email !== 'string' || input.customer.email.trim().length === 0) {
+    throw new Error('Customer email is required and must be a non-empty string');
+  }
+  // Validate email format (basic check)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(input.customer.email.trim())) {
+    throw new Error('Customer email must be a valid email address');
+  }
+
+  // Validate tripDetails: must be present and well-formed
+  if (!input.tripDetails) {
+    throw new Error('Trip details are required');
+  }
+  if (!input.tripDetails.departureAirport) {
+    throw new Error('Departure airport information is required');
+  }
+  if (!input.tripDetails.departureAirport.icao || typeof input.tripDetails.departureAirport.icao !== 'string' || input.tripDetails.departureAirport.icao.trim().length === 0) {
+    throw new Error('Departure airport ICAO code is required and must be a non-empty string');
+  }
+  if (!input.tripDetails.arrivalAirport) {
+    throw new Error('Arrival airport information is required');
+  }
+  if (!input.tripDetails.arrivalAirport.icao || typeof input.tripDetails.arrivalAirport.icao !== 'string' || input.tripDetails.arrivalAirport.icao.trim().length === 0) {
+    throw new Error('Arrival airport ICAO code is required and must be a non-empty string');
+  }
+  if (!input.tripDetails.departureDate || typeof input.tripDetails.departureDate !== 'string' || input.tripDetails.departureDate.trim().length === 0) {
+    throw new Error('Departure date is required and must be a non-empty string');
+  }
+  // Validate date format (basic ISO date check: YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(input.tripDetails.departureDate.trim())) {
+    throw new Error('Departure date must be in ISO format (YYYY-MM-DD)');
+  }
+  if (typeof input.tripDetails.passengers !== 'number' || input.tripDetails.passengers < 1) {
+    throw new Error('Number of passengers is required and must be a positive number');
+  }
+
+  // Validate jetvisionFeePercentage: if provided, must be a valid number in range 0-100
+  if (input.jetvisionFeePercentage !== undefined) {
+    if (typeof input.jetvisionFeePercentage !== 'number' || isNaN(input.jetvisionFeePercentage)) {
+      throw new Error('Jetvision fee percentage must be a valid number');
+    }
+    if (input.jetvisionFeePercentage < 0 || input.jetvisionFeePercentage > 100) {
+      throw new Error('Jetvision fee percentage must be between 0 and 100');
+    }
+  }
+}
+
+/**
  * Generate a unique proposal ID
  */
 function generateProposalId(): string {
@@ -74,6 +150,13 @@ function generateProposalId(): string {
 
 /**
  * Calculate pricing summary from selected flights
+ * 
+ * Uses Decimal.js for all financial calculations to ensure precision
+ * and proper currency rounding to 2 decimal places.
+ * 
+ * @param flights - Array of selected RFQ flights
+ * @param jetvisionFeePercentage - Service fee percentage (default: 10%)
+ * @returns Pricing breakdown with all amounts rounded to 2 decimal places
  */
 function calculatePricing(
   flights: RFQFlight[],
@@ -88,28 +171,46 @@ function calculatePricing(
   // Use the first flight's currency (assuming all are same currency)
   const currency = flights[0]?.currency || 'USD';
 
-  // Calculate subtotal from all selected flights
-  const subtotal = flights.reduce((sum, flight) => {
+  // Calculate subtotal from all selected flights using Decimal for precision
+  // Accumulate all base prices to avoid floating-point errors
+  const subtotalDecimal = flights.reduce((sum, flight) => {
     // If flight has breakdown, use base price; otherwise use total price
-    if (flight.priceBreakdown) {
-      return sum + flight.priceBreakdown.base;
-    }
-    return sum + flight.price;
-  }, 0);
+    const price = flight.priceBreakdown
+      ? new Decimal(flight.priceBreakdown.base)
+      : new Decimal(flight.price);
+    return sum.plus(price);
+  }, new Decimal(0));
 
-  // Calculate Jetvision service fee
-  const jetvisionFee = Math.round(subtotal * (jetvisionFeePercentage / 100));
+  // Round subtotal to 2 decimal places (currency precision)
+  const subtotal = subtotalDecimal.toDecimalPlaces(2).toNumber();
 
-  // Calculate taxes from all flights
-  const taxes = flights.reduce((sum, flight) => {
+  // Calculate Jetvision service fee using Decimal for precise percentage calculation
+  // Formula: subtotal * (percentage / 100), rounded to 2 decimal places
+  const jetvisionFeeDecimal = subtotalDecimal
+    .times(new Decimal(jetvisionFeePercentage).dividedBy(100))
+    .toDecimalPlaces(2); // Round to 2 decimal places for currency
+  const jetvisionFee = jetvisionFeeDecimal.toNumber();
+
+  // Calculate taxes from all flights using Decimal for precision
+  const taxesDecimal = flights.reduce((sum, flight) => {
     if (flight.priceBreakdown) {
-      return sum + flight.priceBreakdown.taxes + flight.priceBreakdown.fees;
+      const taxes = new Decimal(flight.priceBreakdown.taxes || 0);
+      const fees = new Decimal(flight.priceBreakdown.fees || 0);
+      return sum.plus(taxes).plus(fees);
     }
     return sum;
-  }, 0);
+  }, new Decimal(0));
 
-  // Calculate total
-  const total = subtotal + jetvisionFee + taxes;
+  // Round taxes to 2 decimal places (currency precision)
+  const taxes = taxesDecimal.toDecimalPlaces(2).toNumber();
+
+  // Calculate total using Decimal to ensure precision in final sum
+  // Sum all components and round to 2 decimal places
+  const totalDecimal = subtotalDecimal
+    .plus(jetvisionFeeDecimal)
+    .plus(taxesDecimal)
+    .toDecimalPlaces(2); // Round to 2 decimal places for currency
+  const total = totalDecimal.toNumber();
 
   return {
     subtotal,
@@ -166,14 +267,8 @@ function generateFileName(
 export async function generateProposal(
   input: GenerateProposalInput
 ): Promise<GenerateProposalOutput> {
-  // Validate input
-  if (!input.selectedFlights || input.selectedFlights.length === 0) {
-    throw new Error('At least one flight must be selected to generate a proposal');
-  }
-
-  if (!input.customer.name || !input.customer.email) {
-    throw new Error('Customer name and email are required');
-  }
+  // Validate input using shared validation helper
+  validateProposalInput(input);
 
   // Generate IDs and timestamps
   const proposalId = generateProposalId();
@@ -200,8 +295,11 @@ export async function generateProposal(
   };
 
   // Generate PDF
+  // Note: Type assertion needed because renderToBuffer expects DocumentProps,
+  // but ProposalDocument wraps it with custom props. The component internally
+  // returns a Document element, so this is safe at runtime.
   const pdfBuffer = await renderToBuffer(
-    React.createElement(ProposalDocument, { data: proposalData })
+    React.createElement(ProposalDocument, { data: proposalData }) as React.ReactElement
   );
 
   // Convert to base64
@@ -228,10 +326,18 @@ export async function generateProposal(
 /**
  * Generate proposal data without rendering PDF
  * Useful for preview or validation
+ * 
+ * @param input - Proposal generation input
+ * @returns Prepared proposal data ready for PDF rendering
+ * @throws {Error} If validation fails with descriptive error message
  */
 export function prepareProposalData(
   input: GenerateProposalInput
 ): ProposalData {
+  // Validate input using shared validation helper
+  // This ensures consistent validation across all proposal generation functions
+  validateProposalInput(input);
+
   const proposalId = generateProposalId();
   const generatedAt = new Date().toISOString();
   const pricing = calculatePricing(

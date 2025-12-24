@@ -4,6 +4,12 @@ import { WebhookEvent } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
 
 /**
+ * Valid user roles that can be assigned via Clerk public metadata.
+ * Used for role validation in both user.created and user.updated handlers.
+ */
+const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
+
+/**
  * Clerk Webhook Handler
  *
  * This endpoint receives webhook events from Clerk and syncs user data to Supabase.
@@ -87,7 +93,6 @@ export async function POST(req: Request) {
         const metadata = public_metadata as Record<string, unknown>;
         const proposedRole = metadata?.role;
 
-        const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
         let userRole: typeof VALID_ROLES[number] = 'sales_rep';
 
         if (typeof proposedRole === 'string' && VALID_ROLES.includes(proposedRole as any)) {
@@ -139,7 +144,6 @@ export async function POST(req: Request) {
         const proposedRole = metadata?.role;
 
         if (typeof proposedRole === 'string') {
-          const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
           if (VALID_ROLES.includes(proposedRole as any)) {
             updateData.role = proposedRole;
             console.log(`[WEBHOOK] Updated role to "${proposedRole}" for user ${id}`);

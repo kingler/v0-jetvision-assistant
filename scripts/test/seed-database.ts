@@ -109,7 +109,7 @@ async function clearTestData() {
   await supabase.from('quotes').delete().like('operator_id', 'test_%');
   await supabase.from('requests').delete().like('notes', '%test%');
   await supabase.from('client_profiles').delete().like('email', '%@test.%');
-  await supabase.from('users').delete().like('email', '%@test.%');
+  await supabase.from('iso_agents').delete().like('email', '%@test.%');
 
   console.log('✅ Test data cleared');
 }
@@ -118,7 +118,7 @@ async function seedUsers() {
   console.log('👤 Seeding test users...');
 
   const { data, error } = await supabase
-    .from('users')
+    .from('iso_agents')
     .upsert(TEST_USERS, {
       onConflict: 'clerk_user_id',
       ignoreDuplicates: false,

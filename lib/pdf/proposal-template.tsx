@@ -15,7 +15,6 @@ import {
   Text,
   View,
   StyleSheet,
-  Font,
 } from '@react-pdf/renderer';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
@@ -324,6 +323,21 @@ function getAmenityLabels(amenities: RFQFlight['amenities']): string[] {
   return labels;
 }
 
+/**
+ * Formats airport display name with fallback order: name -> city -> icao -> ''
+ * Prevents "undefined" from appearing in PDF when airport name/city are missing
+ *
+ * @param airport - Airport object with optional name, city, and required icao
+ * @returns Display name for the airport, or empty string if all fields are missing
+ */
+function formatAirportName(airport: {
+  name?: string;
+  city?: string;
+  icao: string;
+}): string {
+  return airport.name || airport.city || airport.icao || '';
+}
+
 // =============================================================================
 // COMPONENTS
 // =============================================================================
@@ -344,8 +358,8 @@ function FlightCard({ flight, index }: FlightCardProps) {
             Option {index + 1}: {flight.departureAirport.icao} → {flight.arrivalAirport.icao}
           </Text>
           <Text style={{ fontSize: 9, color: '#666666', marginTop: 2 }}>
-            {flight.departureAirport.name || flight.departureAirport.city} →{' '}
-            {flight.arrivalAirport.name || flight.arrivalAirport.city}
+            {formatAirportName(flight.departureAirport)} →{' '}
+            {formatAirportName(flight.arrivalAirport)}
           </Text>
         </View>
         <Text style={styles.priceText}>
@@ -459,9 +473,9 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
           <View style={styles.row}>
             <Text style={styles.label}>Route:</Text>
             <Text style={styles.value}>
-              {data.tripDetails.departureAirport.icao} ({data.tripDetails.departureAirport.name || data.tripDetails.departureAirport.city})
+              {data.tripDetails.departureAirport.icao} ({formatAirportName(data.tripDetails.departureAirport)})
               {' → '}
-              {data.tripDetails.arrivalAirport.icao} ({data.tripDetails.arrivalAirport.name || data.tripDetails.arrivalAirport.city})
+              {data.tripDetails.arrivalAirport.icao} ({formatAirportName(data.tripDetails.arrivalAirport)})
             </Text>
           </View>
           <View style={styles.row}>

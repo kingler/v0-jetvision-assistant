@@ -254,16 +254,12 @@ supabase/migrations/
 ├── 002_rls_policies.sql           # 24 RLS policies
 ├── 003_seed_data.sql              # Test data
 ├── 004_proposals_table.sql        # Proposals
-├── 005_update_user_roles.sql      # User roles
-├── 006_rename_iso_agents_to_users.sql  # User migration
-├── 007_update_foreign_keys.sql    # FK updates
-├── 008_update_rls_for_users.sql   # RLS updates
 ├── 20250101000000_create_chatkit_sessions.sql  # ChatKit
 └── DEPLOY_ALL.sql                 # All-in-one deployment
 ```
 
 **Status**: Production-ready schema
-**Tables**: 7 tables (users, clients, requests, quotes, proposals, workflows, chatkit_sessions)
+**Tables**: 7 tables (iso_agents, clients, requests, quotes, proposals, workflows, chatkit_sessions)
 **RLS Policies**: 24 policies for multi-tenant security
 **Relationships**: All foreign keys defined
 

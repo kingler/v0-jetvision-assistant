@@ -183,7 +183,7 @@ export type Database = {
             foreignKeyName: "client_profiles_iso_agent_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "iso_agents"
             referencedColumns: ["id"]
           },
         ]
@@ -312,7 +312,7 @@ export type Database = {
             foreignKeyName: "proposals_iso_agent_id_fkey"
             columns: ["iso_agent_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "iso_agents"
             referencedColumns: ["id"]
           },
           {
@@ -415,6 +415,10 @@ export type Database = {
         Row: {
           aircraft_type: string | null
           arrival_airport: string
+          avinode_deep_link: string | null
+          avinode_rfp_id: string | null
+          avinode_session_started_at: string | null
+          avinode_trip_id: string | null
           budget: number | null
           client_profile_id: string | null
           created_at: string | null
@@ -432,6 +436,10 @@ export type Database = {
         Insert: {
           aircraft_type?: string | null
           arrival_airport: string
+          avinode_deep_link?: string | null
+          avinode_rfp_id?: string | null
+          avinode_session_started_at?: string | null
+          avinode_trip_id?: string | null
           budget?: number | null
           client_profile_id?: string | null
           created_at?: string | null
@@ -449,6 +457,10 @@ export type Database = {
         Update: {
           aircraft_type?: string | null
           arrival_airport?: string
+          avinode_deep_link?: string | null
+          avinode_rfp_id?: string | null
+          avinode_session_started_at?: string | null
+          avinode_trip_id?: string | null
           budget?: number | null
           client_profile_id?: string | null
           created_at?: string | null
@@ -475,12 +487,12 @@ export type Database = {
             foreignKeyName: "requests_iso_agent_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "iso_agents"
             referencedColumns: ["id"]
           },
         ]
       }
-      users: {
+      iso_agents: {
         Row: {
           avatar_url: string | null
           clerk_user_id: string
@@ -586,6 +598,117 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      llm_config: {
+        Row: {
+          id: string
+          provider: string
+          provider_name: string
+          api_key_encrypted: string
+          default_model: string
+          available_models: string[] | null
+          default_temperature: number | null
+          default_max_tokens: number | null
+          default_top_p: number | null
+          default_frequency_penalty: number | null
+          default_presence_penalty: number | null
+          organization_id: string | null
+          is_active: boolean | null
+          is_default: boolean | null
+          metadata: Json | null
+          created_by: string | null
+          updated_by: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          provider?: string
+          provider_name?: string
+          api_key_encrypted: string
+          default_model?: string
+          available_models?: string[] | null
+          default_temperature?: number | null
+          default_max_tokens?: number | null
+          default_top_p?: number | null
+          default_frequency_penalty?: number | null
+          default_presence_penalty?: number | null
+          organization_id?: string | null
+          is_active?: boolean | null
+          is_default?: boolean | null
+          metadata?: Json | null
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          provider?: string
+          provider_name?: string
+          api_key_encrypted?: string
+          default_model?: string
+          available_models?: string[] | null
+          default_temperature?: number | null
+          default_max_tokens?: number | null
+          default_top_p?: number | null
+          default_frequency_penalty?: number | null
+          default_presence_penalty?: number | null
+          organization_id?: string | null
+          is_active?: boolean | null
+          is_default?: boolean | null
+          metadata?: Json | null
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      conversation_state: {
+        Row: {
+          id: string
+          thread_id: string
+          user_id: string
+          current_step: string
+          data: Json
+          completed_fields: string[] | null
+          missing_fields: string[] | null
+          history: string[] | null
+          conversation_history: Json | null
+          metadata: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          thread_id: string
+          user_id: string
+          current_step: string
+          data?: Json
+          completed_fields?: string[] | null
+          missing_fields?: string[] | null
+          history?: string[] | null
+          conversation_history?: Json | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          thread_id?: string
+          user_id?: string
+          current_step?: string
+          data?: Json
+          completed_fields?: string[] | null
+          missing_fields?: string[] | null
+          history?: string[] | null
+          conversation_history?: Json | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {

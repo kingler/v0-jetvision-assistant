@@ -156,7 +156,7 @@ The Jetvision Multi-Agent System is **progressing well** with recent completion 
 | ChatKit Sessions | ✅ Complete | 1 migration | 100% |
 
 **Schema Coverage**:
-- users (renamed from iso_agents)
+- iso_agents
 - clients
 - requests
 - quotes

@@ -11,7 +11,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
+// Import RFQFlight type from component (lib/mcp is excluded from tsconfig)
+import type { RFQFlight } from '../../../../components/avinode/rfq-flight-card';
 
 // Mock Clerk auth
 vi.mock('@clerk/nextjs/server', () => ({
@@ -19,7 +20,7 @@ vi.mock('@clerk/nextjs/server', () => ({
 }));
 
 // Mock Supabase client
-vi.mock('@/lib/supabase/client', () => ({
+vi.mock('../../../../lib/supabase/client', () => ({
   supabase: {
     from: vi.fn(),
   },
@@ -39,7 +40,7 @@ vi.mock('@/lib/services/email-service', () => ({
 
 // Import after mocks
 import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '../../../../lib/supabase/client';
 
 // =============================================================================
 // TEST DATA
@@ -137,8 +138,8 @@ function setupAuthMock(userId: string | null = 'user_test123') {
     sessionClaims: null,
     actor: null,
     has: () => !!userId,
-    debug: () => null,
-  });
+    debug: () => ({}),
+  } as any);
 }
 
 function setupSupabaseMock(userData: { id: string } | null = { id: 'agent-uuid-123' }) {
@@ -198,7 +199,7 @@ describe('POST /api/proposal/send', () => {
 
   describe('Successful Requests', () => {
     it('generates PDF and sends email with valid input', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -211,17 +212,28 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('calls generateProposal before sending email', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      // Clear mocks to ensure accurate invocation order tracking
+      vi.clearAllMocks();
+
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
 
+      // Verify both functions were called
       expect(mockGenerateProposal).toHaveBeenCalled();
       expect(mockSendProposalEmail).toHaveBeenCalled();
+
+      // Assert generateProposal was called before sendProposalEmail
+      // by comparing their invocation call order indices
+      const genOrder = mockGenerateProposal.mock.invocationCallOrder[0];
+      const sendOrder = mockSendProposalEmail.mock.invocationCallOrder[0];
+
+      expect(genOrder).toBeLessThan(sendOrder);
     });
 
     it('sends email to customer email address', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
@@ -234,7 +246,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('uses custom email subject if provided', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
@@ -247,7 +259,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('uses custom email message if provided', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
@@ -260,7 +272,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns email message ID on success', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -270,7 +282,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('includes pricing summary in response', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -285,7 +297,7 @@ describe('POST /api/proposal/send', () => {
     it('returns 401 when not authenticated', async () => {
       setupAuthMock(null);
 
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -296,7 +308,7 @@ describe('POST /api/proposal/send', () => {
     it('returns 404 when user not found in database', async () => {
       setupSupabaseMock(null);
 
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -307,7 +319,7 @@ describe('POST /api/proposal/send', () => {
 
   describe('Validation Errors', () => {
     it('returns 400 when customer email is missing', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest({
         ...validRequestBody,
         customer: { name: 'John Smith' },
@@ -320,8 +332,86 @@ describe('POST /api/proposal/send', () => {
       expect(data.error).toContain('email');
     });
 
+    it('accepts passengers as an array of passenger objects', async () => {
+      const { POST } = await import('../../../../app/api/proposal/send/route');
+      const request = createMockRequest({
+        ...validRequestBody,
+        tripDetails: {
+          ...validRequestBody.tripDetails,
+          passengers: [
+            { name: 'John Smith', type: 'adult' },
+            { name: 'Jane Smith', type: 'adult' },
+            { name: 'Baby Smith', type: 'infant', dateOfBirth: '2024-01-15' },
+          ],
+        },
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+    });
+
+    it('returns 400 when passenger array has invalid type', async () => {
+      const { POST } = await import('../../../../app/api/proposal/send/route');
+      const request = createMockRequest({
+        ...validRequestBody,
+        tripDetails: {
+          ...validRequestBody.tripDetails,
+          passengers: [
+            { name: 'John Smith', type: 'invalid-type' },
+          ],
+        },
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('type must be one of');
+    });
+
+    it('returns 400 when passenger array has missing name', async () => {
+      const { POST } = await import('../../../../app/api/proposal/send/route');
+      const request = createMockRequest({
+        ...validRequestBody,
+        tripDetails: {
+          ...validRequestBody.tripDetails,
+          passengers: [
+            { type: 'adult' },
+          ],
+        },
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('name is required');
+    });
+
+    it('returns 400 when passenger array has invalid dateOfBirth format', async () => {
+      const { POST } = await import('../../../../app/api/proposal/send/route');
+      const request = createMockRequest({
+        ...validRequestBody,
+        tripDetails: {
+          ...validRequestBody.tripDetails,
+          passengers: [
+            { name: 'John Smith', type: 'adult', dateOfBirth: 'invalid-date' },
+          ],
+        },
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('dateOfBirth must be in ISO format');
+    });
+
     it('returns 400 when selectedFlights is empty', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest({
         ...validRequestBody,
         selectedFlights: [],
@@ -335,7 +425,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when customer email format is invalid', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest({
         ...validRequestBody,
         customer: { name: 'John', email: 'invalid-email' },
@@ -353,7 +443,7 @@ describe('POST /api/proposal/send', () => {
     it('returns 500 when PDF generation fails', async () => {
       mockGenerateProposal.mockRejectedValue(new Error('PDF generation failed'));
 
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -370,7 +460,7 @@ describe('POST /api/proposal/send', () => {
         error: 'SMTP connection failed',
       });
 
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -387,7 +477,7 @@ describe('POST /api/proposal/send', () => {
         error: 'SMTP connection failed',
       });
 
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -400,7 +490,7 @@ describe('POST /api/proposal/send', () => {
 
   describe('Response Format', () => {
     it('returns all required fields in success response', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -415,7 +505,7 @@ describe('POST /api/proposal/send', () => {
 
   describe('Email Content', () => {
     it('includes customer name in email options', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest({
         ...validRequestBody,
         emailMessage: undefined,
@@ -431,7 +521,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('includes trip details in email options', async () => {
-      const { POST } = await import('@/app/api/proposal/send/route');
+      const { POST } = await import('../../../../app/api/proposal/send/route');
       const request = createMockRequest({
         ...validRequestBody,
         emailMessage: undefined,

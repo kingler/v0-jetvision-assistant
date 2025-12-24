@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { join } from 'path';
 import { resolve } from 'path';
+import { randomUUID } from 'crypto';
 
 // Load environment variables from project root
 dotenv.config({ path: resolve(process.cwd(), '.env.local') });
@@ -44,7 +45,7 @@ async function addAdminUser(email: string) {
     // 4. Find user in Supabase by email
     console.log('📧 Looking up user in database...');
     const { data: existingUser, error: lookupError } = await supabase
-      .from('users')
+      .from('iso_agents')
       .select('*')
       .eq('email', email)
       .single();
@@ -66,7 +67,7 @@ async function addAdminUser(email: string) {
 
       console.log('🔄 Updating role to admin...');
       const { error: updateError } = await supabase
-        .from('users')
+        .from('iso_agents')
         .update({ role: 'admin' })
         .eq('id', existingUser.id);
 
@@ -97,14 +98,18 @@ async function addAdminUser(email: string) {
     console.log('   Creating user entry with email only...');
     console.log('   User must sign up/login at least once for Clerk ID to be populated.');
 
-    // 6. Create user entry (without Clerk ID - will be populated on first login)
+    // 6. Create user entry with temporary clerk_user_id
+    // Since clerk_user_id is NOT NULL with UNIQUE constraint, we use a UUID v4
+    // with 'temp_' prefix to ensure uniqueness and avoid collisions
+    // The webhook will update this when the user signs up by matching on email
+    const tempClerkUserId = `temp_${randomUUID()}`;
     const { data: newUser, error: createError } = await supabase
-      .from('users')
+      .from('iso_agents')
       .insert({
         email: email,
         full_name: email.split('@')[0], // Use email prefix as name
         role: 'admin',
-        clerk_user_id: `temp_${Date.now()}`, // Temporary ID, will be updated by webhook
+        clerk_user_id: tempClerkUserId, // Temporary UUID-based ID, will be updated by webhook via email match
         is_active: true,
       })
       .select()
@@ -118,8 +123,9 @@ async function addAdminUser(email: string) {
     console.log(`   User ID: ${newUser.id}`);
     console.log(`   Email: ${newUser.email}`);
     console.log(`   Role: ${newUser.role}`);
+    console.log(`   Temporary Clerk User ID: ${tempClerkUserId}`);
     console.log('\n⚠️  IMPORTANT: User must sign up/login at least once for Clerk ID to be populated.');
-    console.log('   The Clerk webhook will update the clerk_user_id on first authentication.');
+    console.log('   The Clerk webhook should update the clerk_user_id by matching on email.');
 
   } catch (error) {
     console.error('\n❌ Error:', error instanceof Error ? error.message : error);

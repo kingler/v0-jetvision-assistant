@@ -19,10 +19,28 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest'
 import { AgentFactory } from '@agents/core/agent-factory'
 import { AgentRegistry } from '@agents/core/agent-registry'
-import { AgentType, AgentStatus } from '@agents/core/types'
+import { AgentType, AgentStatus, AgentContext } from '@agents/core/types'
 import { messageBus, MessageType } from '@agents/coordination/message-bus'
 import { workflowManager, WorkflowState } from '@agents/coordination/state-machine'
-import { AgentContext } from '@agents/core/agent-context'
+
+/**
+ * Helper function to create AgentContext objects
+ * AgentContext is an interface, not a class
+ */
+function createAgentContext(params: {
+  sessionId: string
+  requestId: string
+  userId: string
+  metadata?: Record<string, unknown>
+}): AgentContext {
+  return {
+    sessionId: params.sessionId,
+    requestId: params.requestId,
+    userId: params.userId,
+    metadata: params.metadata || {},
+    history: [],
+  }
+}
 
 describe('E2E Agent Workflow', () => {
   let factory: AgentFactory
@@ -73,7 +91,7 @@ describe('E2E Agent Workflow', () => {
   describe('Complete RFP Workflow', () => {
     it('should process RFP through all 5 agents successfully', async () => {
       // Step 1: Create test context with RFP data
-      const context = new AgentContext({
+      const context = createAgentContext({
         sessionId: testSessionId,
         requestId: testRequestId,
         userId: 'test-user-123',
@@ -300,7 +318,7 @@ describe('E2E Agent Workflow', () => {
     }, 60000) // 60 second timeout for complete workflow
 
     it('should handle workflow failures gracefully', async () => {
-      const context = new AgentContext({
+      const context = createAgentContext({
         sessionId: `failure-session-${Date.now()}`,
         requestId: `failure-request-${Date.now()}`,
         userId: 'test-user-456',
@@ -341,7 +359,7 @@ describe('E2E Agent Workflow', () => {
 
   describe('Agent Coordination Verification', () => {
     it('should publish correct messages during handoffs', async () => {
-      const context = new AgentContext({
+      const context = createAgentContext({
         sessionId: `coord-session-${Date.now()}`,
         requestId: `coord-request-${Date.now()}`,
         userId: 'test-user-789',
@@ -381,7 +399,7 @@ describe('E2E Agent Workflow', () => {
         timestamp: Date.now(),
       }
 
-      const context = new AgentContext({
+      const context = createAgentContext({
         sessionId: `context-session-${Date.now()}`,
         requestId: `context-request-${Date.now()}`,
         userId: 'test-user-context',

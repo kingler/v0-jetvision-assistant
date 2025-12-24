@@ -3,7 +3,11 @@
  * Handles HTTP communication with Avinode API
  *
  * Required environment variables:
- * - BASE_URI: API base URL (default: https://sandbox.avinode.com/api)
+ * - BASE_URI or AVINODE_BASE_URL: API base URL
+ *   - Production: https://api.avinode.com/api
+ *   - Sandbox: https://sandbox.avinode.com/api
+ *   - In production, this is REQUIRED (will throw error if missing)
+ *   - In development, defaults to sandbox with a warning if missing
  * - API_TOKEN: X-Avinode-ApiToken header value
  * - AUTHENTICATION_TOKEN: Bearer token for Authorization header
  *
@@ -20,7 +24,29 @@ export class AvinodeClient {
 
   constructor() {
     // Load configuration from environment
-    this.baseURL = process.env.BASE_URI || process.env.AVINODE_BASE_URL || 'https://sandbox.avinode.com/api';
+    // Check if BASE_URI or AVINODE_BASE_URL is explicitly set
+    const baseURI = process.env.BASE_URI || process.env.AVINODE_BASE_URL;
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // In production, require explicit URL configuration to prevent accidental sandbox usage
+    if (!baseURI) {
+      if (isProduction) {
+        throw new Error(
+          'BASE_URI or AVINODE_BASE_URL environment variable is required in production. ' +
+          'Set BASE_URI=https://api.avinode.com/api for production or BASE_URI=https://sandbox.avinode.com/api for testing.'
+        );
+      } else {
+        // In development, emit a clear warning but allow sandbox fallback
+        console.warn(
+          '⚠️  WARNING: BASE_URI and AVINODE_BASE_URL are not set. ' +
+          'Falling back to sandbox URL (https://sandbox.avinode.com/api). ' +
+          'Set BASE_URI or AVINODE_BASE_URL explicitly to avoid this warning.'
+        );
+        this.baseURL = 'https://sandbox.avinode.com/api';
+      }
+    } else {
+      this.baseURL = baseURI;
+    }
     
     // Get and trim tokens, removing any "Bearer " prefix if present
     let apiToken = (process.env.API_TOKEN || process.env.AVINODE_API_TOKEN || '').trim();

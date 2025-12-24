@@ -13,6 +13,11 @@ import type { Database } from '../types/database';
 import type { PostgrestError } from '@supabase/supabase-js';
 
 /**
+ * Default limit for pagination when not specified
+ */
+const DEFAULT_LIMIT = 50;
+
+/**
  * Valid table names from the Database schema
  */
 export type TableName = keyof Database['public']['Tables'];
@@ -81,13 +86,17 @@ export async function queryTable(
     }
 
     // Apply pagination
-    if (options.limit) {
-      query = query.limit(options.limit);
-    }
-
-    if (options.offset) {
-      const end = options.offset + (options.limit || 10) - 1;
+    // When offset is provided, use range() which includes both offset and limit
+    // When offset is not provided, use limit() only
+    if (options.offset !== undefined) {
+      // Calculate end index: offset + (limit || DEFAULT_LIMIT) - 1
+      // Range is inclusive on both ends, so subtract 1 from the total
+      const limit = options.limit || DEFAULT_LIMIT;
+      const end = options.offset + limit - 1;
       query = query.range(options.offset, end);
+    } else if (options.limit) {
+      // Only use limit() when there's no offset
+      query = query.limit(options.limit);
     }
 
     const { data, error } = await query;
@@ -152,15 +161,27 @@ export async function updateRow(
       return { data: null, error: `Invalid table name: ${table}` };
     }
 
+    // Guard: Verify filter contains at least one key with a non-null/defined value
+    // This prevents unsafe updates like {} or { id: undefined } which would update all rows
+    // Filter out entries where value is null or undefined before validation
+    const validEntries = Object.entries(filter).filter(
+      ([, value]) => value !== undefined && value !== null
+    );
+
+    // Require at least one valid filter condition to prevent accidental full table updates
+    // Return safe error without making DB call if filter is empty
+    if (validEntries.length === 0) {
+      return { data: null, error: 'Empty filter not allowed for update' };
+    }
+
     // Use type assertion for dynamic table access
     // The table name is validated above against VALID_TABLES
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabaseAdmin.from as any)(table).update(data);
 
-    for (const [key, value] of Object.entries(filter)) {
-      if (value !== undefined && value !== null) {
-        query = query.eq(key, value);
-      }
+    // Only iterate over valid entries to ensure at least one predicate is added
+    for (const [key, value] of validEntries) {
+      query = query.eq(key, value);
     }
 
     const { data: result, error } = await query.select();
@@ -191,7 +212,14 @@ export async function deleteRow(
       return { data: null, error: `Invalid table name: ${table}` };
     }
 
-    if (Object.keys(filter).length === 0) {
+    // Filter out entries where value is null or undefined
+    // This prevents unsafe deletes like { id: undefined } which would delete all rows
+    const validEntries = Object.entries(filter).filter(
+      ([, value]) => value !== undefined && value !== null
+    );
+
+    // Require at least one valid filter condition to prevent accidental full table deletion
+    if (validEntries.length === 0) {
       return { data: null, error: 'Delete requires at least one filter condition' };
     }
 
@@ -200,10 +228,9 @@ export async function deleteRow(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabaseAdmin.from as any)(table).delete();
 
-    for (const [key, value] of Object.entries(filter)) {
-      if (value !== undefined && value !== null) {
-        query = query.eq(key, value);
-      }
+    // Only iterate over valid entries to ensure at least one predicate is added
+    for (const [key, value] of validEntries) {
+      query = query.eq(key, value);
     }
 
     const { error } = await query;
@@ -288,10 +315,12 @@ export async function callRpc(
 /**
  * List all available tables
  *
- * @returns Array of table names
+ * @returns Array of table names from the Database schema
  */
-export function listTables(): string[] {
-  return VALID_TABLES;
+export function listTables(): TableName[] {
+  // Type assertion is safe because VALID_TABLES is validated at compile time
+  // to match Database['public']['Tables'] exactly
+  return VALID_TABLES as unknown as TableName[];
 }
 
 /**
@@ -317,24 +346,121 @@ export async function describeTable(
 // ============================================================================
 
 /**
- * List of valid table names from the database schema
+ * Extract all table names from the Database type at compile time
+ * This ensures VALID_TABLES stays in sync with the Database schema
  */
-const VALID_TABLES: string[] = [
-  'users',
-  'client_profiles',
-  'requests',
-  'quotes',
-  'proposals',
-  'workflow_states',
+type DatabaseTableNames = keyof Database['public']['Tables'];
+
+/**
+ * Helper type to create a record from an array of table names
+ * Used for validation to ensure completeness
+ */
+type TablesRecord<T extends readonly string[]> = {
+  [K in T[number]]: true;
+};
+
+/**
+ * Helper type to ensure VALID_TABLES contains all tables from Database type
+ * This will cause a compile error if VALID_TABLES is missing any tables
+ * 
+ * The check works by creating a record from VALID_TABLES and ensuring
+ * it has all keys from DatabaseTableNames
+ */
+type AssertAllTablesIncluded<T extends readonly DatabaseTableNames[]> = {
+  [K in DatabaseTableNames]: K extends T[number] ? true : 'MISSING_TABLE';
+};
+
+/**
+ * Helper type to ensure VALID_TABLES doesn't contain any extra tables
+ * This will cause a compile error if VALID_TABLES has tables not in Database type
+ * 
+ * The check works by ensuring every entry in VALID_TABLES is a valid DatabaseTableNames key
+ */
+type AssertNoExtraTables<T extends readonly string[]> = {
+  [K in T[number]]: K extends DatabaseTableNames ? true : 'INVALID_TABLE';
+};
+
+/**
+ * List of valid table names from the database schema
+ * 
+ * This array is derived from Database['public']['Tables'] to prevent drift.
+ * The `satisfies` keyword ensures compile-time validation that all entries
+ * are valid table names from the Database type.
+ * 
+ * The type assertions below ensure:
+ * 1. All tables from Database type are included (completeness check)
+ * 2. No extra tables are included that don't exist in Database type (safety check)
+ * 
+ * If the build fails with type errors, update this array to match the Database type.
+ * 
+ * To get the current list of tables, use:
+ * ```typescript
+ * type Tables = keyof Database['public']['Tables'];
+ * ```
+ */
+const VALID_TABLES = [
   'agent_executions',
   'chatkit_sessions',
-];
+  'client_profiles',
+  'conversation_state',
+  'iso_agents',
+  'llm_config',
+  'proposals',
+  'quotes',
+  'requests',
+  'workflow_states',
+] as const satisfies readonly DatabaseTableNames[];
+
+/**
+ * Build-time type assertion: Ensure VALID_TABLES includes all Database tables
+ * This will fail at compile time if any table is missing from VALID_TABLES
+ * 
+ * The check works by ensuring every DatabaseTableNames key is present in VALID_TABLES.
+ * If any table is missing, the AssertAllTablesIncluded type will contain 'MISSING_TABLE'
+ * values, which will cause this assertion to fail with a clear error message.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _AssertAllTablesIncluded = AssertAllTablesIncluded<typeof VALID_TABLES>[DatabaseTableNames] extends true
+  ? true
+  : {
+      // This error type will be shown if VALID_TABLES is missing tables
+      ERROR: 'VALID_TABLES is missing one or more tables from Database type. Update VALID_TABLES to include all tables.';
+      MISSING_TABLES: {
+        [K in DatabaseTableNames]: K extends typeof VALID_TABLES[number]
+          ? never
+          : K;
+      }[DatabaseTableNames];
+    };
+
+/**
+ * Build-time type assertion: Ensure VALID_TABLES has no extra tables
+ * This will fail at compile time if VALID_TABLES contains a table that doesn't exist in Database type
+ * 
+ * The check works by ensuring every VALID_TABLES entry is a valid DatabaseTableNames key.
+ * If any invalid table is present, the AssertNoExtraTables type will contain 'INVALID_TABLE'
+ * values, which will cause this assertion to fail with a clear error message.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _AssertNoExtraTables = AssertNoExtraTables<typeof VALID_TABLES>[typeof VALID_TABLES[number]] extends true
+  ? true
+  : {
+      // This error type will be shown if VALID_TABLES contains invalid tables
+      ERROR: 'VALID_TABLES contains one or more tables not in Database type. Remove invalid tables from VALID_TABLES.';
+      INVALID_TABLES: {
+        [K in typeof VALID_TABLES[number]]: K extends DatabaseTableNames
+          ? never
+          : K;
+      }[typeof VALID_TABLES[number]];
+    };
 
 /**
  * Validate that a table name is in the allowed list
+ * 
+ * @param table - Table name to validate
+ * @returns True if table is valid, false otherwise
  */
-function isValidTable(table: string): boolean {
-  return VALID_TABLES.includes(table);
+function isValidTable(table: string): table is TableName {
+  return (VALID_TABLES as readonly string[]).includes(table);
 }
 
 /**

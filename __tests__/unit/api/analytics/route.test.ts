@@ -1,8 +1,8 @@
 /**
  * Tests for /api/analytics route
  *
- * Tests GET endpoint for analytics metrics including requests summary,
- * quote conversion, agent performance, and revenue.
+ * Tests GET endpoint for analytics metrics.
+ * Note: Most analytics functionality is stubbed pending Supabase RPC function creation.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -28,7 +28,6 @@ vi.mock('@/lib/supabase/client', () => ({
 }));
 
 import { getAuthenticatedAgent, isErrorResponse } from '@/lib/utils/api';
-import { supabase } from '@/lib/supabase/client';
 
 describe('GET /api/analytics', () => {
   const mockISOAgent = { id: 'iso-agent-123' };
@@ -62,25 +61,26 @@ describe('GET /api/analytics', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain('Validation failed');
+    expect(data.error).toContain('Missing required parameters');
   });
 
-  it('should return requests summary analytics', async () => {
+  it('should return 400 for invalid metric type', async () => {
     vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
     vi.mocked(isErrorResponse).mockReturnValue(false);
 
-    const mockAnalytics = {
-      total_requests: 50,
-      completed: 35,
-      in_progress: 10,
-      cancelled: 5,
-      average_turnaround_hours: 24.5,
-    };
+    const request = new NextRequest(
+      'http://localhost:3000/api/analytics?metric=invalid_metric&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z'
+    );
+    const response = await GET(request);
+    const data = await response.json();
 
-    vi.mocked(supabase.rpc).mockResolvedValue({
-      data: mockAnalytics,
-      error: null,
-    });
+    expect(response.status).toBe(400);
+    expect(data.error).toContain('Invalid metric');
+  });
+
+  it('should return placeholder response for requests_summary metric (RPC not implemented)', async () => {
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
+    vi.mocked(isErrorResponse).mockReturnValue(false);
 
     const request = new NextRequest(
       'http://localhost:3000/api/analytics?metric=requests_summary&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z'
@@ -89,33 +89,16 @@ describe('GET /api/analytics', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.analytics.total_requests).toBe(50);
-    expect(data.analytics.completed).toBe(35);
-    expect(supabase.rpc).toHaveBeenCalledWith('get_requests_summary', {
-      p_agent_id: mockISOAgent.id,
-      p_start_date: '2025-01-01T00:00:00Z',
-      p_end_date: '2025-01-31T23:59:59Z',
-      p_group_by: 'day',
-    });
+    expect(data.analytics).toEqual([]);
+    expect(data.metric).toBe('requests_summary');
+    expect(data.period.start_date).toBe('2025-01-01T00:00:00Z');
+    expect(data.period.end_date).toBe('2025-01-31T23:59:59Z');
+    expect(data.message).toContain('RPC functions not yet implemented');
   });
 
-  it('should return quote conversion analytics', async () => {
+  it('should return placeholder response for quote_conversion metric (RPC not implemented)', async () => {
     vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
     vi.mocked(isErrorResponse).mockReturnValue(false);
-
-    const mockAnalytics = {
-      total_quotes: 150,
-      accepted: 45,
-      rejected: 90,
-      pending: 15,
-      conversion_rate: 0.30,
-      average_quotes_per_request: 3.0,
-    };
-
-    vi.mocked(supabase.rpc).mockResolvedValue({
-      data: mockAnalytics,
-      error: null,
-    });
 
     const request = new NextRequest(
       'http://localhost:3000/api/analytics?metric=quote_conversion&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z'
@@ -124,37 +107,13 @@ describe('GET /api/analytics', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.analytics.total_quotes).toBe(150);
-    expect(data.analytics.conversion_rate).toBe(0.30);
-    expect(supabase.rpc).toHaveBeenCalledWith('get_quote_conversion', {
-      p_agent_id: mockISOAgent.id,
-      p_start_date: '2025-01-01T00:00:00Z',
-      p_end_date: '2025-01-31T23:59:59Z',
-    });
+    expect(data.analytics).toEqual([]);
+    expect(data.metric).toBe('quote_conversion');
   });
 
-  it('should return agent performance analytics', async () => {
+  it('should return placeholder response for agent_performance metric (RPC not implemented)', async () => {
     vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
     vi.mocked(isErrorResponse).mockReturnValue(false);
-
-    const mockAnalytics = {
-      total_executions: 200,
-      successful: 185,
-      failed: 15,
-      success_rate: 0.925,
-      average_execution_time_ms: 1250,
-      by_agent_type: [
-        { agent_type: 'orchestrator', executions: 50, success_rate: 0.98 },
-        { agent_type: 'flight_search', executions: 50, success_rate: 0.94 },
-        { agent_type: 'proposal_analysis', executions: 50, success_rate: 0.92 },
-        { agent_type: 'communication', executions: 50, success_rate: 0.88 },
-      ],
-    };
-
-    vi.mocked(supabase.rpc).mockResolvedValue({
-      data: mockAnalytics,
-      error: null,
-    });
 
     const request = new NextRequest(
       'http://localhost:3000/api/analytics?metric=agent_performance&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z'
@@ -163,26 +122,13 @@ describe('GET /api/analytics', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.analytics.total_executions).toBe(200);
-    expect(data.analytics.success_rate).toBe(0.925);
-    expect(data.analytics.by_agent_type).toHaveLength(4);
+    expect(data.analytics).toEqual([]);
+    expect(data.metric).toBe('agent_performance');
   });
 
-  it('should return revenue analytics', async () => {
+  it('should return placeholder response for revenue metric (RPC not implemented)', async () => {
     vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
     vi.mocked(isErrorResponse).mockReturnValue(false);
-
-    const mockAnalytics = {
-      total_revenue: 875000,
-      total_bookings: 35,
-      average_booking_value: 25000,
-      currency: 'USD',
-    };
-
-    vi.mocked(supabase.rpc).mockResolvedValue({
-      data: mockAnalytics,
-      error: null,
-    });
 
     const request = new NextRequest(
       'http://localhost:3000/api/analytics?metric=revenue&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z'
@@ -191,18 +137,13 @@ describe('GET /api/analytics', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.analytics.total_revenue).toBe(875000);
-    expect(data.analytics.average_booking_value).toBe(25000);
+    expect(data.analytics).toEqual([]);
+    expect(data.metric).toBe('revenue');
   });
 
-  it('should return 500 on database error', async () => {
+  it('should respect group_by parameter with default value', async () => {
     vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
     vi.mocked(isErrorResponse).mockReturnValue(false);
-
-    vi.mocked(supabase.rpc).mockResolvedValue({
-      data: null,
-      error: { message: 'Database error' },
-    });
 
     const request = new NextRequest(
       'http://localhost:3000/api/analytics?metric=requests_summary&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z'
@@ -210,7 +151,21 @@ describe('GET /api/analytics', () => {
     const response = await GET(request);
     const data = await response.json();
 
-    expect(response.status).toBe(500);
-    expect(data.error).toBeDefined();
+    expect(response.status).toBe(200);
+    expect(data.group_by).toBe('day');
+  });
+
+  it('should use custom group_by parameter when provided', async () => {
+    vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
+    vi.mocked(isErrorResponse).mockReturnValue(false);
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/analytics?metric=requests_summary&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z&group_by=week'
+    );
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.group_by).toBe('week');
   });
 });

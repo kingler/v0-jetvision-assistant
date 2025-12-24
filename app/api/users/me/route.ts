@@ -1,8 +1,11 @@
 /**
  * Current User API Endpoints
  *
- * @route GET /api/users/me - Get current user profile
- * @route PATCH /api/users/me - Update current user profile
+ * @route GET /api/users/me - Get current ISO agent profile
+ * @route PATCH /api/users/me - Update current ISO agent profile
+ *
+ * Note: This endpoint queries the `iso_agents` table but uses the logical
+ * resource name 'users' for RBAC consistency with the permission matrix.
  *
  * Protected by RBAC: Requires authentication, users can only access their own data
  */
@@ -16,9 +19,12 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/users/me
- * Get current user profile
+ * Get current ISO agent profile
  *
- * @returns User profile data
+ * Queries the `iso_agents` table using the authenticated user's Clerk ID.
+ * Returns the ISO agent profile data for the current user.
+ *
+ * @returns ISO agent profile data (stored in `iso_agents` table)
  */
 export const GET = withRBAC(
   async (req: NextRequest, context) => {
@@ -33,37 +39,44 @@ export const GET = withRBAC(
       const { userId } = context;
       const supabase = await createClient();
 
-      const { data: user, error } = await supabase
+      // Query iso_agents table using Clerk user ID
+      // Note: Table name is 'iso_agents' but RBAC resource is 'users' for consistency
+      const { data: isoAgent, error } = await supabase
         .from('iso_agents')
         .select('*')
         .eq('clerk_user_id', userId)
         .single();
 
-      if (error || !user) {
+      if (error || !isoAgent) {
         return NextResponse.json(
           { error: 'User not found' },
           { status: 404 }
         );
       }
 
-      return NextResponse.json({ user });
+      // Return as 'user' for API consistency with /api/users endpoint
+      return NextResponse.json({ user: isoAgent });
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching ISO agent profile:', error);
       return NextResponse.json(
         { error: 'Internal server error' },
         { status: 500 }
       );
     }
   },
+  // RBAC resource is 'users' to match permission matrix, even though we query 'iso_agents' table
   { resource: 'users', action: 'read_own' }
 );
 
 /**
  * PATCH /api/users/me
- * Update current user profile
+ * Update current ISO agent profile
  *
- * @body Partial user data to update
- * @returns Updated user profile
+ * Updates the ISO agent profile in the `iso_agents` table.
+ * Users can only update their own profile (enforced by RBAC).
+ *
+ * @body Partial ISO agent data to update
+ * @returns Updated ISO agent profile
  */
 export const PATCH = withRBAC(
   async (req: NextRequest, context) => {
@@ -78,7 +91,7 @@ export const PATCH = withRBAC(
       const { userId } = context;
       const body = await req.json() as Record<string, any>;
 
-      // Prevent updating sensitive fields
+      // Prevent updating sensitive fields (system-managed columns)
       const {
         id,
         clerk_user_id,
@@ -97,7 +110,9 @@ export const PATCH = withRBAC(
 
       const supabase = await createClient();
 
-      const { data: user, error } = await supabase
+      // Update iso_agents table using Clerk user ID
+      // Note: Table name is 'iso_agents' but RBAC resource is 'users' for consistency
+      const { data: isoAgent, error } = await supabase
         .from('iso_agents')
         .update({
           ...allowedUpdates,
@@ -107,21 +122,24 @@ export const PATCH = withRBAC(
         .select()
         .single();
 
-      if (error || !user) {
+      if (error || !isoAgent) {
         return NextResponse.json(
           { error: 'Failed to update user' },
           { status: 500 }
         );
       }
 
-      return NextResponse.json({ user });
+      // Return as 'user' for API consistency with /api/users endpoint
+      return NextResponse.json({ user: isoAgent });
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      console.error('Error updating ISO agent profile:', error);
       return NextResponse.json(
         { error: 'Internal server error' },
         { status: 500 }
       );
     }
   },
-  { resource: 'users', action: 'read_own' }
+  // RBAC resource is 'users' to match permission matrix, even though we query 'iso_agents' table
+  // PATCH endpoint requires 'update_own' action to allow users to update their own profile
+  { resource: 'users', action: 'update_own' }
 );

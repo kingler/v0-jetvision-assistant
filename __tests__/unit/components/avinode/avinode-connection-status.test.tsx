@@ -59,7 +59,7 @@ describe('AvinodeConnectionStatus', () => {
     it('applies dark mode success styling', () => {
       const { container } = render(<AvinodeConnectionStatus {...mockSuccessProps} />);
 
-      const statusCard = container.firstChild;
+      const statusCard = container.firstChild as HTMLElement;
       expect(statusCard?.className).toMatch(/dark:bg-green-950\/30/);
     });
   });
@@ -103,7 +103,7 @@ describe('AvinodeConnectionStatus', () => {
     it('applies dark mode failure styling', () => {
       const { container } = render(<AvinodeConnectionStatus {...mockFailureProps} />);
 
-      const statusCard = container.firstChild;
+      const statusCard = container.firstChild as HTMLElement;
       expect(statusCard?.className).toMatch(/dark:bg-red-950\/30/);
     });
   });

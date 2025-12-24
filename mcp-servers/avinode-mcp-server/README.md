@@ -31,12 +31,40 @@ This MCP server provides tools for interacting with the Avinode API:
 
 ### Environment Variables
 
-Add to `.env.local`:
+**Required environment variables for Avinode API integration:**
+
+1. Copy `.env.local.example` to `.env.local`:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+2. Fill in your actual credentials in `.env.local` (this file is gitignored):
 
 ```env
-# Avinode MCP Server
-AVINODE_API_KEY=your-api-key-here
+# Avinode API Base URL (REQUIRED in production, optional in development)
+# Use https://sandbox.avinode.com/api for testing
+# Use https://api.avinode.com/api for production
+# In production, this MUST be set or the server will fail to start
+# In development, defaults to sandbox with a warning if not set
+BASE_URI=https://sandbox.avinode.com/api
+
+# Avinode API Token (required)
+# This is the X-Avinode-ApiToken header value
+# Get this from your Avinode Developer Portal dashboard
+API_TOKEN=XXX_CHANGE_ME_API_TOKEN
+
+# Avinode Bearer/Authentication Token (required)
+# This is used in the Authorization: Bearer header
+# Get this from your Avinode Developer Portal dashboard
+AUTHENTICATION_TOKEN=XXX_CHANGE_ME_AUTHENTICATION_TOKEN
 ```
+
+**Alternative variable names (for backwards compatibility):**
+- `AVINODE_BASE_URL` (alternative to `BASE_URI`)
+- `AVINODE_API_TOKEN` (alternative to `API_TOKEN`)
+- `AVINODE_BEARER_TOKEN` (alternative to `AUTHENTICATION_TOKEN`)
+
+> **⚠️ Security:** See [Security Notes](#security-notes) below for credential management best practices.
 
 ## Installation
 
@@ -269,12 +297,16 @@ npx tsx src/index.ts
 
 ## Troubleshooting
 
-### Error: Missing AVINODE_API_KEY
+### Error: Missing API_TOKEN or AUTHENTICATION_TOKEN
 
-Add your API key to `.env.local`:
+Add your credentials to `.env.local` (copy from `.env.local.example` first):
+
 ```env
-AVINODE_API_KEY=your-key-here
+API_TOKEN=XXX_CHANGE_ME_API_TOKEN
+AUTHENTICATION_TOKEN=XXX_CHANGE_ME_AUTHENTICATION_TOKEN
 ```
+
+Make sure both tokens are set - the server requires both the API token (for X-Avinode-ApiToken header) and the authentication token (for Authorization: Bearer header).
 
 ### Error: No response from Avinode API
 
@@ -286,11 +318,26 @@ Wait for the rate limit window to reset or upgrade your Avinode plan.
 
 ## Security Notes
 
-- **Never commit** API keys to git
-- Store credentials in `.env.local` (gitignored)
-- Use environment variables only
-- Rotate API keys regularly
-- Monitor API usage in Avinode dashboard
+### Credential Management
+
+**⚠️ Critical Security Guidelines:**
+
+- **Never commit real credentials** to git - `.env.local` is gitignored and should never be committed
+- The `.env.local.example` file contains **placeholder values only** - always use `XXX_CHANGE_ME_*` format for examples
+- Store real secrets in secure vaults (e.g., 1Password, AWS Secrets Manager, HashiCorp Vault) or environment variables, never in repository files
+- If you've accidentally committed real credentials:
+  1. **Revoke/rotate them immediately** in the Avinode Developer Portal
+  2. Use `git-filter-repo` or `BFG Repo-Cleaner` to remove secrets from git history before pushing
+  3. Force push to update remote repository (coordinate with team first)
+  4. Monitor for unauthorized access and audit logs
+
+### Best Practices
+
+- Rotate API keys regularly (recommended: every 90 days)
+- Monitor API usage in Avinode dashboard for suspicious activity
+- Use environment variables in production (never hardcode)
+- Implement least-privilege access - only grant necessary API permissions
+- Keep `.env.local.example` files up-to-date with current variable names
 
 ## Related Documentation
 

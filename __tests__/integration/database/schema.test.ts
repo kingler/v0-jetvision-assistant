@@ -21,8 +21,8 @@ describe('Database Schema - Table Existence', () => {
     supabase = await createTestClient()
   })
 
-  it('should have users table', async () => {
-    const exists = await tableExists(supabase, 'users')
+  it('should have iso_agents table', async () => {
+    const exists = await tableExists(supabase, 'iso_agents')
     expect(exists).toBe(true)
   })
 
@@ -57,16 +57,16 @@ describe('Database Schema - Table Existence', () => {
   })
 })
 
-describe('Database Schema - users Table', () => {
+describe('Database Schema - iso_agents Table', () => {
   let supabase: TestSupabaseClient
 
   beforeAll(async () => {
     supabase = await createTestClient()
   })
 
-  it('should have correct columns in users table', async () => {
+  it('should have correct columns in iso_agents table', async () => {
     const { data, error } = await supabase
-      .from('users')
+      .from('iso_agents')
       .select('*')
       .limit(1)
 
@@ -75,7 +75,7 @@ describe('Database Schema - users Table', () => {
     // If table is empty, insert a test row to get schema
     if (!data || data.length === 0) {
       const { data: inserted } = await supabase
-        .from('users')
+        .from('iso_agents')
         .insert({
           clerk_user_id: 'test_schema_check',
           email: 'schema@test.com',
@@ -88,7 +88,7 @@ describe('Database Schema - users Table', () => {
       const schema = Object.keys(inserted || {})
 
       // Clean up
-      await supabase.from('users').delete().eq('clerk_user_id', 'test_schema_check')
+      await supabase.from('iso_agents').delete().eq('clerk_user_id', 'test_schema_check')
 
       expect(schema).toContain('id')
       expect(schema).toContain('clerk_user_id')
@@ -118,7 +118,7 @@ describe('Database Schema - users Table', () => {
 
     // Insert first record
     const { error: error1 } = await supabase
-      .from('users')
+      .from('iso_agents')
       .insert({
         clerk_user_id: testId,
         email: `${testId}@test.com`,
@@ -130,7 +130,7 @@ describe('Database Schema - users Table', () => {
 
     // Try to insert duplicate clerk_user_id
     const { error: error2 } = await supabase
-      .from('users')
+      .from('iso_agents')
       .insert({
         clerk_user_id: testId,
         email: `${testId}_2@test.com`,
@@ -142,7 +142,7 @@ describe('Database Schema - users Table', () => {
     expect(error2?.code).toBe('23505') // unique_violation
 
     // Cleanup
-    await supabase.from('users').delete().eq('clerk_user_id', testId)
+    await supabase.from('iso_agents').delete().eq('clerk_user_id', testId)
   })
 
   it('should enforce unique constraint on email', async () => {
@@ -150,7 +150,7 @@ describe('Database Schema - users Table', () => {
 
     // Insert first record
     const { error: error1 } = await supabase
-      .from('users')
+      .from('iso_agents')
       .insert({
         clerk_user_id: `test1_${Date.now()}`,
         email: testEmail,
@@ -162,7 +162,7 @@ describe('Database Schema - users Table', () => {
 
     // Try to insert duplicate email
     const { error: error2 } = await supabase
-      .from('users')
+      .from('iso_agents')
       .insert({
         clerk_user_id: `test2_${Date.now()}`,
         email: testEmail,
@@ -174,7 +174,7 @@ describe('Database Schema - users Table', () => {
     expect(error2?.code).toBe('23505') // unique_violation
 
     // Cleanup
-    await supabase.from('users').delete().eq('email', testEmail)
+    await supabase.from('iso_agents').delete().eq('email', testEmail)
   })
 })
 
@@ -205,12 +205,12 @@ describe('Database Schema - client_profiles Table', () => {
     }
   })
 
-  it('should have foreign key relationship to users', async () => {
+  it('should have foreign key relationship to iso_agents', async () => {
     const testUserId = `test_fk_${Date.now()}`
 
     // Create test user
     const { data: user } = await supabase
-      .from('users')
+      .from('iso_agents')
       .insert({
         clerk_user_id: testUserId,
         email: `${testUserId}@test.com`,
@@ -236,7 +236,7 @@ describe('Database Schema - client_profiles Table', () => {
     expect(error?.code).toBe('23503') // foreign_key_violation
 
     // Cleanup
-    await supabase.from('users').delete().eq('clerk_user_id', testUserId)
+    await supabase.from('iso_agents').delete().eq('clerk_user_id', testUserId)
   })
 })
 
@@ -274,7 +274,7 @@ describe('Database Schema - requests Table', () => {
 
     // Create test user
     const { data: user } = await supabase
-      .from('users')
+      .from('iso_agents')
       .insert({
         clerk_user_id: testUserId,
         email: `${testUserId}@test.com`,
@@ -300,7 +300,7 @@ describe('Database Schema - requests Table', () => {
     // May pass if constraint isn't strict
 
     // Cleanup
-    await supabase.from('users').delete().eq('clerk_user_id', testUserId)
+    await supabase.from('iso_agents').delete().eq('clerk_user_id', testUserId)
   })
 })
 

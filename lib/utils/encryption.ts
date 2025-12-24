@@ -28,16 +28,21 @@ function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;
   
   if (!key) {
-    // In development, use a default key (warn about security)
-    if (process.env.NODE_ENV === 'development') {
+    // In development or test, use a default key (warn about security)
+    // Allow fallback for non-production environments to enable CI/test runs
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
       console.warn(
-        '⚠️  WARNING: ENCRYPTION_KEY not set. Using default key for development only. ' +
-        'NEVER use default key in production!'
+        '⚠️  WARNING: ENCRYPTION_KEY not set. Using default key for non-production use only. ' +
+        'This fallback is intended for development and testing environments. ' +
+        'NEVER use the default key in production! Set ENCRYPTION_KEY environment variable in production.'
       );
-      // Default key for development (32 bytes)
-      return Buffer.from('dev-key-32-bytes-for-testing-only!!', 'utf8');
+      // Default key for development/testing (32 bytes)
+      // Using 64-character hex string converted to 32-byte buffer
+      // This ensures exactly 32 bytes for AES-256 (64 hex chars = 32 bytes)
+      return Buffer.from('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', 'hex');
     }
     
+    // Production: throw error if key is missing
     throw new Error(
       'ENCRYPTION_KEY environment variable is required in production. ' +
       'Generate a secure 32-byte key: openssl rand -hex 32'

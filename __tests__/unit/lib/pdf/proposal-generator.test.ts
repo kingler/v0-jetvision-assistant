@@ -4,7 +4,7 @@
  * Tests for PDF proposal generation functionality.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   generateProposal,
   prepareProposalData,
@@ -257,6 +257,20 @@ describe('prepareProposalData', () => {
   });
 
   describe('Quote Validity', () => {
+    // Fixed system time for deterministic date calculations
+    const FIXED_SYSTEM_TIME = new Date('2025-01-01T00:00:00Z');
+
+    beforeEach(() => {
+      // Mock system time to ensure deterministic date calculations
+      vi.useFakeTimers();
+      vi.setSystemTime(FIXED_SYSTEM_TIME);
+    });
+
+    afterEach(() => {
+      // Restore real timers after each test to avoid affecting other tests
+      vi.useRealTimers();
+    });
+
     it('should use the soonest validity date from flights', () => {
       const input: GenerateProposalInput = {
         ...validInput,
@@ -280,8 +294,8 @@ describe('prepareProposalData', () => {
       };
       const data = prepareProposalData(input);
 
-      // Should be approximately 7 days from now
-      const expectedDate = new Date();
+      // Compute expected date from fixed system time (2025-01-01 + 7 days = 2025-01-08)
+      const expectedDate = new Date(FIXED_SYSTEM_TIME);
       expectedDate.setDate(expectedDate.getDate() + 7);
       const expected = expectedDate.toISOString().split('T')[0];
 

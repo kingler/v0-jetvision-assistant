@@ -68,6 +68,25 @@ export interface AirportInfo {
 }
 
 /**
+ * Passenger information for trip details
+ * Represents a single passenger with their details
+ */
+export interface Passenger {
+  /** Full name of the passenger */
+  name: string;
+  /** Type of passenger - determines pricing and seating requirements */
+  type: 'adult' | 'child' | 'infant';
+  /** Optional date of birth (ISO format: YYYY-MM-DD) */
+  dateOfBirth?: string;
+  /** Optional passport number for international flights */
+  passportNumber?: string;
+  /** Optional special requests or requirements */
+  specialRequests?: string;
+  /** Optional seat preference */
+  seatPreference?: 'window' | 'aisle' | 'middle' | 'no-preference';
+}
+
+/**
  * Buyer information
  */
 export interface BuyerInfo {

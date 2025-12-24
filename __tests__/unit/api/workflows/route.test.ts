@@ -23,6 +23,36 @@ vi.mock('@/lib/supabase/client', () => ({
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
 
+// Helper to create workflow_states mock chain
+function createWorkflowStatesMock(data: unknown[], error: unknown = null) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        order: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data, error }),
+          then: vi.fn().mockImplementation((cb) => Promise.resolve(cb({ data, error }))),
+        }),
+        then: vi.fn().mockImplementation((cb) => Promise.resolve(cb({ data, error }))),
+      }),
+      then: vi.fn().mockImplementation((cb) => Promise.resolve(cb({ data, error }))),
+    }),
+  };
+}
+
+// Helper to create users mock chain
+function createUsersMock(userData: { id: string; role?: string } | null, error: unknown = null) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: userData,
+          error: error,
+        }),
+      }),
+    }),
+  };
+}
+
 describe('GET /api/workflows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,28 +107,10 @@ describe('GET /api/workflows', () => {
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-123' },
-                error: null,
-              }),
-            }),
-          }),
-        };
+        return createUsersMock({ id: 'user-123', role: 'user' });
       }
-      if (table === 'workflow_history') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockWorkflows,
-                error: null,
-              }),
-            }),
-          }),
-        };
+      if (table === 'workflow_states') {
+        return createWorkflowStatesMock(mockWorkflows);
       }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
@@ -108,9 +120,9 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflow_history).toHaveLength(2);
-    expect(data.workflow_history[0].current_state).toBe('analyzing');
-    expect(data.workflow_history[1].current_state).toBe('completed');
+    expect(data.workflow_states).toHaveLength(2);
+    expect(data.workflow_states[0].current_state).toBe('analyzing');
+    expect(data.workflow_states[1].current_state).toBe('completed');
   });
 
   it('should filter workflows by request_id', async () => {
@@ -135,30 +147,10 @@ describe('GET /api/workflows', () => {
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-123' },
-                error: null,
-              }),
-            }),
-          }),
-        };
+        return createUsersMock({ id: 'user-123', role: 'user' });
       }
-      if (table === 'workflow_history') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                eq: vi.fn().mockResolvedValue({
-                  data: mockWorkflows,
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-        };
+      if (table === 'workflow_states') {
+        return createWorkflowStatesMock(mockWorkflows);
       }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
@@ -168,9 +160,9 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflow_history).toHaveLength(1);
-    expect(data.workflow_history[0].request_id).toBe('req-specific');
-    expect(data.workflow_history[0].current_state).toBe('searching_flights');
+    expect(data.workflow_states).toHaveLength(1);
+    expect(data.workflow_states[0].request_id).toBe('req-specific');
+    expect(data.workflow_states[0].current_state).toBe('searching_flights');
   });
 
   it('should filter workflows by current_state', async () => {
@@ -198,28 +190,10 @@ describe('GET /api/workflows', () => {
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-123' },
-                error: null,
-              }),
-            }),
-          }),
-        };
+        return createUsersMock({ id: 'user-123', role: 'user' });
       }
-      if (table === 'workflow_history') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockWorkflows,
-                error: null,
-              }),
-            }),
-          }),
-        };
+      if (table === 'workflow_states') {
+        return createWorkflowStatesMock(mockWorkflows);
       }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
@@ -229,9 +203,9 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflow_history).toHaveLength(2);
-    expect(data.workflow_history[0].current_state).toBe('awaiting_quotes');
-    expect(data.workflow_history[1].current_state).toBe('awaiting_quotes');
+    expect(data.workflow_states).toHaveLength(2);
+    expect(data.workflow_states[0].current_state).toBe('awaiting_quotes');
+    expect(data.workflow_states[1].current_state).toBe('awaiting_quotes');
   });
 
   it('should respect limit parameter', async () => {
@@ -252,28 +226,10 @@ describe('GET /api/workflows', () => {
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-123' },
-                error: null,
-              }),
-            }),
-          }),
-        };
+        return createUsersMock({ id: 'user-123', role: 'user' });
       }
-      if (table === 'workflow_history') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockWorkflows,
-                error: null,
-              }),
-            }),
-          }),
-        };
+      if (table === 'workflow_states') {
+        return createWorkflowStatesMock(mockWorkflows);
       }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
@@ -283,7 +239,7 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflow_history).toHaveLength(3);
+    expect(data.workflow_states).toHaveLength(3);
   });
 
   it('should return empty array when no workflows found', async () => {
@@ -298,28 +254,10 @@ describe('GET /api/workflows', () => {
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-123' },
-                error: null,
-              }),
-            }),
-          }),
-        };
+        return createUsersMock({ id: 'user-123', role: 'user' });
       }
-      if (table === 'workflow_history') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            }),
-          }),
-        };
+      if (table === 'workflow_states') {
+        return createWorkflowStatesMock([]);
       }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
@@ -329,7 +267,7 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflow_history).toEqual([]);
+    expect(data.workflow_states).toEqual([]);
   });
 
   it('should include workflow metadata in response', async () => {
@@ -359,28 +297,10 @@ describe('GET /api/workflows', () => {
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-123' },
-                error: null,
-              }),
-            }),
-          }),
-        };
+        return createUsersMock({ id: 'user-123', role: 'user' });
       }
-      if (table === 'workflow_history') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockWorkflows,
-                error: null,
-              }),
-            }),
-          }),
-        };
+      if (table === 'workflow_states') {
+        return createWorkflowStatesMock(mockWorkflows);
       }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
@@ -390,9 +310,9 @@ describe('GET /api/workflows', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.workflow_history[0].metadata.quotesReceived).toBe(5);
-    expect(data.workflow_history[0].metadata.bestPrice).toBe(45000);
-    expect(data.workflow_history[0].metadata.recommendedOperator).toBe('Operator A');
+    expect(data.workflow_states[0].metadata.quotesReceived).toBe(5);
+    expect(data.workflow_states[0].metadata.bestPrice).toBe(45000);
+    expect(data.workflow_states[0].metadata.recommendedOperator).toBe('Operator A');
   });
 
   it('should return 500 on database error', async () => {
@@ -407,28 +327,10 @@ describe('GET /api/workflows', () => {
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-123' },
-                error: null,
-              }),
-            }),
-          }),
-        };
+        return createUsersMock({ id: 'user-123', role: 'user' });
       }
-      if (table === 'workflow_history') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'Database connection failed' },
-              }),
-            }),
-          }),
-        };
+      if (table === 'workflow_states') {
+        return createWorkflowStatesMock(null as any, { message: 'Database connection failed' });
       }
     });
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);

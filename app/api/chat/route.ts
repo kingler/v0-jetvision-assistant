@@ -757,10 +757,42 @@ export async function POST(req: NextRequest) {
           { status: 429, headers: { 'Content-Type': 'application/json' } }
         )
       }
+      // Handle other OpenAI API errors with more detail
+      return new Response(
+        JSON.stringify({
+          error: 'OpenAI API error',
+          message: error.message || 'An error occurred with the AI service',
+          code: error.code,
+          status: error.status,
+        }),
+        { status: error.status || 500, headers: { 'Content-Type': 'application/json' } }
+      )
     }
 
+    // Handle TypeError (e.g., missing methods, undefined access)
+    if (error instanceof TypeError) {
+      console.error('[Chat API] TypeError:', error.message, error.stack)
+      return new Response(
+        JSON.stringify({
+          error: 'Server configuration error',
+          message: process.env.NODE_ENV === 'development'
+            ? `Configuration error: ${error.message}`
+            : 'A server configuration error occurred. Please contact support.',
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Handle generic errors with more detail
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isDev = process.env.NODE_ENV === 'development'
+
     return new Response(
-      JSON.stringify({ error: 'Server error', message: 'An unexpected error occurred' }),
+      JSON.stringify({
+        error: 'Server error',
+        message: isDev ? errorMessage : 'An unexpected error occurred. Please try again.',
+        ...(isDev && error instanceof Error ? { stack: error.stack } : {}),
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }

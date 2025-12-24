@@ -6,10 +6,9 @@ Task ID,Task Name,Start Date,End Date,Duration (Days),Phase,Owner/Team,Milestone
 2.3,API Security & Middleware,2025-10-24,2025-10-25,2,Foundation,Backend Team,No,2.2,Complete,100%,Protected API endpoints
 2.4,Core Agent Framework,2025-10-25,2025-10-26,2,Foundation,Backend Team,No,2.3,Complete,100%,Base AI agent architecture
 2.5,Phase 1 Testing & Validation,2025-10-26,2025-10-26,1,Foundation,QA Team,No,2.4,Complete,100%,Authentication and security validation
-2.6,Database Schema Migration,2025-11-01,2025-11-08,8,Foundation,Backend Team,No,2.2,Complete,100%,"Complete schema with users, requests, quotes, workflows, agents, clients tables (PR #22 merged)"
-2.6.1,9 Database Migrations,2025-11-01,2025-11-08,8,Foundation,Backend Team,No,2.6,Complete,100%,"Migrations 001-009: schema, RLS, seed data, proposals, user roles, iso_agents→users, foreign keys"
+2.6,Database Schema Migration,2025-11-01,2025-11-08,8,Foundation,Backend Team,No,2.2,Complete,100%,"Complete schema with iso_agents, requests, quotes, workflows, agents, clients tables (PR #22 merged)"
+2.6.1,9 Database Migrations,2025-11-01,2025-11-08,8,Foundation,Backend Team,No,2.6,Complete,100%,"Migrations 001-009: schema, RLS, seed data, proposals, user roles, foreign keys"
 2.6.2,24 RLS Policies,2025-11-05,2025-11-08,4,Foundation,Backend Team,No,2.6.1,Complete,100%,Multi-tenant isolation and role-based access control
-2.6.3,Database Field Migration,2025-11-06,2025-11-08,3,Foundation,Backend Team,No,2.6.1,Complete,100%,iso_agent_id → user_id field renaming across codebase
 3,PHASE 1 MILESTONE: SECURE FOUNDATION COMPLETE,2025-11-08,2025-11-08,1,Foundation,Project Manager,Yes,"2.5,2.6",Complete,100%,✓ Authentication working ✓ Database complete with 24 RLS policies
 4,PHASE 2: AI AGENTS & INTEGRATIONS,2025-10-27,2025-11-15,20,Core Development,Development Team,Yes,3,In Progress,75%,Operational AI agent system with 6 agents implemented
 4.1,MCP Base Server Infrastructure,2025-10-27,2025-10-27,1,Core Development,Integration Team,No,3,Complete,100%,Core MCP server framework and utilities

@@ -116,8 +116,17 @@ export abstract class BaseAgent implements IAgent {
 
   /**
    * Get all registered tools (both agent tools and MCP tools)
+   * 
+   * @param criticalServers - Optional list of server names that must succeed. If any critical server fails, an error will be thrown.
+   * @returns Object containing tools array and failedServers array with server names and errors
+   * @throws Error if any critical server fails to load tools
    */
-  protected async getToolDefinitions(): Promise<OpenAI.Chat.ChatCompletionTool[]> {
+  protected async getToolDefinitions(
+    criticalServers?: string[]
+  ): Promise<{
+    tools: OpenAI.Chat.ChatCompletionTool[]
+    failedServers: Array<{ serverName: string; error: Error }>
+  }> {
     const agentTools = Array.from(this.tools.values()).map((tool) => ({
       type: 'function' as const,
       function: {
@@ -129,6 +138,7 @@ export abstract class BaseAgent implements IAgent {
 
     // Add MCP tools from connected servers
     const mcpTools: OpenAI.Chat.ChatCompletionTool[] = []
+    const failedServers: Array<{ serverName: string; error: Error }> = []
     
     for (const [serverName, client] of this.mcpClients.entries()) {
       try {
@@ -144,11 +154,37 @@ export abstract class BaseAgent implements IAgent {
         mcpTools.push(...tools)
         console.log(`[${this.name}] Loaded ${tools.length} tools from MCP server: ${serverName}`)
       } catch (error) {
+        const errorObj = error instanceof Error ? error : new Error(String(error))
+        failedServers.push({ serverName, error: errorObj })
         console.error(`[${this.name}] Failed to load tools from MCP server ${serverName}:`, error)
       }
     }
 
-    return [...agentTools, ...mcpTools]
+    // Log warning if any servers failed (concise warning referencing failedServers)
+    if (failedServers.length > 0) {
+      const failedServerNames = failedServers.map(fs => fs.serverName).join(', ')
+      console.warn(
+        `[${this.name}] ${failedServers.length} MCP server(s) failed to load tools: ${failedServerNames}. ` +
+        `Check failedServers array for details.`
+      )
+    }
+
+    // Throw error if any critical server failed
+    if (criticalServers && criticalServers.length > 0) {
+      const criticalFailures = failedServers.filter(fs => criticalServers.includes(fs.serverName))
+      if (criticalFailures.length > 0) {
+        const criticalServerNames = criticalFailures.map(fs => fs.serverName).join(', ')
+        const errorMessages = criticalFailures.map(fs => `${fs.serverName}: ${fs.error.message}`).join('; ')
+        throw new Error(
+          `Critical MCP server(s) failed to load tools: ${criticalServerNames}. Errors: ${errorMessages}`
+        )
+      }
+    }
+
+    return {
+      tools: [...agentTools, ...mcpTools],
+      failedServers,
+    }
   }
 
   /**
@@ -290,7 +326,7 @@ export abstract class BaseAgent implements IAgent {
 
       if (isGPT5) {
         // Get tool definitions (includes MCP tools)
-        const tools = await this.getToolDefinitions()
+        const { tools } = await this.getToolDefinitions()
         
         // Use Responses API for GPT-5 models
         const requestParams: any = {
@@ -319,7 +355,7 @@ export abstract class BaseAgent implements IAgent {
       } else {
         // Fallback to Chat Completions for non-GPT-5 models
         // Get tool definitions (includes MCP tools)
-        const tools = await this.getToolDefinitions()
+        const { tools } = await this.getToolDefinitions()
         
         // Pass trackMetrics=false to prevent double counting
         const messages: AgentMessage[] = [
@@ -472,7 +508,7 @@ export abstract class BaseAgent implements IAgent {
 
     try {
       // Get tool definitions (includes MCP tools)
-      const tools = await this.getToolDefinitions()
+      const { tools } = await this.getToolDefinitions()
       
       const response = await this.openai.chat.completions.create({
         model: this.config.model || 'gpt-4-turbo-preview',

@@ -5,7 +5,8 @@
  * Uses the production AvinodeClient which handles API communication.
  */
 
-import { BaseMCPServer, MCPToolDefinition, MCPServerConfig } from './base-server';
+import { BaseMCPServer } from './base-server';
+import { MCPToolDefinition, MCPServerConfig } from './types';
 import { AvinodeClient } from './clients/avinode-client';
 
 /**
@@ -13,7 +14,8 @@ import { AvinodeClient } from './clients/avinode-client';
  * Implements tools: search_flights, create_rfp, get_quote_status, get_quotes, get_rfq, get_rfq_flights
  */
 export class AvinodeMCPServer extends BaseMCPServer {
-  private client: AvinodeClient;
+  private client: AvinodeClient | null;
+  private apiKey: string;
 
   constructor() {
     const config: MCPServerConfig = {
@@ -25,17 +27,103 @@ export class AvinodeMCPServer extends BaseMCPServer {
 
     super(config);
 
-    // Initialize Avinode client
-    const apiKey = process.env.AVINODE_API_KEY || '';
+    // Validate and initialize Avinode client
+    this.apiKey = process.env.AVINODE_API_KEY || '';
     const baseUrl = process.env.AVINODE_BASE_URL || 'https://api.avinode.com';
 
-    this.client = new AvinodeClient({
-      apiKey,
-      baseUrl,
-    });
+    // Validate API key before creating client
+    if (this.isValidApiKey(this.apiKey)) {
+      try {
+        this.client = new AvinodeClient({
+          apiKey: this.apiKey,
+          baseUrl,
+        });
+        this.logger.info('Avinode client initialized successfully', {
+          baseUrl,
+          hasApiKey: true,
+        });
+      } catch (error) {
+        this.logger.error('Failed to initialize Avinode client', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        this.client = null;
+      }
+    } else {
+      // Invalid API key - set client to null and log warning
+      this.client = null;
+      // Compute safe prefix to avoid misleading '...' for empty keys
+      const apiKeyPrefix = this.apiKey ? this.apiKey.substring(0, 4) + '...' : '(none)';
+      this.logger.warn('Avinode API key is invalid or missing. Client unavailable.', {
+        apiKeyProvided: !!this.apiKey,
+        apiKeyLength: this.apiKey.length,
+        apiKeyPrefix,
+      });
+    }
 
     // Register all tools
     this.registerAvinodeTools();
+  }
+
+  /**
+   * Validate API key format
+   * Checks for non-empty, non-placeholder values
+   * @param apiKey - The API key to validate
+   * @returns true if the API key is valid, false otherwise
+   */
+  private isValidApiKey(apiKey: string): boolean {
+    // Check if API key is empty
+    if (!apiKey || apiKey.trim().length === 0) {
+      return false;
+    }
+
+    // Check for common placeholder/mock values (case-insensitive)
+    const normalizedKey = apiKey.toLowerCase().trim();
+    const invalidValues = ['mock', 'test', 'placeholder', 'your-api-key', 'xxx', 'null', 'undefined'];
+
+    // Check if key matches any invalid placeholder pattern
+    if (invalidValues.some((invalid) => normalizedKey === invalid || normalizedKey.startsWith(`${invalid}_`))) {
+      return false;
+    }
+
+    // Check minimum length (most API keys are at least 20 characters)
+    if (normalizedKey.length < 10) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if client is available
+   * @returns true if client is initialized and ready to use
+   */
+  private isClientAvailable(): boolean {
+    return this.client !== null;
+  }
+
+  /**
+   * Ensure client is available before making API calls
+   * @throws Error if client is not available
+   */
+  private ensureClientAvailable(): void {
+    if (!this.isClientAvailable()) {
+      throw new Error(
+        'Avinode client is not available. Please configure a valid AVINODE_API_KEY environment variable.'
+      );
+    }
+  }
+
+  /**
+   * Check if the server is using mock mode (no real API key configured)
+   * Returns true if client is null (invalid/missing API key) or API key is a placeholder
+   */
+  isUsingMockMode(): boolean {
+    // Client is null when API key is invalid
+    if (!this.isClientAvailable()) {
+      return true;
+    }
+    // Also check for placeholder values
+    return !this.isValidApiKey(this.apiKey);
   }
 
   /**
@@ -46,22 +134,25 @@ export class AvinodeMCPServer extends BaseMCPServer {
     // Ensure server is in a valid state for direct tool calls
     // For API usage, we execute tools directly without requiring the full server to be running
 
+    // Check if client is available before making API calls
+    this.ensureClientAvailable();
+
     switch (name) {
       case 'search_flights':
-        return await this.client.searchFlights(params);
+        return await this.client!.searchFlights(params);
 
       case 'create_rfp':
-        return await this.client.createRFP(params);
+        return await this.client!.createRFP(params);
 
       case 'get_quote_status':
-        return await this.client.getQuoteStatus(params.rfp_id);
+        return await this.client!.getQuoteStatus(params.rfp_id);
 
       case 'get_quotes':
-        return await this.client.getQuotes(params.rfp_id);
+        return await this.client!.getQuotes(params.rfp_id);
 
       case 'search_airports':
         // Only mock client has searchAirports
-        if ('searchAirports' in this.client && typeof this.client.searchAirports === 'function') {
+        if (this.client && 'searchAirports' in this.client && typeof this.client.searchAirports === 'function') {
           return await (this.client as any).searchAirports(params);
         }
         // For real client, we'd need to implement this differently
@@ -69,12 +160,12 @@ export class AvinodeMCPServer extends BaseMCPServer {
 
       case 'create_trip':
         // Create trip and return deep link for manual operator selection
-        return await this.client.createTrip(params);
+        return await this.client!.createTrip(params);
 
       case 'get_rfq':
         // Get RFQ details including all received quotes
         // Called when user provides a Trip ID after completing Avinode selection
-        return await this.client.getRFQ(params.rfq_id);
+        return await this.client!.getRFQ(params.rfq_id);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -131,7 +222,8 @@ export class AvinodeMCPServer extends BaseMCPServer {
         required: ['departure_airport', 'arrival_airport', 'passengers', 'departure_date'],
       },
       execute: async (params: any) => {
-        return await this.client.searchFlights(params);
+        this.ensureClientAvailable();
+        return await this.client!.searchFlights(params);
       },
     };
   }
@@ -187,7 +279,8 @@ export class AvinodeMCPServer extends BaseMCPServer {
         required: ['flight_details', 'operator_ids'],
       },
       execute: async (params: any) => {
-        return await this.client.createRFP(params);
+        this.ensureClientAvailable();
+        return await this.client!.createRFP(params);
       },
     };
   }
@@ -210,7 +303,8 @@ export class AvinodeMCPServer extends BaseMCPServer {
         required: ['rfp_id'],
       },
       execute: async (params: any) => {
-        return await this.client.getQuoteStatus(params.rfp_id);
+        this.ensureClientAvailable();
+        return await this.client!.getQuoteStatus(params.rfp_id);
       },
     };
   }
@@ -233,7 +327,8 @@ export class AvinodeMCPServer extends BaseMCPServer {
         required: ['rfp_id'],
       },
       execute: async (params: any) => {
-        return await this.client.getQuotes(params.rfp_id);
+        this.ensureClientAvailable();
+        return await this.client!.getQuotes(params.rfp_id);
       },
     };
   }
@@ -298,7 +393,8 @@ export class AvinodeMCPServer extends BaseMCPServer {
         required: ['departure_airport', 'arrival_airport', 'departure_date', 'passengers'],
       },
       execute: async (params: any) => {
-        return await this.client.createTrip(params);
+        this.ensureClientAvailable();
+        return await this.client!.createTrip(params);
       },
     };
   }

@@ -178,14 +178,27 @@ export function RFQFlightsList({
     );
   }
 
-  // Empty state
-  if (flights.length === 0) {
+  // Empty state - check filtered results to show appropriate message
+  if (processedFlights.length === 0) {
+    // No flights at all - show initial empty state
+    if (flights.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No flights available</h3>
+          <p className="text-muted-foreground">
+            No RFQ flights have been received yet. Please check back later.
+          </p>
+        </div>
+      );
+    }
+    // Flights exist but filters produce zero results
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No flights available</h3>
+        <h3 className="text-lg font-semibold mb-2">No flights match your filters</h3>
         <p className="text-muted-foreground">
-          No RFQ flights have been received yet. Please check back later.
+          No flights match your filters — try clearing filters
         </p>
       </div>
     );

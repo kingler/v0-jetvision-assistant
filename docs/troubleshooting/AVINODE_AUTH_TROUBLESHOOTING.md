@@ -113,18 +113,24 @@ Both scripts show:
 
 **Location**: `mcp-servers/avinode-mcp-server/.env.local`
 
-**Required Variables**:
+**Required Variables** (see `.env.local.example` for template):
 ```bash
 BASE_URI=https://sandbox.avinode.com/api
-API_TOKEN=d221161f-6e64-4f5a-a564-62b7c0b235bc
-AUTHENTICATION_TOKEN=<JWT_TOKEN>
+API_TOKEN=<your-api-token-here>
+AUTHENTICATION_TOKEN=<your-jwt-token-here>
 ```
 
 **OAuth Variables** (if needed):
 ```bash
-CLIENT_ID=f0b9992a-d539-4760-8cb2-3a5d81ad5e30
-CLIENT_SECRET_JWT=avinode_xZq1Ak139E1++nY5Uek2!S3lh3+@V+56uyi!@Uy6Jc!Wy#z1
+CLIENT_ID=<your-client-id-here>
+CLIENT_SECRET_JWT=<your-client-secret-here>
 ```
+
+**Note**: 
+- Copy `.env.local.example` to `.env.local` and fill in your actual credentials
+- Real credentials are stored in `.env.local` (gitignored) and secure internal tracking system
+- Never commit actual credentials to version control
+- If you've exposed credentials, rotate them immediately in the Avinode Developer Portal
 
 ---
 
@@ -141,4 +147,5 @@ CLIENT_SECRET_JWT=avinode_xZq1Ak139E1++nY5Uek2!S3lh3+@V+56uyi!@Uy6Jc!Wy#z1
 
 **Last Updated**: 2025-12-23  
 **Status**: ⚠️ Authentication failing - requires token refresh or OAuth flow
+
 

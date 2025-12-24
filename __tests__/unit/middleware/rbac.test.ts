@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
-import type { UserRole } from '@/lib/types/database';
+import type { UserRole } from '../../../lib/types/database';
 import {
   hasPermission,
   getUserRole,
@@ -105,6 +105,10 @@ describe('RBAC Middleware - Permission Matrix', () => {
         expect(hasPermission(role, 'users', 'read_own')).toBe(true);
       });
 
+      it('should allow update_own on users', () => {
+        expect(hasPermission(role, 'users', 'update_own')).toBe(true);
+      });
+
       it('should deny create on users', () => {
         expect(hasPermission(role, 'users', 'create')).toBe(false);
       });
@@ -194,6 +198,10 @@ describe('RBAC Middleware - Permission Matrix', () => {
 
       it('should allow read_own on users', () => {
         expect(hasPermission(role, 'users', 'read_own')).toBe(true);
+      });
+
+      it('should allow update_own on users', () => {
+        expect(hasPermission(role, 'users', 'update_own')).toBe(true);
       });
 
       it('should deny all actions on analytics', () => {
@@ -297,7 +305,7 @@ describe('RBAC Middleware - Permission Matrix', () => {
       expect(PERMISSIONS.sales_rep!.clients).toEqual(['create', 'read', 'update', 'delete']);
       expect(PERMISSIONS.sales_rep!.requests).toEqual(['create', 'read', 'update', 'delete']);
       expect(PERMISSIONS.sales_rep!.quotes).toEqual(['read', 'update']);
-      expect(PERMISSIONS.sales_rep!.users).toEqual(['read_own']);
+      expect(PERMISSIONS.sales_rep!.users).toEqual(['read_own', 'update_own']);
       expect(PERMISSIONS.sales_rep!.analytics).toEqual(['read_own']);
     });
 
@@ -313,7 +321,7 @@ describe('RBAC Middleware - Permission Matrix', () => {
       expect(PERMISSIONS.customer!.clients).toEqual([]);
       expect(PERMISSIONS.customer!.requests).toEqual(['read_own']);
       expect(PERMISSIONS.customer!.quotes).toEqual(['read_own']);
-      expect(PERMISSIONS.customer!.users).toEqual(['read_own']);
+      expect(PERMISSIONS.customer!.users).toEqual(['read_own', 'update_own']);
       expect(PERMISSIONS.customer!.analytics).toEqual([]);
     });
 
@@ -348,7 +356,7 @@ describe('RBAC Middleware - User Role Fetching', () => {
       const role = await getUserRole('user_123');
 
       expect(role).toBe('admin');
-      expect(mockSupabaseClient.from).toHaveBeenCalledWith('users');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('iso_agents');
       expect(mockSelectFn).toHaveBeenCalledWith('role');
       expect(mockEqFn).toHaveBeenCalledWith('clerk_user_id', 'user_123');
     });

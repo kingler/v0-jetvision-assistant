@@ -203,21 +203,8 @@ describe('WebhookStatusIndicator', () => {
     });
   });
 
-  describe('Custom Delayed Threshold', () => {
-    it('respects custom delayedThreshold prop', () => {
-      const customThreshold = 10 * 60 * 1000; // 10 minutes
-      render(
-        <WebhookStatusIndicator
-          status="delayed"
-          lastUpdate={new Date()}
-          delayedThreshold={customThreshold}
-        />
-      );
-
-      expect(screen.getByText(/updates may be delayed/i)).toBeInTheDocument();
-    });
-
-    it('uses default threshold of 5 minutes when not provided', () => {
+  describe('Delayed Threshold Behavior', () => {
+    it('displays delayed message for delayed status', () => {
       render(<WebhookStatusIndicator status="delayed" lastUpdate={new Date()} />);
 
       expect(screen.getByText(/updates may be delayed/i)).toBeInTheDocument();

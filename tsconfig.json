@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "baseUrl": ".",
     "plugins": [
       {
         "name": "next"
@@ -30,7 +31,6 @@
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": [
     "node_modules",
-    "app/_archived/**",
     "docs/archive/**",
     "__tests__/e2e/**",
     "__tests__/templates/**",
@@ -38,8 +38,6 @@
     "__tests__/unit/app/**",
     "__tests__/unit/hooks/**",
     "__tests__/unit/api/**",
-    "**/*.test.ts",
-    "**/*.spec.ts",
     "mcp-servers/**",
     "lib/task-runner/**",
     "lib/config/chatkit-workflow.ts",

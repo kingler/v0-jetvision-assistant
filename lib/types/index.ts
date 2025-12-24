@@ -17,6 +17,7 @@ export {
   type BuyerInfo,
   type FlightDetails,
   type LinkInfo,
+  type Passenger,
   // Scoring
   type ScoreBreakdown,
   type QuoteScores,

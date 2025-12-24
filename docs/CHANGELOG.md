@@ -9,24 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed - 2025-10-26
 
-#### Test Infrastructure Migration (TASK-045)
-- **Test Mock Factories Updated**: Migrated to new User model
-  - Created `mockUser()` factory matching User interface from ONEK-49
-  - Added `mockClerkUser()` for Clerk-specific testing
-  - Deprecated `mockISOAgent` with backward compatibility alias
-  - Updated `mockClientProfile()` to use `user_id` instead of `iso_agent_id`
-  - Updated `mockRFPRequest()` to use `user_id` and new Request schema
-  - Updated `mockQuote()` to match new Quote schema with detailed pricing
-
-- **API Route Tests Updated**: Batch migration to users table
-  - `__tests__/unit/api/clients/route.test.ts` - All references updated
-  - `__tests__/unit/api/quotes/route.test.ts` - Schema updates applied
-  - `__tests__/unit/api/requests/route.test.ts` - Schema updates applied
-  - `__tests__/unit/api/workflows/route.test.ts` - Schema updates applied
-  - Replaced `iso_agents` → `users` throughout
-  - Replaced `iso_agent_id` → `user_id` throughout
-  - Updated error messages: `'ISO agent not found'` → `'User not found'`
-
 #### Project Structure Reorganization
 - **Documentation Consolidation**: Moved all root-level documentation to organized subdirectories
   - Created `docs/guides/` for user and developer guides
@@ -106,17 +88,10 @@ This reorganization provides:
 
 ## [0.2.0] - 2025-10-24
 
-### Added - ONEK-49: User Management Migration
-- Comprehensive user management system migration from `iso_agents` to `users` table
-- Complete test coverage with TDD approach (RED → GREEN → REFACTOR phases)
+### Added
 - RBAC (Role-Based Access Control) middleware implementation
 - Clerk authentication integration with webhook sync
 - User profile UI components
-
-### Documentation
-- Added migration completion summary (`ONEK-49_COMPLETION_SUMMARY.md`)
-- Created code review checklist
-- Added merge instructions for repository owner
 
 ---
 

@@ -11,7 +11,8 @@
  * Required environment variables (from .env.local or mcp-servers/avinode-mcp-server/.env.local):
  *   - API_TOKEN (or AVINODE_API_TOKEN)
  *   - AUTHENTICATION_TOKEN (or AVINODE_BEARER_TOKEN)
- *   - BASE_URI (optional, defaults to https://sandbox.avinode.com/api)
+ *   - BASE_URI (or AVINODE_BASE_URL) - optional in development (defaults to sandbox with warning),
+ *     but REQUIRED in production to prevent accidental sandbox usage
  */
 
 import { config } from 'dotenv';
@@ -88,14 +89,17 @@ async function testCreateTrip() {
   }
 
   // Validate token formats
+  // Normalize auth token by removing "Bearer " prefix if present
+  let normalizedAuthToken = authToken;
   if (authToken.startsWith('Bearer ')) {
     logWarning('Auth token already includes "Bearer " prefix - removing it');
-    const trimmed = authToken.replace(/^Bearer\s+/i, '');
-    process.env.AUTHENTICATION_TOKEN = trimmed;
+    normalizedAuthToken = authToken.replace(/^Bearer\s+/i, '');
+    process.env.AUTHENTICATION_TOKEN = normalizedAuthToken;
   }
 
   // Check if token looks like a JWT (should start with eyJ)
-  if (!authToken.startsWith('eyJ')) {
+  // Use normalized token for accurate validation
+  if (!normalizedAuthToken.startsWith('eyJ')) {
     logWarning('Auth token does not appear to be a JWT (should start with "eyJ")');
   }
 

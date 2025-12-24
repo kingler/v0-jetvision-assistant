@@ -49,10 +49,8 @@ export const POST = withRoles(
             organization: organization_id,
           });
           
-          // Test with a simple API call
-          await openai.models.list();
-          
-          // Also try to get model info to verify access
+          // Test API key and get model info in a single call
+          // This verifies access and returns available models
           const models = await openai.models.list();
           const modelNames = models.data.map((m) => m.id).slice(0, 10);
           

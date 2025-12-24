@@ -75,8 +75,73 @@ if (useMockMode) {
   console.error('Set API_TOKEN and AUTHENTICATION_TOKEN for live API access');
   avinodeClient = new MockAvinodeClient();
 } else {
-  console.error(`Avinode API configured: ${process.env.BASE_URI || 'https://sandbox.avinode.com/api'}`);
-  avinodeClient = getAvinodeClient();
+  try {
+    avinodeClient = getAvinodeClient();
+    const baseURL = process.env.BASE_URI || process.env.AVINODE_BASE_URL || 'https://sandbox.avinode.com/api';
+    console.error(`Avinode API configured: ${baseURL}`);
+  } catch (error) {
+    // If client initialization fails (e.g., missing BASE_URI in production), log and rethrow
+    console.error('Failed to initialize Avinode client:', error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+}
+
+/**
+ * Extracts numeric ID from Avinode identifiers that may contain prefixes.
+ * 
+ * Handles IDs with known prefixes (arfq-, atrip-) and preserves the full suffix
+ * even when it contains additional hyphens (e.g., "arfq-123-456" -> "123-456").
+ * 
+ * @param id - The identifier to extract numeric ID from (e.g., "arfq-123-456", "atrip-789", "123456")
+ * @returns The numeric ID with full suffix preserved
+ * @throws Error if the resulting numericId is empty or contains non-numeric characters
+ * 
+ * @example
+ * extractNumericId('arfq-123-456') // Returns '123-456'
+ * extractNumericId('atrip-789') // Returns '789'
+ * extractNumericId('123456') // Returns '123456'
+ */
+function extractNumericId(id: string): string {
+  // Preserve original if no known prefix
+  if (!id.startsWith('arfq-') && !id.startsWith('atrip-')) {
+    return id;
+  }
+
+  // Extract everything after the first hyphen using regex
+  // This captures the full suffix even if it contains additional hyphens
+  const match = id.match(/^(?:arfq|atrip)-(.+)$/);
+  
+  if (!match || !match[1]) {
+    throw new Error(
+      `Failed to extract numeric ID from identifier: "${id}". ` +
+      `Expected format: "arfq-<id>" or "atrip-<id>"`
+    );
+  }
+
+  // Trim whitespace from the extracted numeric ID to handle inputs like "arfq- 123 "
+  const numericId = match[1].trim();
+
+  // Validate that the extracted ID is not empty after trimming
+  if (!numericId || numericId.length === 0) {
+    throw new Error(
+      `Extracted numeric ID is empty from identifier: "${id}". ` +
+      `The ID must contain a value after the prefix.`
+    );
+  }
+
+  // Validate that the extracted ID contains at least one numeric character
+  // This ensures it's not purely alphabetic while allowing hyphens in composite IDs
+  if (!/\d/.test(numericId)) {
+    throw new Error(
+      `Extracted numeric ID contains no numeric characters: "${numericId}" from identifier: "${id}". ` +
+      `The ID must contain at least one digit.`
+    );
+  }
+
+  // Note: We allow hyphens in the numeric ID as Avinode may use composite IDs (e.g., "123-456")
+  // The API will validate the actual format, so we just ensure it's not empty and contains digits
+  // Return the trimmed numeric ID to ensure no leading/trailing whitespace
+  return numericId;
 }
 
 // Define MCP tools
@@ -840,9 +905,14 @@ async function getRFQ(params: GetRFQParams) {
 
   // Extract numeric ID if prefixed (e.g., "arfq-12345678" -> "12345678")
   // Per Avinode API: endpoint accepts numeric ID or prefixed ID
-  let numericId = params.rfq_id;
-  if (params.rfq_id.startsWith('arfq-') || params.rfq_id.startsWith('atrip-')) {
-    numericId = params.rfq_id.split('-')[1];
+  // Uses robust extraction to handle IDs with additional hyphens (e.g., "arfq-123-456")
+  let numericId: string;
+  try {
+    numericId = extractNumericId(params.rfq_id);
+  } catch (error) {
+    throw new Error(
+      `Invalid RFQ ID format: "${params.rfq_id}". ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 
   // Request with optional query parameters for additional details
@@ -907,9 +977,14 @@ async function cancelTrip(params: CancelTripParams) {
   }
 
   // Extract numeric ID if prefixed
-  let numericId = params.trip_id;
-  if (params.trip_id.startsWith('atrip-') || params.trip_id.startsWith('arfq-')) {
-    numericId = params.trip_id.split('-')[1];
+  // Uses robust extraction to handle IDs with additional hyphens (e.g., "atrip-123-456")
+  let numericId: string;
+  try {
+    numericId = extractNumericId(params.trip_id);
+  } catch (error) {
+    throw new Error(
+      `Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 
   const response = await avinodeClient.put(`/rfqs/${numericId}/cancel`, {
@@ -942,9 +1017,14 @@ async function sendTripMessage(params: SendTripMessageParams) {
   }
 
   // Extract numeric ID if prefixed
-  let numericId = params.trip_id;
-  if (params.trip_id.startsWith('atrip-')) {
-    numericId = params.trip_id.split('-')[1];
+  // Uses robust extraction to handle IDs with additional hyphens (e.g., "atrip-123-456")
+  let numericId: string;
+  try {
+    numericId = extractNumericId(params.trip_id);
+  } catch (error) {
+    throw new Error(
+      `Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 
   const response = await avinodeClient.post(`/tripmsgs/${numericId}`, {
@@ -974,9 +1054,14 @@ async function getTripMessages(params: GetTripMessagesParams) {
   }
 
   // Extract numeric ID if prefixed
-  let numericId = params.trip_id;
-  if (params.trip_id.startsWith('atrip-')) {
-    numericId = params.trip_id.split('-')[1];
+  // Uses robust extraction to handle IDs with additional hyphens (e.g., "atrip-123-456")
+  let numericId: string;
+  try {
+    numericId = extractNumericId(params.trip_id);
+  } catch (error) {
+    throw new Error(
+      `Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 
   const response = await avinodeClient.get(`/tripmsgs/${numericId}`, {

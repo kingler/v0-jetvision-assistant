@@ -1,9 +1,43 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse, NextRequest } from 'next/server'
 
-// Check if auth should be bypassed in development
-const BYPASS_AUTH = process.env.BYPASS_AUTH === 'true' ||
-  (process.env.NODE_ENV === 'development' && process.env.VERCEL !== '1')
+/**
+ * Check if auth should be bypassed
+ * 
+ * Security: BYPASS_AUTH requires explicit opt-in via environment variable.
+ * Authentication bypass is only allowed in development environments (NODE_ENV === 'development').
+ * In production (NODE_ENV === 'production'), authentication bypass is never allowed.
+ * 
+ * To enable bypass in development, explicitly set: BYPASS_AUTH=true
+ * 
+ * For Vercel deployments in development, you can also use: BYPASS_AUTH_VERCEL=true
+ * (This is a convenience flag for Vercel preview deployments but still requires explicit opt-in)
+ */
+const isDevelopment = process.env.NODE_ENV === 'development'
+const bypassAuthEnv = process.env.BYPASS_AUTH === 'true'
+const bypassAuthVercelEnv = process.env.BYPASS_AUTH_VERCEL === 'true'
+
+// Warn if BYPASS_AUTH is set in non-development environments
+if (bypassAuthEnv && !isDevelopment) {
+  console.warn(
+    '[middleware] Security Warning: BYPASS_AUTH is set to "true" but NODE_ENV is not "development". ' +
+    'Authentication bypass is only allowed in development. Ignoring BYPASS_AUTH setting.'
+  )
+}
+
+// Warn if BYPASS_AUTH_VERCEL is set in non-development environments
+if (bypassAuthVercelEnv && !isDevelopment) {
+  console.warn(
+    '[middleware] Security Warning: BYPASS_AUTH_VERCEL is set to "true" but NODE_ENV is not "development". ' +
+    'Authentication bypass is only allowed in development. Ignoring BYPASS_AUTH_VERCEL setting.'
+  )
+}
+
+// Require explicit opt-in: Only allow bypass in development with explicit BYPASS_AUTH flag
+// Optional convenience flag BYPASS_AUTH_VERCEL for Vercel preview deployments (also requires explicit opt-in)
+const BYPASS_AUTH = isDevelopment && Boolean(
+  bypassAuthEnv || (bypassAuthVercelEnv && process.env.VERCEL === '1')
+)
 
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
@@ -16,6 +50,12 @@ const isPublicRoute = createRouteMatcher([
 
 // Simple passthrough middleware for development
 function devMiddleware(request: NextRequest) {
+  // Log auth bypass in development for debugging visibility
+  if (isDevelopment) {
+    console.debug(
+      `[middleware] Auth bypassed (dev mode): ${request.method} ${request.nextUrl.pathname}`
+    )
+  }
   // In dev mode, just pass through all requests
   return NextResponse.next()
 }

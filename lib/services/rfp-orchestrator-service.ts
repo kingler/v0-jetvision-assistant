@@ -180,8 +180,9 @@ export class RFPOrchestratorService {
       );
     }
 
-    // Validate dates
-    const departureDate = new Date(rfpData.departureDate);
+    // Validate dates (departureDate is guaranteed to exist by validation above)
+    const departureDateStr = rfpData.departureDate as string;
+    const departureDate = new Date(departureDateStr);
     if (isNaN(departureDate.getTime())) {
       throw new Error('Invalid departure date');
     }

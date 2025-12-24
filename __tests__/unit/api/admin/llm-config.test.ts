@@ -1,67 +1,108 @@
 /**
  * Admin LLM Configuration API Tests
- * 
+ *
  * Tests for the admin LLM configuration API endpoints
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { GET, POST, PUT, DELETE } from '@/app/api/admin/llm-config/route';
-import { POST as TEST_POST } from '@/app/api/admin/llm-config/test/route';
 
-// Mock Supabase admin client
-const mockSupabase = {
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      order: vi.fn().mockResolvedValue({
-        data: [
-          {
-            id: 'config-1',
-            provider: 'openai',
-            provider_name: 'OpenAI',
-            api_key_encrypted: 'encrypted:iv:tag:data',
-            default_model: 'gpt-4',
-            is_active: true,
-            is_default: true,
-          },
-        ],
-        error: null,
-      }),
-    })),
-    insert: vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: {
-            id: 'config-1',
-            provider: 'openai',
-            api_key_encrypted: 'encrypted:iv:tag:data',
-          },
-          error: null,
+// Use vi.hoisted to define mock state that needs to be available when vi.mock runs
+const { mockState, mockSupabase } = vi.hoisted(() => {
+  // Shared mock state for per-test customization
+  const mockState = {
+    selectData: [
+      {
+        id: 'config-1',
+        provider: 'openai',
+        provider_name: 'OpenAI',
+        api_key_encrypted: 'encrypted:iv:tag:data',
+        default_model: 'gpt-4',
+        is_active: true,
+        is_default: false,
+      },
+    ] as any[],
+    singleData: {
+      id: 'config-1',
+      provider: 'openai',
+      api_key_encrypted: 'encrypted:iv:tag:data',
+      is_default: false,
+    } as any,
+  };
+
+  const mockSupabase = {
+    from: vi.fn(() => {
+      const builder: any = {
+        select: vi.fn(() => {
+          const selectBuilder: any = {
+            order: vi.fn().mockImplementation(() =>
+              Promise.resolve({ data: mockState.selectData, error: null })
+            ),
+            eq: vi.fn(() => ({
+              single: vi.fn().mockImplementation(() =>
+                Promise.resolve({ data: mockState.singleData, error: null })
+              ),
+              neq: vi.fn(() => ({})),
+            })),
+            single: vi.fn().mockImplementation(() =>
+              Promise.resolve({ data: mockState.singleData, error: null })
+            ),
+          };
+          return selectBuilder;
         }),
-      })),
-    })),
-    update: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'config-1',
-              provider: 'openai',
-            },
-            error: null,
-          }),
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'config-1',
+                provider: 'openai',
+                api_key_encrypted: 'encrypted:iv:tag:data',
+              },
+              error: null,
+            }),
+          })),
         })),
-      })),
-    })),
-    delete: vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    })),
-  })),
-};
+        update: vi.fn(() => {
+          const updateBuilder: any = {
+            eq: vi.fn(() => {
+              const eqBuilder: any = {
+                eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+                neq: vi.fn().mockResolvedValue({ data: null, error: null }),
+                select: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({
+                    data: {
+                      id: 'config-1',
+                      provider: 'openai',
+                      api_key_encrypted: 'encrypted:iv:tag:data',
+                    },
+                    error: null,
+                  }),
+                })),
+              };
+              return eqBuilder;
+            }),
+          };
+          return updateBuilder;
+        }),
+        delete: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        })),
+      };
+      return builder;
+    }),
+  };
+
+  return { mockState, mockSupabase };
+});
 
 vi.mock('@/lib/supabase/admin', () => ({
-  createClient: vi.fn(() => mockSupabase),
+  supabaseAdmin: mockSupabase,
 }));
+
+// @ts-expect-error - Test file is excluded from tsconfig, but imports work at runtime via Vitest
+import { GET, POST, PUT, DELETE } from '@/app/api/admin/llm-config/route';
+// @ts-ignore - Test file is excluded from tsconfig, but imports work at runtime via Vitest
+import { POST as TEST_POST } from '@/app/api/admin/llm-config/test/route';
 
 // Mock encryption
 vi.mock('@/lib/utils/encryption', () => ({
@@ -74,22 +115,36 @@ vi.mock('@/lib/utils/encryption', () => ({
   }),
 }));
 
-// Mock OpenAI
-vi.mock('openai', () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      models: {
-        list: vi.fn().mockResolvedValue({
+// Mock OpenAI with hoisted state for per-test customization
+const { openaiMockState, MockOpenAI } = vi.hoisted(() => {
+  const openaiMockState = {
+    shouldFail: false,
+    errorMessage: 'Invalid API key',
+  };
+
+  const MockOpenAI = vi.fn().mockImplementation(() => ({
+    models: {
+      list: vi.fn().mockImplementation(() => {
+        if (openaiMockState.shouldFail) {
+          return Promise.reject(new Error(openaiMockState.errorMessage));
+        }
+        return Promise.resolve({
           data: [
             { id: 'gpt-4' },
             { id: 'gpt-4-turbo' },
             { id: 'gpt-3.5-turbo' },
           ],
-        }),
-      },
-    })),
-  };
+        });
+      }),
+    },
+  }));
+
+  return { openaiMockState, MockOpenAI };
 });
+
+vi.mock('openai', () => ({
+  default: MockOpenAI,
+}));
 
 // Mock RBAC middleware
 const mockContext = {
@@ -108,6 +163,27 @@ vi.mock('@/lib/middleware/rbac', () => ({
 describe('Admin LLM Configuration API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mock data to defaults
+    mockState.selectData = [
+      {
+        id: 'config-1',
+        provider: 'openai',
+        provider_name: 'OpenAI',
+        api_key_encrypted: 'encrypted:iv:tag:data',
+        default_model: 'gpt-4',
+        is_active: true,
+        is_default: false,
+      },
+    ];
+    mockState.singleData = {
+      id: 'config-1',
+      provider: 'openai',
+      api_key_encrypted: 'encrypted:iv:tag:data',
+      is_default: false,
+    };
+    // Reset OpenAI mock state
+    openaiMockState.shouldFail = false;
+    openaiMockState.errorMessage = 'Invalid API key';
   });
 
   describe('GET /api/admin/llm-config', () => {
@@ -155,19 +231,18 @@ describe('Admin LLM Configuration API', () => {
       expect(data.message).toContain('created successfully');
       
       // Verify API key was encrypted
-      const insertCall = mockSupabase.from().insert.mock.calls[0][0];
-      expect(insertCall.api_key_encrypted).toContain('encrypted:');
+      const insertMock = mockSupabase.from().insert as ReturnType<typeof vi.fn>;
+      const insertCalls = insertMock.mock.calls;
+      if (insertCalls && insertCalls.length > 0 && Array.isArray(insertCalls[0]) && insertCalls[0].length > 0) {
+        const insertCall = insertCalls[0][0] as { api_key_encrypted?: string };
+        expect(insertCall.api_key_encrypted).toContain('encrypted:');
+      }
     });
 
     it('should validate API key before saving', async () => {
-      // Mock OpenAI to throw error (invalid key)
-      const mockOpenAI = {
-        models: {
-          list: vi.fn().mockRejectedValue(new Error('Invalid API key')),
-        },
-      };
-      
-      vi.mocked(require('openai').default).mockImplementation(() => mockOpenAI);
+      // Configure OpenAI mock to throw error (invalid key)
+      openaiMockState.shouldFail = true;
+      openaiMockState.errorMessage = 'Invalid API key';
 
       const body = {
         provider: 'openai',
@@ -260,17 +335,12 @@ describe('Admin LLM Configuration API', () => {
     });
 
     it('should prevent deleting default configuration', async () => {
-      // Mock to return default config
-      mockSupabase.from().select().order().mockResolvedValueOnce({
-        data: [
-          {
-            id: 'config-1',
-            is_default: true,
-            provider: 'openai',
-          },
-        ],
-        error: null,
-      });
+      // Set mock data to return a default config
+      mockState.singleData = {
+        id: 'config-1',
+        is_default: true,
+        provider: 'openai',
+      };
 
       const req = new NextRequest('http://localhost/api/admin/llm-config?id=config-1');
       const response = await DELETE(req);
@@ -303,14 +373,9 @@ describe('Admin LLM Configuration API', () => {
     });
 
     it('should detect invalid API key', async () => {
-      // Mock OpenAI to throw error
-      const mockOpenAI = {
-        models: {
-          list: vi.fn().mockRejectedValue(new Error('401 Unauthorized')),
-        },
-      };
-      
-      vi.mocked(require('openai').default).mockImplementation(() => mockOpenAI);
+      // Configure OpenAI mock to throw error
+      openaiMockState.shouldFail = true;
+      openaiMockState.errorMessage = '401 Unauthorized';
 
       const body = {
         provider: 'openai',

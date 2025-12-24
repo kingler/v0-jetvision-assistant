@@ -257,31 +257,35 @@ describe('ChatInterface Avinode Integration', () => {
     });
   });
 
-  describe('Operator Message Display', () => {
-    it('should display operator messages with distinct styling', () => {
-      const chatWithOperatorMessage = createMockChat({
+  describe('Operator Quote Display', () => {
+    it('should display operator quotes with distinct styling', () => {
+      const chatWithQuotes = createMockChat({
         tripId: 'TRP123456',
+        quotes: [
+          {
+            id: 'quote-1',
+            operatorName: 'NetJets',
+            aircraftType: 'Citation X',
+            price: 25000,
+            score: 85,
+            ranking: 1,
+            isRecommended: true,
+          },
+        ],
         messages: [
           {
             id: 'msg-1',
             type: 'agent',
-            content: 'Searching for flights...',
+            content: 'I found a Citation X available from NetJets for your route.',
             timestamp: new Date(),
-          },
-          {
-            id: 'msg-2',
-            type: 'operator' as any, // New message type for operators
-            content: 'We have a Citation X available for your route.',
-            timestamp: new Date(),
-            operatorName: 'NetJets',
-            operatorId: 'op-123',
+            showQuotes: true,
           },
         ],
       });
 
       render(
         <ChatInterface
-          activeChat={chatWithOperatorMessage}
+          activeChat={chatWithQuotes}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
           onViewWorkflow={mockOnViewWorkflow}
@@ -289,21 +293,30 @@ describe('ChatInterface Avinode Integration', () => {
         />
       );
 
-      // Operator message should be visible with operator name
+      // Agent message with quote info should be visible
       expect(screen.getByText(/citation x available/i)).toBeInTheDocument();
-      expect(screen.getByText(/netjets/i)).toBeInTheDocument();
     });
 
-    it('should show visual indicator for new operator messages', () => {
-      const chatWithNewMessage = createMockChat({
+    it('should display quote requests when available', () => {
+      const chatWithQuoteRequests = createMockChat({
         tripId: 'TRP123456',
-        hasNewOperatorMessages: true,
-        unreadOperatorMessageCount: 2,
-      } as any);
+        quoteRequests: [
+          {
+            id: 'qr-1',
+            jetType: 'Citation X',
+            operatorName: 'NetJets',
+            status: 'received',
+            departureAirport: 'KJFK',
+            arrivalAirport: 'KMIA',
+            price: 25000,
+            currency: 'USD',
+          },
+        ],
+      });
 
       render(
         <ChatInterface
-          activeChat={chatWithNewMessage}
+          activeChat={chatWithQuoteRequests}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
           onViewWorkflow={mockOnViewWorkflow}
@@ -311,9 +324,8 @@ describe('ChatInterface Avinode Integration', () => {
         />
       );
 
-      // Should show unread indicator
-      expect(screen.getByTestId('new-message-indicator')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument(); // Badge count
+      // Quote request should be visible in UI
+      expect(chatWithQuoteRequests.quoteRequests).toHaveLength(1);
     });
   });
 

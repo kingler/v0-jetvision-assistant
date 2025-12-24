@@ -16,9 +16,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const requestId = searchParams.get('request_id');
 
-    const { data: user } = await supabase.from('iso_agents').select('id, role').eq('clerk_user_id', userId).single();
+    // Fetch user from iso_agents table - user_id in requests references iso_agents.id
+    // Note: All existing user records should have been migrated to iso_agents via Clerk webhook
+    const { data: user } = await supabase
+      .from('iso_agents')
+      .select('id')
+      .eq('clerk_user_id', userId)
+      .single();
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+    // Join workflow_states with requests table
+    // Foreign key: requests.user_id → iso_agents.id (verified)
     let query = supabase
       .from('workflow_states')
       .select('*, request:requests!inner(id, user_id)')

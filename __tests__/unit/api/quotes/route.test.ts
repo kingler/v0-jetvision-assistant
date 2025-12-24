@@ -79,7 +79,7 @@ describe('GET /api/quotes', () => {
       debug: () => null
     });
 
-    const mockUser = { id: 'user-123' };
+    const mockUser = { id: 'user-123', role: 'sales_rep' };
     const mockQuotes = [
       {
         id: 'quote-1',
@@ -114,12 +114,11 @@ describe('GET /api/quotes', () => {
           }),
         };
       } else if (table === 'quotes') {
+        // No filters means .select() resolves directly
         return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              data: mockQuotes,
-              error: null,
-            }),
+          select: vi.fn().mockResolvedValue({
+            data: mockQuotes,
+            error: null,
           }),
         };
       }
@@ -169,13 +168,12 @@ describe('GET /api/quotes', () => {
           }),
         };
       } else if (table === 'quotes') {
+        // Single filter: .select().eq() resolves
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockResolvedValue({
-                data: mockQuotes,
-                error: null,
-              }),
+            eq: vi.fn().mockResolvedValue({
+              data: mockQuotes,
+              error: null,
             }),
           }),
         };
@@ -224,13 +222,12 @@ describe('GET /api/quotes', () => {
           }),
         };
       } else if (table === 'quotes') {
+        // Single filter: .select().eq() resolves
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockResolvedValue({
-                data: mockQuotes,
-                error: null,
-              }),
+            eq: vi.fn().mockResolvedValue({
+              data: mockQuotes,
+              error: null,
             }),
           }),
         };

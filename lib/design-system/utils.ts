@@ -116,8 +116,12 @@ export function typography(
   lineHeight: keyof typeof tokens.typography.lineHeights = 'normal'
 ) {
   const fontSize = tokens.typography.fontSizes[size];
+  const resolvedFontSize =
+    typeof fontSize === 'string'
+      ? fontSize
+      : (fontSize as { mobile: string; desktop: string }).mobile;
   return {
-    fontSize: typeof fontSize === 'string' ? fontSize : fontSize.mobile,
+    fontSize: resolvedFontSize,
     fontWeight: tokens.typography.fontWeights[weight],
     lineHeight: tokens.typography.lineHeights[lineHeight],
     fontFamily: tokens.typography.fontFamilies.sans,

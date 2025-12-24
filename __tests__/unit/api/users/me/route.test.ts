@@ -120,15 +120,29 @@ describe('/api/users/me', () => {
     it('should update current user profile', async () => {
       mockAuthFn.mockResolvedValueOnce({ userId: 'user_123' });
 
+      const existingUser = mockUser({ role: 'sales_rep' });
       const updatedUser = mockUser({ full_name: 'Updated Name', role: 'sales_rep' });
-      const mockSingleFn = vi.fn().mockResolvedValueOnce({
+
+      // First call for getUserRole in withRBAC
+      const mockSingleFn1 = vi.fn().mockResolvedValueOnce({
+        data: existingUser,
+        error: null,
+      });
+      const mockEqFn1 = vi.fn().mockReturnValueOnce({ single: mockSingleFn1 });
+      const mockSelectFn1 = vi.fn().mockReturnValueOnce({ eq: mockEqFn1 });
+
+      // Second call for actual update
+      const mockSingleFn2 = vi.fn().mockResolvedValueOnce({
         data: updatedUser,
         error: null,
       });
-      const mockSelectFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
-      const mockEqFn = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
-      const mockUpdateFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
-      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ update: mockUpdateFn });
+      const mockSelectFn2 = vi.fn().mockReturnValueOnce({ single: mockSingleFn2 });
+      const mockEqFn2 = vi.fn().mockReturnValueOnce({ select: mockSelectFn2 });
+      const mockUpdateFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
+
+      mockSupabaseClient.from = vi.fn()
+        .mockReturnValueOnce({ select: mockSelectFn1 }) // getUserRole
+        .mockReturnValueOnce({ update: mockUpdateFn }); // actual update
 
       const request = new NextRequest('http://localhost:3000/api/users/me', {
         method: 'PATCH',
@@ -145,6 +159,17 @@ describe('/api/users/me', () => {
 
     it('should prevent updating sensitive fields', async () => {
       mockAuthFn.mockResolvedValueOnce({ userId: 'user_123' });
+
+      const existingUser = mockUser({ role: 'sales_rep' });
+
+      // Mock getUserRole for withRBAC
+      const mockSingleFn = vi.fn().mockResolvedValueOnce({
+        data: existingUser,
+        error: null,
+      });
+      const mockEqFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
+      const mockSelectFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
+      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       const request = new NextRequest('http://localhost:3000/api/users/me', {
         method: 'PATCH',
@@ -164,15 +189,29 @@ describe('/api/users/me', () => {
     it('should allow updating allowed fields', async () => {
       mockAuthFn.mockResolvedValueOnce({ userId: 'user_123' });
 
+      const existingUser = mockUser({ role: 'sales_rep' });
       const updatedUser = mockUser({ phone: '+1234567890', role: 'sales_rep' });
-      const mockSingleFn = vi.fn().mockResolvedValueOnce({
+
+      // First call for getUserRole in withRBAC
+      const mockSingleFn1 = vi.fn().mockResolvedValueOnce({
+        data: existingUser,
+        error: null,
+      });
+      const mockEqFn1 = vi.fn().mockReturnValueOnce({ single: mockSingleFn1 });
+      const mockSelectFn1 = vi.fn().mockReturnValueOnce({ eq: mockEqFn1 });
+
+      // Second call for actual update
+      const mockSingleFn2 = vi.fn().mockResolvedValueOnce({
         data: updatedUser,
         error: null,
       });
-      const mockSelectFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
-      const mockEqFn = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
-      const mockUpdateFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
-      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ update: mockUpdateFn });
+      const mockSelectFn2 = vi.fn().mockReturnValueOnce({ single: mockSingleFn2 });
+      const mockEqFn2 = vi.fn().mockReturnValueOnce({ select: mockSelectFn2 });
+      const mockUpdateFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
+
+      mockSupabaseClient.from = vi.fn()
+        .mockReturnValueOnce({ select: mockSelectFn1 }) // getUserRole
+        .mockReturnValueOnce({ update: mockUpdateFn }); // actual update
 
       const request = new NextRequest('http://localhost:3000/api/users/me', {
         method: 'PATCH',

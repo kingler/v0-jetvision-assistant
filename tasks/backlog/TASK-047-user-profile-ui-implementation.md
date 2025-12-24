@@ -171,8 +171,6 @@ Create profile pages to make tests pass.
 
 ### Pre-Implementation Checklist
 
-- [ ] Review `docs/USER_MANAGEMENT_MIGRATION_PLAN.md` Phase 4
-- [ ] TASK-045 (Code Refactoring) complete
 - [ ] TASK-046 (RBAC Middleware) complete
 - [ ] `/api/users/me` endpoint functional
 - [ ] `useUserRole()` hook available
@@ -960,7 +958,6 @@ test('admin can manage users', async ({ page }) => {
 - [Zod Validation](https://zod.dev)
 
 ### Related Tasks
-- TASK-045: Code Refactoring (prerequisite)
 - TASK-046: RBAC Middleware (prerequisite)
 
 ---
@@ -987,5 +984,5 @@ test('admin can manage users', async ({ page }) => {
 ---
 
 **Task Status**: ⏳ PENDING
-**Depends On**: TASK-045, TASK-046
+**Depends On**: TASK-046
 **Blocks**: None

@@ -14,7 +14,7 @@
  * 4. Send Proposal (Automatic) - Display retrieved quote/flight info
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import { TripIDInput } from './trip-id-input';
 import { RFQFlightsList } from './rfq-flights-list';
 import { SendProposalStep } from './send-proposal-step';
+import { convertToAvinodeRFQFlight } from './utils';
 import type { RFQFlight } from './rfq-flight-card';
 import type { RFQFlight as AvinodeRFQFlight } from '@/lib/mcp/clients/avinode-client';
 
@@ -343,6 +344,17 @@ export function FlightSearchProgress({
   className,
 }: FlightSearchProgressProps) {
   const [copied, setCopied] = useState(false);
+
+  /**
+   * Memoized conversion of selected RFQ flights to AvinodeRFQFlight format.
+   * Filters rfqFlights by selectedRfqFlightIds and maps via convertToAvinodeRFQFlight.
+   * Only recalculates when rfqFlights or selectedRfqFlightIds change.
+   */
+  const selectedAvinodeFlights = useMemo<AvinodeRFQFlight[]>(() => {
+    return rfqFlights
+      .filter((f) => selectedRfqFlightIds.includes(f.id))
+      .map(convertToAvinodeRFQFlight);
+  }, [rfqFlights, selectedRfqFlightIds]);
 
   // Determine if we should hide the stepper (when TripID is entered and flights are shown)
   const hideStepperWhenComplete = tripIdSubmitted && selectedFlights.length > 0;
@@ -722,42 +734,7 @@ export function FlightSearchProgress({
             >
               {/* SendProposalStep component - handles PDF generation and email sending */}
               <SendProposalStep
-                selectedFlights={
-                  // Convert RFQFlight to AvinodeRFQFlight format for SendProposalStep
-                  rfqFlights
-                    .filter((f) => selectedRfqFlightIds.includes(f.id))
-                    .map((f) => ({
-                      id: f.id,
-                      quoteId: f.quoteId || f.id,
-                      departureAirport: f.departureAirport,
-                      arrivalAirport: f.arrivalAirport,
-                      departureDate: f.departureDate,
-                      departureTime: f.departureTime,
-                      flightDuration: f.flightDuration || 'N/A',
-                      aircraftType: f.aircraftType || 'Unknown',
-                      aircraftModel: f.aircraftModel || f.aircraftType || 'Unknown',
-                      tailNumber: f.tailNumber,
-                      yearOfManufacture: f.yearOfManufacture,
-                      passengerCapacity: f.passengerCapacity || 0,
-                      operatorName: f.operatorName,
-                      operatorRating: f.operatorRating,
-                      price: f.price,
-                      currency: f.currency || 'USD',
-                      priceBreakdown: f.priceBreakdown,
-                      validUntil: f.validUntil,
-                      amenities: f.amenities || {
-                        wifi: false,
-                        pets: false,
-                        smoking: false,
-                        galley: false,
-                        lavatory: false,
-                        medical: false,
-                      },
-                      rfqStatus: f.rfqStatus,
-                      lastUpdated: f.lastUpdated || new Date().toISOString(),
-                      isSelected: true,
-                    }))
-                }
+                selectedFlights={selectedAvinodeFlights}
                 tripDetails={{
                   departureAirport: flightRequest.departureAirport,
                   arrivalAirport: flightRequest.arrivalAirport,
