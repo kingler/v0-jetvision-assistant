@@ -183,7 +183,9 @@ describe('SendProposalStep', () => {
     });
 
     it('validates email format', async () => {
-      render(<SendProposalStep {...defaultProps} />);
+      // Need to provide onSendProposal so the button isn't disabled
+      const onSendProposal = vi.fn().mockResolvedValue({ success: true });
+      render(<SendProposalStep {...defaultProps} onSendProposal={onSendProposal} />);
 
       const emailInput = screen.getByLabelText(/customer email/i);
       fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
@@ -194,6 +196,8 @@ describe('SendProposalStep', () => {
       await waitFor(() => {
         expect(screen.getByText(/valid email/i)).toBeInTheDocument();
       });
+      // onSendProposal should not be called when email is invalid
+      expect(onSendProposal).not.toHaveBeenCalled();
     });
   });
 

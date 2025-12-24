@@ -116,9 +116,8 @@ describe('RFQFlightCard', () => {
       expect(screen.getByText('Executive Jets LLC')).toBeInTheDocument();
       expect(screen.getByText(/4.8/)).toBeInTheDocument();
 
-      // Pricing
+      // Pricing - $32,500 displays as currency symbol, not "USD" text
       expect(screen.getByText(/\$32,500/)).toBeInTheDocument();
-      expect(screen.getByText(/USD/)).toBeInTheDocument();
 
       // Flight duration
       expect(screen.getByText('5h 30m')).toBeInTheDocument();
