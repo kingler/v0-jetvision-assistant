@@ -55,3 +55,6 @@ build-output.log
 
 # Git Worktree Workspaces (phase directories only, keep archive and config)
 .context/workspaces/phase-*/
+
+# clerk configuration (can include secrets)
+/.clerk/
