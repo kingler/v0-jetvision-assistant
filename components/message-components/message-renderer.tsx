@@ -25,6 +25,7 @@ import {
   TripDetailsCard,
   AvinodeMessageCard,
 } from '@/components/avinode';
+import { PipelineDashboard } from './pipeline-dashboard';
 
 export interface MessageRendererProps {
   component: MessageComponent;
@@ -212,6 +213,17 @@ export function MessageRenderer({ component, onAction, className }: MessageRende
           content={component.content}
           timestamp={component.timestamp}
           sender={component.sender}
+        />
+      );
+
+    case 'pipeline_dashboard':
+      return (
+        <PipelineDashboard
+          stats={component.stats}
+          requests={component.requests}
+          onViewRequest={component.onViewRequest || ((requestId) => handleAction('view_request', { requestId }))}
+          onRefresh={component.onRefresh || (() => handleAction('refresh_pipeline', {}))}
+          className={`${className || ''} ${component.className || ''}`}
         />
       );
 
