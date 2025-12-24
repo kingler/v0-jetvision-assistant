@@ -334,7 +334,7 @@ async function fetchPipelineData(userId: string): Promise<PipelineData> {
   // Fetch requests with stats
   const { data: requests, error } = await supabaseAdmin
     .from('requests')
-    .select('id, departure_airport, arrival_airport, departure_date, passengers, status, created_at, client_name')
+    .select('id, departure_airport, arrival_airport, departure_date, passengers, status, created_at')
     .eq('clerk_user_id', userId)
     .order('created_at', { ascending: false })
     .limit(10)
@@ -356,12 +356,23 @@ async function fetchPipelineData(userId: string): Promise<PipelineData> {
   }
 
   // Calculate stats
+  // Valid request_status values: draft, pending, analyzing, fetching_client_data,
+  // searching_flights, awaiting_quotes, analyzing_proposals, generating_email,
+  // sending_proposal, completed, failed, cancelled
   const stats: PipelineStats = {
     totalRequests: requests?.length || 0,
-    pendingRequests: requests?.filter(r => r.status === 'pending' || r.status === 'in_progress').length || 0,
+    pendingRequests: requests?.filter(r => r.status === 'pending' || r.status === 'draft').length || 0,
     completedRequests: requests?.filter(r => r.status === 'completed').length || 0,
     totalQuotes: 0, // Will be populated from quotes table if needed
-    activeWorkflows: requests?.filter(r => r.status === 'in_progress' || r.status === 'awaiting_quotes').length || 0,
+    activeWorkflows: requests?.filter(r =>
+      r.status === 'analyzing' ||
+      r.status === 'fetching_client_data' ||
+      r.status === 'searching_flights' ||
+      r.status === 'awaiting_quotes' ||
+      r.status === 'analyzing_proposals' ||
+      r.status === 'generating_email' ||
+      r.status === 'sending_proposal'
+    ).length || 0,
   }
 
   // Fetch quote count
@@ -381,7 +392,7 @@ async function fetchPipelineData(userId: string): Promise<PipelineData> {
     passengers: r.passengers || 0,
     status: r.status || 'pending',
     createdAt: r.created_at || new Date().toISOString(),
-    clientName: r.client_name,
+    clientName: undefined, // client_name not in requests table - would need to join with client_profiles
   }))
 
   console.log(`[Chat API] Pipeline data fetched: ${stats.totalRequests} requests, ${stats.totalQuotes} quotes`)
@@ -464,9 +475,10 @@ export async function POST(req: NextRequest) {
         })
 
         console.log('[Chat API] OrchestratorAgent result:', {
-          hasResponse: !!result.response,
+          success: result.success,
+          hasData: !!result.data,
           hasError: !!result.error,
-          toolCallsCount: result.toolCalls?.length || 0,
+          toolCallsCount: result.metadata?.toolCalls || 0,
         })
 
         // Check if MCP is using mock mode for response metadata
