@@ -48,25 +48,32 @@ const isPublicRoute = createRouteMatcher([
   '/component-demo(.*)', // Component demo pages for testing/screenshots
 ])
 
-// Simple passthrough middleware for development
-function devMiddleware(request: NextRequest) {
-  // Log auth bypass in development for debugging visibility
-  if (isDevelopment) {
-    console.debug(
-      `[middleware] Auth bypassed (dev mode): ${request.method} ${request.nextUrl.pathname}`
-    )
+// Middleware with conditional auth bypass
+// Always use clerkMiddleware for consistent export type, but bypass auth when BYPASS_AUTH is true
+export default clerkMiddleware(async (auth, request) => {
+  // If auth bypass is enabled in development, skip all auth checks
+  if (BYPASS_AUTH) {
+    // Log auth bypass in development for debugging visibility
+    if (isDevelopment) {
+      console.debug(
+        `[middleware] Auth bypassed (dev mode): ${request.method} ${request.nextUrl.pathname}`
+      )
+    }
+    // In dev mode with bypass, just pass through all requests
+    return NextResponse.next()
   }
-  // In dev mode, just pass through all requests
-  return NextResponse.next()
-}
 
-// Production middleware with Clerk auth
-const productionMiddleware = clerkMiddleware(async (auth, request) => {
+  // Normal auth flow: check authentication
   const { userId } = await auth()
 
   // Redirect authenticated users away from auth pages to home
   if (userId && (request.nextUrl.pathname.startsWith('/sign-in') || request.nextUrl.pathname.startsWith('/sign-up'))) {
     return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  // Redirect deprecated dashboard routes to unified chat interface (ONEK-101)
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/chat', request.url))
   }
 
   // Protect all routes except public routes - redirect to sign-in if not authenticated
@@ -76,9 +83,6 @@ const productionMiddleware = clerkMiddleware(async (auth, request) => {
     return NextResponse.redirect(signInUrl)
   }
 })
-
-// Export the appropriate middleware based on environment
-export default BYPASS_AUTH ? devMiddleware : productionMiddleware
 
 export const config = {
   matcher: [
