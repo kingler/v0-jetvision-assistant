@@ -375,7 +375,7 @@ describe('generateProposal', () => {
       };
 
       await expect(generateProposal(input)).rejects.toThrow(
-        'Customer name and email are required'
+        'Customer name is required'
       );
     });
 
@@ -386,7 +386,7 @@ describe('generateProposal', () => {
       };
 
       await expect(generateProposal(input)).rejects.toThrow(
-        'Customer name and email are required'
+        'Customer email is required'
       );
     });
   });
