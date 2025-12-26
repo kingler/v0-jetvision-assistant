@@ -100,7 +100,7 @@ describe('GET /api/clients', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -154,7 +154,7 @@ describe('GET /api/clients', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -394,7 +394,7 @@ describe('PATCH /api/clients', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -455,7 +455,7 @@ describe('PATCH /api/clients', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -508,7 +508,7 @@ describe('PATCH /api/clients', () => {
     });
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({

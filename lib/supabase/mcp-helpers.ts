@@ -66,7 +66,7 @@ export async function queryTable(
 
     // Use type assertion for dynamic table access
     // The table name is validated above against VALID_TABLES
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Dynamic table access with validated table name
     let query = (supabaseAdmin.from as any)(table).select(options.select || '*');
 
     // Apply filters
@@ -127,7 +127,7 @@ export async function insertRow(
       return { data: null, error: `Invalid table name: ${table}` };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Dynamic table access with validated table name
     const { data: result, error } = await (supabaseAdmin.from as any)(table)
       .insert(data)
       .select()
@@ -176,7 +176,7 @@ export async function updateRow(
 
     // Use type assertion for dynamic table access
     // The table name is validated above against VALID_TABLES
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Dynamic table access with validated table name
     let query = (supabaseAdmin.from as any)(table).update(data);
 
     // Only iterate over valid entries to ensure at least one predicate is added
@@ -225,7 +225,7 @@ export async function deleteRow(
 
     // Use type assertion for dynamic table access
     // The table name is validated above against VALID_TABLES
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Dynamic table access with validated table name
     let query = (supabaseAdmin.from as any)(table).delete();
 
     // Only iterate over valid entries to ensure at least one predicate is added
@@ -263,7 +263,7 @@ export async function countRows(
 
     // Use type assertion for dynamic table access
     // The table name is validated above against VALID_TABLES
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Dynamic table access with validated table name
     let query = (supabaseAdmin.from as any)(table).select('*', { count: 'exact', head: true });
 
     if (filter) {
@@ -299,7 +299,7 @@ export async function callRpc(
 ): Promise<MCPResult<unknown>> {
   try {
     // Use type assertion for dynamic function name
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Dynamic table access with validated table name
     const { data, error } = await (supabaseAdmin.rpc as any)(functionName, params);
 
     if (error) {
@@ -419,7 +419,7 @@ const VALID_TABLES = [
  * If any table is missing, the AssertAllTablesIncluded type will contain 'MISSING_TABLE'
  * values, which will cause this assertion to fail with a clear error message.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Compile-time type assertion (intentionally unused at runtime)
 type _AssertAllTablesIncluded = AssertAllTablesIncluded<typeof VALID_TABLES>[DatabaseTableNames] extends true
   ? true
   : {
@@ -440,7 +440,7 @@ type _AssertAllTablesIncluded = AssertAllTablesIncluded<typeof VALID_TABLES>[Dat
  * If any invalid table is present, the AssertNoExtraTables type will contain 'INVALID_TABLE'
  * values, which will cause this assertion to fail with a clear error message.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Compile-time type assertion (intentionally unused at runtime)
 type _AssertNoExtraTables = AssertNoExtraTables<typeof VALID_TABLES>[typeof VALID_TABLES[number]] extends true
   ? true
   : {

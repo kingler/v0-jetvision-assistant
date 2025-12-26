@@ -54,7 +54,7 @@ describe('GET /api/quotes', () => {
         eq: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({
             data: null,
-            error: { message: 'Not found' },
+            error: { message: 'Not found', code: 'PGRST116' },
           }),
         }),
       }),
@@ -66,7 +66,7 @@ describe('GET /api/quotes', () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toContain('User not found');
+    expect(data.error).toContain('not found');
   });
 
   it('should return all quotes for authenticated user', async () => {
@@ -102,7 +102,7 @@ describe('GET /api/quotes', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -156,7 +156,7 @@ describe('GET /api/quotes', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -210,7 +210,7 @@ describe('GET /api/quotes', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -288,7 +288,7 @@ describe('PATCH /api/quotes', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -360,7 +360,7 @@ describe('PATCH /api/quotes', () => {
     };
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -425,7 +425,7 @@ describe('PATCH /api/quotes', () => {
     let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       callCount++;
-      if (callCount === 1 && table === 'users') {
+      if (callCount === 1 && table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -492,7 +492,7 @@ describe('PATCH /api/quotes', () => {
 
     const mockUser = { id: 'user-123' };
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({

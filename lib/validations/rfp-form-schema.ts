@@ -14,8 +14,8 @@ export const clientSelectionSchema = z.object({
   vipStatus: z.enum(['standard', 'vip', 'ultra_vip']).optional(),
 })
 
-// Step 2: Flight Details Schema
-export const flightDetailsSchema = z.object({
+// Step 2: Flight Details Base Schema (without refinements for shape access)
+const flightDetailsBaseSchema = z.object({
   departureAirport: z.string().min(3, 'Please enter a valid airport code'),
   arrivalAirport: z.string().min(3, 'Please enter a valid airport code'),
   departureDate: z.date({
@@ -26,7 +26,10 @@ export const flightDetailsSchema = z.object({
   returnTime: z.string().optional(),
   passengers: z.number().min(1, 'At least 1 passenger required').max(20, 'Maximum 20 passengers'),
   aircraftType: z.enum(['light_jet', 'midsize', 'super_midsize', 'heavy_jet', 'ultra_long_range', 'any']).optional(),
-}).refine(
+})
+
+// Step 2: Flight Details Schema with refinements
+export const flightDetailsSchema = flightDetailsBaseSchema.refine(
   (data) => {
     // If return date is provided, it must be after departure date
     if (data.returnDate && data.departureDate) {
@@ -40,15 +43,18 @@ export const flightDetailsSchema = z.object({
   }
 )
 
-// Step 3: Preferences & Requirements Schema
-export const preferencesSchema = z.object({
+// Step 3: Preferences & Requirements Base Schema (without refinements for shape access)
+const preferencesBaseSchema = z.object({
   budgetMin: z.number().min(0).optional(),
   budgetMax: z.number().min(0).optional(),
   specialRequirements: z.string().max(1000, 'Maximum 1000 characters').optional(),
   cateringPreference: z.enum(['none', 'light', 'full', 'custom']).default('none'),
   groundTransport: z.boolean().default(false),
   flexibleDates: z.boolean().default(false),
-}).refine(
+})
+
+// Step 3: Preferences & Requirements Schema with refinements
+export const preferencesSchema = preferencesBaseSchema.refine(
   (data) => {
     // If both budget values are provided, max must be greater than min
     if (data.budgetMin !== undefined && data.budgetMax !== undefined) {
@@ -63,13 +69,14 @@ export const preferencesSchema = z.object({
 )
 
 // Complete RFP Form Schema (all steps combined)
+// Uses base schemas to access .shape property (refinements applied later)
 export const rfpFormSchema = z.object({
   // Step 1
   ...clientSelectionSchema.shape,
   // Step 2
-  ...flightDetailsSchema.shape,
+  ...flightDetailsBaseSchema.shape,
   // Step 3
-  ...preferencesSchema.shape,
+  ...preferencesBaseSchema.shape,
 })
 
 export type ClientSelectionData = z.infer<typeof clientSelectionSchema>

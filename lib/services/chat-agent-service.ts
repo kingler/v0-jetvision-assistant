@@ -51,7 +51,10 @@ export class ChatAgentService implements IChatAgentService {
 
     try {
       // Step 1: Classify intent if not provided
-      const intent = request.intent || (await this.classifyIntent(request.content, request.context))
+      // If request.intent is a ChatIntent enum, wrap it in IntentClassificationResult
+      const intent: IntentClassificationResult = request.intent
+        ? { intent: request.intent, confidence: 1.0, entities: {}, requiresClarification: false }
+        : await this.classifyIntent(request.content, request.context)
 
       // Step 2: Extract entities if not provided
       const entities = request.entities || (await this.extractEntities(request.content, intent))
@@ -250,10 +253,12 @@ export class ChatAgentService implements IChatAgentService {
     // Extract dates (simple patterns)
     const datePattern = /\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?(?:,? \d{4})?)\b/gi
     const dates = message.match(datePattern) || []
-    if (dates.length > 0) {
-      entities.departureDate = new Date(dates[0])
-      if (dates.length > 1) {
-        entities.returnDate = new Date(dates[1])
+    const firstDate = dates[0]
+    if (firstDate) {
+      entities.departureDate = new Date(firstDate)
+      const secondDate = dates[1]
+      if (secondDate) {
+        entities.returnDate = new Date(secondDate)
       }
     }
 

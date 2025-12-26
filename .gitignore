@@ -58,3 +58,6 @@ build-output.log
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Auto Claude data directory
+.auto-claude/

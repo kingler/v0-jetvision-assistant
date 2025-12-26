@@ -321,7 +321,7 @@ describe('Google Sheets MCP Server', () => {
       });
 
       // Act
-      const clients = [];
+      const clients: unknown[] = [];
 
       // Assert
       expect(clients).toHaveLength(0);
@@ -380,7 +380,7 @@ describe('Google Sheets MCP Server', () => {
       });
 
       // Act
-      const result = [];
+      const result: unknown[] = [];
 
       // Assert
       expect(result).toHaveLength(0);

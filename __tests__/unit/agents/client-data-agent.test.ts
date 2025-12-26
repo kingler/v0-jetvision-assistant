@@ -8,6 +8,35 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import type { AgentContext, AgentResult } from '@agents/core/types';
 import { AgentType, AgentStatus } from '@agents/core/types';
 
+// Type for client data agent result data
+interface ClientDataResult {
+  clientName?: string;
+  found?: boolean;
+  matchType?: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  preferences?: Record<string, unknown>;
+  vipStatus?: string;
+  requestId?: string;
+  sessionId?: string;
+  nextAgent?: AgentType;
+}
+
+// Mock LLM config
+vi.mock('@/lib/config/llm-config', () => ({
+  getOpenAIClient: vi.fn().mockResolvedValue({
+    chat: {
+      completions: {
+        create: vi.fn().mockResolvedValue({
+          choices: [{ message: { role: 'assistant', content: 'Test' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }),
+      },
+    },
+  }),
+}));
+
 describe('ClientDataAgent', () => {
   let ClientDataAgent: any;
   let agent: any;
@@ -82,18 +111,20 @@ describe('ClientDataAgent', () => {
 
     it('should search for client by name', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.clientName).toBe('John Smith');
+      expect(data).toBeDefined();
+      expect(data.clientName).toBe('John Smith');
     });
 
     it('should find client with exact name match', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
       expect(result.success).toBe(true);
-      expect(result.data.found).toBe(true);
-      expect(result.data.matchType).toBe('exact');
+      expect(data.found).toBe(true);
+      expect(data.matchType).toBe('exact');
     });
 
     it('should handle client not found', async () => {
@@ -105,10 +136,11 @@ describe('ClientDataAgent', () => {
       };
 
       const result: AgentResult = await agent.execute(notFoundContext);
+      const data = result.data as ClientDataResult;
 
       expect(result.success).toBe(true);
-      expect(result.data.found).toBe(false);
-      expect(result.data.clientName).toBe('Non Existent Client');
+      expect(data.found).toBe(false);
+      expect(data.clientName).toBe('Non Existent Client');
     });
 
     it('should validate client name is provided', async () => {
@@ -136,44 +168,49 @@ describe('ClientDataAgent', () => {
 
     it('should extract client email', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      if (result.data.found) {
-        expect(result.data.email).toBeDefined();
-        expect(result.data.email).toContain('@');
+      if (data.found) {
+        expect(data.email).toBeDefined();
+        expect(data.email).toContain('@');
       }
     });
 
     it('should extract client phone number', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      if (result.data.found) {
-        expect(result.data.phone).toBeDefined();
+      if (data.found) {
+        expect(data.phone).toBeDefined();
       }
     });
 
     it('should extract company name', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      if (result.data.found) {
-        expect(result.data.company).toBeDefined();
+      if (data.found) {
+        expect(data.company).toBeDefined();
       }
     });
 
     it('should parse JSON preferences correctly', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      if (result.data.found && result.data.preferences) {
-        expect(typeof result.data.preferences).toBe('object');
+      if (data.found && data.preferences) {
+        expect(typeof data.preferences).toBe('object');
         // Could contain aircraftType, budget, amenities, etc.
       }
     });
 
     it('should extract VIP status', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      if (result.data.found) {
-        expect(result.data.vipStatus).toBeDefined();
-        expect(['standard', 'vip', 'ultra_vip']).toContain(result.data.vipStatus);
+      if (data.found) {
+        expect(data.vipStatus).toBeDefined();
+        expect(['standard', 'vip', 'ultra_vip']).toContain(data.vipStatus);
       }
     });
   });
@@ -189,11 +226,12 @@ describe('ClientDataAgent', () => {
 
     it('should handle empty preferences gracefully', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
       expect(result.success).toBe(true);
       // preferences can be undefined or empty object
-      if (result.data.preferences) {
-        expect(typeof result.data.preferences).toBe('object');
+      if (data.preferences) {
+        expect(typeof data.preferences).toBe('object');
       }
     });
 
@@ -207,10 +245,11 @@ describe('ClientDataAgent', () => {
 
     it('should extract aircraft type preference', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      if (result.data.found && result.data.preferences) {
+      if (data.found && data.preferences) {
         // Could have aircraftType like 'light_jet', 'midsize', etc.
-        expect(result.data.preferences).toBeDefined();
+        expect(data.preferences).toBeDefined();
       }
     });
   });
@@ -226,20 +265,23 @@ describe('ClientDataAgent', () => {
 
     it('should preserve request ID', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      expect(result.data.requestId).toBe(mockContext.requestId);
+      expect(data.requestId).toBe(mockContext.requestId);
     });
 
     it('should include session ID for handoff', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      expect(result.data.sessionId).toBe(mockContext.sessionId);
+      expect(data.sessionId).toBe(mockContext.sessionId);
     });
 
     it('should prepare data for next agent', async () => {
       const result: AgentResult = await agent.execute(mockContext);
+      const data = result.data as ClientDataResult;
 
-      expect(result.data.nextAgent).toBe(AgentType.FLIGHT_SEARCH);
+      expect(data.nextAgent).toBe(AgentType.FLIGHT_SEARCH);
     });
   });
 

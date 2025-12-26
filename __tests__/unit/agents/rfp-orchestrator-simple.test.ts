@@ -8,6 +8,20 @@ import { RFPOrchestratorAgent } from '@/lib/agents/rfp-orchestrator';
 import { AgentType, AgentStatus } from '@/agents/core/types';
 import { WorkflowState } from '@/agents/coordination/state-machine';
 
+// Mock LLM config
+vi.mock('@/lib/config/llm-config', () => ({
+  getOpenAIClient: vi.fn().mockResolvedValue({
+    chat: {
+      completions: {
+        create: vi.fn().mockResolvedValue({
+          choices: [{ message: { role: 'assistant', content: 'Test' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }),
+      },
+    },
+  }),
+}));
+
 // Mock OpenAI
 vi.mock('openai', () => {
   return {

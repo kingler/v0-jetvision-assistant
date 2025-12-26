@@ -416,10 +416,10 @@ describe('Gmail MCP Server', () => {
 
     it('should handle missing Cc header', () => {
       // Arrange
-      const ccHeader = '';
+      const ccHeader: string | undefined = '';
 
       // Act
-      const cc = ccHeader ? ccHeader.split(',').map(e => e.trim()) : undefined;
+      const cc = ccHeader ? ccHeader.split(',').map((e: string) => e.trim()) : undefined;
 
       // Assert
       expect(cc).toBeUndefined();

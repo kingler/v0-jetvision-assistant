@@ -39,8 +39,8 @@ function createWorkflowStatesMock(data: unknown[], error: unknown = null) {
   };
 }
 
-// Helper to create users mock chain
-function createUsersMock(userData: { id: string; role?: string } | null, error: unknown = null) {
+// Helper to create iso_agents mock chain
+function createIsoAgentsMock(userData: { id: string; role?: string } | null, error: unknown = null) {
   return {
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
@@ -106,8 +106,8 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
-        return createUsersMock({ id: 'user-123', role: 'user' });
+      if (table === 'iso_agents') {
+        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
       }
       if (table === 'workflow_states') {
         return createWorkflowStatesMock(mockWorkflows);
@@ -146,8 +146,8 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
-        return createUsersMock({ id: 'user-123', role: 'user' });
+      if (table === 'iso_agents') {
+        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
       }
       if (table === 'workflow_states') {
         return createWorkflowStatesMock(mockWorkflows);
@@ -189,8 +189,8 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
-        return createUsersMock({ id: 'user-123', role: 'user' });
+      if (table === 'iso_agents') {
+        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
       }
       if (table === 'workflow_states') {
         return createWorkflowStatesMock(mockWorkflows);
@@ -225,8 +225,8 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
-        return createUsersMock({ id: 'user-123', role: 'user' });
+      if (table === 'iso_agents') {
+        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
       }
       if (table === 'workflow_states') {
         return createWorkflowStatesMock(mockWorkflows);
@@ -253,8 +253,8 @@ describe('GET /api/workflows', () => {
     });
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
-        return createUsersMock({ id: 'user-123', role: 'user' });
+      if (table === 'iso_agents') {
+        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
       }
       if (table === 'workflow_states') {
         return createWorkflowStatesMock([]);
@@ -296,8 +296,8 @@ describe('GET /api/workflows', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
-        return createUsersMock({ id: 'user-123', role: 'user' });
+      if (table === 'iso_agents') {
+        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
       }
       if (table === 'workflow_states') {
         return createWorkflowStatesMock(mockWorkflows);
@@ -326,8 +326,8 @@ describe('GET /api/workflows', () => {
     });
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
-        return createUsersMock({ id: 'user-123', role: 'user' });
+      if (table === 'iso_agents') {
+        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
       }
       if (table === 'workflow_states') {
         return createWorkflowStatesMock(null as any, { message: 'Database connection failed' });

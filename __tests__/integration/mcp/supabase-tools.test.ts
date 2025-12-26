@@ -95,9 +95,13 @@ describe('Supabase MCP Tools - Integration', () => {
       if (data && data.length > 1) {
         // Verify descending order
         for (let i = 0; i < data.length - 1; i++) {
-          const current = new Date(data[i].created_at);
-          const next = new Date(data[i + 1].created_at);
-          expect(current.getTime()).toBeGreaterThanOrEqual(next.getTime());
+          const currentCreatedAt = data[i].created_at;
+          const nextCreatedAt = data[i + 1].created_at;
+          if (currentCreatedAt && nextCreatedAt) {
+            const current = new Date(currentCreatedAt);
+            const next = new Date(nextCreatedAt);
+            expect(current.getTime()).toBeGreaterThanOrEqual(next.getTime());
+          }
         }
       }
     });
@@ -300,7 +304,7 @@ describe('Supabase MCP Tools - Integration', () => {
     });
 
     it('should verify core tables exist by querying them', async () => {
-      const tables = ['iso_agents', 'client_profiles', 'requests', 'quotes', 'workflow_states', 'agent_executions'];
+      const tables = ['iso_agents', 'client_profiles', 'requests', 'quotes', 'workflow_states', 'agent_executions'] as const;
 
       for (const table of tables) {
         const { error } = await supabase
@@ -364,7 +368,7 @@ describe('Supabase MCP Tools - Integration', () => {
       const { data: client, error: clientError } = await supabase
         .from('client_profiles')
         .insert({
-          iso_agent_id: agent.id,
+          user_id: agent.id,
           company_name: 'E2E Test Company',
           contact_name: 'E2E Contact',
           email: 'e2e@test.com',
@@ -382,7 +386,7 @@ describe('Supabase MCP Tools - Integration', () => {
       const { data: request, error: requestError } = await supabase
         .from('requests')
         .insert({
-          iso_agent_id: agent.id,
+          user_id: agent.id,
           client_profile_id: client.id,
           departure_airport: 'KLAX',
           arrival_airport: 'KJFK',

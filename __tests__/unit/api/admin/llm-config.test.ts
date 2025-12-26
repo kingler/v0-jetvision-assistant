@@ -90,6 +90,11 @@ const { mockState, mockSupabase } = vi.hoisted(() => {
       };
       return builder;
     }),
+    // Mock RPC for set_llm_config_default stored procedure
+    rpc: vi.fn().mockResolvedValue({
+      data: [{ id: 'config-1', is_default: true }],
+      error: null,
+    }),
   };
 
   return { mockState, mockSupabase };

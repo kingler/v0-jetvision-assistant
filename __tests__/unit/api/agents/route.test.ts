@@ -83,7 +83,7 @@ describe('GET /api/agents', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -140,7 +140,7 @@ describe('GET /api/agents', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -203,7 +203,7 @@ describe('GET /api/agents', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -261,7 +261,7 @@ describe('GET /api/agents', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -315,7 +315,7 @@ describe('GET /api/agents', () => {
     ];
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -360,7 +360,7 @@ describe('GET /api/agents', () => {
     });
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -405,7 +405,7 @@ describe('GET /api/agents', () => {
     });
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'users') {
+      if (table === 'iso_agents') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({

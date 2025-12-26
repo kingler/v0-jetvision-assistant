@@ -125,7 +125,7 @@ describe('GET /api/requests', () => {
     let callCount = 0;
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       callCount++;
-      if (callCount === 1 && table === 'users') {
+      if (callCount === 1 && table === 'iso_agents') {
         // First call for User lookup
         return {
           select: vi.fn().mockReturnValue({

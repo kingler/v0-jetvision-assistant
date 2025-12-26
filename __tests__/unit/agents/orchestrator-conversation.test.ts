@@ -14,6 +14,40 @@ import { OrchestratorAgent } from '@agents/implementations/orchestrator-agent';
 import type { AgentContext } from '@agents/core/types';
 import { AgentType, AgentStatus } from '@agents/core/types';
 
+// Type for conversational orchestrator result data
+interface ConversationalResultData {
+  message?: string;
+  components?: Array<{ type: string; content?: string }>;
+  intent?: string;
+  conversationState?: {
+    sessionId?: string;
+    [key: string]: unknown;
+  };
+  nextAction?: string;
+  isComplete?: boolean;
+  analysis?: Record<string, unknown>;
+  tasks?: Array<unknown>;
+  nextSteps?: string[];
+  requestId?: string;
+  workflowId?: string;
+  workflowState?: string;
+  priority?: string;
+}
+
+// Mock LLM config - must be before OpenAI mock
+vi.mock('@/lib/config/llm-config', () => ({
+  getOpenAIClient: vi.fn().mockResolvedValue({
+    chat: {
+      completions: {
+        create: vi.fn().mockResolvedValue({
+          choices: [{ message: { role: 'assistant', content: 'Test' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }),
+      },
+    },
+  }),
+}));
+
 // Mock OpenAI
 vi.mock('openai', () => {
   return {
@@ -179,12 +213,13 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.message).toBeDefined();
-      expect(result.data.components).toBeDefined();
-      expect(Array.isArray(result.data.components)).toBe(true);
+      expect(data).toBeDefined();
+      expect(data.message).toBeDefined();
+      expect(data.components).toBeDefined();
+      expect(Array.isArray(data.components)).toBe(true);
     });
 
     it('should create conversation state for new session', async () => {
@@ -356,11 +391,12 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
-      expect(result.data.components).toBeDefined();
-      expect(Array.isArray(result.data.components)).toBe(true);
+      expect(data.components).toBeDefined();
+      expect(Array.isArray(data.components)).toBe(true);
 
-      const textComponent = result.data.components.find((c: any) => c.type === 'text');
+      const textComponent = data.components?.find((c) => c.type === 'text');
       expect(textComponent).toBeDefined();
       expect(textComponent?.content).toBeDefined();
     });
@@ -374,10 +410,11 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
-      expect(result.data.message).toBeDefined();
-      expect(typeof result.data.message).toBe('string');
-      expect(result.data.message.length).toBeGreaterThan(0);
+      expect(data.message).toBeDefined();
+      expect(typeof data.message).toBe('string');
+      expect(data.message!.length).toBeGreaterThan(0);
     });
 
     it('should include intent in response', async () => {
@@ -389,8 +426,9 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
-      expect(result.data.intent).toBeDefined();
+      expect(data.intent).toBeDefined();
     });
 
     it('should include conversation state in response', async () => {
@@ -402,9 +440,10 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
-      expect(result.data.conversationState).toBeDefined();
-      expect(result.data.conversationState.sessionId).toBe('state-test');
+      expect(data.conversationState).toBeDefined();
+      expect(data.conversationState?.sessionId).toBe('state-test');
     });
   });
 
@@ -488,11 +527,12 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
       expect(result.success).toBe(true);
-      expect(result.data.analysis).toBeDefined();
-      expect(result.data.tasks).toBeDefined();
-      expect(result.data.nextSteps).toBeDefined();
+      expect(data.analysis).toBeDefined();
+      expect(data.tasks).toBeDefined();
+      expect(data.nextSteps).toBeDefined();
     });
 
     it('should maintain legacy response structure for backward compatibility', async () => {
@@ -509,11 +549,12 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
-      expect(result.data.requestId).toBe('rfp-123');
-      expect(result.data.workflowId).toBeDefined();
-      expect(result.data.workflowState).toBe('ANALYZING');
-      expect(result.data.priority).toBeDefined();
+      expect(data.requestId).toBe('rfp-123');
+      expect(data.workflowId).toBeDefined();
+      expect(data.workflowState).toBe('ANALYZING');
+      expect(data.priority).toBeDefined();
     });
   });
 
@@ -619,10 +660,11 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
-      expect(result.data.nextAction).toBeDefined();
+      expect(data.nextAction).toBeDefined();
       expect(['ask_question', 'create_rfp', 'provide_info']).toContain(
-        result.data.nextAction
+        data.nextAction
       );
     });
 
@@ -635,9 +677,10 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       };
 
       const result = await agent.execute(context);
+      const data = result.data as ConversationalResultData;
 
-      expect(result.data.isComplete).toBeDefined();
-      expect(typeof result.data.isComplete).toBe('boolean');
+      expect(data.isComplete).toBeDefined();
+      expect(typeof data.isComplete).toBe('boolean');
     });
   });
 });

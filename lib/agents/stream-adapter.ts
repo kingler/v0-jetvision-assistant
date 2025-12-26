@@ -21,6 +21,7 @@ import type {
 /**
  * Extended metadata type for orchestrator results
  * The OrchestratorAgent includes these additional fields in its result data
+ * Index signature allows passing to Record<string, unknown> typed parameters
  */
 interface OrchestratorResultData {
   response?: string
@@ -40,6 +41,8 @@ interface OrchestratorResultData {
   rfpData?: Partial<RFPData>
   extractedData?: Partial<RFPData>
   flightRequest?: Partial<RFPData>
+  // Index signature for dynamic properties from agent results
+  [key: string]: unknown
 }
 
 /**

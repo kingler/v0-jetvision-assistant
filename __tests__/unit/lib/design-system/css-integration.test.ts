@@ -15,9 +15,12 @@ describe('CSS Integration with Design System', () => {
       const theme = getTailwindTheme();
 
       // Verify the generated color values are valid hex codes
-      expect(theme.colors['aviation-blue']['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
-      expect(theme.colors['sky-blue']['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
-      expect(theme.colors['sunset-orange']['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
+      const aviationBlue = theme.colors['aviation-blue'] as Record<string, string>;
+      const skyBlue = theme.colors['sky-blue'] as Record<string, string>;
+      const sunsetOrange = theme.colors['sunset-orange'] as Record<string, string>;
+      expect(aviationBlue['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
+      expect(skyBlue['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
+      expect(sunsetOrange['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
     });
 
     it('maps semantic colors with DEFAULT value for Tailwind shorthand', () => {
@@ -32,52 +35,58 @@ describe('CSS Integration with Design System', () => {
 
     it('provides light and dark variants for semantic colors', () => {
       const theme = getTailwindTheme();
+      const success = theme.colors.success as Record<string, string>;
 
       // text-success-light, text-success-dark should work
-      expect(theme.colors.success).toHaveProperty('light');
-      expect(theme.colors.success).toHaveProperty('dark');
-      expect(theme.colors.success.light).toBe(semanticColors.success.light);
-      expect(theme.colors.success.dark).toBe(semanticColors.success.dark);
+      expect(success).toHaveProperty('light');
+      expect(success).toHaveProperty('dark');
+      expect(success.light).toBe(semanticColors.success.light);
+      expect(success.dark).toBe(semanticColors.success.dark);
     });
 
     it('provides background variants for semantic colors', () => {
       const theme = getTailwindTheme();
+      const success = theme.colors.success as Record<string, string>;
 
       // bg-success-bg should work
-      expect(theme.colors.success).toHaveProperty('bg');
-      expect(theme.colors.success).toHaveProperty('bg-dark');
-      expect(theme.colors.success.bg).toBe(semanticColors.success.bg.light);
+      expect(success).toHaveProperty('bg');
+      expect(success).toHaveProperty('bg-dark');
+      expect(success.bg).toBe(semanticColors.success.bg.light);
     });
 
     it('provides border variants for semantic colors', () => {
       const theme = getTailwindTheme();
+      const success = theme.colors.success as Record<string, string>;
 
       // border-success-border should work
-      expect(theme.colors.success).toHaveProperty('border');
-      expect(theme.colors.success).toHaveProperty('border-dark');
-      expect(theme.colors.success.border).toBe(semanticColors.success.border.light);
+      expect(success).toHaveProperty('border');
+      expect(success).toHaveProperty('border-dark');
+      expect(success.border).toBe(semanticColors.success.border.light);
     });
   });
 
   describe('Brand color consistency', () => {
     it('aviation blue primary matches CSS variable equivalent', () => {
       const theme = getTailwindTheme();
+      const aviationBlue = theme.colors['aviation-blue'] as Record<string, string>;
       // The CSS variable --primary uses Aviation Blue 500
-      expect(theme.colors['aviation-blue']['500']).toBe(brandColors.aviationBlue[500]);
+      expect(aviationBlue['500']).toBe(brandColors.aviationBlue[500]);
       expect(brandColors.aviationBlue[500]).toBe('#0066cc');
     });
 
     it('sky blue secondary matches CSS variable equivalent', () => {
       const theme = getTailwindTheme();
+      const skyBlue = theme.colors['sky-blue'] as Record<string, string>;
       // The CSS variable --secondary uses Sky Blue 500
-      expect(theme.colors['sky-blue']['500']).toBe(brandColors.skyBlue[500]);
+      expect(skyBlue['500']).toBe(brandColors.skyBlue[500]);
       expect(brandColors.skyBlue[500]).toBe('#00a8e8');
     });
 
     it('sunset orange accent matches CSS variable equivalent', () => {
       const theme = getTailwindTheme();
+      const sunsetOrange = theme.colors['sunset-orange'] as Record<string, string>;
       // The CSS variable --accent uses Sunset Orange 500
-      expect(theme.colors['sunset-orange']['500']).toBe(brandColors.sunsetOrange[500]);
+      expect(sunsetOrange['500']).toBe(brandColors.sunsetOrange[500]);
       expect(brandColors.sunsetOrange[500]).toBe('#ff6b35');
     });
   });
@@ -85,23 +94,25 @@ describe('CSS Integration with Design System', () => {
   describe('Neutral color scale', () => {
     it('provides full neutral color scale', () => {
       const theme = getTailwindTheme();
+      const neutral = theme.colors.neutral as Record<string, string>;
 
-      expect(theme.colors.neutral).toHaveProperty('50');
-      expect(theme.colors.neutral).toHaveProperty('100');
-      expect(theme.colors.neutral).toHaveProperty('200');
-      expect(theme.colors.neutral).toHaveProperty('300');
-      expect(theme.colors.neutral).toHaveProperty('400');
-      expect(theme.colors.neutral).toHaveProperty('500');
-      expect(theme.colors.neutral).toHaveProperty('600');
-      expect(theme.colors.neutral).toHaveProperty('700');
-      expect(theme.colors.neutral).toHaveProperty('800');
-      expect(theme.colors.neutral).toHaveProperty('900');
+      expect(neutral).toHaveProperty('50');
+      expect(neutral).toHaveProperty('100');
+      expect(neutral).toHaveProperty('200');
+      expect(neutral).toHaveProperty('300');
+      expect(neutral).toHaveProperty('400');
+      expect(neutral).toHaveProperty('500');
+      expect(neutral).toHaveProperty('600');
+      expect(neutral).toHaveProperty('700');
+      expect(neutral).toHaveProperty('800');
+      expect(neutral).toHaveProperty('900');
     });
 
     it('neutral colors are valid hex values', () => {
       const theme = getTailwindTheme();
+      const neutral = theme.colors.neutral as Record<string, string>;
 
-      Object.values(theme.colors.neutral).forEach((color) => {
+      Object.values(neutral).forEach((color) => {
         expect(color).toMatch(/^#[0-9a-fA-F]{6}$/);
       });
     });

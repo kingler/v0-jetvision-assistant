@@ -25,8 +25,8 @@ interface Quote {
   operatorName: string
   aircraftType: string
   price: number
-  aiScore: number
-  rank: number
+  score: number
+  ranking: number
   totalQuotes: number
   operatorRating: number
   departureTime: string
@@ -185,7 +185,7 @@ export default function RFPDetailsPage() {
   }
 
   const recommendedQuote = quotes.find((q) => q.isRecommended)
-  const sortedQuotes = [...quotes].sort((a, b) => a.rank - b.rank)
+  const sortedQuotes = [...quotes].sort((a, b) => a.ranking - b.ranking)
 
   return (
     <div className="container mx-auto py-10">
@@ -343,15 +343,14 @@ export default function RFPDetailsPage() {
                   operatorName={quote.operatorName}
                   aircraftType={quote.aircraftType}
                   price={quote.price}
-                  aiScore={quote.aiScore}
-                  rank={quote.rank}
+                  score={quote.score}
+                  ranking={quote.ranking}
                   totalQuotes={quote.totalQuotes}
                   operatorRating={quote.operatorRating}
                   departureTime={quote.departureTime}
                   arrivalTime={quote.arrivalTime}
                   flightDuration={quote.flightDuration}
                   isRecommended={quote.isRecommended}
-                  isSelected={selectedQuote === quote.id}
                   onSelect={() => handleSelectQuote(quote.id)}
                 />
               ))}
@@ -366,15 +365,14 @@ export default function RFPDetailsPage() {
                 operatorName={recommendedQuote.operatorName}
                 aircraftType={recommendedQuote.aircraftType}
                 price={recommendedQuote.price}
-                aiScore={recommendedQuote.aiScore}
-                rank={recommendedQuote.rank}
+                score={recommendedQuote.score}
+                ranking={recommendedQuote.ranking}
                 totalQuotes={recommendedQuote.totalQuotes}
                 operatorRating={recommendedQuote.operatorRating}
                 departureTime={recommendedQuote.departureTime}
                 arrivalTime={recommendedQuote.arrivalTime}
                 flightDuration={recommendedQuote.flightDuration}
                 isRecommended={recommendedQuote.isRecommended}
-                isSelected={selectedQuote === recommendedQuote.id}
                 onSelect={() => handleSelectQuote(recommendedQuote.id)}
               />
             </div>
@@ -392,15 +390,14 @@ export default function RFPDetailsPage() {
                     operatorName={quote.operatorName}
                     aircraftType={quote.aircraftType}
                     price={quote.price}
-                    aiScore={quote.aiScore}
-                    rank={quote.rank}
+                    score={quote.score}
+                    ranking={quote.ranking}
                     totalQuotes={quote.totalQuotes}
                     operatorRating={quote.operatorRating}
                     departureTime={quote.departureTime}
                     arrivalTime={quote.arrivalTime}
                     flightDuration={quote.flightDuration}
                     isRecommended={quote.isRecommended}
-                    isSelected={true}
                     onSelect={() => handleSelectQuote(quote.id)}
                   />
                 )
