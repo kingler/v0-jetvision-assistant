@@ -7,6 +7,44 @@
 
 import { AgentFactory } from '@agents/core'
 import { AgentType, IAgent } from '@agents/core/types'
+import { RFPOrchestratorAgent } from './rfp-orchestrator'
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/types/database'
+
+// Lazy-load Supabase client for server-side use
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn('[OrchestratorSession] Supabase not configured - using null client')
+    return null
+  }
+
+  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
+
+// Track if agents have been registered
+let agentsRegistered = false
+
+/**
+ * Ensure agent types are registered with the factory
+ * This is called lazily to avoid circular import issues
+ */
+function ensureAgentsRegistered(): void {
+  if (agentsRegistered) return
+
+  const factory = AgentFactory.getInstance()
+  factory.registerAgentType(AgentType.ORCHESTRATOR, RFPOrchestratorAgent as any)
+  console.log('[OrchestratorSession] Agent types registered')
+
+  agentsRegistered = true
+}
 
 // Session cache with TTL tracking
 interface SessionEntry {
@@ -31,6 +69,9 @@ export async function getOrCreateOrchestrator(
 ): Promise<IAgent> {
   const now = Date.now()
 
+  // Ensure agents are registered (only once)
+  ensureAgentsRegistered()
+
   // Check cache for existing session
   const cached = orchestratorCache.get(sessionId)
   if (cached) {
@@ -39,14 +80,17 @@ export async function getOrCreateOrchestrator(
     return cached.orchestrator
   }
 
-  // Create new orchestrator
+  // Create new orchestrator with Supabase client
   const factory = AgentFactory.getInstance()
+  const supabase = getSupabaseClient()
+
   const orchestrator = await factory.createAndInitialize({
     type: AgentType.ORCHESTRATOR,
     name: 'Chat Orchestrator',
     model: 'gpt-4-turbo-preview',
     temperature: 0.7,
-  })
+    supabase, // Pass Supabase client for database operations
+  } as any) // Type assertion needed for extended config
 
   // Cache the session
   orchestratorCache.set(sessionId, {

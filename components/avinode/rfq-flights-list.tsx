@@ -48,6 +48,8 @@ export interface RFQFlightsListProps {
   showBookButton?: boolean;
   /** Callback when "Review and Book" button is clicked (triggers Step 4) */
   onReviewAndBook?: (flightId: string) => void;
+  /** Callback when "View Chat" button is clicked */
+  onViewChat?: (flightId: string) => void;
 }
 
 // =============================================================================
@@ -101,6 +103,7 @@ export function RFQFlightsList({
   className,
   showBookButton = false,
   onReviewAndBook,
+  onViewChat,
 }: RFQFlightsListProps) {
   const [sortBy, setSortBy] = useState<SortOption>(initialSortBy);
   const [currentFilter, setCurrentFilter] = useState<StatusFilter>(statusFilter);
@@ -285,6 +288,10 @@ export function RFQFlightsList({
               compact={compact}
               showBookButton={showBookButton}
               onReviewAndBook={onReviewAndBook}
+              onViewChat={onViewChat}
+              aircraftCategory={(flight as any).aircraftCategory}
+              hasMedical={(flight as any).hasMedical}
+              hasPackage={(flight as any).hasPackage}
             />
           </li>
         ))}

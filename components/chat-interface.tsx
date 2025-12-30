@@ -147,6 +147,40 @@ export function ChatInterface({
     const amenityStrings = (quote as any).amenities || (quote as any).features || []
     const amenities = mapAmenitiesFromStrings(amenityStrings)
     
+    /**
+     * Map aircraft type to category (e.g., "Heavy jet", "Light jet")
+     * This matches the format shown in the RFQ flight display
+     */
+    const mapAircraftTypeToCategory = (aircraftType: string): string => {
+      const type = aircraftType.toLowerCase();
+
+      if (type.includes('phenom') || type.includes('citation cj') || type.includes('learjet')) {
+        return 'Light jet';
+      }
+      if (type.includes('challenger') || type.includes('citation x') || type.includes('falcon') || type.includes('hawker')) {
+        return 'Midsize jet';
+      }
+      if (type.includes('gulfstream') || type.includes('global 7500') || type.includes('global express')) {
+        return 'Heavy jet';
+      }
+      if (type.includes('ultra') || type.includes('global 7500')) {
+        return 'Ultra long range';
+      }
+
+      // Default based on common patterns
+      if (type.includes('heavy') || type.includes('large')) {
+        return 'Heavy jet';
+      }
+      if (type.includes('light') || type.includes('small')) {
+        return 'Light jet';
+      }
+
+      return 'Midsize jet'; // Default fallback
+    };
+
+    // Get operator email from quote if available
+    const operatorEmail = (quote as any).operatorEmail || (quote as any).email || undefined
+
     return {
       id: quote.id,
       quoteId: quote.id,
@@ -165,6 +199,7 @@ export function ChatInterface({
       aircraftModel: quote.aircraftType,
       operatorName: quote.operatorName,
       operatorRating: normalizedOperatorRating,
+      operatorEmail,
       price: quote.price,
       currency,
       passengerCapacity,
@@ -173,6 +208,9 @@ export function ChatInterface({
       lastUpdated: new Date().toISOString(),
       isSelected: selectedRfqFlightIds.includes(quote.id),
       validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      aircraftCategory: mapAircraftTypeToCategory(quote.aircraftType),
+      hasMedical: amenities.medical,
+      hasPackage: false, // Default to false - can be updated when package data is available
     }
   })
 
@@ -520,6 +558,57 @@ export function ChatInterface({
                   pipelineData = data.pipeline_data as PipelineData
                 }
 
+                // Extract quotes from response if available
+                // Check multiple possible locations for quote data
+                let quotes: any[] = []
+                if (data.quotes && Array.isArray(data.quotes)) {
+                  quotes = data.quotes
+                  console.log('[Chat] Found quotes in data.quotes:', quotes.length)
+                } else if (data.rfq_data?.quotes && Array.isArray(data.rfq_data.quotes)) {
+                  quotes = data.rfq_data.quotes
+                  console.log('[Chat] Found quotes in data.rfq_data.quotes:', quotes.length)
+                } else if (data.trip_data?.quotes && Array.isArray(data.trip_data.quotes)) {
+                  quotes = data.trip_data.quotes
+                  console.log('[Chat] Found quotes in data.trip_data.quotes:', quotes.length)
+                }
+
+                // Also check tool_calls for quote results
+                if (quotes.length === 0 && data.tool_calls) {
+                  for (const toolCall of data.tool_calls) {
+                    if ((toolCall.name === "get_rfq" || toolCall.name === "get_quotes" || toolCall.name === "get_quote_status") && toolCall.result) {
+                      if (toolCall.result.quotes && Array.isArray(toolCall.result.quotes)) {
+                        quotes = toolCall.result.quotes
+                        console.log('[Chat] Found quotes in tool_call result:', quotes.length)
+                        break
+                      }
+                    }
+                  }
+                }
+
+                // Convert quotes to the expected format if we found any
+                const formattedQuotes = quotes.length > 0 ? quotes.map((q: any, index: number) => ({
+                  id: q.quote_id || q.quoteId || q.id || `quote-${Date.now()}-${index}`,
+                  operatorName: q.operator_name || q.operatorName || q.operator?.name || "Unknown Operator",
+                  aircraftType: q.aircraft_type || q.aircraftType || q.aircraft?.type || "Unknown Aircraft",
+                  price: q.total_price || q.price || q.totalPrice?.amount || q.basePrice || 0,
+                  currency: q.currency || q.totalPrice?.currency || 'USD',
+                  score: q.score,
+                  ranking: index + 1,
+                  operatorRating: q.operator_rating || q.operatorRating || q.operator?.rating,
+                  departureTime: q.departure_time || q.departureTime || q.schedule?.departureTime,
+                  arrivalTime: q.arrival_time || q.arrivalTime || q.schedule?.arrivalTime,
+                  flightDuration: q.flight_duration || q.flightDuration || q.schedule?.duration,
+                  isRecommended: index === 0,
+                  operatorEmail: q.operator_email || q.operatorEmail || q.operator?.email,
+                  amenities: q.amenities || q.features || [],
+                })) : undefined
+
+                // If we have quotes and Trip ID is submitted, update status to show quotes
+                if (formattedQuotes && formattedQuotes.length > 0 && tripIdSubmitted) {
+                  newStatus = "analyzing_options"
+                  newStep = 4
+                }
+
                 const agentMsg = {
                   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                   type: "agent" as const,
@@ -530,19 +619,29 @@ export function ChatInterface({
                   deepLinkData,
                   showPipeline,
                   pipelineData,
+                  // Show quotes in Step 3 if Trip ID is submitted and we have quotes
+                  showQuotes: tripIdSubmitted && formattedQuotes && formattedQuotes.length > 0,
                 }
 
                 const updatedMessages = [...latestMessagesRef.current, agentMsg]
                 latestMessagesRef.current = updatedMessages
 
-                onUpdateChat(activeChat.id, {
+                // Update chat with quotes if we found any
+                const updateData: Partial<ChatSession> = {
                   messages: updatedMessages,
                   status: newStatus as typeof activeChat.status,
                   currentStep: newStep,
                   rfpId: deepLinkData?.rfpId,
-                  tripId: deepLinkData?.tripId,
+                  tripId: deepLinkData?.tripId || activeChat.tripId,
                   deepLink: deepLinkData?.deepLink,
-                })
+                }
+
+                // Only update quotes if we have new ones
+                if (formattedQuotes && formattedQuotes.length > 0) {
+                  updateData.quotes = formattedQuotes
+                }
+
+                onUpdateChat(activeChat.id, updateData)
 
                 setStreamingContent("")
                 return

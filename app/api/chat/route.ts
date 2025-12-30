@@ -484,16 +484,26 @@ export async function POST(req: NextRequest) {
           hasData: !!result.data,
           hasError: !!result.error,
           toolCallsCount: result.metadata?.toolCalls || 0,
+          workflowStatus: result.data?.workflow_status,
         })
 
-        // Check if MCP is using mock mode for response metadata
-        const mcp = getAvinodeMCP()
-        const isMockMode = mcp.isUsingMockMode()
+        // Check if workflow actually completed successfully
+        // The orchestrator may return success:true but with workflow_status:'FAILED'
+        // In that case, fall back to direct Avinode tools
+        const workflowFailed = result.data?.workflow_status === 'FAILED'
+        if (workflowFailed) {
+          console.log('[Chat API] OrchestratorAgent workflow failed, falling back to direct Avinode tools')
+          // Continue to legacy processing below
+        } else {
+          // Check if MCP is using mock mode for response metadata
+          const mcp = getAvinodeMCP()
+          const isMockMode = mcp.isUsingMockMode()
 
-        // Stream response using the new adapter
-        return new Response(createAgentSSEStream(result, isMockMode), {
-          headers: SSE_HEADERS,
-        })
+          // Stream response using the new adapter
+          return new Response(createAgentSSEStream(result, isMockMode), {
+            headers: SSE_HEADERS,
+          })
+        }
       } catch (agentError) {
         // Log but don't fail - fall back to direct OpenAI
         console.error('[Chat API] OrchestratorAgent error, falling back to OpenAI:', agentError)

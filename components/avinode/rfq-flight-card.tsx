@@ -34,6 +34,7 @@ import {
   Star,
   Calendar,
   ShoppingCart,
+  MessageSquare,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,12 @@ export interface RFQFlight {
   lastUpdated: string;
   responseTimeMinutes?: number;
   isSelected?: boolean;
+  /** Aircraft category (e.g., "Heavy jet", "Light jet") */
+  aircraftCategory?: string;
+  /** Whether medical equipment is available */
+  hasMedical?: boolean;
+  /** Whether package/cargo transport is available */
+  hasPackage?: boolean;
 }
 
 export interface RFQFlightCardProps {
@@ -100,6 +107,14 @@ export interface RFQFlightCardProps {
   showBookButton?: boolean;
   /** Callback when "Review and Book" button is clicked (triggers Step 4) */
   onReviewAndBook?: (flightId: string) => void;
+  /** Callback when "View Chat" button is clicked */
+  onViewChat?: (flightId: string) => void;
+  /** Aircraft category (e.g., "Heavy jet", "Light jet") */
+  aircraftCategory?: string;
+  /** Whether medical equipment is available */
+  hasMedical?: boolean;
+  /** Whether package/cargo transport is available */
+  hasPackage?: boolean;
 }
 
 // =============================================================================
@@ -212,6 +227,38 @@ function getButtonText(status: RFQFlight['rfqStatus']): string {
   }
 }
 
+/**
+ * Maps aircraft type string to category (e.g., "Heavy jet", "Light jet")
+ * @param aircraftType - The aircraft type/model string
+ * @returns Category string in title case
+ */
+function mapAircraftTypeToCategory(aircraftType: string): string {
+  const type = aircraftType.toLowerCase();
+
+  if (type.includes('phenom') || type.includes('citation cj') || type.includes('learjet')) {
+    return 'Light jet';
+  }
+  if (type.includes('challenger') || type.includes('citation x') || type.includes('falcon') || type.includes('hawker')) {
+    return 'Midsize jet';
+  }
+  if (type.includes('gulfstream') || type.includes('global 7500') || type.includes('global express')) {
+    return 'Heavy jet';
+  }
+  if (type.includes('ultra') || type.includes('global 7500')) {
+    return 'Ultra long range';
+  }
+
+  // Default based on common patterns
+  if (type.includes('heavy') || type.includes('large')) {
+    return 'Heavy jet';
+  }
+  if (type.includes('light') || type.includes('small')) {
+    return 'Light jet';
+  }
+
+  return 'Midsize jet'; // Default fallback
+}
+
 // =============================================================================
 // AMENITY ICON COMPONENT
 // =============================================================================
@@ -270,6 +317,10 @@ export function RFQFlightCard({
   className,
   showBookButton = false,
   onReviewAndBook,
+  onViewChat,
+  aircraftCategory,
+  hasMedical,
+  hasPackage,
 }: RFQFlightCardProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
   // Track image loading errors to show placeholder when image fails to load
@@ -295,6 +346,28 @@ export function RFQFlightCard({
   };
 
   /**
+   * Handles the "View Chat" button click to open operator conversation
+   */
+  const handleViewChat = () => {
+    onViewChat?.(flight.id);
+  };
+
+  /**
+   * Get aircraft category - use prop if provided, otherwise map from aircraft type
+   */
+  const category = aircraftCategory || mapAircraftTypeToCategory(flight.aircraftType);
+
+  /**
+   * Determine medical availability - use prop if provided, otherwise from amenities
+   */
+  const medicalAvailable = hasMedical !== undefined ? hasMedical : flight.amenities.medical;
+
+  /**
+   * Determine package availability - use prop if provided, default to false
+   */
+  const packageAvailable = hasPackage !== undefined ? hasPackage : false;
+
+  /**
    * Handles image load errors by setting the error state,
    * which triggers the placeholder to be displayed instead.
    * This prevents broken image icons from being displayed to users.
@@ -309,17 +382,17 @@ export function RFQFlightCard({
     <div
       data-testid="rfq-flight-card"
       className={cn(
-        'border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900 transition-all',
+        'border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900 transition-all shadow-sm',
         flight.isSelected && selectable && 'ring-2 ring-blue-500 border-transparent',
         compact ? 'h-auto' : '',
         className
       )}
     >
-      <div className={cn('flex', compact ? 'flex-col sm:flex-row' : '')}>
-        {/* Aircraft Image Section */}
+      <div className={cn('flex', compact ? 'flex-col sm:flex-row' : 'flex-row')}>
+        {/* Aircraft Image Section - Left Side */}
         <div className={cn(
           'bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0',
-          compact ? 'w-full h-32 sm:w-24 sm:h-auto' : 'w-36 h-48'
+          compact ? 'w-full h-32 sm:w-32 sm:h-auto' : 'w-32 h-full min-h-[366px]'
         )}>
           {flight.aircraftImageUrl && !imageError ? (
             <img
@@ -335,169 +408,108 @@ export function RFQFlightCard({
           )}
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 p-4">
-          {/* Header: Route + Status + Selection */}
-          <div className="flex items-start justify-between gap-3 mb-3">
-            {/* Route */}
-            <div data-testid="route-section" className="flex items-center gap-2">
-              <div className="text-center">
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-lg font-bold text-primary">{flight.departureAirport.icao}</span>
-                </div>
-                {flight.departureAirport.name && (
-                  <p className="text-xs text-muted-foreground">{flight.departureAirport.name}</p>
-                )}
-              </div>
-
-              <ArrowRight className="h-4 w-4 text-muted-foreground mx-1" />
-
-              <div className="text-center">
-                <div className="flex items-center gap-1">
-                  <span className="text-lg font-bold text-primary">{flight.arrivalAirport.icao}</span>
-                  <MapPin className="h-3 w-3 text-muted-foreground" />
-                </div>
-                {flight.arrivalAirport.name && (
-                  <p className="text-xs text-muted-foreground">{flight.arrivalAirport.name}</p>
-                )}
-              </div>
+        {/* Main Content - Right Side */}
+        <div className="flex-1 p-4 space-y-4">
+          {/* Aircraft Section */}
+          <div data-testid="aircraft-section" className="space-y-2">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Aircraft</h5>
+            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <p><span className="font-medium">Category:</span> {category}</p>
+              {flight.yearOfManufacture && (
+                <p><span className="font-medium">Year of Make:</span> {flight.yearOfManufacture}</p>
+              )}
             </div>
+          </div>
 
-            {/* Status + Selection */}
-            <div className="flex items-center gap-2">
-              <span data-testid="status-badge" className={getStatusBadgeClasses(flight.rfqStatus)}>
+          {/* Transport Section */}
+          <div data-testid="transport-section" className="space-y-2">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Transport</h5>
+            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <p><span className="font-medium">Passenger Capacity:</span> {flight.passengerCapacity}</p>
+              <p><span className="font-medium">Medical:</span> {medicalAvailable ? 'YES' : 'NO'}</p>
+              <p><span className="font-medium">Package:</span> {packageAvailable ? 'YES' : 'NO'}</p>
+            </div>
+          </div>
+
+          {/* Price & RFQ Status Section */}
+          <div data-testid="price-section" className="space-y-2">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Price</h5>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              {formatPrice(flight.price, flight.currency)}
+            </p>
+            {showPriceBreakdown && flight.priceBreakdown && (
+              <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                <p>Base: {formatPrice(flight.priceBreakdown.base, flight.currency)}</p>
+                <p>Taxes: {formatPrice(flight.priceBreakdown.taxes, flight.currency)}</p>
+                <p>Fees: {formatPrice(flight.priceBreakdown.fees, flight.currency)}</p>
+              </div>
+            )}
+            <div className="mt-2">
+              <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">RFQ Status</h5>
+              <span 
+                data-testid="status-badge" 
+                className={cn(
+                  'inline-block px-3 py-1 rounded text-xs font-medium',
+                  getStatusBadgeClasses(flight.rfqStatus)
+                )}
+              >
                 {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
               </span>
-              {selectable && !showBookButton && (
-                <Checkbox
-                  checked={flight.isSelected}
-                  onCheckedChange={handleSelectionChange}
-                  aria-label={`Select flight from ${flight.operatorName}`}
-                />
-              )}
             </div>
           </div>
 
-          {/* Date & Duration */}
-          <div className="flex items-center gap-4 mb-3 text-sm">
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>{formatDate(flight.departureDate)}</span>
-              {flight.departureTime && (
-                <span className="text-foreground font-medium ml-1">{flight.departureTime}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span className="text-foreground font-medium">{flight.flightDuration}</span>
+          {/* Amenities Section */}
+          <div data-testid="amenities-section" className="space-y-2">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Amenities</h5>
+            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <p><span className="font-medium">Pets Allowed:</span> {flight.amenities.pets ? 'YES' : 'NO'}</p>
+              <p><span className="font-medium">Smoking Allowed:</span> {flight.amenities.smoking ? 'YES' : 'NO'}</p>
+              <p><span className="font-medium">Wi-Fi:</span> {flight.amenities.wifi ? 'YES' : 'NO'}</p>
             </div>
           </div>
 
-          {/* Aircraft & Operator Info */}
-          <div className={cn('grid gap-3 mb-3', compact ? 'grid-cols-1' : 'grid-cols-2')}>
-            {/* Aircraft */}
-            <div data-testid="aircraft-section" className="space-y-1">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                {flight.aircraftModel}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {flight.aircraftType}
-                {flight.tailNumber && <span className="ml-2">Tail: {flight.tailNumber}</span>}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {flight.yearOfManufacture && <span>Year: {flight.yearOfManufacture}</span>}
-                <span className="ml-2 inline-flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  {flight.passengerCapacity} passengers
-                </span>
-              </p>
-            </div>
-
-            {/* Operator */}
-            <div data-testid="operator-section" className="space-y-1">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                {flight.operatorName}
-              </p>
+          {/* Operator Section */}
+          <div data-testid="operator-section" className="space-y-2">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Operator</h5>
+            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <p><span className="font-medium">Company:</span> {flight.operatorName}</p>
+              {flight.operatorEmail && (
+                <p><span className="font-medium">Email:</span> {flight.operatorEmail}</p>
+              )}
               {flight.operatorRating && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <p className="flex items-center gap-1">
                   <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                  <span>{flight.operatorRating}</span>
+                  <span className="font-medium">Rating:</span> {flight.operatorRating}
                 </p>
               )}
-              {flight.responseTimeMinutes && (
-                <p className="text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3 inline mr-1" />
-                  {flight.responseTimeMinutes} min response
-                </p>
+              {onViewChat && (
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleViewChat}
+                    className="flex items-center gap-2"
+                    aria-label={`View chat with ${flight.operatorName}`}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    View Chat
+                  </Button>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Amenities */}
-          <div className="flex items-center gap-1 mb-3">
-            {Object.entries(flight.amenities).map(([key, value]) => (
-              <AmenityIcon
-                key={key}
-                type={key as keyof RFQFlight['amenities']}
-                enabled={value}
+          {/* Selection Checkbox (if selectable) */}
+          {selectable && !showBookButton && (
+            <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <Checkbox
+                checked={flight.isSelected}
+                onCheckedChange={handleSelectionChange}
+                aria-label={`Select flight from ${flight.operatorName}`}
               />
-            ))}
-          </div>
-
-          {/* Price Section */}
-          <div
-            data-testid="price-section"
-            className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800"
-            onMouseEnter={() => setShowBreakdown(true)}
-            onMouseLeave={() => setShowBreakdown(false)}
-          >
-            <div>
-              <p className="text-xl font-bold text-primary">
-                {formatPrice(flight.price, flight.currency)}
-              </p>
-              {showPriceBreakdown && showBreakdown && flight.priceBreakdown && (
-                <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                  <p>Base: ${flight.priceBreakdown.base.toLocaleString()}</p>
-                  <p>Taxes: ${flight.priceBreakdown.taxes.toLocaleString()}</p>
-                  <p>Fees: ${flight.priceBreakdown.fees.toLocaleString()}</p>
-                </div>
-              )}
-              {flight.validUntil && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Valid until {formatDate(flight.validUntil)}
-                </p>
-              )}
+              <span className="text-sm text-gray-600 dark:text-gray-400">Select for proposal</span>
             </div>
-
-            <div className="flex flex-col items-end gap-2">
-              {showBookButton ? (
-                <Button
-                  onClick={handleReviewAndBook}
-                  disabled={!isBookingEnabled}
-                  aria-label={`Review and book flight from ${flight.operatorName}`}
-                  className={cn(
-                    'flex items-center gap-2',
-                    isBookingEnabled
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                  )}
-                >
-                  <ShoppingCart className="h-4 w-4" />
-                  {getButtonText(flight.rfqStatus)}
-                </Button>
-              ) : (
-                <div className="text-right text-xs text-muted-foreground">
-                  <p>Updated {formatRelativeTime(flight.lastUpdated)}</p>
-                </div>
-              )}
-              {showBookButton && (
-                <div className="text-right text-xs text-muted-foreground">
-                  <p>Updated {formatRelativeTime(flight.lastUpdated)}</p>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

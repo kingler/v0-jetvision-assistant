@@ -341,15 +341,36 @@ export class AvinodeClient {
         criteria,
       });
 
+      // Extract trip data from Avinode API response
+      // The API returns nested structure: { meta: {...}, data: { id, tripId, actions, ... } }
+      const tripData = response.data?.data || response.data;
+
+      // Extract the searchInAvinode deep link from actions
+      const searchDeepLink = tripData?.actions?.searchInAvinode?.href;
+      const viewDeepLink = tripData?.actions?.viewInAvinode?.href;
+
       // Log successful trip creation
       this.logger.info('Trip created successfully', {
         externalTripId,
-        tripId: response.data?.numericId || response.data?.id,
-        deepLink: response.data?.links?.self || response.data?.deepLink,
+        tripId: tripData?.tripId || tripData?.id,
+        deepLink: searchDeepLink,
       });
 
-      // Return the response data which includes trip_id and deep_link
-      return response.data;
+      // Return in the format expected by the UI (chat-interface.tsx expects trip_id and deep_link)
+      return {
+        success: true,
+        trip_id: tripData?.tripId || tripData?.id?.replace('atrip-', '') || externalTripId,
+        internal_id: tripData?.id, // e.g., "atrip-65262252"
+        deep_link: searchDeepLink,
+        view_link: viewDeepLink,
+        departure_airport: params.departure_airport,
+        arrival_airport: params.arrival_airport,
+        departure_date: params.departure_date,
+        passengers: params.passengers,
+        external_trip_id: externalTripId,
+        // Include raw response for debugging
+        raw_response: response.data,
+      };
     } catch (error) {
       throw this.sanitizeError(error);
     }
