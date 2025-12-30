@@ -276,10 +276,10 @@ export function RFQFlightsList({
         data-testid="rfq-flights-list"
         role="list"
         aria-label="Available flights"
-        className={cn('space-y-4', compact && 'space-y-2')}
+        className={cn('space-y-0', compact && 'space-y-0')}
       >
         {processedFlights.map((flight) => (
-          <li key={flight.id}>
+          <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
             <RFQFlightCard
               flight={{ ...flight, isSelected: selectedIds.has(flight.id) }}
               selectable={selectable && !showBookButton}

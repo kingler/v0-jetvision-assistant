@@ -438,8 +438,8 @@ export function FlightSearchProgress({
   }, [deepLink, onDeepLinkClick]);
 
   return (
-    <Card data-testid="flight-search-progress" className={cn('w-full bg-white dark:bg-gray-900', className)}>
-      <CardContent className="p-4 sm:p-6">
+    <Card data-testid="flight-search-progress" className={cn('w-full bg-white dark:bg-gray-900 border-0 shadow-none', className)}>
+      <CardContent className="py-6">
         {/* Step Progress Indicator - Hidden when complete with flights shown */}
         {!hideStepperWhenComplete && (
           <div className="flex items-start justify-center mb-6 overflow-x-auto pb-2">
@@ -649,13 +649,11 @@ export function FlightSearchProgress({
             <div
               data-testid="step-3-content"
               className={cn(
-                "rounded-lg border p-4",
-                tripIdSubmitted && rfqFlights.length > 0
-                  ? "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-                  : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30"
+                "border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-4",
+                !tripIdSubmitted && "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30"
               )}
             >
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 px-0">
                 {tripIdSubmitted && rfqFlights.length > 0 ? (
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
                 ) : (

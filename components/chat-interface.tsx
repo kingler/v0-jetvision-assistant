@@ -103,6 +103,168 @@ export function ChatInterface({
     }
   }
 
+  /**
+   * Parses quotes from agent text message content.
+   * Extracts structured quote data from messages like:
+   * "Here are the quotes for your trip..."
+   * "1. Operator Name\n   Aircraft: ...\n   Tail Number: ..."
+   * 
+   * @param messageContent - The agent message text content
+   * @returns Array of parsed quote objects, or empty array if none found
+   */
+  const parseQuotesFromText = (messageContent: string): Array<{
+    id: string
+    operatorName: string
+    aircraftType: string
+    tailNumber?: string
+    passengerCapacity?: number
+    price?: number
+    currency?: string
+    rfqStatus?: string
+    operatorEmail?: string
+  }> => {
+    const quotes: Array<{
+      id: string
+      operatorName: string
+      aircraftType: string
+      tailNumber?: string
+      passengerCapacity?: number
+      price?: number
+      currency?: string
+      rfqStatus?: string
+      operatorEmail?: string
+    }> = []
+
+    // Check if message contains quote indicators
+    const quoteIndicators = [
+      'here are the quotes',
+      'quotes for your trip',
+      'quotes we\'ve received',
+      'available options',
+      'flight options',
+    ]
+
+    const hasQuotes = quoteIndicators.some(indicator => 
+      messageContent.toLowerCase().includes(indicator)
+    )
+
+    if (!hasQuotes) {
+      return quotes
+    }
+
+    // Split message into lines for parsing
+    const lines = messageContent.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+
+    let currentQuote: {
+      id?: string
+      operatorName?: string
+      aircraftType?: string
+      tailNumber?: string
+      passengerCapacity?: number
+      price?: number
+      currency?: string
+      rfqStatus?: string
+      operatorEmail?: string
+    } | null = null
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+
+      // Check if line starts a new quote (numbered list item)
+      const quoteNumberMatch = line.match(/^(\d+)\.\s*(.+)$/)
+      if (quoteNumberMatch) {
+        // Save previous quote if exists
+        if (currentQuote && currentQuote.operatorName) {
+          quotes.push({
+            id: currentQuote.id || `quote-${quotes.length + 1}`,
+            operatorName: currentQuote.operatorName,
+            aircraftType: currentQuote.aircraftType || 'Unknown Aircraft',
+            tailNumber: currentQuote.tailNumber,
+            passengerCapacity: currentQuote.passengerCapacity,
+            price: currentQuote.price,
+            currency: currentQuote.currency || 'USD',
+            rfqStatus: currentQuote.rfqStatus || 'unanswered',
+            operatorEmail: currentQuote.operatorEmail,
+          })
+        }
+
+        // Start new quote
+        currentQuote = {
+          id: `quote-${quotes.length + 1}`,
+          operatorName: quoteNumberMatch[2].trim(),
+        }
+        continue
+      }
+
+      // Parse quote details if we have an active quote
+      if (currentQuote) {
+        // Aircraft type
+        const aircraftMatch = line.match(/aircraft:\s*(.+)/i)
+        if (aircraftMatch) {
+          currentQuote.aircraftType = aircraftMatch[1].trim()
+          continue
+        }
+
+        // Tail number
+        const tailMatch = line.match(/tail\s*(?:number)?:\s*([A-Z0-9]+)/i)
+        if (tailMatch) {
+          currentQuote.tailNumber = tailMatch[1].trim()
+          continue
+        }
+
+        // Passenger capacity
+        const passengersMatch = line.match(/maximum\s+passengers?:\s*(\d+)/i) || 
+                               line.match(/passengers?:\s*(\d+)/i) ||
+                               line.match(/capacity:\s*(\d+)/i)
+        if (passengersMatch) {
+          currentQuote.passengerCapacity = parseInt(passengersMatch[1], 10)
+          continue
+        }
+
+        // Price
+        const priceMatch = line.match(/(?:price|quote|total):\s*\$?([\d,]+(?:\.[\d]{2})?)/i) ||
+                          line.match(/\$([\d,]+(?:\.[\d]{2})?)/)
+        if (priceMatch) {
+          currentQuote.price = parseFloat(priceMatch[1].replace(/,/g, ''))
+          currentQuote.currency = 'USD'
+          continue
+        }
+
+        // RFQ Status
+        const statusMatch = line.match(/quote\s+status:\s*(\w+)/i) ||
+                           line.match(/status:\s*(\w+)/i)
+        if (statusMatch) {
+          currentQuote.rfqStatus = statusMatch[1].toLowerCase()
+          continue
+        }
+
+        // Operator email (if present)
+        const emailMatch = line.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i)
+        if (emailMatch) {
+          currentQuote.operatorEmail = emailMatch[1]
+          continue
+        }
+      }
+    }
+
+    // Save last quote if exists
+    if (currentQuote && currentQuote.operatorName) {
+      quotes.push({
+        id: currentQuote.id || `quote-${quotes.length + 1}`,
+        operatorName: currentQuote.operatorName,
+        aircraftType: currentQuote.aircraftType || 'Unknown Aircraft',
+        tailNumber: currentQuote.tailNumber,
+        passengerCapacity: currentQuote.passengerCapacity,
+        price: currentQuote.price,
+        currency: currentQuote.currency || 'USD',
+        rfqStatus: currentQuote.rfqStatus || 'unanswered',
+        operatorEmail: currentQuote.operatorEmail,
+      })
+    }
+
+    return quotes
+  }
+
   // Convert quotes to RFQ flights format for display in Step 3
   const rfqFlights: RFQFlight[] = (activeChat.quotes || []).map((quote) => {
     // Parse route to get airport info
@@ -585,6 +747,15 @@ export function ChatInterface({
                   }
                 }
 
+                // If no structured quotes found, try parsing from message content
+                if (quotes.length === 0 && fullContent) {
+                  const parsedQuotes = parseQuotesFromText(fullContent)
+                  if (parsedQuotes.length > 0) {
+                    quotes = parsedQuotes
+                    console.log('[Chat] Parsed quotes from message text:', parsedQuotes.length)
+                  }
+                }
+
                 // Convert quotes to the expected format if we found any
                 const formattedQuotes = quotes.length > 0 ? quotes.map((q: any, index: number) => ({
                   id: q.quote_id || q.quoteId || q.id || `quote-${Date.now()}-${index}`,
@@ -609,10 +780,25 @@ export function ChatInterface({
                   newStep = 4
                 }
 
+                // Replace message content with prompt when quotes are found (to avoid duplicate listing)
+                let messageContent = fullContent || data.content || ""
+                if (formattedQuotes && formattedQuotes.length > 0 && tripIdSubmitted) {
+                  // Replace the quote list with a prompt to create proposal
+                  messageContent = `Great! I've received ${formattedQuotes.length} quote${formattedQuotes.length !== 1 ? 's' : ''} from operators for your trip. The flight options are displayed above in Step 3.
+
+**Next Steps:**
+- When operators reply to your RFQ, their status will change from "Unanswered" to "Quoted" or "Answered"
+- Review the available flights above and select the ones you want to include in your proposal
+- Click the **"Create Customer Proposal"** button below to generate a PDF proposal and send it to your customer
+- Once the customer pays, the flight will be automatically booked
+
+Ready to create your proposal?`
+                }
+
                 const agentMsg = {
                   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                   type: "agent" as const,
-                  content: fullContent || data.content || "",
+                  content: messageContent,
                   timestamp: new Date(),
                   showWorkflow: newStep > 1,
                   showDeepLink,
@@ -621,6 +807,8 @@ export function ChatInterface({
                   pipelineData,
                   // Show quotes in Step 3 if Trip ID is submitted and we have quotes
                   showQuotes: tripIdSubmitted && formattedQuotes && formattedQuotes.length > 0,
+                  // Show proposal button when quotes are available
+                  showProposal: tripIdSubmitted && formattedQuotes && formattedQuotes.length > 0,
                 }
 
                 const updatedMessages = [...latestMessagesRef.current, agentMsg]
@@ -699,6 +887,51 @@ export function ChatInterface({
       setStreamingContent("")
     }
   }
+
+  /**
+   * Effect to extract quotes from agent messages and update chat state
+   * This watches for new agent messages that contain quote information
+   */
+  useEffect(() => {
+    if (!activeChat.messages || activeChat.messages.length === 0) return
+
+    // Get the most recent agent message
+    const lastAgentMessage = [...activeChat.messages]
+      .reverse()
+      .find(msg => msg.type === 'agent')
+
+    if (!lastAgentMessage || !lastAgentMessage.content) return
+
+    // Check if we already have quotes (avoid re-parsing)
+    if (activeChat.quotes && activeChat.quotes.length > 0) return
+
+    // Try to parse quotes from the message content
+    const parsedQuotes = parseQuotesFromText(lastAgentMessage.content)
+
+    if (parsedQuotes.length > 0 && tripIdSubmitted) {
+      console.log('[Chat] Extracted quotes from agent message:', parsedQuotes.length)
+
+      // Convert to formatted quotes
+      const formattedQuotes = parsedQuotes.map((q, index) => ({
+        id: q.id || `quote-${Date.now()}-${index}`,
+        operatorName: q.operatorName,
+        aircraftType: q.aircraftType,
+        price: q.price || 0,
+        currency: q.currency || 'USD',
+        ranking: index + 1,
+        isRecommended: index === 0,
+        operatorEmail: q.operatorEmail,
+        rfqStatus: (q.rfqStatus || 'unanswered') as 'unanswered' | 'quoted' | 'sent' | 'declined' | 'expired',
+      }))
+
+      // Update chat with parsed quotes
+      onUpdateChat(activeChat.id, {
+        quotes: formattedQuotes,
+        status: 'analyzing_options' as typeof activeChat.status,
+        currentStep: 4,
+      })
+    }
+  }, [activeChat.messages, activeChat.id, tripIdSubmitted, activeChat.quotes, onUpdateChat])
 
   // Effect to trigger initial API call when chat is created from landing page
   useEffect(() => {

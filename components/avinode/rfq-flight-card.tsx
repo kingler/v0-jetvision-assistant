@@ -176,12 +176,14 @@ function formatPrice(amount: number, currency: string): string {
 }
 
 function getStatusBadgeClasses(status: RFQFlight['rfqStatus']): string {
-  const baseClasses = 'px-2 py-0.5 text-xs font-medium rounded-full';
+  // Use rounded-md instead of rounded-full to match wireframe badge style
+  const baseClasses = 'px-3 py-1.5 text-xs font-medium rounded-md';
   switch (status) {
     case 'sent':
       return cn(baseClasses, 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400');
     case 'unanswered':
-      return cn(baseClasses, 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400');
+      // Gray badge for "Unanswered" per wireframe
+      return cn(baseClasses, 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300');
     case 'quoted':
       return cn(baseClasses, 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400');
     case 'declined':
@@ -189,7 +191,7 @@ function getStatusBadgeClasses(status: RFQFlight['rfqStatus']): string {
     case 'expired':
       return cn(baseClasses, 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400');
     default:
-      return cn(baseClasses, 'bg-gray-100 text-gray-700');
+      return cn(baseClasses, 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300');
   }
 }
 
@@ -382,17 +384,18 @@ export function RFQFlightCard({
     <div
       data-testid="rfq-flight-card"
       className={cn(
-        'border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900 transition-all shadow-sm',
+        'border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-all',
         flight.isSelected && selectable && 'ring-2 ring-blue-500 border-transparent',
         compact ? 'h-auto' : '',
         className
       )}
     >
+      {/* 3-Column Layout: Image (30%) | Aircraft/Transport/Amenities/Operator (middle) | Price (right) */}
       <div className={cn('flex', compact ? 'flex-col sm:flex-row' : 'flex-row')}>
-        {/* Aircraft Image Section - Left Side */}
+        {/* Column 1: Aircraft Image - 30% width */}
         <div className={cn(
           'bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0',
-          compact ? 'w-full h-32 sm:w-32 sm:h-auto' : 'w-32 h-full min-h-[366px]'
+          compact ? 'w-full h-32 sm:w-[30%] sm:h-auto' : 'w-[30%] h-full min-h-[400px]'
         )}>
           {flight.aircraftImageUrl && !imageError ? (
             <img
@@ -402,14 +405,14 @@ export function RFQFlightCard({
               onError={handleImageError}
             />
           ) : (
-            <div data-testid="aircraft-placeholder" className="flex items-center justify-center w-full h-full">
-              <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600" />
+            <div data-testid="aircraft-placeholder" className="flex items-center justify-center w-full h-full bg-gray-200 dark:bg-gray-700">
+              <Plane className="h-16 w-16 text-gray-400 dark:text-gray-500" />
             </div>
           )}
         </div>
 
-        {/* Main Content - Right Side */}
-        <div className="flex-1 p-4 space-y-4">
+        {/* Column 2: Aircraft, Transport, Amenities, Operator - Middle column */}
+        <div className="flex-1 py-4 space-y-5">
           {/* Aircraft Section */}
           <div data-testid="aircraft-section" className="space-y-2">
             <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Aircraft</h5>
@@ -431,31 +434,18 @@ export function RFQFlightCard({
             </div>
           </div>
 
-          {/* Price & RFQ Status Section */}
-          <div data-testid="price-section" className="space-y-2">
-            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Price</h5>
-            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {formatPrice(flight.price, flight.currency)}
-            </p>
-            {showPriceBreakdown && flight.priceBreakdown && (
-              <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                <p>Base: {formatPrice(flight.priceBreakdown.base, flight.currency)}</p>
-                <p>Taxes: {formatPrice(flight.priceBreakdown.taxes, flight.currency)}</p>
-                <p>Fees: {formatPrice(flight.priceBreakdown.fees, flight.currency)}</p>
-              </div>
-            )}
-            <div className="mt-2">
-              <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">RFQ Status</h5>
-              <span 
-                data-testid="status-badge" 
-                className={cn(
-                  'inline-block px-3 py-1 rounded text-xs font-medium',
-                  getStatusBadgeClasses(flight.rfqStatus)
-                )}
-              >
-                {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
-              </span>
-            </div>
+          {/* RFQ Status Section - Separate section per wireframe */}
+          <div data-testid="rfq-status-section" className="space-y-2">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">RFQ Status</h5>
+            <span 
+              data-testid="status-badge" 
+              className={cn(
+                'inline-block px-3 py-1.5 rounded-md text-xs font-medium',
+                getStatusBadgeClasses(flight.rfqStatus)
+              )}
+            >
+              {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
+            </span>
           </div>
 
           {/* Amenities Section */}
@@ -483,7 +473,8 @@ export function RFQFlightCard({
                 </p>
               )}
               {onViewChat && (
-                <div className="pt-2">
+                <div className="pt-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5">Messages:</p>
                   <Button
                     variant="outline"
                     size="sm"
@@ -510,6 +501,23 @@ export function RFQFlightCard({
               <span className="text-sm text-gray-600 dark:text-gray-400">Select for proposal</span>
             </div>
           )}
+        </div>
+
+        {/* Column 3: Price Section - Right column */}
+        <div className="w-[200px] shrink-0 py-4 border-l border-gray-200 dark:border-gray-700">
+          <div data-testid="price-section" className="space-y-2">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Price</h5>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              {formatPrice(flight.price, flight.currency)}
+            </p>
+            {showPriceBreakdown && flight.priceBreakdown && (
+              <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                <p>Base: {formatPrice(flight.priceBreakdown.base, flight.currency)}</p>
+                <p>Taxes: {formatPrice(flight.priceBreakdown.taxes, flight.currency)}</p>
+                <p>Fees: {formatPrice(flight.priceBreakdown.fees, flight.currency)}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

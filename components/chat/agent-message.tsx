@@ -1,7 +1,8 @@
 "use client"
 
 import React from "react"
-import { Plane } from "lucide-react"
+import { Plane, FileText } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { ProposalPreview } from "../proposal-preview"
 import {
   FlightSearchProgress,
@@ -314,7 +315,39 @@ export function AgentMessage({
       )}
 
       {/* Proposal Preview - embedded in single card level */}
-      {showProposal && chatData && (
+      {/* Create Customer Proposal Button - Shown when quotes are available and Trip ID is submitted */}
+      {showProposal && onContinueToProposal && rfqFlights && rfqFlights.length > 0 && tripIdSubmitted && (
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-3">
+            <div className="flex-1">
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                Ready to Create Your Proposal?
+              </h4>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+                Select the flights you want to include from the list above in Step 3, then click the button below to generate and send a professional PDF proposal to your customer. Once they pay, the flight will be automatically booked.
+              </p>
+              <Button
+                onClick={() => {
+                  const selectedFlights = rfqFlights.filter(f => f.isSelected || selectedRfqFlightIds.includes(f.id))
+                  if (selectedFlights.length > 0) {
+                    onContinueToProposal(selectedFlights)
+                  } else {
+                    // If no flights selected, use all available flights
+                    onContinueToProposal(rfqFlights)
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                size="lg"
+              >
+                <FileText className="h-5 w-5 mr-2" />
+                Create Customer Proposal
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showProposal && chatData && !onContinueToProposal && (
         <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <ProposalPreview embedded={true} chatData={chatData} />
         </div>
