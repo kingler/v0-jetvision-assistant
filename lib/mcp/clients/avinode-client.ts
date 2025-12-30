@@ -120,18 +120,27 @@ export class AvinodeClient {
       prefix: '[Avinode Client]',
     });
 
+    // Get the API token from environment (separate from the JWT auth token)
+    const apiToken = process.env.AVINODE_API_TOKEN || '';
+
     this.client = axios.create({
       baseURL: config.baseUrl,
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
+        'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
+        'X-Avinode-ApiToken': apiToken,
+        'X-Avinode-ApiVersion': 'v1.0',
+        'X-Avinode-Product': 'Jetvision/1.0.0',
       },
       timeout: 30000,
     });
 
-    // Add request interceptor for logging (without exposing API key)
+    // Add request interceptor for timestamp and logging
     this.client.interceptors.request.use(
       (config) => {
+        // Add dynamic timestamp header required by Avinode API
+        config.headers['X-Avinode-SentTimestamp'] = new Date().toISOString();
+
         // Log request (sanitized)
         this.logger.debug('API request', {
           method: config.method?.toUpperCase(),
@@ -224,6 +233,9 @@ export class AvinodeClient {
   /**
    * Create a trip container and return deep link for manual operator selection
    * This is the primary tool for the deep link workflow
+   *
+   * Uses the Avinode API's segments[] format for trip creation
+   * @see https://developer.avinodegroup.com/reference/create-trip
    */
   async createTrip(params: {
     departure_airport: string;
@@ -238,28 +250,105 @@ export class AvinodeClient {
     client_reference?: string;
   }) {
     try {
-      const response = await this.client.post('/v1/trips', {
-        route: {
-          departure: {
-            airport: params.departure_airport,
+      // Generate unique external trip ID for tracking
+      const externalTripId = `JETVISION-${Date.now()}`;
+
+      // Build segments array - supports one-way and round-trip
+      const segments: Array<{
+        startAirport: { icao: string };
+        endAirport: { icao: string };
+        dateTime: {
+          date: string;
+          time: string;
+          departure: boolean;
+          local: boolean;
+        };
+        paxCount: string;
+        paxSegment: boolean;
+        paxTBD: boolean;
+        timeTBD: boolean;
+      }> = [
+        {
+          startAirport: { icao: params.departure_airport },
+          endAirport: { icao: params.arrival_airport },
+          dateTime: {
             date: params.departure_date,
-            time: params.departure_time,
+            time: params.departure_time || '10:00',
+            departure: true,
+            local: true,
           },
-          arrival: {
-            airport: params.arrival_airport,
-          },
-          return: params.return_date
-            ? {
-                date: params.return_date,
-                time: params.return_time,
-              }
-            : undefined,
+          paxCount: String(params.passengers),
+          paxSegment: true,
+          paxTBD: false,
+          timeTBD: !params.departure_time,
         },
-        passengers: params.passengers,
-        aircraft_category: params.aircraft_category,
-        special_requirements: params.special_requirements,
-        client_reference: params.client_reference,
+      ];
+
+      // Add return segment if round-trip
+      if (params.return_date) {
+        segments.push({
+          startAirport: { icao: params.arrival_airport },
+          endAirport: { icao: params.departure_airport },
+          dateTime: {
+            date: params.return_date,
+            time: params.return_time || '10:00',
+            departure: true,
+            local: true,
+          },
+          paxCount: String(params.passengers),
+          paxSegment: true,
+          paxTBD: false,
+          timeTBD: !params.return_time,
+        });
+      }
+
+      // Build criteria object for aircraft requirements
+      // Only include requiredLift if an aircraft category is specified
+      // Sending empty strings causes a 422 "LIFT_INVALID" error
+      const criteria: {
+        requiredLift?: Array<{
+          aircraftCategory: string;
+          aircraftType: string;
+          aircraftTail: string;
+        }>;
+        requiredPartnerships: string[];
+        maxFuelStopsPerSegment: number;
+        includeLiftUpgrades: boolean;
+        maxInitialPositioningTimeMinutes: number;
+      } = {
+        requiredPartnerships: [],
+        maxFuelStopsPerSegment: 0,
+        includeLiftUpgrades: true,
+        maxInitialPositioningTimeMinutes: 0,
+      };
+
+      // Only add requiredLift if aircraft_category is specified
+      if (params.aircraft_category) {
+        criteria.requiredLift = [
+          {
+            aircraftCategory: params.aircraft_category,
+            aircraftType: '',
+            aircraftTail: '',
+          },
+        ];
+      }
+
+      // Use the correct Avinode API format with segments[]
+      const response = await this.client.post('/trips', {
+        externalTripId,
+        sourcing: true, // Required: enables sourcing/search functionality
+        segments,
+        criteria,
       });
+
+      // Log successful trip creation
+      this.logger.info('Trip created successfully', {
+        externalTripId,
+        tripId: response.data?.numericId || response.data?.id,
+        deepLink: response.data?.links?.self || response.data?.deepLink,
+      });
+
+      // Return the response data which includes trip_id and deep_link
       return response.data;
     } catch (error) {
       throw this.sanitizeError(error);

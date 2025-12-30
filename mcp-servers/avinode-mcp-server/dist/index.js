@@ -2,15 +2,29 @@
 /**
  * Avinode MCP Server
  *
- * Provides MCP tools for interacting with Avinode API:
+ * Provides MCP tools for interacting with the Avinode API.
+ * Implements the deep link workflow for human-in-the-loop flight search.
+ *
+ * Core Tools:
  * - search_flights: Search for available charter flights
- * - search_empty_legs: Search for empty leg flights
+ * - search_empty_legs: Search for empty leg flights at discounted prices
  * - create_rfp: Create RFP and send to operators
  * - get_rfp_status: Get RFP status and quotes
- * - create_watch: Create watch for monitoring
+ * - create_watch: Create watch for monitoring updates
  * - search_airports: Search airports by name/code
  *
+ * Deep Link Workflow Tools (ONEK-129):
+ * - create_trip: Create trip container and return deep link for Avinode search
+ * - get_rfq: Retrieve RFQ details by ID
+ * - get_quote: Get specific quote details by quote ID
+ * - cancel_trip: Cancel an active trip
+ * - send_trip_message: Send message to operators in trip thread
+ * - get_trip_messages: Retrieve message history for a trip
+ *
  * Supports mock mode for development/testing when AVINODE_API_KEY is not set.
+ *
+ * @see docs/implementation/WORKFLOW-AVINODE-INTEGRATION.md
+ * @see https://developer.avinodegroup.com/docs/search-in-avinode-from-your-system
  */
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -22,19 +36,76 @@ import { getAvinodeClient } from './client.js';
 import { MockAvinodeClient } from './mock-client.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// Load environment variables from project root
+// Load environment variables from MCP server directory first, then project root
+config({ path: resolve(__dirname, '../.env.local') });
 config({ path: resolve(__dirname, '../../../.env.local') });
-// Check for API key and determine mode
-const apiKey = process.env.AVINODE_API_KEY;
-const useMockMode = !apiKey || apiKey.startsWith('mock_');
+// Check for API token and determine mode
+const apiToken = process.env.API_TOKEN || process.env.AVINODE_API_TOKEN;
+const authToken = process.env.AUTHENTICATION_TOKEN || process.env.AVINODE_BEARER_TOKEN;
+const useMockMode = !apiToken || !authToken || apiToken.startsWith('mock_');
 // Get appropriate client (mock or real)
 let avinodeClient;
 if (useMockMode) {
     console.error('Running in MOCK MODE - using simulated Avinode data');
+    console.error('Set API_TOKEN and AUTHENTICATION_TOKEN for live API access');
     avinodeClient = new MockAvinodeClient();
 }
 else {
-    avinodeClient = getAvinodeClient();
+    try {
+        avinodeClient = getAvinodeClient();
+        const baseURL = process.env.BASE_URI || process.env.AVINODE_BASE_URL || 'https://sandbox.avinode.com/api';
+        console.error(`Avinode API configured: ${baseURL}`);
+    }
+    catch (error) {
+        // If client initialization fails (e.g., missing BASE_URI in production), log and rethrow
+        console.error('Failed to initialize Avinode client:', error instanceof Error ? error.message : String(error));
+        throw error;
+    }
+}
+/**
+ * Extracts numeric ID from Avinode identifiers that may contain prefixes.
+ *
+ * Handles IDs with known prefixes (arfq-, atrip-) and preserves the full suffix
+ * even when it contains additional hyphens (e.g., "arfq-123-456" -> "123-456").
+ *
+ * @param id - The identifier to extract numeric ID from (e.g., "arfq-123-456", "atrip-789", "123456")
+ * @returns The numeric ID with full suffix preserved
+ * @throws Error if the resulting numericId is empty or contains non-numeric characters
+ *
+ * @example
+ * extractNumericId('arfq-123-456') // Returns '123-456'
+ * extractNumericId('atrip-789') // Returns '789'
+ * extractNumericId('123456') // Returns '123456'
+ */
+function extractNumericId(id) {
+    // Preserve original if no known prefix
+    if (!id.startsWith('arfq-') && !id.startsWith('atrip-')) {
+        return id;
+    }
+    // Extract everything after the first hyphen using regex
+    // This captures the full suffix even if it contains additional hyphens
+    const match = id.match(/^(?:arfq|atrip)-(.+)$/);
+    if (!match || !match[1]) {
+        throw new Error(`Failed to extract numeric ID from identifier: "${id}". ` +
+            `Expected format: "arfq-<id>" or "atrip-<id>"`);
+    }
+    // Trim whitespace from the extracted numeric ID to handle inputs like "arfq- 123 "
+    const numericId = match[1].trim();
+    // Validate that the extracted ID is not empty after trimming
+    if (!numericId || numericId.length === 0) {
+        throw new Error(`Extracted numeric ID is empty from identifier: "${id}". ` +
+            `The ID must contain a value after the prefix.`);
+    }
+    // Validate that the extracted ID contains at least one numeric character
+    // This ensures it's not purely alphabetic while allowing hyphens in composite IDs
+    if (!/\d/.test(numericId)) {
+        throw new Error(`Extracted numeric ID contains no numeric characters: "${numericId}" from identifier: "${id}". ` +
+            `The ID must contain at least one digit.`);
+    }
+    // Note: We allow hyphens in the numeric ID as Avinode may use composite IDs (e.g., "123-456")
+    // The API will validate the actual format, so we just ensure it's not empty and contains digits
+    // Return the trimmed numeric ID to ensure no leading/trailing whitespace
+    return numericId;
 }
 // Define MCP tools
 const tools = [
@@ -490,7 +561,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 // Tool implementation functions
 async function searchFlights(params) {
-    const response = await avinodeClient.post('/v1/flights/search', {
+    const response = await avinodeClient.post('/flights/search', {
         departure: {
             airport: params.departure_airport,
             date: params.departure_date,
@@ -513,7 +584,7 @@ async function searchFlights(params) {
     };
 }
 async function searchEmptyLegs(params) {
-    const response = await avinodeClient.post('/v1/emptyLeg/search', {
+    const response = await avinodeClient.post('/emptyLeg/search', {
         departure_airport: params.departure_airport,
         arrival_airport: params.arrival_airport,
         date_range: params.date_range,
@@ -529,8 +600,16 @@ async function searchEmptyLegs(params) {
         total_results: response.total_results || 0,
     };
 }
+/**
+ * Create an RFQ (Request for Quote)
+ *
+ * @see https://developer.avinodegroup.com/reference/createrfq_1
+ * Endpoint: POST /api/rfqs (not /rfps)
+ */
 async function createRFP(params) {
-    const response = await avinodeClient.post('/v1/rfps', {
+    // Use correct endpoint per Avinode API documentation
+    // @see https://developer.avinodegroup.com/reference/createrfq_1
+    const response = await avinodeClient.post('/rfqs', {
         flight_details: params.flight_details,
         operator_ids: params.operator_ids,
         message: params.message,
@@ -548,7 +627,7 @@ async function createRFP(params) {
     };
 }
 async function getRFPStatus(params) {
-    const response = await avinodeClient.get(`/v1/rfps/${params.rfp_id}`);
+    const response = await avinodeClient.get(`/rfqs/${params.rfp_id}`);
     return {
         rfp_id: response.rfp_id,
         status: response.status,
@@ -561,7 +640,7 @@ async function getRFPStatus(params) {
     };
 }
 async function createWatch(params) {
-    const response = await avinodeClient.post('/v1/watches', {
+    const response = await avinodeClient.post('/watches', {
         type: params.type,
         rfp_id: params.rfp_id,
         empty_leg_id: params.empty_leg_id,
@@ -575,7 +654,7 @@ async function createWatch(params) {
     };
 }
 async function searchAirports(params) {
-    const response = await avinodeClient.get('/v1/airports/search', {
+    const response = await avinodeClient.get('/airports/search', {
         params: {
             query: params.query,
             country: params.country,
@@ -591,6 +670,23 @@ async function searchAirports(params) {
 // ============================================================================
 /**
  * Create a trip container and return deep link for manual operator selection
+ *
+ * @see https://developer.avinodegroup.com/reference/createtrip
+ *
+ * Request format verified against Avinode Sandbox API (December 2025):
+ * {
+ *   "criteria": {
+ *     "legs": [
+ *       {
+ *         "departureAirport": { "icao": "KTEB" },
+ *         "arrivalAirport": { "icao": "KPBI" },
+ *         "departureDate": "2025-01-15",
+ *         "departureTime": "10:00"
+ *       }
+ *     ],
+ *     "pax": 4
+ *   }
+ * }
  */
 async function createTrip(params) {
     // Validate required parameters
@@ -603,34 +699,70 @@ async function createTrip(params) {
     if (!params.passengers || params.passengers < 1) {
         throw new Error('passengers must be at least 1');
     }
-    const response = await avinodeClient.post('/v1/trips', {
-        route: {
-            departure: {
-                airport: params.departure_airport,
-                date: params.departure_date,
-                time: params.departure_time,
-            },
-            arrival: {
-                airport: params.arrival_airport,
-            },
-            return: params.return_date
-                ? {
-                    date: params.return_date,
-                    time: params.return_time,
-                }
-                : undefined,
+    // Build outbound leg
+    const outboundLeg = {
+        departureAirport: { icao: params.departure_airport },
+        arrivalAirport: { icao: params.arrival_airport },
+        departureDate: params.departure_date,
+    };
+    // Add departure time if provided
+    if (params.departure_time) {
+        outboundLeg.departureTime = params.departure_time;
+    }
+    // Build legs array
+    const legs = [outboundLeg];
+    // Add return leg if provided (round-trip)
+    if (params.return_date) {
+        const returnLeg = {
+            departureAirport: { icao: params.arrival_airport },
+            arrivalAirport: { icao: params.departure_airport },
+            departureDate: params.return_date,
+        };
+        if (params.return_time) {
+            returnLeg.departureTime = params.return_time;
+        }
+        legs.push(returnLeg);
+    }
+    // Build request body per verified Avinode API format (December 2025)
+    const requestBody = {
+        criteria: {
+            legs,
+            pax: params.passengers,
         },
-        passengers: params.passengers,
-        aircraft_category: params.aircraft_category,
-        special_requirements: params.special_requirements,
-        client_reference: params.client_reference,
-    });
+    };
+    // Add external reference if provided
+    if (params.client_reference) {
+        requestBody.externalTripId = params.client_reference;
+    }
+    // Add special requirements as notes if provided
+    if (params.special_requirements) {
+        requestBody.criteria.notes = params.special_requirements;
+    }
+    const response = await avinodeClient.post('/trips', requestBody);
+    // Avinode API response format per documentation:
+    // {
+    //   "data": {
+    //     "id": "atrip-64956153",
+    //     "href": "https://sandbox.avinode.com/api/trips/atrip-64956153",
+    //     "actions": {
+    //       "searchInAvinode": { "href": "...", "description": "..." },
+    //       "viewInAvinode": { "href": "...", "description": "..." }
+    //     }
+    //   }
+    // }
+    // @see https://developer.avinodegroup.com/reference/createtrip
+    const tripData = response.data || response;
+    const tripId = tripData.id || tripData.trip_id;
+    const actions = tripData.actions || {};
+    const deepLink = actions.searchInAvinode?.href || actions.viewInAvinode?.href || tripData.href;
     return {
-        trip_id: response.trip_id,
-        deep_link: response.deep_link,
-        search_link: response.search_link || response.deep_link,
-        status: response.status || 'created',
-        created_at: response.created_at || new Date().toISOString(),
+        trip_id: tripId,
+        deep_link: deepLink,
+        search_link: actions.searchInAvinode?.href || deepLink,
+        view_link: actions.viewInAvinode?.href,
+        cancel_link: actions.cancel?.href,
+        status: 'created',
+        created_at: new Date().toISOString(),
         route: {
             departure: {
                 airport: params.departure_airport,
@@ -652,12 +784,39 @@ async function createTrip(params) {
 }
 /**
  * Get RFQ details including status and quotes
+ *
+ * @see https://developer.avinodegroup.com/reference/readbynumericid
+ *
+ * Optional query parameters:
+ * - taildetails: Additional aircraft information
+ * - tailphotos: Links to aircraft photos
+ * - timestamps: Include updatedByBuyer and latestUpdatedDateBySeller
+ * - typedetails: Detailed aircraft type information
+ * - typephotos: Links to generic aircraft type photos
  */
 async function getRFQ(params) {
     if (!params.rfq_id) {
         throw new Error('rfq_id is required');
     }
-    const response = await avinodeClient.get(`/v1/rfqs/${params.rfq_id}`);
+    // Extract numeric ID if prefixed (e.g., "arfq-12345678" -> "12345678")
+    // Per Avinode API: endpoint accepts numeric ID or prefixed ID
+    // Uses robust extraction to handle IDs with additional hyphens (e.g., "arfq-123-456")
+    let numericId;
+    try {
+        numericId = extractNumericId(params.rfq_id);
+    }
+    catch (error) {
+        throw new Error(`Invalid RFQ ID format: "${params.rfq_id}". ${error instanceof Error ? error.message : String(error)}`);
+    }
+    // Request with optional query parameters for additional details
+    // @see https://developer.avinodegroup.com/reference/readbynumericid
+    const response = await avinodeClient.get(`/rfqs/${numericId}`, {
+        params: {
+            taildetails: true, // Include aircraft details
+            typedetails: true, // Include aircraft type details
+            timestamps: true, // Include update timestamps
+        },
+    });
     return {
         rfq_id: response.rfq_id || params.rfq_id,
         trip_id: response.trip_id,
@@ -679,7 +838,7 @@ async function getQuote(params) {
     if (!params.quote_id) {
         throw new Error('quote_id is required');
     }
-    const response = await avinodeClient.get(`/v1/quotes/${params.quote_id}`);
+    const response = await avinodeClient.get(`/quotes/${params.quote_id}`);
     return {
         quote_id: response.quote_id || params.quote_id,
         rfq_id: response.rfq_id,
@@ -696,12 +855,24 @@ async function getQuote(params) {
 }
 /**
  * Cancel an active trip
+ *
+ * @see https://developer.avinodegroup.com/reference/readbynumericid
+ * Endpoint: PUT /api/rfqs/{id}/cancel
  */
 async function cancelTrip(params) {
     if (!params.trip_id) {
         throw new Error('trip_id is required');
     }
-    const response = await avinodeClient.put(`/v1/trips/${params.trip_id}/cancel`, {
+    // Extract numeric ID if prefixed
+    // Uses robust extraction to handle IDs with additional hyphens (e.g., "atrip-123-456")
+    let numericId;
+    try {
+        numericId = extractNumericId(params.trip_id);
+    }
+    catch (error) {
+        throw new Error(`Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const response = await avinodeClient.put(`/rfqs/${numericId}/cancel`, {
         reason: params.reason,
     });
     return {
@@ -713,6 +884,9 @@ async function cancelTrip(params) {
 }
 /**
  * Send a message in the trip conversation thread
+ *
+ * @see https://developer.avinodegroup.com/reference/readmessage
+ * Endpoint: POST /api/tripmsgs/{tripId}
  */
 async function sendTripMessage(params) {
     if (!params.trip_id) {
@@ -724,7 +898,16 @@ async function sendTripMessage(params) {
     if (params.recipient_type === 'specific_operator' && !params.operator_id) {
         throw new Error('operator_id is required when recipient_type is specific_operator');
     }
-    const response = await avinodeClient.post(`/v1/tripmsgs/${params.trip_id}/sendMessage`, {
+    // Extract numeric ID if prefixed
+    // Uses robust extraction to handle IDs with additional hyphens (e.g., "atrip-123-456")
+    let numericId;
+    try {
+        numericId = extractNumericId(params.trip_id);
+    }
+    catch (error) {
+        throw new Error(`Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const response = await avinodeClient.post(`/tripmsgs/${numericId}`, {
         message: params.message,
         recipient_type: params.recipient_type || 'all_operators',
         operator_id: params.operator_id,
@@ -739,12 +922,24 @@ async function sendTripMessage(params) {
 }
 /**
  * Get message history for a trip
+ *
+ * @see https://developer.avinodegroup.com/reference/readmessage
+ * Endpoint: GET /api/tripmsgs/{tripId}
  */
 async function getTripMessages(params) {
     if (!params.trip_id) {
         throw new Error('trip_id is required');
     }
-    const response = await avinodeClient.get(`/v1/tripmsgs/${params.trip_id}`, {
+    // Extract numeric ID if prefixed
+    // Uses robust extraction to handle IDs with additional hyphens (e.g., "atrip-123-456")
+    let numericId;
+    try {
+        numericId = extractNumericId(params.trip_id);
+    }
+    catch (error) {
+        throw new Error(`Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const response = await avinodeClient.get(`/tripmsgs/${numericId}`, {
         params: {
             limit: params.limit || 50,
             since: params.since,

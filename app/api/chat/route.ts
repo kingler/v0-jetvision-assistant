@@ -411,8 +411,13 @@ async function fetchPipelineData(userId: string): Promise<PipelineData> {
  */
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate user with Clerk
-    const { userId } = await auth()
+    // Check for auth bypass in development mode
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const bypassAuth = isDevelopment && process.env.BYPASS_AUTH === 'true'
+
+    // Authenticate user with Clerk (or use dev bypass)
+    const { userId: clerkUserId } = await auth()
+    const userId = clerkUserId || (bypassAuth ? 'dev-user-bypass' : null)
 
     if (!userId) {
       return new Response(

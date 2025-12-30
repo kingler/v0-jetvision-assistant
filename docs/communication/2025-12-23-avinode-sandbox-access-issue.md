@@ -472,3 +472,146 @@ If OAuth token flow still fails, ask:
 - [ ] Send email to Avinode support
 - [ ] Request confirmation of sandbox account status
 - [ ] Document any resolution steps for future Monday resets
+
+---
+
+## Update: December 29, 2025 - API Access Restored, Deep Link Prefill Issue
+
+### Status Update
+
+After Avinode support's assistance, API access has been **fully restored**. The following now works:
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| `POST /trips` | ✅ Working | Requires `X-Avinode-ActAsAccount` header |
+| `GET /trips/{id}` | ✅ Working | Returns trip details |
+| `GET /rfqs` | ✅ Working | Lists RFQs |
+| `GET /tripmsgs` | ✅ Working | Returns messages |
+| Airport Search | ✅ Working | Via `/api/airports` |
+| Deep Link Generation | ✅ Working | `searchInAvinode` action returned |
+
+### Key Discovery: Required Header
+
+The `X-Avinode-ActAsAccount` header is **REQUIRED** for all buyer/broker API operations:
+
+```bash
+-H "X-Avinode-ActAsAccount: $EXTERNAL_ID"
+```
+
+Without this header, buyer endpoints return permission errors.
+
+### Correct Request Body Format
+
+The trip creation endpoint requires a `criteria` wrapper:
+
+```json
+{
+  "criteria": {
+    "legs": [
+      {
+        "departureAirport": { "icao": "KTEB" },
+        "arrivalAirport": { "icao": "KMIA" },
+        "departureDate": "2025-01-15",
+        "departureTime": "10:00"
+      }
+    ],
+    "pax": 4
+  }
+}
+```
+
+### New Issue: Deep Link Prefill Not Working
+
+**Problem:** The `searchInAvinode` deep links returned by `POST /trips` do **NOT** prefill search criteria in the Avinode marketplace UI.
+
+**Example Trip Created:**
+- Trip ID: `atrip-65262227`
+- Route: KLAX → KSFO
+- Date: January 20, 2025
+- Passengers: 3
+
+**Deep Link Returned:**
+```
+https://sandbox.avinode.com/marketplace/mvc/search/load/atrip-65262227?source=api&origin=api_action
+```
+
+**Expected Behavior:** When clicked, the marketplace search form should be prefilled with:
+- Departure: KLAX
+- Arrival: KSFO
+- Date: January 20, 2025
+- Passengers: 3
+
+**Actual Behavior:** The link opens the marketplace but the search form is **empty**. User must manually re-enter all criteria.
+
+### Investigation Findings
+
+1. **No URL Query Parameters:** The deep link contains only the trip ID as a path parameter - no embedded query string with search parameters.
+
+2. **Documentation States Prefill Should Work:** The [Search in Avinode from Your System](https://developer.avinodegroup.com/docs/search-in-avinode-from-your-system) documentation indicates deep links should initiate searches with the trip parameters.
+
+3. **GET Trip Returns No Stored Criteria:** When retrieving a trip via `GET /trips/{id}`, the response does not include the original search criteria (airports, dates, passengers). Only minimal metadata is returned.
+
+4. **`postToTripBoard: true` Causes Error:** Testing with the `postToTripBoard` flag results in `ERR_INTERNAL_CRITICAL` - appears to be a sandbox limitation.
+
+5. **`POST /searches` Restricted:** The search endpoint returns `AUTHORIZATION_PERMISSIONS` error for B2B integrations (documented as B2C only).
+
+### Test Trips Created
+
+| Trip ID | Short ID | Route | Date | Pax | Prefill Works? |
+|---------|----------|-------|------|-----|----------------|
+| atrip-65262223 | FP8V2U | KTEB→KMIA→KTEB | Jan 15-17 | 6 | ❌ No |
+| atrip-65262227 | - | KLAX→KSFO | Jan 20 | 3 | ❌ No |
+| atrip-65262229 | Z7CBMX | KORD→KDEN | Jan 25 | 5 | ❌ No |
+
+### Documentation References Confirming Prefill Should Work
+
+We reviewed the official Avinode documentation and found clear references stating that deep links SHOULD prefill/initiate searches automatically:
+
+#### 1. "Search in Avinode from Your System"
+**URL:** https://developer.avinodegroup.com/docs/search-in-avinode-from-your-system
+
+> "In the response from this API call there will be a deep link to use for opening a new browser window with the Avinode search, which will be **initiated immediately**."
+
+> "directly displays the **relevant search results, including itinerary details, passenger numbers, and aircraft categories**"
+
+#### 2. "End Client Trip Search"
+**URL:** https://developer.avinodegroup.com/docs/end-client-trip-search
+
+> searchInAvinode "opens up an aircraft search in Avinode **(based on the lead itinerary)** that will be **initiated immediately**"
+
+#### 3. "Working with Deep Links"
+**URL:** https://developer.avinodegroup.com/docs/working-with-deep-links
+
+> "The `searchInAvinode` action demonstrates how search criteria transfer via deep links... this feature **'runs a search with the parameters (itinerary, date, pax, category) of the original RFQ'** and open[s] up the Avinode web UI displaying the search results."
+
+> "The **RFQ ID embedded in the URL carries the original search parameters automatically.**"
+
+**Key Finding:** The documentation explicitly states:
+- No additional flags or parameters are needed
+- The trip/RFQ ID in the URL path should automatically carry search parameters
+- The search should initiate immediately with prefilled criteria
+
+This confirms the current behavior (empty search form) is **NOT expected** according to documentation.
+
+### Questions for Avinode Support
+
+1. **Documentation states prefill should be automatic** - The "Working with Deep Links" documentation says "The RFQ ID embedded in the URL carries the original search parameters automatically." However, our `searchInAvinode` deep links open with an empty search form. Is this a sandbox-specific limitation?
+
+2. **Does the deep link prefill feature work in the sandbox environment**, or is this a production-only feature?
+
+3. **Is there a session/account requirement** where the browser must be logged in as the same account that created the trip via API for prefill to work?
+
+4. **Are there specific user permissions** required for the prefill functionality (beyond what's needed for trip creation)?
+
+5. **Could there be a timing issue** where the trip criteria is not immediately available for the deep link lookup? Should we wait before clicking the link?
+
+### Current Working Credentials
+
+```bash
+BASE_URI=https://sandbox.avinode.com/api
+API_TOKEN=d221161f-6e64-4f5a-a564-62b7c0b235bc
+AUTHENTICATION_TOKEN=<avitype=16 JWT token>
+EXTERNAL_ID=200E3FA0-4B7F-4C9E-93DC-DC4D009083E9
+```
+
+Token expires: February 8, 2026

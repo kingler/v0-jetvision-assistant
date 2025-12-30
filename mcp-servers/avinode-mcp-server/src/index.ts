@@ -747,16 +747,34 @@ async function searchAirports(params: SearchAirportsParams) {
 
 /**
  * Create a trip container and return deep link for manual operator selection
- * 
+ *
  * @see https://developer.avinodegroup.com/reference/createtrip
- * 
- * Request format per Avinode API documentation:
+ *
+ * CORRECT request format per Avinode API (verified December 2025):
  * {
- *   "externalTripId": "",
- *   "criteria": { ... },
- *   "segments": [ ... ],
- *   "sourcing": true
+ *   "segments": [
+ *     {
+ *       "startAirport": { "icao": "KTEB" },
+ *       "endAirport": { "icao": "KPBI" },
+ *       "dateTime": {
+ *         "date": "2025-01-15",
+ *         "time": "10:00"
+ *       },
+ *       "paxCount": "4",
+ *       "paxSegment": true
+ *     }
+ *   ],
+ *   "sourcing": true,
+ *   "criteria": {}
  * }
+ *
+ * Key differences from legacy format:
+ * - Itinerary goes in top-level `segments[]`, NOT `criteria.legs[]`
+ * - Airports use `startAirport`/`endAirport`, NOT `departureAirport`/`arrivalAirport`
+ * - DateTime is nested object `dateTime: { date, time }`, NOT separate fields
+ * - Passengers is `paxCount` (string) per segment, NOT `criteria.pax` (number)
+ * - `sourcing: true` is REQUIRED for deep link prefill to work
+ * - `criteria` object is for filters only (aircraft category, fuel stops, etc.)
  */
 async function createTrip(params: CreateTripParams) {
   // Validate required parameters
@@ -770,73 +788,72 @@ async function createTrip(params: CreateTripParams) {
     throw new Error('passengers must be at least 1');
   }
 
-  // Build request body per Avinode API specification
-  // @see https://developer.avinodegroup.com/reference/createtrip
-  const requestBody: any = {
-    externalTripId: params.client_reference || '',
-    sourcing: true, // Required: enables sourcing/search functionality
-    segments: [
-      {
-        startAirport: {
-          icao: params.departure_airport,
-        },
-        endAirport: {
-          icao: params.arrival_airport,
-        },
-        dateTime: {
-          date: params.departure_date,
-          time: params.departure_time || '00:00',
-          departure: true,
-          local: true,
-        },
-        paxCount: params.passengers.toString(),
-        paxSegment: true,
-        paxTBD: false,
-        timeTBD: !params.departure_time, // Set to true if time not provided
+  // Build segments array using correct Avinode API format
+  const segments: Array<{
+    startAirport: { icao: string };
+    endAirport: { icao: string };
+    dateTime: {
+      date: string;
+      time: string;
+    };
+    paxCount: string;
+    paxSegment: boolean;
+  }> = [
+    {
+      startAirport: { icao: params.departure_airport },
+      endAirport: { icao: params.arrival_airport },
+      dateTime: {
+        date: params.departure_date,
+        time: params.departure_time || '10:00',
       },
-    ],
-    criteria: {
-      requiredLift: params.aircraft_category
-        ? [
-            {
-              aircraftCategory: params.aircraft_category,
-              aircraftType: '',
-              aircraftTail: '',
-            },
-          ]
-        : [],
-      requiredPartnerships: [],
-      maxFuelStopsPerSegment: 0,
-      includeLiftUpgrades: true,
-      maxInitialPositioningTimeMinutes: 0,
+      paxCount: String(params.passengers),
+      paxSegment: true,
     },
-  };
+  ];
 
-  // Add return segment if provided
+  // Add return segment if provided (round-trip)
   if (params.return_date) {
-    requestBody.segments.push({
-      startAirport: {
-        icao: params.arrival_airport,
-      },
-      endAirport: {
-        icao: params.departure_airport,
-      },
+    segments.push({
+      startAirport: { icao: params.arrival_airport },
+      endAirport: { icao: params.departure_airport },
       dateTime: {
         date: params.return_date,
-        time: params.return_time || '00:00',
-        departure: true,
-        local: true,
+        time: params.return_time || '10:00',
       },
-      paxCount: params.passengers.toString(),
+      paxCount: String(params.passengers),
       paxSegment: true,
-      paxTBD: false,
-      timeTBD: !params.return_time,
     });
   }
 
-  // Add special requirements if provided
+  // Build criteria object for optional filters (aircraft category, etc.)
+  const criteria: Record<string, unknown> = {};
+
+  // Add aircraft category filter if provided
+  if (params.aircraft_category) {
+    criteria.requiredLift = [
+      {
+        aircraftCategory: params.aircraft_category,
+        aircraftType: '',
+        aircraftTail: '',
+      },
+    ];
+  }
+
+  // Add special requirements as notes if provided
   if (params.special_requirements) {
-    requestBody.criteria.notes = params.special_requirements;
+    criteria.notes = params.special_requirements;
+  }
+
+  // Build request body per correct Avinode API format
+  const requestBody: Record<string, unknown> = {
+    segments,           // Top-level segments array (REQUIRED)
+    sourcing: true,     // Enable sourcing/search functionality (REQUIRED for prefill)
+    criteria,           // Optional filters only
+  };
+
+  // Add external reference if provided
+  if (params.client_reference) {
+    requestBody.externalTripId = params.client_reference;
   }
 
   const response = await avinodeClient.post('/trips', requestBody);

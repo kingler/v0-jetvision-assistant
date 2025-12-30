@@ -6,14 +6,120 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Mock the AvinodeClient to prevent real API calls
+vi.mock('@/lib/mcp/clients/avinode-client', () => {
+  return {
+    AvinodeClient: vi.fn().mockImplementation(() => ({
+      searchFlights: vi.fn().mockImplementation((params: any) => {
+        // Base aircraft list
+        let aircraft = [
+          {
+            id: 'AC-001',
+            type: 'Citation XLS',
+            category: 'midsize',
+            capacity: 8,
+            operator: 'Test Operator',
+          },
+          {
+            id: 'AC-002',
+            type: 'Gulfstream G550',
+            category: 'heavy',
+            capacity: 14,
+            operator: 'Premium Jets',
+          },
+          {
+            id: 'AC-003',
+            type: 'Phenom 300',
+            category: 'light',
+            capacity: 6,
+            operator: 'Light Jets Inc',
+          },
+        ];
+
+        // Filter by aircraft_category if provided
+        if (params.aircraft_category) {
+          aircraft = aircraft.filter((a) => a.category === params.aircraft_category);
+        }
+
+        // Filter by passenger capacity
+        if (params.passengers) {
+          aircraft = aircraft.filter((a) => a.capacity >= params.passengers);
+        }
+
+        return Promise.resolve({ aircraft });
+      }),
+      createRFP: vi.fn().mockResolvedValue({
+        rfp_id: 'RFP-12345',
+        status: 'created',
+        operators_notified: 3,
+      }),
+      getQuoteStatus: vi.fn().mockImplementation((rfpId: string) => {
+        if (rfpId === 'NONEXISTENT') {
+          return Promise.reject(new Error('RFP not found'));
+        }
+        return Promise.resolve({
+          rfp_id: rfpId,
+          total_operators: 5,
+          responded: 3,
+          pending: 2,
+          created_at: '2025-11-15T10:00:00Z',
+        });
+      }),
+      getQuotes: vi.fn().mockImplementation((rfpId: string) => {
+        if (rfpId === 'NONEXISTENT') {
+          return Promise.reject(new Error('RFP not found'));
+        }
+        return Promise.resolve({
+          rfp_id: rfpId,
+          quotes: [
+            {
+              quote_id: 'Q-001',
+              operator_id: 'OP-001',
+              operator_name: 'Premium Jets',
+              aircraft_type: 'Gulfstream G550',
+              base_price: 45000,
+            },
+            {
+              quote_id: 'Q-002',
+              operator_id: 'OP-002',
+              operator_name: 'Executive Air',
+              aircraft_type: 'Citation X',
+              base_price: 38000,
+            },
+            {
+              quote_id: 'Q-003',
+              operator_id: 'OP-003',
+              operator_name: 'Charter Plus',
+              aircraft_type: 'Challenger 350',
+              base_price: 42000,
+            },
+          ],
+        });
+      }),
+      createTrip: vi.fn().mockResolvedValue({
+        trip_id: 'TRP-12345',
+        deep_link: 'https://app.avinode.com/trips/TRP-12345',
+        status: 'created',
+      }),
+      getRFQ: vi.fn().mockResolvedValue({
+        rfq_id: 'RFQ-12345',
+        status: 'active',
+        quotes: [],
+      }),
+    })),
+  };
+});
+
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server';
 
 describe('AvinodeMCPServer', () => {
   let server: AvinodeMCPServer;
 
   beforeEach(() => {
-    // Set mock mode for testing
-    process.env.AVINODE_API_KEY = 'mock_key_for_testing';
+    // Set valid API key format for testing (avoids isValidApiKey rejection)
+    // Keys starting with 'mock_' or 'test_' are explicitly rejected
+    process.env.AVINODE_API_KEY = 'valid_api_key_12345678';
     server = new AvinodeMCPServer();
   });
 
@@ -25,17 +131,18 @@ describe('AvinodeMCPServer', () => {
   });
 
   describe('Tool Registration', () => {
-    it('should register all 4 Avinode tools', () => {
+    it('should register all 5 Avinode tools', () => {
       const tools = server.getTools();
       expect(tools).toContain('search_flights');
       expect(tools).toContain('create_rfp');
       expect(tools).toContain('get_quote_status');
       expect(tools).toContain('get_quotes');
+      expect(tools).toContain('create_trip');
     });
 
-    it('should have exactly 4 tools registered', () => {
+    it('should have exactly 5 tools registered', () => {
       const tools = server.getTools();
-      expect(tools).toHaveLength(4);
+      expect(tools).toHaveLength(5);
     });
   });
 

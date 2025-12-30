@@ -14,8 +14,9 @@ import { AvinodeClient } from './clients/avinode-client';
  * Implements tools: search_flights, create_rfp, get_quote_status, get_quotes, get_rfq, get_rfq_flights
  */
 export class AvinodeMCPServer extends BaseMCPServer {
-  private client: AvinodeClient | null;
-  private apiKey: string;
+  private client: AvinodeClient | null = null;
+  private apiKey: string = '';
+  private clientInitialized: boolean = false;
 
   constructor() {
     const config: MCPServerConfig = {
@@ -27,9 +28,31 @@ export class AvinodeMCPServer extends BaseMCPServer {
 
     super(config);
 
-    // Validate and initialize Avinode client
+    // Register all tools (client is lazily initialized on first use)
+    this.registerAvinodeTools();
+  }
+
+  /**
+   * Lazily initialize the Avinode client on first use
+   * This ensures environment variables are loaded in Next.js before reading them
+   */
+  private initializeClient(): void {
+    // Skip if already initialized
+    if (this.clientInitialized) {
+      return;
+    }
+
+    this.clientInitialized = true;
+
+    // Read environment variables at call time (lazy loading)
     this.apiKey = process.env.AVINODE_API_KEY || '';
-    const baseUrl = process.env.AVINODE_BASE_URL || 'https://api.avinode.com';
+    const baseUrl = process.env.AVINODE_BASE_URL || 'https://sandbox.avinode.com/api';
+
+    this.logger.info('Initializing Avinode client (lazy)', {
+      apiKeyLength: this.apiKey.length,
+      baseUrl,
+      hasApiKey: this.apiKey.length > 0,
+    });
 
     // Validate API key before creating client
     if (this.isValidApiKey(this.apiKey)) {
@@ -41,6 +64,7 @@ export class AvinodeMCPServer extends BaseMCPServer {
         this.logger.info('Avinode client initialized successfully', {
           baseUrl,
           hasApiKey: true,
+          apiKeyPrefix: this.apiKey.substring(0, 20) + '...',
         });
       } catch (error) {
         this.logger.error('Failed to initialize Avinode client', {
@@ -59,9 +83,6 @@ export class AvinodeMCPServer extends BaseMCPServer {
         apiKeyPrefix,
       });
     }
-
-    // Register all tools
-    this.registerAvinodeTools();
   }
 
   /**
@@ -103,9 +124,13 @@ export class AvinodeMCPServer extends BaseMCPServer {
 
   /**
    * Ensure client is available before making API calls
+   * Initializes client lazily if not already done
    * @throws Error if client is not available
    */
   private ensureClientAvailable(): void {
+    // Lazy initialization - read env vars on first call
+    this.initializeClient();
+
     if (!this.isClientAvailable()) {
       throw new Error(
         'Avinode client is not available. Please configure a valid AVINODE_API_KEY environment variable.'
@@ -118,6 +143,9 @@ export class AvinodeMCPServer extends BaseMCPServer {
    * Returns true if client is null (invalid/missing API key) or API key is a placeholder
    */
   isUsingMockMode(): boolean {
+    // Lazy initialization - read env vars on first call
+    this.initializeClient();
+
     // Client is null when API key is invalid
     if (!this.isClientAvailable()) {
       return true;

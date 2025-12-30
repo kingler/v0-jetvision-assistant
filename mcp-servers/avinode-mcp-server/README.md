@@ -5,6 +5,7 @@ MCP server for Avinode API integration - flight search and RFP management.
 ## Overview
 
 This MCP server provides tools for interacting with the Avinode API:
+
 - Search for charter flights
 - Search for empty leg flights
 - Create and manage RFPs (Requests for Proposal)
@@ -34,6 +35,7 @@ This MCP server provides tools for interacting with the Avinode API:
 **Required environment variables for Avinode API integration:**
 
 1. Copy `.env.local.example` to `.env.local`:
+
    ```bash
    cp .env.local.example .env.local
    ```
