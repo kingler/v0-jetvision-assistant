@@ -24,12 +24,12 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body className="font-sans">
+      <html lang="en" className="h-full overflow-hidden">
+        <body className="font-sans h-full overflow-hidden">
           <SkipToContent />
           <ErrorBoundary>
             <Suspense fallback={null}>
-              <main id="main-content" tabIndex={-1} className="outline-none">
+              <main id="main-content" tabIndex={-1} className="outline-none h-full overflow-hidden">
                 {children}
               </main>
             </Suspense>

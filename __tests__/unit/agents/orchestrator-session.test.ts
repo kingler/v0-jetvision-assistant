@@ -16,11 +16,15 @@ import {
 vi.mock('@agents/core', () => ({
   AgentFactory: {
     getInstance: vi.fn(() => ({
+      registerAgentType: vi.fn(),
       createAndInitialize: vi.fn().mockResolvedValue({
         execute: vi.fn(),
         shutdown: vi.fn().mockResolvedValue(undefined),
       }),
     })),
+  },
+  AgentType: {
+    ORCHESTRATOR: 'orchestrator',
   },
 }))
 

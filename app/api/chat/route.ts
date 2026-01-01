@@ -78,7 +78,7 @@ CRITICAL WORKFLOW: When a user provides flight details (airports, dates, passeng
 
 Tool Usage Rules:
 - Flight request with airports + date + passengers → Call create_trip (returns deep_link)
-- User provides a Trip ID → Call get_rfq to retrieve quotes
+- User provides a Trip ID → Call get_rfq with the Trip ID to retrieve all RFQs and quotes for that trip
 - User asks about quote status → Call get_quote_status or get_quotes
 - For flight search preview → Call search_flights (optional, for showing options)
 
@@ -92,13 +92,24 @@ Human-in-the-Loop Workflow:
 2. You present the Avinode marketplace deep link prominently
 3. The user opens the deep link in Avinode, reviews operators, and selects which ones to contact
 4. After operators respond (10-30 minutes), user gets quotes with a Trip ID
-5. User provides the Trip ID → You call get_rfq to retrieve all quotes
-6. You display the received quotes with pricing and aircraft details
+5. User provides the Trip ID → You call get_rfq with the Trip ID to retrieve all RFQs and quotes for that trip
+6. DO NOT list flight details in your response - they are already displayed in Step 3 of the UI
+7. Instead, provide clear instructions about next steps
+
+CRITICAL: When quotes are retrieved (after get_rfq is called):
+- DO NOT list individual flights, aircraft types, operators, or pricing details in your message
+- All flight details are already displayed in Step 3 of the UI workflow
+- Instead, provide clear instructions:
+  1. Wait for operators to respond (if status is "Unanswered" or "Sent")
+  2. When operators provide quotes, a "Review and Book" button will appear on the flight card
+  3. Click the "Review and Book" button on the flight card for the flight the customer selects
+- Keep your response concise and focused on guidance, not repeating information already visible
 
 Communication style:
 - Professional yet warm and personable
 - Clear and concise, avoiding jargon
 - ALWAYS present the deep link prominently - it's the key to the marketplace
+- Never duplicate information that's already displayed in the UI
 
 Context:
 - You work with operators via the Avinode marketplace
@@ -270,13 +281,13 @@ const AVINODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_rfq',
-      description: 'Get RFQ (Request for Quote) details including all received quotes from operators. Use this when the user provides a Trip ID to retrieve their quotes after completing selection in Avinode marketplace.',
+      description: 'Get RFQ (Request for Quote) details including all received quotes from operators. This tool automatically handles both RFQ IDs and Trip IDs: Use with RFQ ID (arfq-*) for a single RFQ, or Trip ID (atrip-*) to get all RFQs for that trip. When user provides a Trip ID, use this tool with the Trip ID to retrieve all RFQs and quotes.',
       parameters: {
         type: 'object',
         properties: {
           rfq_id: {
             type: 'string',
-            description: 'The RFQ/Trip ID to retrieve quotes for (6-12 alphanumeric characters)',
+            description: 'The RFQ identifier (e.g., arfq-12345678) or Trip ID (e.g., atrip-12345678). If it starts with "atrip-", returns all RFQs for that trip.',
           },
         },
         required: ['rfq_id'],
@@ -479,18 +490,21 @@ export async function POST(req: NextRequest) {
           },
         })
 
+        // Type assertion for result data that may contain workflow_status
+        const resultData = result.data as { workflow_status?: string } | undefined
+
         console.log('[Chat API] OrchestratorAgent result:', {
           success: result.success,
           hasData: !!result.data,
           hasError: !!result.error,
           toolCallsCount: result.metadata?.toolCalls || 0,
-          workflowStatus: result.data?.workflow_status,
+          workflowStatus: resultData?.workflow_status,
         })
 
         // Check if workflow actually completed successfully
         // The orchestrator may return success:true but with workflow_status:'FAILED'
         // In that case, fall back to direct Avinode tools
-        const workflowFailed = result.data?.workflow_status === 'FAILED'
+        const workflowFailed = resultData?.workflow_status === 'FAILED'
         if (workflowFailed) {
           console.log('[Chat API] OrchestratorAgent workflow failed, falling back to direct Avinode tools')
           // Continue to legacy processing below
@@ -830,7 +844,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Handle get_rfq tool - returns quotes data
+        // Handle get_rfq tool - returns quotes data for a single RFQ
         if (toolCall.function.name === 'get_rfq') {
           try {
             const parsed = JSON.parse(toolResultContent)
@@ -845,6 +859,7 @@ export async function POST(req: NextRequest) {
             // Ignore parse errors
           }
         }
+
       }
 
       // Return non-streaming JSON response with tool results

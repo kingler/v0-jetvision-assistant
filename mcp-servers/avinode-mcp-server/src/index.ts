@@ -395,13 +395,13 @@ const tools: Tool[] = [
   },
   {
     name: 'get_rfq',
-    description: 'Retrieve details of a Request for Quote (RFQ) including status and received quotes',
+    description: 'Retrieve details of a Request for Quote (RFQ) including status and received quotes. Automatically handles both RFQ IDs (arfq-*) and Trip IDs (atrip-*). When a Trip ID is provided, returns all RFQs for that trip.',
     inputSchema: {
       type: 'object',
       properties: {
         rfq_id: {
           type: 'string',
-          description: 'The RFQ identifier (e.g., arfq-12345678)',
+          description: 'The RFQ identifier (e.g., arfq-12345678) or Trip ID (e.g., atrip-12345678). If it starts with "atrip-", returns all RFQs for that trip.',
         },
       },
       required: ['rfq_id'],
@@ -906,7 +906,11 @@ async function createTrip(params: CreateTripParams) {
 /**
  * Get RFQ details including status and quotes
  * 
- * @see https://developer.avinodegroup.com/reference/readbynumericid
+ * Automatically handles both RFQ IDs and Trip IDs:
+ * - RFQ ID (arfq-*): Returns single RFQ with quotes
+ *   @see https://developer.avinodegroup.com/reference/readbynumericid
+ * - Trip ID (atrip-*): Returns all RFQs for that trip
+ *   @see https://developer.avinodegroup.com/reference/readtriprfqs
  * 
  * Optional query parameters:
  * - taildetails: Additional aircraft information
@@ -920,27 +924,110 @@ async function getRFQ(params: GetRFQParams) {
     throw new Error('rfq_id is required');
   }
 
-  // Extract numeric ID if prefixed (e.g., "arfq-12345678" -> "12345678")
-  // Per Avinode API: endpoint accepts numeric ID or prefixed ID
-  // Uses robust extraction to handle IDs with additional hyphens (e.g., "arfq-123-456")
-  let numericId: string;
-  try {
-    numericId = extractNumericId(params.rfq_id);
-  } catch (error) {
-    throw new Error(
-      `Invalid RFQ ID format: "${params.rfq_id}". ${error instanceof Error ? error.message : String(error)}`
-    );
+  // Extract ID for API call
+  // Handle different formats: arfq-*, atrip-*, or other formats like QQ263P
+  let apiId: string;
+  if (params.rfq_id.startsWith('atrip-') || params.rfq_id.startsWith('arfq-')) {
+    // Extract numeric ID from prefixed format
+    try {
+      apiId = extractNumericId(params.rfq_id);
+    } catch (error) {
+      throw new Error(
+        `Invalid RFQ ID format: "${params.rfq_id}". ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  } else {
+    // For other formats (like QQ263P), use as-is
+    apiId = params.rfq_id;
   }
 
   // Request with optional query parameters for additional details
-  // @see https://developer.avinodegroup.com/reference/readbynumericid
-  const response = await avinodeClient.get(`/rfqs/${numericId}`, {
+  // Per API docs: https://developer.avinodegroup.com/reference/readtriprfqs
+  // Endpoint: GET /rfqs/{tripId}
+  // The endpoint returns an array of RFQ objects for a Trip ID
+  const response = await avinodeClient.get(`/rfqs/${apiId}`, {
     params: {
       taildetails: true, // Include aircraft details
       typedetails: true, // Include aircraft type details
       timestamps: true, // Include update timestamps
+      quotebreakdown: true, // Include detailed quote breakdown
+      latestquote: true, // Include latest quote on each lift
+      tailphotos: true, // Include links to aircraft photos
+      typephotos: true, // Include links to generic aircraft type photos
     },
   });
+
+  console.log('[getRFQ] API response type:', typeof response, 'isArray:', Array.isArray(response));
+  console.log('[getRFQ] Response keys:', response && typeof response === 'object' ? Object.keys(response) : 'N/A');
+
+  // Per API docs: GET /rfqs/{tripId} returns an array of RFQ objects
+  // Single RFQ endpoint returns a single object with rfq_id field
+  // Detect if response is for a Trip ID (array of RFQs) or single RFQ (object with rfq_id)
+  const isTripIdResponse = Array.isArray(response);
+
+  if (isTripIdResponse) {
+    // Trip ID response: response is already an array of RFQs
+    const rfqs = response;
+    
+    // Flatten all quotes from all RFQs
+    const allQuotes: any[] = [];
+    const rfqDetails: any[] = [];
+
+    console.log('[getRFQ] Processing', rfqs.length, 'RFQs from Trip ID response');
+    
+    for (const rfq of rfqs) {
+      // Extract quotes from the RFQ object
+      // Quotes may be in 'quotes', 'requests', 'responses', or 'lifts' array
+      const quotes = rfq.quotes || 
+                    rfq.requests || 
+                    rfq.responses || 
+                    (rfq.lifts && Array.isArray(rfq.lifts) ? rfq.lifts.flatMap((lift: any) => lift.quotes || []) : []) ||
+                    [];
+      
+      console.log('[getRFQ] RFQ', rfq.rfq_id || rfq.id, 'has', quotes.length, 'quotes');
+      
+      rfqDetails.push({
+        rfq_id: rfq.rfq_id || rfq.id,
+        trip_id: rfq.trip_id || params.rfq_id,
+        status: rfq.status,
+        created_at: rfq.created_at,
+        quote_deadline: rfq.quote_deadline,
+        route: rfq.route,
+        passengers: rfq.passengers,
+        quotes_received: quotes.length,
+        operators_contacted: rfq.operators_contacted,
+        deep_link: rfq.deep_link,
+      });
+
+      // Add all quotes from this RFQ
+      allQuotes.push(...quotes);
+    }
+
+    console.log('[getRFQ] Total quotes extracted:', allQuotes.length);
+
+    return {
+      trip_id: params.rfq_id,
+      rfqs: rfqDetails,
+      total_rfqs: rfqDetails.length,
+      quotes: allQuotes,
+      total_quotes: allQuotes.length,
+    };
+  }
+
+  // Single RFQ response (original behavior)
+  const quotes = response.quotes || response.requests || response.responses || [];
+  const quotesReceived = response.quotes_received || quotes.length || 0;
+
+  // Log quote count for debugging discrepancy issues
+  if (quotes.length !== quotesReceived) {
+    console.error(`[getRFQ] Quote count mismatch for RFQ ${params.rfq_id}:`, {
+      quotesArrayLength: quotes.length,
+      quotesReceivedField: response.quotes_received,
+      hasQuotes: !!response.quotes,
+      hasRequests: !!response.requests,
+      hasResponses: !!response.responses,
+    });
+  }
 
   return {
     rfq_id: response.rfq_id || params.rfq_id,
@@ -950,8 +1037,8 @@ async function getRFQ(params: GetRFQParams) {
     quote_deadline: response.quote_deadline,
     route: response.route,
     passengers: response.passengers,
-    quotes_received: response.quotes_received || response.quotes?.length || 0,
-    quotes: response.quotes || [],
+    quotes_received: quotesReceived,
+    quotes: quotes,
     operators_contacted: response.operators_contacted,
     deep_link: response.deep_link,
   };

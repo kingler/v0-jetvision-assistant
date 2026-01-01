@@ -77,7 +77,9 @@ export interface CreateTripParams {
 
 /**
  * Get RFQ Parameters
- * Retrieves details of a Request for Quote
+ * Retrieves details of a Request for Quote or all RFQs for a Trip ID
+ * - RFQ ID (arfq-*): Returns single RFQ with quotes
+ * - Trip ID (atrip-*): Returns all RFQs for that trip
  */
 export interface GetRFQParams {
   rfq_id: string;
@@ -209,6 +211,19 @@ export interface Airport {
   timezone: string;
 }
 
+/**
+ * Aircraft Photo
+ * Returned when tailphotos or typephotos query params are enabled
+ */
+export interface AircraftPhoto {
+  url: string;
+  caption?: string;
+  type?: 'exterior' | 'interior' | 'cabin' | 'cockpit' | 'galley' | 'lavatory';
+  width?: number;
+  height?: number;
+  thumbnail_url?: string;
+}
+
 // ============================================================================
 // Response Interfaces for New Tools
 // ============================================================================
@@ -265,6 +280,12 @@ export interface RFQDetailsResponse {
   quotes: Quote[];
   operators_contacted: number;
   deep_link: string;
+  // Timestamp fields (when timestamps=true)
+  updated_by_buyer?: string;
+  latest_updated_date_by_seller?: string;
+  // Photo arrays (when tailphotos/typephotos=true)
+  aircraft_photos?: AircraftPhoto[];
+  type_photos?: AircraftPhoto[];
 }
 
 /**
@@ -292,6 +313,8 @@ export interface QuoteDetailsResponse {
     capacity: number;
     year_built?: number;
     amenities?: string[];
+    photos?: AircraftPhoto[];
+    type_photos?: AircraftPhoto[];
   };
   pricing: {
     base_price: number;

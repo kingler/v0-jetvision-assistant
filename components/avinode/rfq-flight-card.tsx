@@ -35,6 +35,7 @@ import {
   Calendar,
   ShoppingCart,
   MessageSquare,
+  ExternalLink,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -61,18 +62,30 @@ export interface RFQFlight {
   flightDuration: string;
   aircraftType: string;
   aircraftModel: string;
+  /** Aircraft tail number (registration) - maps to aircraft.registration in API */
   tailNumber?: string;
+  /** Year aircraft was manufactured - maps to aircraft.year_built in API */
   yearOfManufacture?: number;
+  /** Maximum passenger capacity - maps to aircraft.capacity in API */
   passengerCapacity: number;
-  aircraftImageUrl?: string;
+  /** Aircraft photo URL - retrieved via tailphotos=true query param */
+  tailPhotoUrl?: string;
   operatorName: string;
   operatorRating?: number;
   operatorEmail?: string;
-  price: number;
+  /** Total price - maps to pricing.total in Avinode API */
+  totalPrice: number;
+  /** Currency code (ISO 4217) - maps to pricing.currency in API */
   currency: string;
+  /** Price breakdown - maps to pricing.breakdown in API */
   priceBreakdown?: {
-    base: number;
+    /** Base charter price - maps to pricing.base_price */
+    basePrice: number;
+    /** Fuel surcharge - maps to pricing.fuel_surcharge */
+    fuelSurcharge?: number;
+    /** Tax amount - maps to pricing.taxes */
     taxes: number;
+    /** Additional fees - maps to pricing.fees */
     fees: number;
   };
   validUntil?: string;
@@ -88,12 +101,14 @@ export interface RFQFlight {
   lastUpdated: string;
   responseTimeMinutes?: number;
   isSelected?: boolean;
-  /** Aircraft category (e.g., "Heavy jet", "Light jet") */
+  /** Aircraft category (e.g., "Heavy jet", "Light jet") - maps to aircraftCategory.name in API */
   aircraftCategory?: string;
   /** Whether medical equipment is available */
   hasMedical?: boolean;
   /** Whether package/cargo transport is available */
   hasPackage?: boolean;
+  /** Deep link to view this flight in Avinode marketplace - maps to actions.viewInAvinode.href */
+  avinodeDeepLink?: string;
 }
 
 export interface RFQFlightCardProps {
@@ -115,6 +130,10 @@ export interface RFQFlightCardProps {
   hasMedical?: boolean;
   /** Whether package/cargo transport is available */
   hasPackage?: boolean;
+  /** Deep link to view this flight in Avinode marketplace */
+  avinodeDeepLink?: string;
+  /** Callback when "View in Avinode" button is clicked */
+  onViewInAvinode?: (flightId: string, deepLink?: string) => void;
 }
 
 // =============================================================================
@@ -237,15 +256,27 @@ function getButtonText(status: RFQFlight['rfqStatus']): string {
 function mapAircraftTypeToCategory(aircraftType: string): string {
   const type = aircraftType.toLowerCase();
 
+  // Turbo prop / Propeller aircraft
+  if (type.includes('turbo prop') || type.includes('turboprop') || type.includes('pc-12') || type.includes('king air') || type.includes('caravan')) {
+    return 'Turbo prop';
+  }
+
+  // Light jets
   if (type.includes('phenom') || type.includes('citation cj') || type.includes('learjet')) {
     return 'Light jet';
   }
+  
+  // Midsize jets
   if (type.includes('challenger') || type.includes('citation x') || type.includes('falcon') || type.includes('hawker')) {
     return 'Midsize jet';
   }
+  
+  // Heavy jets
   if (type.includes('gulfstream') || type.includes('global 7500') || type.includes('global express')) {
     return 'Heavy jet';
   }
+  
+  // Ultra long range
   if (type.includes('ultra') || type.includes('global 7500')) {
     return 'Ultra long range';
   }
@@ -323,6 +354,8 @@ export function RFQFlightCard({
   aircraftCategory,
   hasMedical,
   hasPackage,
+  avinodeDeepLink,
+  onViewInAvinode,
 }: RFQFlightCardProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
   // Track image loading errors to show placeholder when image fails to load
@@ -335,7 +368,7 @@ export function RFQFlightCard({
    */
   useEffect(() => {
     setImageError(false);
-  }, [flight.aircraftImageUrl]);
+  }, [flight.tailPhotoUrl]);
 
   const handleSelectionChange = (checked: boolean) => {
     onSelect?.(flight.id, checked);
@@ -353,6 +386,24 @@ export function RFQFlightCard({
   const handleViewChat = () => {
     onViewChat?.(flight.id);
   };
+
+  /**
+   * Handles the "View in Avinode" button click
+   * Opens the flight details in Avinode marketplace
+   * Uses prop deepLink if provided, otherwise falls back to flight.avinodeDeepLink
+   */
+  const handleViewInAvinode = () => {
+    const deepLink = avinodeDeepLink || flight.avinodeDeepLink;
+    if (deepLink) {
+      window.open(deepLink, '_blank', 'noopener,noreferrer');
+    }
+    onViewInAvinode?.(flight.id, deepLink);
+  };
+
+  /**
+   * Get the deep link for this flight (from prop or flight object)
+   */
+  const flightDeepLink = avinodeDeepLink || flight.avinodeDeepLink;
 
   /**
    * Get aircraft category - use prop if provided, otherwise map from aircraft type
@@ -384,40 +435,46 @@ export function RFQFlightCard({
     <div
       data-testid="rfq-flight-card"
       className={cn(
-        'border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-all',
+        'bg-white dark:bg-gray-900 transition-all',
         flight.isSelected && selectable && 'ring-2 ring-blue-500 border-transparent',
-        compact ? 'h-auto' : '',
         className
       )}
+      style={{ height: 'fit-content' }}
     >
-      {/* 3-Column Layout: Image (30%) | Aircraft/Transport/Amenities/Operator (middle) | Price (right) */}
-      <div className={cn('flex', compact ? 'flex-col sm:flex-row' : 'flex-row')}>
-        {/* Column 1: Aircraft Image - 30% width */}
+      {/* 3-Column Layout: Image (225px) | Aircraft/Transport/RFQ Status (middle) | Price/Amenities/Operator (right) */}
+      <div className={cn('flex pb-4', compact ? 'flex-col sm:flex-row' : 'flex-row')} style={{ minHeight: '282px' }}>
+        {/* Column 1: Aircraft Image - 225px width, column layout, 280px height */}
         <div className={cn(
-          'bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0',
-          compact ? 'w-full h-32 sm:w-[30%] sm:h-auto' : 'w-[30%] h-full min-h-[400px]'
-        )}>
-          {flight.aircraftImageUrl && !imageError ? (
+          'bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center shrink-0',
+          compact ? 'w-full h-[280px] sm:w-[225px]' : 'w-[225px] h-[280px]'
+        )} style={{ height: '280px', gap: '0px' }}>
+          {flight.tailPhotoUrl && !imageError ? (
             <img
-              src={flight.aircraftImageUrl}
+              src={flight.tailPhotoUrl}
               alt={flight.aircraftModel}
               className="w-full h-full object-cover"
               onError={handleImageError}
             />
           ) : (
-            <div data-testid="aircraft-placeholder" className="flex items-center justify-center w-full h-full bg-gray-200 dark:bg-gray-700">
-              <Plane className="h-16 w-16 text-gray-400 dark:text-gray-500" />
+            <div data-testid="aircraft-placeholder" className="flex items-center justify-center w-full h-full bg-gray-200 dark:bg-gray-700" style={{ height: 'fit-content' }}>
+              <Plane className="h-16 w-16 text-gray-400 dark:text-gray-500" style={{ height: '100%' }} />
             </div>
           )}
         </div>
 
-        {/* Column 2: Aircraft, Transport, Amenities, Operator - Middle column */}
-        <div className="flex-1 py-4 space-y-5">
+        {/* Column 2: Aircraft, Transport, RFQ Status - Middle column - Added left padding for spacing */}
+        <div className="flex-1 py-4 pl-5 space-y-5" style={{ height: 'fit-content' }}>
           {/* Aircraft Section */}
           <div data-testid="aircraft-section" className="space-y-2">
             <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Aircraft</h5>
             <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
               <p><span className="font-medium">Category:</span> {category}</p>
+              {flight.aircraftModel && (
+                <p><span className="font-medium">Aircraft:</span> {flight.aircraftModel}</p>
+              )}
+              {flight.tailNumber && (
+                <p><span className="font-medium">Tail Number:</span> {flight.tailNumber}</p>
+              )}
               {flight.yearOfManufacture && (
                 <p><span className="font-medium">Year of Make:</span> {flight.yearOfManufacture}</p>
               )}
@@ -434,7 +491,7 @@ export function RFQFlightCard({
             </div>
           </div>
 
-          {/* RFQ Status Section - Separate section per wireframe */}
+          {/* RFQ Status Section */}
           <div data-testid="rfq-status-section" className="space-y-2">
             <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">RFQ Status</h5>
             <span 
@@ -446,48 +503,6 @@ export function RFQFlightCard({
             >
               {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
             </span>
-          </div>
-
-          {/* Amenities Section */}
-          <div data-testid="amenities-section" className="space-y-2">
-            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Amenities</h5>
-            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-              <p><span className="font-medium">Pets Allowed:</span> {flight.amenities.pets ? 'YES' : 'NO'}</p>
-              <p><span className="font-medium">Smoking Allowed:</span> {flight.amenities.smoking ? 'YES' : 'NO'}</p>
-              <p><span className="font-medium">Wi-Fi:</span> {flight.amenities.wifi ? 'YES' : 'NO'}</p>
-            </div>
-          </div>
-
-          {/* Operator Section */}
-          <div data-testid="operator-section" className="space-y-2">
-            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Operator</h5>
-            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-              <p><span className="font-medium">Company:</span> {flight.operatorName}</p>
-              {flight.operatorEmail && (
-                <p><span className="font-medium">Email:</span> {flight.operatorEmail}</p>
-              )}
-              {flight.operatorRating && (
-                <p className="flex items-center gap-1">
-                  <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                  <span className="font-medium">Rating:</span> {flight.operatorRating}
-                </p>
-              )}
-              {onViewChat && (
-                <div className="pt-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5">Messages:</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleViewChat}
-                    className="flex items-center gap-2"
-                    aria-label={`View chat with ${flight.operatorName}`}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    View Chat
-                  </Button>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Selection Checkbox (if selectable) */}
@@ -503,20 +518,68 @@ export function RFQFlightCard({
           )}
         </div>
 
-        {/* Column 3: Price Section - Right column */}
-        <div className="w-[200px] shrink-0 py-4 border-l border-gray-200 dark:border-gray-700">
-          <div data-testid="price-section" className="space-y-2">
-            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Price</h5>
-            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {formatPrice(flight.price, flight.currency)}
-            </p>
+        {/* Column 3: Price, Amenities, Operator - Right column - Removed vertical separator */}
+        <div className="w-[200px] shrink-0 py-4 pl-5 flex flex-col space-y-5" style={{ height: 'fit-content' }}>
+          {/* Price Section */}
+          <div data-testid="price-section" className="flex flex-col gap-2">
+            <div style={{ display: 'flex', flexFlow: 'row' }}>
+              <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100" style={{ width: '100%' }}>Price</h5>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100" style={{ width: 'fit-content' }}>
+                {formatPrice(flight.totalPrice, flight.currency)}
+              </p>
+            </div>
             {showPriceBreakdown && flight.priceBreakdown && (
               <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                <p>Base: {formatPrice(flight.priceBreakdown.base, flight.currency)}</p>
+                <p>Base: {formatPrice(flight.priceBreakdown.basePrice, flight.currency)}</p>
+                {flight.priceBreakdown.fuelSurcharge && (
+                  <p>Fuel: {formatPrice(flight.priceBreakdown.fuelSurcharge, flight.currency)}</p>
+                )}
                 <p>Taxes: {formatPrice(flight.priceBreakdown.taxes, flight.currency)}</p>
                 <p>Fees: {formatPrice(flight.priceBreakdown.fees, flight.currency)}</p>
               </div>
             )}
+          </div>
+
+          {/* Amenities Section */}
+          <div data-testid="amenities-section" className="space-y-2">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Amenities</h5>
+            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <p><span className="font-medium">Pets Allowed:</span> {flight.amenities.pets ? 'YES' : 'NO'}</p>
+              <p><span className="font-medium">Smoking Allowed:</span> {flight.amenities.smoking ? 'YES' : 'NO'}</p>
+              <p><span className="font-medium">Wi-Fi:</span> {flight.amenities.wifi ? 'YES' : 'NO'}</p>
+            </div>
+          </div>
+
+          {/* Operator Section - Added bottom padding to prevent overlap with separator */}
+          <div data-testid="operator-section" className="space-y-2 pb-4">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Operator</h5>
+            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <p><span className="font-medium">Company:</span> {flight.operatorName}</p>
+              {flight.operatorEmail && (
+                <p><span className="font-medium">Email:</span> {flight.operatorEmail}</p>
+              )}
+              {flight.operatorRating && (
+                <p className="flex items-center gap-1">
+                  <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                  <span className="font-medium">Rating:</span> {flight.operatorRating}
+                </p>
+              )}
+              {onViewChat && (
+                <div className="pt-2 flex flex-row justify-between items-center">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Messages:</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleViewChat}
+                    className="flex items-center gap-2"
+                    aria-label="View chat"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    View
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

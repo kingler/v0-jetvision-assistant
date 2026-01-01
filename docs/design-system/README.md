@@ -189,11 +189,11 @@ Jetvision Group represents the pinnacle of private aviation services. Our design
 
 ### Color Palette
 
-**Primary - Aviation Blue (#0066cc)**
-Represents trust, professionalism, and the sky.
+**Primary - Sky Blue (#00a8e8)**
+Represents trust, professionalism, innovation, speed, and the open sky.
 
-**Secondary - Sky Blue (#00a8e8)**
-Represents innovation, speed, and the open sky.
+**Secondary - Text Link Style**
+Flat text link style using primary color (Sky Blue) for text, transparent background.
 
 **Accent - Sunset Orange (#ff6b35)**
 Adds warmth, energy, and a premium feel.

@@ -47,25 +47,25 @@ Jetvision Group represents the pinnacle of private aviation services. Our design
 
 Our color palette draws inspiration from aviation, sky, and premium aesthetics.
 
-#### Primary - Aviation Blue
+#### Primary - Sky Blue
 
-The cornerstone of our brand identity. Represents trust, professionalism, and the sky.
+The cornerstone of our brand identity. Represents trust, professionalism, innovation, speed, and the open sky.
 
 ```
-Aviation Blue 500 (Primary): #0066cc
+Sky Blue 500 (Primary): #00a8e8
 ```
 
 **Color Scale:**
-- `50`: #e6f2ff (Very light blue - backgrounds)
-- `100`: #cce5ff (Light blue - hover states)
-- `200`: #99cbff
-- `300`: #66b0ff
-- `400`: #3396ff
-- `500`: #0066cc **← Primary Brand Color**
-- `600`: #0052a3 (Hover states)
-- `700`: #003d7a (Active states)
-- `800`: #002952 (Dark accents)
-- `900`: #001429 (Very dark - text on light backgrounds)
+- `50`: #e6f7fc (Very light blue - backgrounds)
+- `100`: #cceff9 (Light blue - hover states)
+- `200`: #99dff3
+- `300`: #66cfed
+- `400`: #33bfe7
+- `500`: #00a8e8 **← Primary Brand Color**
+- `600`: #0087ba (Hover states)
+- `700`: #00658b (Active states)
+- `800`: #00445d (Dark accents)
+- `900`: #00222e (Very dark - text on light backgrounds)
 
 **Usage:**
 - Primary buttons, links, and CTAs
@@ -74,38 +74,57 @@ Aviation Blue 500 (Primary): #0066cc
 - Brand touchpoints
 
 **Accessibility:**
-- ✓ White text on Aviation Blue 500: **Contrast 6.8:1** (AA compliant)
-- ✓ Aviation Blue 700 on white: **Contrast 8.2:1** (AAA compliant)
+- ✓ White text on Sky Blue 500: **Contrast 4.6:1** (AA compliant for large text)
+- ✓ Sky Blue 700 on white: **Contrast 6.5:1** (AA compliant)
 
-#### Secondary - Sky Blue
+#### Secondary - Text Link Style
 
-Represents innovation, speed, and the open sky.
+Secondary buttons use a flat text link style with the primary color (Sky Blue) for text.
 
 ```
-Sky Blue 500 (Secondary): #00a8e8
+Secondary Style: Transparent background, Sky Blue (#00a8e8) text
+```
+
+**Usage:**
+- Secondary buttons (text link style)
+- Less prominent actions
+- Alternative CTAs
+- Inline actions
+
+**Styling:**
+- Background: Transparent
+- Text color: Primary color (Sky Blue #00a8e8)
+- Hover: Underline text
+- No background or shadow
+
+**Accessibility:**
+- ✓ Sky Blue 500 on white: **Contrast 4.6:1** (AA compliant for large text)
+- ✓ Sky Blue 700 on white: **Contrast 6.5:1** (AA compliant)
+
+#### Legacy - Aviation Blue
+
+Kept for backward compatibility and specific use cases.
+
+```
+Aviation Blue 500: #0066cc
 ```
 
 **Color Scale:**
-- `50`: #e6f7fc
-- `100`: #cceff9
-- `200`: #99dff3
-- `300`: #66cfed
-- `400`: #33bfe7
-- `500`: #00a8e8 **← Secondary Brand Color**
-- `600`: #0087ba
-- `700`: #00658b
-- `800`: #00445d
-- `900`: #00222e
+- `50`: #e6f2ff
+- `100`: #cce5ff
+- `200`: #99cbff
+- `300`: #66b0ff
+- `400`: #3396ff
+- `500`: #0066cc
+- `600`: #0052a3
+- `700`: #003d7a
+- `800`: #002952
+- `900`: #001429
 
 **Usage:**
-- Secondary buttons
-- Informational highlights
-- Icons and accents
-- Data visualizations
-
-**Accessibility:**
-- ✓ White text on Sky Blue 500: **Contrast 4.6:1** (AA compliant for large text)
-- ✓ Sky Blue 700 on white: **Contrast 6.5:1** (AA compliant)
+- Legacy components (being phased out)
+- Specific design requirements
+- Not recommended for new components
 
 #### Accent - Sunset Orange
 
@@ -523,7 +542,7 @@ outline-offset: 2px;
 ```
 
 **Focus ring color:**
-- Light mode: Aviation Blue 600
+- Light mode: Sky Blue 600
 - Dark mode: Sky Blue 400
 
 #### Touch Targets
@@ -573,7 +592,7 @@ All buttons, links, and interactive elements should meet minimum touch target si
 #### Colors
 
 **Do:**
-- Use Aviation Blue for primary actions
+- Use Sky Blue for primary actions
 - Maintain consistent brand colors across platform
 - Ensure sufficient contrast ratios
 - Use semantic colors for their intended purpose
@@ -633,7 +652,7 @@ All buttons, links, and interactive elements should meet minimum touch target si
 import { tokens, getBrandColor, typography, space } from '@/lib/design-system'
 
 // Get specific color
-const primaryColor = getBrandColor('aviationBlue', 500) // #0066cc
+const primaryColor = getBrandColor('skyBlue', 500) // #00a8e8
 
 // Create typography styles
 const headingStyle = typography('h1', 'bold', 'tight')

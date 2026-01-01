@@ -317,7 +317,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGrouped }) => 
             isOperator &&
               'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 operator',
             isUser &&
-              'bg-blue-600 text-white iso_agent',
+              'bg-black dark:bg-gray-900 text-white iso_agent',
             isSystem && 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100 border border-yellow-200 dark:border-yellow-800'
           )}
         >

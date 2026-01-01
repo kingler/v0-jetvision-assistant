@@ -102,10 +102,47 @@ vi.mock('@/lib/mcp/clients/avinode-client', () => {
         deep_link: 'https://app.avinode.com/trips/TRP-12345',
         status: 'created',
       }),
-      getRFQ: vi.fn().mockResolvedValue({
-        rfq_id: 'RFQ-12345',
-        status: 'active',
-        quotes: [],
+      getRFQ: vi.fn().mockImplementation((rfqId: string) => {
+        // If it's a Trip ID (atrip-*), return array of RFQs
+        if (rfqId.startsWith('atrip-')) {
+          return Promise.resolve([
+            {
+              rfq_id: 'arfq-12345',
+              trip_id: rfqId,
+              status: 'quoted',
+              quotes: [
+                {
+                  quote_id: 'aquote-001',
+                  operator_id: 'OP-001',
+                  operator_name: 'NetJets',
+                  aircraft_type: 'Gulfstream G650',
+                  base_price: 45000,
+                  total_price: 52000,
+                },
+                {
+                  quote_id: 'aquote-002',
+                  operator_id: 'OP-002',
+                  operator_name: 'VistaJet',
+                  aircraft_type: 'Challenger 350',
+                  base_price: 38000,
+                  total_price: 44000,
+                },
+              ],
+            },
+            {
+              rfq_id: 'arfq-12346',
+              trip_id: rfqId,
+              status: 'pending',
+              quotes: [],
+            },
+          ]);
+        }
+        // Single RFQ response
+        return Promise.resolve({
+          rfq_id: rfqId,
+          status: 'active',
+          quotes: [],
+        });
       }),
     })),
   };
@@ -131,18 +168,19 @@ describe('AvinodeMCPServer', () => {
   });
 
   describe('Tool Registration', () => {
-    it('should register all 5 Avinode tools', () => {
+    it('should register all 6 Avinode tools', () => {
       const tools = server.getTools();
       expect(tools).toContain('search_flights');
       expect(tools).toContain('create_rfp');
       expect(tools).toContain('get_quote_status');
       expect(tools).toContain('get_quotes');
       expect(tools).toContain('create_trip');
+      expect(tools).toContain('get_rfq');
     });
 
-    it('should have exactly 5 tools registered', () => {
+    it('should have exactly 6 tools registered', () => {
       const tools = server.getTools();
-      expect(tools).toHaveLength(5);
+      expect(tools).toHaveLength(6);
     });
   });
 
@@ -384,6 +422,74 @@ describe('AvinodeMCPServer', () => {
           rfp_id: 'NONEXISTENT',
         })
       ).rejects.toThrow('RFP not found');
+    });
+  });
+
+  describe('get_rfq Tool', () => {
+    beforeEach(async () => {
+      await server.start();
+    });
+
+    it('should return single RFQ details for RFQ ID', async () => {
+      const result = await server.executeTool('get_rfq', {
+        rfq_id: 'arfq-12345',
+      });
+
+      expect(result).toHaveProperty('rfq_id');
+      expect(result).toHaveProperty('status');
+    });
+
+    it('should return array of RFQs for Trip ID', async () => {
+      const result = await server.executeTool('get_rfq', {
+        rfq_id: 'atrip-64956150',
+      });
+
+      // Trip ID response returns array of RFQs
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+
+      // First RFQ should have expected structure
+      const firstRfq = result[0];
+      expect(firstRfq).toHaveProperty('rfq_id');
+      expect(firstRfq).toHaveProperty('trip_id');
+      expect(firstRfq).toHaveProperty('status');
+    });
+
+    it('should include quotes in each RFQ from Trip ID response', async () => {
+      const result = await server.executeTool('get_rfq', {
+        rfq_id: 'atrip-64956150',
+      });
+
+      // Check that RFQs contain quotes array
+      expect(Array.isArray(result)).toBe(true);
+      const rfqWithQuotes = result.find((rfq: any) => rfq.quotes && rfq.quotes.length > 0);
+      expect(rfqWithQuotes).toBeDefined();
+      expect(Array.isArray(rfqWithQuotes.quotes)).toBe(true);
+
+      // Verify quote structure
+      const quote = rfqWithQuotes.quotes[0];
+      expect(quote).toHaveProperty('quote_id');
+      expect(quote).toHaveProperty('operator_name');
+      expect(quote).toHaveProperty('aircraft_type');
+    });
+
+    it('should include RFQ details in each array item', async () => {
+      const result = await server.executeTool('get_rfq', {
+        rfq_id: 'atrip-64956150',
+      });
+
+      // Each RFQ in array should have expected structure
+      const rfq = result[0];
+      expect(rfq).toHaveProperty('rfq_id');
+      expect(rfq).toHaveProperty('trip_id');
+      expect(rfq).toHaveProperty('status');
+      expect(rfq).toHaveProperty('quotes');
+    });
+
+    it('should validate rfq_id parameter is required', async () => {
+      await expect(
+        server.executeTool('get_rfq', {})
+      ).rejects.toThrow();
     });
   });
 

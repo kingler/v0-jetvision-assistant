@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils'
  * Button Component - Jetvision Design System
  *
  * Variants:
- * - default: Aviation Blue (primary brand color)
- * - secondary: Sky Blue
+ * - default: Sky Blue (primary brand color)
+ * - secondary: Text link style with primary color
  * - accent: Sunset Orange
  * - destructive: Error red
  * - outline: Bordered button
@@ -23,12 +23,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Primary - Aviation Blue (#0066cc)
+        // Primary - Sky Blue (#00a8e8)
         default:
           'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
-        // Secondary - Sky Blue (#00a8e8)
+        // Secondary - Text link style (flat, no background, primary color text)
         secondary:
-          'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
+          'bg-transparent text-primary underline-offset-4 hover:underline shadow-none',
         // Accent - Sunset Orange (#ff6b35)
         accent:
           'bg-accent text-accent-foreground shadow-xs hover:bg-accent/90',

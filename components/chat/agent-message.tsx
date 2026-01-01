@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { Plane, FileText } from "lucide-react"
+import { FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProposalPreview } from "../proposal-preview"
 import {
@@ -218,6 +218,51 @@ export function AgentMessage({
   const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
 
   /**
+   * Extract airport codes from message content as fallback
+   * Looks for patterns like "KTEB", "KTEB to KVNY", "(KTEB)", "from Teterboro (KTEB) to Van Nuys (KVNY)", etc.
+   */
+  const extractAirportCodes = (text: string): { departure?: string; arrival?: string } => {
+    // Pattern for ICAO codes (4 uppercase letters) or IATA codes (3 uppercase letters)
+    const airportCodePattern = /\b([A-Z]{3,4})\b/g
+    const allCodes = text.match(airportCodePattern) || []
+    
+    if (allCodes.length >= 2) {
+      // Try to find codes with context: "from ... (KTEB) to ... (KVNY)"
+      const fromPattern = /(?:from|departure).*?\(?([A-Z]{3,4})\)?/i
+      const toPattern = /(?:to|arrival).*?\(?([A-Z]{3,4})\)?/i
+      
+      const fromMatch = text.match(fromPattern)
+      const toMatch = text.match(toPattern)
+      
+      if (fromMatch && toMatch) {
+        return {
+          departure: fromMatch[1]?.toUpperCase(),
+          arrival: toMatch[1]?.toUpperCase(),
+        }
+      }
+      
+      // Fallback: look for "X to Y" pattern
+      const routePattern = /\b([A-Z]{3,4})\s+to\s+([A-Z]{3,4})\b/i
+      const routeMatch = text.match(routePattern)
+      
+      if (routeMatch) {
+        return {
+          departure: routeMatch[1]?.toUpperCase(),
+          arrival: routeMatch[2]?.toUpperCase(),
+        }
+      }
+      
+      // Last resort: use first two codes found (assuming order is departure, arrival)
+      return {
+        departure: allCodes[0],
+        arrival: allCodes[1],
+      }
+    }
+    
+    return {}
+  }
+
+  /**
    * Determine the current workflow step based on status and props
    */
   const getCurrentStep = (): number => {
@@ -240,10 +285,16 @@ export function AgentMessage({
     <div data-testid="agent-message" className="flex flex-col space-y-3 max-w-[85%]">
       {/* Avatar + Badge Header */}
       <div className="flex items-center space-x-2">
-        <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
-          <Plane className="w-3 h-3 text-white" />
+        {/* Jetvision Logo - Dark outlined, 10% bigger than original (24px * 1.10 = 26.46px) */}
+        <div className="w-[26.46px] h-[26.46px] flex items-center justify-center shrink-0">
+          <img
+            src="/images/jvg-logo.svg"
+            alt="Jetvision"
+            className="w-full h-full"
+            style={{ filter: 'brightness(0)' }}
+          />
         </div>
-        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+        <span className="text-xs font-semibold text-black dark:text-gray-100">
           Jetvision Agent
         </span>
       </div>
@@ -261,18 +312,46 @@ export function AgentMessage({
       )}
 
       {/* Unified Flight Search Progress Component */}
-      {shouldShowFlightSearchProgress && deepLinkData && (
-        <FlightSearchProgress
-          currentStep={getCurrentStep()}
-          flightRequest={{
-            departureAirport: deepLinkData.departureAirport || { icao: 'N/A' },
-            arrivalAirport: deepLinkData.arrivalAirport || { icao: 'N/A' },
-            departureDate: deepLinkData.departureDate || new Date().toISOString().split('T')[0],
-            passengers: deepLinkData.passengers || 1,
-            requestId: deepLinkData.rfpId,
-            aircraftPreferences: deepLinkData.aircraftPreferences,
-            specialRequirements: deepLinkData.specialRequirements,
-          }}
+      {shouldShowFlightSearchProgress && deepLinkData && (() => {
+        // Extract airport codes from message content as fallback
+        const extractedCodes = extractAirportCodes(content)
+        
+        // Helper to normalize airport data
+        const normalizeAirport = (
+          airport: { icao: string; name?: string; city?: string } | string | undefined,
+          fallbackCode?: string
+        ): { icao: string; name?: string; city?: string } => {
+          if (typeof airport === 'string') {
+            return { icao: airport.toUpperCase() }
+          }
+          if (airport && typeof airport === 'object' && airport.icao) {
+            return airport
+          }
+          // Use fallback code extracted from message content
+          if (fallbackCode) {
+            return { icao: fallbackCode.toUpperCase() }
+          }
+          return { icao: 'N/A' }
+        }
+        
+        return (
+          <FlightSearchProgress
+            currentStep={getCurrentStep()}
+            flightRequest={{
+              departureAirport: normalizeAirport(
+                deepLinkData.departureAirport,
+                extractedCodes.departure
+              ),
+              arrivalAirport: normalizeAirport(
+                deepLinkData.arrivalAirport,
+                extractedCodes.arrival
+              ),
+              departureDate: deepLinkData.departureDate || new Date().toISOString().split('T')[0],
+              passengers: deepLinkData.passengers || 1,
+              requestId: deepLinkData.rfpId,
+              aircraftPreferences: deepLinkData.aircraftPreferences,
+              specialRequirements: deepLinkData.specialRequirements,
+            }}
           deepLink={deepLinkData.deepLink || (deepLinkData.tripId ? `https://sandbox.avinode.com/marketplace/mvc/search#preSearch` : undefined)}
           tripId={deepLinkData.tripId}
           isTripIdLoading={isTripIdLoading}
@@ -294,8 +373,9 @@ export function AgentMessage({
           onGeneratePreview={onGeneratePreview}
           onSendProposal={onSendProposal}
           onGoBackFromProposal={onGoBackFromProposal}
-        />
-      )}
+          />
+        )
+      })()}
 
       {/* Quote Status Display - only when waiting for quotes (no workflow shown) */}
       {showQuotes && quotes.length === 0 && !shouldShowFlightSearchProgress && (
@@ -336,7 +416,7 @@ export function AgentMessage({
                     onContinueToProposal(rfqFlights)
                   }
                 }}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                className="bg-black dark:bg-gray-900 hover:bg-gray-800 dark:hover:bg-gray-800 text-white font-medium"
                 size="lg"
               >
                 <FileText className="h-5 w-5 mr-2" />

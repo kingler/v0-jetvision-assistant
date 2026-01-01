@@ -211,20 +211,88 @@ export class AvinodeClient {
   }
 
   /**
-   * Get RFQ details by ID including all received quotes
-   * Uses the /rfqs/{id} endpoint per Avinode API spec
-   * @see https://developer.avinodegroup.com/reference/readbynumericid
+   * Get RFQ details by ID or all RFQs for a trip identifier
+   * 
+   * Automatically detects response format to determine if it's a Trip ID or RFQ ID:
+   * - Trip ID: GET /rfqs/{tripId} - Returns array of RFQs for the trip (per https://developer.avinodegroup.com/reference/readtriprfqs)
+   * - RFQ ID: GET /rfqs/{id} - Returns single RFQ object (per https://developer.avinodegroup.com/reference/readbynumericid)
+   * 
+   * Detection logic:
+   * - If response is an array → Trip ID response (all RFQs for trip)
+   * - If response has rfq_id field → Single RFQ response
+   * - If ID starts with 'arfq-' → Treat as RFQ ID
+   * - Otherwise → Check response format (array = Trip ID, object = RFQ)
+   * 
+   * @param id - The RFQ or Trip identifier (e.g., arfq-12345678, atrip-12345678, QQ263P, or numeric ID)
+   * @param options - Optional query parameters for additional details
+   * @returns RFQ data - single RFQ object for RFQ ID, or array of RFQs for Trip ID
    */
-  async getRFQ(rfqId: string) {
+  async getRFQ(
+    id: string,
+    options?: {
+      taildetails?: boolean;
+      typedetails?: boolean;
+      timestamps?: boolean;
+      tailphotos?: boolean;
+      typephotos?: boolean;
+      quotebreakdown?: boolean;
+      latestquote?: boolean;
+    }
+  ) {
     try {
       // Handle different ID formats - extract numeric ID if prefixed
-      let numericId = rfqId;
-      if (rfqId.startsWith('atrip-') || rfqId.startsWith('arfq-')) {
-        numericId = rfqId.split('-')[1];
+      // For IDs like QQ263P, use as-is (Avinode API accepts various formats)
+      let apiId = id;
+      if (id.startsWith('atrip-') || id.startsWith('arfq-')) {
+        apiId = id.split('-')[1];
       }
+      // For other formats (like QQ263P), use the ID as-is
 
-      const response = await this.client.get(`/rfqs/${numericId}`);
-      return response.data;
+      // Default query parameters for comprehensive data
+      const defaultParams = {
+        taildetails: true,
+        typedetails: true,
+        timestamps: true,
+        tailphotos: true,
+        typephotos: true,
+      };
+
+      const response = await this.client.get(`/rfqs/${apiId}`, {
+        params: { ...defaultParams, ...options },
+      });
+      
+      // Detect response type by checking the structure
+      // Trip ID responses return an array of RFQs
+      // RFQ ID responses return a single object with rfq_id field
+      const responseData = response.data;
+      
+      // Check if response is an array (Trip ID response)
+      if (Array.isArray(responseData)) {
+        return responseData;
+      }
+      
+      // Check if response has nested rfqs array
+      if (responseData?.rfqs && Array.isArray(responseData.rfqs)) {
+        return responseData.rfqs;
+      }
+      
+      // Check if response has nested data array
+      if (responseData?.data && Array.isArray(responseData.data)) {
+        return responseData.data;
+      }
+      
+      // If response has rfq_id field, it's a single RFQ
+      if (responseData?.rfq_id) {
+        return responseData;
+      }
+      
+      // If ID starts with 'arfq-', definitely an RFQ
+      if (id.startsWith('arfq-')) {
+        return responseData;
+      }
+      
+      // Default: treat as single RFQ if it's an object, or wrap in array if needed
+      return responseData;
     } catch (error) {
       throw this.sanitizeError(error);
     }
@@ -721,7 +789,43 @@ export class AvinodeClient {
    * @returns Array of RFQFlight objects ready for UI display
    */
   private transformToRFQFlights(rfqData: any): RFQFlight[] {
-    const quotes = rfqData.quotes || rfqData.requests || [];
+    // Log available quote sources for debugging
+    const quotesFromQuotes = Array.isArray(rfqData.quotes) ? rfqData.quotes : [];
+    const quotesFromRequests = Array.isArray(rfqData.requests) ? rfqData.requests : [];
+    const quotesFromResponses = Array.isArray(rfqData.responses) ? rfqData.responses : [];
+    
+    // Combine ALL quotes from ALL possible arrays to ensure we don't miss any
+    // This handles cases where quotes might be split across different fields
+    // Use a Set to deduplicate by quote ID if the same quote appears in multiple arrays
+    const allQuotesMap = new Map<string, any>();
+    
+    // Add quotes from all sources, using quote ID as key to prevent duplicates
+    [...quotesFromQuotes, ...quotesFromRequests, ...quotesFromResponses].forEach((quote: any) => {
+      const quoteId = quote.quote?.id || quote.id;
+      if (quoteId && !allQuotesMap.has(quoteId)) {
+        allQuotesMap.set(quoteId, quote);
+      } else if (!quoteId) {
+        // If no ID, add with index-based key to preserve it (might be duplicate but better than losing data)
+        allQuotesMap.set(`no-id-${allQuotesMap.size}`, quote);
+      }
+    });
+    
+    // Convert map back to array
+    const quotes = Array.from(allQuotesMap.values());
+
+    // Log quote count for debugging discrepancy issues
+    this.logger.info('Transforming RFQ flights', {
+      quotesFromQuotes: quotesFromQuotes.length,
+      quotesFromRequests: quotesFromRequests.length,
+      quotesFromResponses: quotesFromResponses.length,
+      totalQuotes: quotes.length,
+      rfqId: rfqData.rfq_id || rfqData.id,
+    });
+
+    // Get route data from RFQ level (fallback for quote-level route data)
+    const rfqDepartureAirport = rfqData.route?.departure?.airport;
+    const rfqArrivalAirport = rfqData.route?.arrival?.airport;
+    const rfqDepartureDate = rfqData.route?.departure?.date;
 
     return quotes.map((quote: any, index: number) => {
       // Derive RFQ status using helper method
@@ -737,24 +841,50 @@ export class AvinodeClient {
       // Map amenities using helper method
       const amenities = this.mapAmenities(quote);
 
-      // Assemble the RFQFlight object with extracted data
+      // Extract route data - prefer quote-level, fallback to RFQ-level, NEVER use hardcoded values
+      const departureAirport = quote.route?.departure?.airport || rfqDepartureAirport;
+      const arrivalAirport = quote.route?.arrival?.airport || rfqArrivalAirport;
+      const departureDate = quote.route?.departure?.date || rfqDepartureDate;
+
+      // Validate that we have airport data (should have been validated earlier, but double-check)
+      if (!departureAirport?.icao || !arrivalAirport?.icao) {
+        this.logger.error('Missing airport data in quote transformation', {
+          quoteId: quote.quote?.id || quote.id,
+          hasQuoteDeparture: !!quote.route?.departure?.airport,
+          hasRfqDeparture: !!rfqDepartureAirport,
+          hasQuoteArrival: !!quote.route?.arrival?.airport,
+          hasRfqArrival: !!rfqArrivalAirport,
+        });
+        // If we still don't have airport data after all fallbacks, throw error instead of using hardcoded values
+        throw new Error(`Missing required airport data for quote ${quote.quote?.id || quote.id || index}`);
+      }
+
+      // Assemble the RFQFlight object with extracted data from API response only
       return {
-        id: `flight-${quote.id || index + 1}`,
+        id: `flight-${quote.quote?.id || quote.id || index + 1}`,
         quoteId: quote.quote?.id || quote.id || `quote-${index + 1}`,
-        departureAirport: quote.route?.departure?.airport || rfqData.route?.departure?.airport || { icao: 'KTEB' },
-        arrivalAirport: quote.route?.arrival?.airport || rfqData.route?.arrival?.airport || { icao: 'KVNY' },
-        departureDate: quote.route?.departure?.date || rfqData.route?.departure?.date || new Date().toISOString().split('T')[0],
+        departureAirport: {
+          icao: departureAirport.icao,
+          name: departureAirport.name || quote.route?.departure?.name,
+          city: departureAirport.city || quote.route?.departure?.city,
+        },
+        arrivalAirport: {
+          icao: arrivalAirport.icao,
+          name: arrivalAirport.name || quote.route?.arrival?.name,
+          city: arrivalAirport.city || quote.route?.arrival?.city,
+        },
+        departureDate: departureDate || new Date().toISOString().split('T')[0],
         departureTime: quote.schedule?.departureTime ? new Date(quote.schedule.departureTime).toTimeString().slice(0, 5) : undefined,
         flightDuration: this.formatDuration(quote.schedule?.flightDuration),
         ...aircraft,
         aircraftImageUrl: undefined,
-        operatorName: quote.seller?.companyName || quote.operator_name || 'Unknown Operator',
-        operatorRating: quote.seller?.rating,
-        operatorEmail: quote.seller?.email,
+        operatorName: quote.seller?.companyName || quote.operator?.name || quote.operator_name || 'Unknown Operator',
+        operatorRating: quote.seller?.rating || quote.operator?.rating,
+        operatorEmail: quote.seller?.email || quote.operator?.email,
         ...pricing,
         amenities,
         rfqStatus,
-        lastUpdated: quote.updated_at || new Date().toISOString(),
+        lastUpdated: quote.updated_at || quote.received_at || new Date().toISOString(),
         responseTimeMinutes: quote.response_time_minutes,
         isSelected: false,
       };

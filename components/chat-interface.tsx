@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Loader2, Plane, Eye } from "lucide-react"
@@ -75,7 +75,15 @@ export function ChatInterface({
   // Trip ID input state for human-in-the-loop workflow
   const [isTripIdLoading, setIsTripIdLoading] = useState(false)
   const [tripIdError, setTripIdError] = useState<string | undefined>(undefined)
-  const [tripIdSubmitted, setTripIdSubmitted] = useState(false)
+  // Initialize tripIdSubmitted from activeChat to persist state across re-renders
+  const [tripIdSubmitted, setTripIdSubmitted] = useState(activeChat.tripIdSubmitted || false)
+  
+  // Sync tripIdSubmitted with activeChat when it changes
+  useEffect(() => {
+    if (activeChat.tripIdSubmitted !== undefined) {
+      setTripIdSubmitted(activeChat.tripIdSubmitted)
+    }
+  }, [activeChat.tripIdSubmitted])
 
   // RFQ flight selection state for Step 3
   const [selectedRfqFlightIds, setSelectedRfqFlightIds] = useState<string[]>([])
@@ -108,6 +116,9 @@ export function ChatInterface({
    * Extracts structured quote data from messages like:
    * "Here are the quotes for your trip..."
    * "1. Operator Name\n   Aircraft: ...\n   Tail Number: ..."
+   * "#### 1. Operator Name\n- **Aircraft**: ...\n- **Max Passengers**: ..."
+   * 
+   * Supports both plain numbered lists and markdown headers with bullet points.
    * 
    * @param messageContent - The agent message text content
    * @returns Array of parsed quote objects, or empty array if none found
@@ -142,6 +153,8 @@ export function ChatInterface({
       'quotes we\'ve received',
       'available options',
       'flight options',
+      'available quotes',
+      'quote details',
     ]
 
     const hasQuotes = quoteIndicators.some(indicator => 
@@ -167,63 +180,96 @@ export function ChatInterface({
       operatorEmail?: string
     } | null = null
 
+    /**
+     * Helper function to save the current quote before starting a new one
+     */
+    const saveCurrentQuote = () => {
+      if (currentQuote && currentQuote.operatorName) {
+        quotes.push({
+          id: currentQuote.id || `quote-${quotes.length + 1}`,
+          operatorName: currentQuote.operatorName,
+          aircraftType: currentQuote.aircraftType || 'Unknown Aircraft',
+          tailNumber: currentQuote.tailNumber,
+          passengerCapacity: currentQuote.passengerCapacity,
+          price: currentQuote.price,
+          currency: currentQuote.currency || 'USD',
+          rfqStatus: currentQuote.rfqStatus || 'unanswered',
+          operatorEmail: currentQuote.operatorEmail,
+        })
+      }
+    }
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
 
-      // Check if line starts a new quote (numbered list item)
-      const quoteNumberMatch = line.match(/^(\d+)\.\s*(.+)$/)
+      // Check if line starts a new quote (numbered list item or markdown header)
+      // Supports formats like:
+      // - "1. Operator Name"
+      // - "#### 1. Operator Name"
+      // - "### 1. Operator Name"
+      // - "## 1. Operator Name"
+      const quoteNumberMatch = line.match(/^(?:#{1,4}\s*)?(\d+)\.\s*(.+)$/)
       if (quoteNumberMatch) {
         // Save previous quote if exists
-        if (currentQuote && currentQuote.operatorName) {
-          quotes.push({
-            id: currentQuote.id || `quote-${quotes.length + 1}`,
-            operatorName: currentQuote.operatorName,
-            aircraftType: currentQuote.aircraftType || 'Unknown Aircraft',
-            tailNumber: currentQuote.tailNumber,
-            passengerCapacity: currentQuote.passengerCapacity,
-            price: currentQuote.price,
-            currency: currentQuote.currency || 'USD',
-            rfqStatus: currentQuote.rfqStatus || 'unanswered',
-            operatorEmail: currentQuote.operatorEmail,
-          })
-        }
+        saveCurrentQuote()
 
-        // Start new quote
+        // Start new quote - extract operator name (remove markdown formatting)
+        const operatorName = quoteNumberMatch[2]
+          .replace(/^\*\*|\*\*$/g, '') // Remove bold markers
+          .trim()
+
         currentQuote = {
           id: `quote-${quotes.length + 1}`,
-          operatorName: quoteNumberMatch[2].trim(),
+          operatorName,
         }
         continue
       }
 
       // Parse quote details if we have an active quote
       if (currentQuote) {
-        // Aircraft type
-        const aircraftMatch = line.match(/aircraft:\s*(.+)/i)
+        // Remove markdown formatting from line for easier parsing
+        const cleanLine = line
+          .replace(/^[-*]\s*/, '') // Remove bullet point markers
+          .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold markers
+          .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Remove markdown links, keep text
+          .trim()
+
+        // Aircraft type (supports "Aircraft:", "**Aircraft**:", "- **Aircraft**:")
+        const aircraftMatch = cleanLine.match(/aircraft:\s*(.+)/i) ||
+                            cleanLine.match(/aircraft\s+type:\s*(.+)/i)
         if (aircraftMatch) {
           currentQuote.aircraftType = aircraftMatch[1].trim()
           continue
         }
 
-        // Tail number
-        const tailMatch = line.match(/tail\s*(?:number)?:\s*([A-Z0-9]+)/i)
+        // Category (can be used as aircraft type fallback)
+        const categoryMatch = cleanLine.match(/category:\s*(.+)/i)
+        if (categoryMatch && !currentQuote.aircraftType) {
+          currentQuote.aircraftType = categoryMatch[1].trim()
+          continue
+        }
+
+        // Tail number (supports "Tail Number:", "Aircraft Tail Number:", "Tail:", etc.)
+        const tailMatch = cleanLine.match(/tail\s*(?:number)?:\s*([A-Z0-9]+)/i) ||
+                         cleanLine.match(/aircraft\s+tail\s*(?:number)?:\s*([A-Z0-9]+)/i)
         if (tailMatch) {
           currentQuote.tailNumber = tailMatch[1].trim()
           continue
         }
 
-        // Passenger capacity
-        const passengersMatch = line.match(/maximum\s+passengers?:\s*(\d+)/i) || 
-                               line.match(/passengers?:\s*(\d+)/i) ||
-                               line.match(/capacity:\s*(\d+)/i)
+        // Passenger capacity (supports "Max Passengers:", "Passengers:", "Capacity:")
+        const passengersMatch = cleanLine.match(/max\s+passengers?:\s*(\d+)/i) || 
+                               cleanLine.match(/maximum\s+passengers?:\s*(\d+)/i) ||
+                               cleanLine.match(/passengers?:\s*(\d+)/i) ||
+                               cleanLine.match(/capacity:\s*(\d+)/i)
         if (passengersMatch) {
           currentQuote.passengerCapacity = parseInt(passengersMatch[1], 10)
           continue
         }
 
-        // Price
-        const priceMatch = line.match(/(?:price|quote|total):\s*\$?([\d,]+(?:\.[\d]{2})?)/i) ||
-                          line.match(/\$([\d,]+(?:\.[\d]{2})?)/)
+        // Price (supports various formats)
+        const priceMatch = cleanLine.match(/(?:price|quote|total|cost):\s*\$?([\d,]+(?:\.[\d]{2})?)/i) ||
+                          cleanLine.match(/\$([\d,]+(?:\.[\d]{2})?)/)
         if (priceMatch) {
           currentQuote.price = parseFloat(priceMatch[1].replace(/,/g, ''))
           currentQuote.currency = 'USD'
@@ -231,15 +277,15 @@ export function ChatInterface({
         }
 
         // RFQ Status
-        const statusMatch = line.match(/quote\s+status:\s*(\w+)/i) ||
-                           line.match(/status:\s*(\w+)/i)
+        const statusMatch = cleanLine.match(/quote\s+status:\s*(\w+)/i) ||
+                           cleanLine.match(/status:\s*(\w+)/i)
         if (statusMatch) {
           currentQuote.rfqStatus = statusMatch[1].toLowerCase()
           continue
         }
 
         // Operator email (if present)
-        const emailMatch = line.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i)
+        const emailMatch = cleanLine.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i)
         if (emailMatch) {
           currentQuote.operatorEmail = emailMatch[1]
           continue
@@ -248,28 +294,120 @@ export function ChatInterface({
     }
 
     // Save last quote if exists
-    if (currentQuote && currentQuote.operatorName) {
-      quotes.push({
-        id: currentQuote.id || `quote-${quotes.length + 1}`,
-        operatorName: currentQuote.operatorName,
-        aircraftType: currentQuote.aircraftType || 'Unknown Aircraft',
-        tailNumber: currentQuote.tailNumber,
-        passengerCapacity: currentQuote.passengerCapacity,
-        price: currentQuote.price,
-        currency: currentQuote.currency || 'USD',
-        rfqStatus: currentQuote.rfqStatus || 'unanswered',
-        operatorEmail: currentQuote.operatorEmail,
-      })
-    }
+    saveCurrentQuote()
 
     return quotes
   }
 
-  // Convert quotes to RFQ flights format for display in Step 3
-  const rfqFlights: RFQFlight[] = (activeChat.quotes || []).map((quote) => {
-    // Parse route to get airport info
-    const routeParts = activeChat.route?.split(' → ') || ['N/A', 'N/A']
+  /**
+   * Helper function to convert an RFQ (without quotes) to RFQFlight format
+   * Used when RFQs are returned from the API but don't have quotes yet
+   * 
+   * @param rfq - The RFQ object from Avinode API
+   * @param routeParts - Array of [departure, arrival] airport codes
+   * @param chatDate - Optional date string from chat
+   * @returns RFQFlight object representing the RFQ
+   */
+  const convertRfqToRFQFlight = (rfq: any, routeParts: string[], chatDate?: string): RFQFlight => {
+    // Extract route from RFQ if available, otherwise use routeParts
+    let departureIcao = routeParts[0] || 'N/A'
+    let arrivalIcao = routeParts[1] || 'N/A'
     
+    // Try to extract route from RFQ object
+    if (rfq.route) {
+      if (typeof rfq.route === 'string') {
+        // Route might be "KTEB → KVNY" or "KTEB-KVNY"
+        const routeMatch = rfq.route.match(/([A-Z0-9]{3,4})[→\-\s]+([A-Z0-9]{3,4})/i)
+        if (routeMatch) {
+          departureIcao = routeMatch[1].toUpperCase()
+          arrivalIcao = routeMatch[2].toUpperCase()
+        }
+      } else if (rfq.route.departure && rfq.route.arrival) {
+        departureIcao = rfq.route.departure.icao || rfq.route.departure || departureIcao
+        arrivalIcao = rfq.route.arrival.icao || rfq.route.arrival || arrivalIcao
+      }
+    }
+    
+    // Extract date from RFQ
+    const departureDate = rfq.departure_date || 
+                          rfq.route?.departure?.date || 
+                          rfq.created_at?.split('T')[0] || 
+                          chatDate || 
+                          activeChat.date || 
+                          new Date().toISOString().split('T')[0]
+    
+    // Determine RFQ status - map Avinode statuses to our statuses
+    const rfqStatus = rfq.status === 'sent' ? 'sent' :
+                      rfq.status === 'unanswered' ? 'unanswered' :
+                      rfq.status === 'quoted' ? 'quoted' :
+                      rfq.status === 'declined' ? 'declined' :
+                      rfq.status === 'expired' ? 'expired' :
+                      'sent' // Default to 'sent' for RFQs without quotes
+    
+    return {
+      id: rfq.rfq_id || rfq.id || `rfq-${Date.now()}`,
+      quoteId: rfq.rfq_id || rfq.id || `rfq-${Date.now()}`,
+      departureAirport: {
+        icao: departureIcao,
+        name: departureIcao,
+      },
+      arrivalAirport: {
+        icao: arrivalIcao,
+        name: arrivalIcao,
+      },
+      departureDate,
+      departureTime: rfq.departure_time || rfq.route?.departure?.time || undefined,
+      flightDuration: 'TBD',
+      aircraftType: 'Aircraft TBD', // RFQ doesn't have aircraft until quotes are received
+      aircraftModel: 'Aircraft TBD',
+      passengerCapacity: rfq.passengers || activeChat.passengers || 0,
+      operatorName: 'Awaiting quotes', // No operator until quotes are received
+      totalPrice: 0, // No price until quotes are received
+      currency: 'USD',
+      amenities: { wifi: false, pets: false, smoking: false, galley: false, lavatory: false, medical: false },
+      rfqStatus: rfqStatus as 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired',
+      lastUpdated: rfq.updated_at || rfq.created_at || new Date().toISOString(),
+      isSelected: false,
+      validUntil: rfq.quote_deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      aircraftCategory: 'TBD',
+      hasMedical: false,
+      hasPackage: false,
+    }
+  }
+
+  /**
+   * Helper function to convert a quote object to RFQFlight format
+   * Used both for activeChat.quotes and for quotes parsed from message text
+   */
+  const convertQuoteToRFQFlight = (quote: any, routeParts: string[], chatDate?: string): RFQFlight => {
+    // Validate quote has required fields - if missing critical data, log warning
+    if (!quote || (!quote.id && !quote.quote_id && !quote.quoteId)) {
+      console.warn('[convertQuoteToRFQFlight] Invalid quote object:', quote)
+      // Return a minimal valid RFQFlight to prevent crashes
+      return {
+        id: `invalid-${Date.now()}`,
+        quoteId: `invalid-${Date.now()}`,
+        departureAirport: { icao: routeParts[0] || 'N/A', name: routeParts[0] || 'N/A' },
+        arrivalAirport: { icao: routeParts[1] || 'N/A', name: routeParts[1] || 'N/A' },
+        departureDate: chatDate || activeChat.date || new Date().toISOString().split('T')[0],
+        flightDuration: 'TBD',
+        aircraftType: 'Unknown Aircraft',
+        aircraftModel: 'Unknown Aircraft',
+        passengerCapacity: activeChat.passengers || 0,
+        operatorName: 'Unknown Operator',
+        totalPrice: 0,
+        currency: 'USD',
+        amenities: { wifi: false, pets: false, smoking: false, galley: false, lavatory: false, medical: false },
+        rfqStatus: 'unanswered',
+        lastUpdated: new Date().toISOString(),
+        isSelected: false,
+        validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        aircraftCategory: 'Midsize jet',
+        hasMedical: false,
+        hasPackage: false,
+      }
+    }
+
     // Safely coerce operatorRating to number or undefined
     // Handles string, number, or undefined/null inputs
     // Uses nullish coalescing (??) to avoid treating 0 as falsy
@@ -297,12 +435,14 @@ export function ChatInterface({
     // Avoids 'N/A' which is less clear than 'TBD' (To Be Determined)
     const flightDuration = quote.flightDuration || 'TBD'
     
-    // Set passengerCapacity from activeChat.passengers only if positive number exists
+    // Set passengerCapacity from quote if available, otherwise fall back to activeChat.passengers
     // Note: RFQFlight interface requires number type, so we use 0 as fallback for missing values
     // UI components should treat 0 as "unknown/not provided" rather than actual zero passengers
-    const passengerCapacity = (activeChat.passengers != null && activeChat.passengers > 0)
-      ? activeChat.passengers
-      : 0
+    const passengerCapacity = (quote as any).passengerCapacity && (quote as any).passengerCapacity > 0
+      ? (quote as any).passengerCapacity
+      : (activeChat.passengers != null && activeChat.passengers > 0)
+        ? activeChat.passengers
+        : 0
     
     // Map amenities from quote.amenities or quote.features with safe defaults
     // Checks both amenities and features arrays, defaults to all false if neither exists
@@ -343,9 +483,21 @@ export function ChatInterface({
     // Get operator email from quote if available
     const operatorEmail = (quote as any).operatorEmail || (quote as any).email || undefined
 
+    // Extract quote ID - handle multiple possible field names
+    const quoteId = quote.id || quote.quote_id || quote.quoteId || `quote-${Date.now()}`
+    
+    // Extract aircraft type - handle multiple possible field names and nested structures
+    const aircraftType = quote.aircraftType || quote.aircraft_type || quote.aircraft?.type || quote.aircraft?.model || 'Unknown Aircraft'
+    
+    // Extract aircraft model - prefer explicit model, fallback to type
+    const aircraftModel = (quote as any).aircraftModel || (quote as any).aircraft_model || quote.aircraft?.model || aircraftType
+    
+    // Extract operator name - handle multiple possible field names and nested structures
+    const operatorName = quote.operatorName || quote.operator_name || quote.operator?.name || 'Unknown Operator'
+    
     return {
-      id: quote.id,
-      quoteId: quote.id,
+      id: quoteId,
+      quoteId: quoteId,
       departureAirport: {
         icao: routeParts[0] || 'N/A',
         name: routeParts[0] || 'N/A',
@@ -354,27 +506,106 @@ export function ChatInterface({
         icao: routeParts[1] || 'N/A',
         name: routeParts[1] || 'N/A',
       },
-      departureDate: activeChat.date || new Date().toISOString().split('T')[0],
+      departureDate: chatDate || activeChat.date || new Date().toISOString().split('T')[0],
       departureTime,
       flightDuration,
-      aircraftType: quote.aircraftType,
-      aircraftModel: quote.aircraftType,
-      operatorName: quote.operatorName,
+      aircraftType,
+      aircraftModel,
+      // Extract tail number from quote if available
+      tailNumber: (quote as any).tailNumber || (quote as any).tail_number || quote.aircraft?.registration || quote.aircraft?.tail_number || undefined,
+      operatorName,
       operatorRating: normalizedOperatorRating,
       operatorEmail,
-      price: quote.price,
+      totalPrice: quote.price || 0,
       currency,
       passengerCapacity,
       amenities,
-      rfqStatus: 'quoted' as const,
+      rfqStatus: ((quote as any).rfqStatus || quote.rfqStatus || 'quoted') as 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired',
       lastUpdated: new Date().toISOString(),
-      isSelected: selectedRfqFlightIds.includes(quote.id),
+      isSelected: selectedRfqFlightIds.includes(quoteId),
       validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      aircraftCategory: mapAircraftTypeToCategory(quote.aircraftType),
+      aircraftCategory: mapAircraftTypeToCategory(aircraftType),
       hasMedical: amenities.medical,
       hasPackage: false, // Default to false - can be updated when package data is available
+      // Include deep link from activeChat if available (for viewing flight in Avinode)
+      avinodeDeepLink: activeChat.deepLink || undefined,
     }
-  })
+  }
+
+  // Parse route to get airport info
+  const routeParts = activeChat.route?.split(' → ') || ['N/A', 'N/A']
+
+  // Convert quotes from activeChat.quotes to RFQ flights format for display in Step 3
+  // Use useMemo to prevent recalculation on every render and avoid side effects during render
+  const rfqFlights: RFQFlight[] = useMemo(() => {
+    // Convert quotes from activeChat.quotes
+    const rfqFlightsFromChat: RFQFlight[] = (activeChat.quotes || [])
+      .filter((quote) => quote != null)
+      .map((quote) => {
+        try {
+          const flight = convertQuoteToRFQFlight(quote, routeParts)
+          if (!flight || !flight.id) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[ChatInterface] Converted flight missing id:', flight, quote)
+            }
+            return null
+          }
+          return flight
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[ChatInterface] Error converting quote to RFQFlight:', error, quote)
+          }
+          return null
+        }
+      })
+      .filter((flight): flight is RFQFlight => flight != null)
+
+    // Parse quotes from the most recent agent message content if available
+    const latestAgentMessage = activeChat.messages
+      .filter(m => m.type === 'agent')
+      .slice(-1)[0]
+    
+    let rfqFlightsFromMessages: RFQFlight[] = []
+    if (latestAgentMessage && latestAgentMessage.content) {
+      const parsedQuotes = parseQuotesFromText(latestAgentMessage.content)
+      if (parsedQuotes.length > 0) {
+        rfqFlightsFromMessages = parsedQuotes
+          .map((quote) => {
+            try {
+              return convertQuoteToRFQFlight({
+                ...quote,
+                id: quote.id || `parsed-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                aircraftType: quote.aircraftType || 'Unknown Aircraft',
+                price: quote.price || 0,
+                currency: quote.currency || 'USD',
+              }, routeParts, activeChat.date)
+            } catch (error) {
+              if (process.env.NODE_ENV === 'development') {
+                console.error('[ChatInterface] Error converting parsed quote:', error, quote)
+              }
+              return null
+            }
+          })
+          .filter((flight): flight is RFQFlight => flight != null && flight.id != null)
+      }
+    }
+
+    // Merge quotes from chat and messages, removing duplicates by ID
+    const validRfqFlightsFromChat = rfqFlightsFromChat.filter(f => f != null && f.id != null)
+    const validRfqFlightsFromMessages = rfqFlightsFromMessages.filter(f => f != null && f.id != null)
+    
+    const allRfqFlights = [...validRfqFlightsFromChat]
+    const existingIds = new Set<string>(validRfqFlightsFromChat.map(f => f.id).filter((id): id is string => id != null))
+    
+    for (const flight of validRfqFlightsFromMessages) {
+      if (flight && flight.id && !existingIds.has(flight.id)) {
+        allRfqFlights.push(flight)
+        existingIds.add(flight.id)
+      }
+    }
+
+    return allRfqFlights.filter((f): f is RFQFlight => f != null && f.id != null)
+  }, [activeChat.quotes, activeChat.messages, activeChat.date, routeParts])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -590,6 +821,7 @@ export function ChatInterface({
                 let newStatus: string = "understanding_request"
                 let newStep = 1
                 let showDeepLink = false
+                let tripIdSubmittedLocal = activeChat.tripIdSubmitted || false
                 let deepLinkData: {
                   rfpId?: string
                   tripId?: string
@@ -721,26 +953,70 @@ export function ChatInterface({
                 }
 
                 // Extract quotes from response if available
-                // Check multiple possible locations for quote data
+                // Check multiple possible locations for quote data (get_rfq tool can return quotes in various formats)
                 let quotes: any[] = []
+                
+                // First, check direct quotes array
                 if (data.quotes && Array.isArray(data.quotes)) {
                   quotes = data.quotes
                   console.log('[Chat] Found quotes in data.quotes:', quotes.length)
-                } else if (data.rfq_data?.quotes && Array.isArray(data.rfq_data.quotes)) {
+                } 
+                // Check rfq_data.quotes (primary location for get_rfq tool results)
+                else if (data.rfq_data?.quotes && Array.isArray(data.rfq_data.quotes)) {
                   quotes = data.rfq_data.quotes
                   console.log('[Chat] Found quotes in data.rfq_data.quotes:', quotes.length)
-                } else if (data.trip_data?.quotes && Array.isArray(data.trip_data.quotes)) {
+                } 
+                // Check trip_data.quotes (alternative location)
+                else if (data.trip_data?.quotes && Array.isArray(data.trip_data.quotes)) {
                   quotes = data.trip_data.quotes
                   console.log('[Chat] Found quotes in data.trip_data.quotes:', quotes.length)
                 }
 
-                // Also check tool_calls for quote results
+                // Also check tool_calls for quote results (get_rfq tool returns quotes in result.quotes)
                 if (quotes.length === 0 && data.tool_calls) {
                   for (const toolCall of data.tool_calls) {
-                    if ((toolCall.name === "get_rfq" || toolCall.name === "get_quotes" || toolCall.name === "get_quote_status") && toolCall.result) {
+                    // Handle get_rfq (handles both RFQ IDs and Trip IDs)
+                    if (toolCall.name === "get_rfq" && toolCall.result) {
+                      console.log('[Chat] get_rfq result structure:', {
+                        hasQuotes: !!toolCall.result.quotes,
+                        hasRfqs: !!toolCall.result.rfqs,
+                        totalQuotes: toolCall.result.total_quotes,
+                        totalRfqs: toolCall.result.total_rfqs,
+                        resultKeys: Object.keys(toolCall.result || {})
+                      })
+                      
+                      // Trip ID response structure: { trip_id, rfqs: [...], quotes: [...], total_rfqs, total_quotes }
+                      // Quotes are already flattened at top level in result.quotes
+                      if (toolCall.result.quotes && Array.isArray(toolCall.result.quotes)) {
+                        // Use top-level quotes array (already flattened for Trip ID responses)
+                        quotes = toolCall.result.quotes
+                        console.log('[Chat] Found quotes in get_rfq result.quotes:', quotes.length)
+                      } else if (toolCall.result.rfqs && Array.isArray(toolCall.result.rfqs)) {
+                        // Fallback: extract quotes from rfqs array if quotes not at top level
+                        quotes = toolCall.result.rfqs.flatMap((rfq: any) => rfq.quotes || [])
+                        console.log('[Chat] Extracted quotes from RFQs array (fallback):', quotes.length)
+                      } else if (toolCall.result.quote_id || toolCall.result.rfq_id) {
+                        // Single RFQ response - wrap quotes in array if needed
+                        if (Array.isArray(toolCall.result.quotes)) {
+                          quotes = toolCall.result.quotes
+                        } else if (toolCall.result.quotes) {
+                          quotes = [toolCall.result.quotes]
+                        }
+                        console.log('[Chat] Single RFQ response, quotes:', quotes.length)
+                      }
+                    }
+                    // Handle get_quotes, get_quote_status
+                    else if ((toolCall.name === "get_quotes" || toolCall.name === "get_quote_status") && toolCall.result) {
+                      // Check for quotes array in tool result
                       if (toolCall.result.quotes && Array.isArray(toolCall.result.quotes)) {
                         quotes = toolCall.result.quotes
-                        console.log('[Chat] Found quotes in tool_call result:', quotes.length)
+                        console.log('[Chat] Found quotes in tool_call result.quotes:', quotes.length)
+                        break
+                      }
+                      // Also check if result itself is an array of quotes
+                      if (Array.isArray(toolCall.result) && toolCall.result.length > 0) {
+                        quotes = toolCall.result
+                        console.log('[Chat] Found quotes as tool_call result array:', quotes.length)
                         break
                       }
                     }
@@ -757,42 +1033,85 @@ export function ChatInterface({
                 }
 
                 // Convert quotes to the expected format if we found any
-                const formattedQuotes = quotes.length > 0 ? quotes.map((q: any, index: number) => ({
-                  id: q.quote_id || q.quoteId || q.id || `quote-${Date.now()}-${index}`,
-                  operatorName: q.operator_name || q.operatorName || q.operator?.name || "Unknown Operator",
-                  aircraftType: q.aircraft_type || q.aircraftType || q.aircraft?.type || "Unknown Aircraft",
-                  price: q.total_price || q.price || q.totalPrice?.amount || q.basePrice || 0,
-                  currency: q.currency || q.totalPrice?.currency || 'USD',
-                  score: q.score,
-                  ranking: index + 1,
-                  operatorRating: q.operator_rating || q.operatorRating || q.operator?.rating,
-                  departureTime: q.departure_time || q.departureTime || q.schedule?.departureTime,
-                  arrivalTime: q.arrival_time || q.arrivalTime || q.schedule?.arrivalTime,
-                  flightDuration: q.flight_duration || q.flightDuration || q.schedule?.duration,
-                  isRecommended: index === 0,
-                  operatorEmail: q.operator_email || q.operatorEmail || q.operator?.email,
-                  amenities: q.amenities || q.features || [],
-                })) : undefined
+                // Handles both structured API responses and parsed text quotes
+                const formattedQuotes = quotes.length > 0 ? quotes.map((q: any, index: number) => {
+                  // Extract quote ID (supports multiple formats from different sources)
+                  const quoteId = q.quote_id || q.quoteId || q.id || `quote-${Date.now()}-${index}`
+                  
+                  // Extract operator name (supports nested operator object or flat structure)
+                  const operatorName = q.operator_name || q.operatorName || q.operator?.name || "Unknown Operator"
+                  
+                  // Extract aircraft type (supports nested aircraft object or flat structure)
+                  const aircraftType = q.aircraft_type || q.aircraftType || q.aircraft?.type || q.aircraft?.model || "Unknown Aircraft"
+                  
+                  // Extract price (supports nested pricing object or flat structure)
+                  const price = q.total_price || q.price || q.totalPrice?.amount || q.pricing?.total || q.pricing?.base_price || q.basePrice || 0
+                  
+                  // Extract currency (supports nested pricing object or flat structure)
+                  const currency = q.currency || q.totalPrice?.currency || q.pricing?.currency || 'USD'
+                  
+                  // Extract operator rating (supports nested operator object or flat structure)
+                  const operatorRating = q.operator_rating || q.operatorRating || q.operator?.rating
+                  
+                  // Extract operator email (supports nested operator object or flat structure)
+                  const operatorEmail = q.operator_email || q.operatorEmail || q.operator?.email || q.operator?.contact?.email
+                  
+                  // Extract amenities/features (supports arrays or nested aircraft object)
+                  const amenities = q.amenities || q.features || q.aircraft?.amenities || []
+                  
+                  return {
+                    id: quoteId,
+                    operatorName,
+                    aircraftType,
+                    price,
+                    currency,
+                    score: q.score,
+                    ranking: index + 1,
+                    operatorRating,
+                    departureTime: q.departure_time || q.departureTime || q.schedule?.departureTime,
+                    arrivalTime: q.arrival_time || q.arrivalTime || q.schedule?.arrivalTime,
+                    flightDuration: q.flight_duration || q.flightDuration || q.schedule?.duration,
+                    isRecommended: index === 0,
+                    operatorEmail,
+                    amenities,
+                    // Include additional fields that might be useful for RFQ flight display
+                    tailNumber: q.tail_number || q.tailNumber || q.aircraft?.registration || q.aircraft?.tail_number,
+                    passengerCapacity: q.passenger_capacity || q.passengerCapacity || q.aircraft?.capacity || q.capacity,
+                    rfqStatus: q.status || q.rfq_status || q.quote_status || 'quoted',
+                  }
+                }) : undefined
+
+                // If we have quotes parsed from text and a tripId exists, auto-submit tripId
+                // This allows quotes to be displayed in Step 3 even if user hasn't manually submitted tripId
+                if (formattedQuotes && formattedQuotes.length > 0 && deepLinkData?.tripId && !tripIdSubmittedLocal) {
+                  tripIdSubmittedLocal = true
+                  console.log('[Chat] Auto-submitting tripId because quotes were found:', deepLinkData.tripId)
+                }
 
                 // If we have quotes and Trip ID is submitted, update status to show quotes
-                if (formattedQuotes && formattedQuotes.length > 0 && tripIdSubmitted) {
+                if (formattedQuotes && formattedQuotes.length > 0 && tripIdSubmittedLocal) {
                   newStatus = "analyzing_options"
                   newStep = 4
                 }
 
-                // Replace message content with prompt when quotes are found (to avoid duplicate listing)
+                // Replace message content to avoid duplicate RFQ listing (already shown in Step 3)
                 let messageContent = fullContent || data.content || ""
-                if (formattedQuotes && formattedQuotes.length > 0 && tripIdSubmitted) {
-                  // Replace the quote list with a prompt to create proposal
-                  messageContent = `Great! I've received ${formattedQuotes.length} quote${formattedQuotes.length !== 1 ? 's' : ''} from operators for your trip. The flight options are displayed above in Step 3.
+                
+                // If we have quotes, replace with instructions (flight details are already displayed in Step 3)
+                if (formattedQuotes && formattedQuotes.length > 0 && tripIdSubmittedLocal) {
+                  const quoteCount = formattedQuotes.length
+                  const quoteText = `I've retrieved ${quoteCount} quote${quoteCount !== 1 ? 's' : ''} for your trip. `
+                  
+                  // Simple message with instructions - no duplicate flight details
+                  messageContent = `${quoteText}All flight details are displayed in Step 3 above.
 
 **Next Steps:**
-- When operators reply to your RFQ, their status will change from "Unanswered" to "Quoted" or "Answered"
-- Review the available flights above and select the ones you want to include in your proposal
-- Click the **"Create Customer Proposal"** button below to generate a PDF proposal and send it to your customer
-- Once the customer pays, the flight will be automatically booked
 
-Ready to create your proposal?`
+1. **Wait for operators to respond** - If you see flights with status "Unanswered" or "Sent", operators are still reviewing your RFQ. You'll need to wait for them to confirm availability and provide pricing.
+
+2. **When operators provide quotes** - Once an operator confirms availability and provides pricing, the flight status will change to "Quoted" and a **"Review and Book"** button will appear on that flight card.
+
+3. **Book the selected flight** - When your customer selects a flight, click the **"Review and Book"** button on the flight card (located in Step 3) to proceed with booking.`
                 }
 
                 const agentMsg = {
@@ -805,8 +1124,8 @@ Ready to create your proposal?`
                   deepLinkData,
                   showPipeline,
                   pipelineData,
-                  // Show quotes in Step 3 if Trip ID is submitted and we have quotes
-                  showQuotes: tripIdSubmitted && formattedQuotes && formattedQuotes.length > 0,
+                  // Show quotes in Step 3 whenever we have quotes (they'll be displayed in the workflow component)
+                  showQuotes: formattedQuotes && formattedQuotes.length > 0,
                   // Show proposal button when quotes are available
                   showProposal: tripIdSubmitted && formattedQuotes && formattedQuotes.length > 0,
                 }
@@ -824,9 +1143,80 @@ Ready to create your proposal?`
                   deepLink: deepLinkData?.deepLink,
                 }
 
+                // Update route, passengers, and date from deepLinkData if available
+                if (deepLinkData) {
+                  if (deepLinkData.departureAirport && deepLinkData.arrivalAirport) {
+                    const departureCode = typeof deepLinkData.departureAirport === 'string' 
+                      ? deepLinkData.departureAirport 
+                      : deepLinkData.departureAirport.icao
+                    const arrivalCode = typeof deepLinkData.arrivalAirport === 'string'
+                      ? deepLinkData.arrivalAirport
+                      : deepLinkData.arrivalAirport.icao
+                    updateData.route = `${departureCode} → ${arrivalCode}`
+                  }
+                  if (deepLinkData.passengers) {
+                    updateData.passengers = deepLinkData.passengers
+                  }
+                  if (deepLinkData.departureDate) {
+                    // Format date nicely if it's an ISO string
+                    const dateStr = deepLinkData.departureDate
+                    if (dateStr.includes('T')) {
+                      const date = new Date(dateStr)
+                      updateData.date = date.toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })
+                    } else {
+                      updateData.date = dateStr
+                    }
+                  }
+                }
+                
+                // Fallback: Try to extract flight details from message content if not already set
+                // Pattern: "from Teterboro (KTEB) to Van Nuys (KVNY) for 6 passengers on March 8, 2026"
+                if (!updateData.route) {
+                  const routeMatch = messageContent.match(/from\s+[^(]*\(([A-Z]{3,4})\)\s+to\s+[^(]*\(([A-Z]{3,4})\)/i)
+                  if (routeMatch) {
+                    updateData.route = `${routeMatch[1].toUpperCase()} → ${routeMatch[2].toUpperCase()}`
+                  }
+                }
+                
+                if (!updateData.passengers) {
+                  const passengersMatch = messageContent.match(/for\s+(\d+)\s+passengers?/i)
+                  if (passengersMatch) {
+                    updateData.passengers = parseInt(passengersMatch[1], 10)
+                  }
+                }
+                
+                if (!updateData.date) {
+                  // Pattern: "on March 8, 2026" or "on 2026-03-08"
+                  const dateMatch = messageContent.match(/on\s+([A-Z][a-z]+\s+\d{1,2},\s+\d{4})/i) || 
+                                   messageContent.match(/on\s+(\d{4}-\d{2}-\d{2})/i)
+                  if (dateMatch) {
+                    const dateStr = dateMatch[1]
+                    if (dateStr.includes('-')) {
+                      const date = new Date(dateStr)
+                      updateData.date = date.toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })
+                    } else {
+                      updateData.date = dateStr
+                    }
+                  }
+                }
+
                 // Only update quotes if we have new ones
                 if (formattedQuotes && formattedQuotes.length > 0) {
                   updateData.quotes = formattedQuotes
+                  // If we auto-submitted tripId, include that in the update
+                  if (tripIdSubmittedLocal && !activeChat.tripIdSubmitted) {
+                    updateData.tripIdSubmitted = true
+                  }
                 }
 
                 onUpdateChat(activeChat.id, updateData)
@@ -891,6 +1281,10 @@ Ready to create your proposal?`
   /**
    * Effect to extract quotes from agent messages and update chat state
    * This watches for new agent messages that contain quote information
+   * 
+   * This is a fallback mechanism - quotes should primarily come from tool results,
+   * but if they're only in the message text (e.g., agent formatted them as markdown),
+   * we parse them here.
    */
   useEffect(() => {
     if (!activeChat.messages || activeChat.messages.length === 0) return
@@ -902,14 +1296,23 @@ Ready to create your proposal?`
 
     if (!lastAgentMessage || !lastAgentMessage.content) return
 
-    // Check if we already have quotes (avoid re-parsing)
-    if (activeChat.quotes && activeChat.quotes.length > 0) return
+    // Only parse if we don't have quotes yet AND trip ID is submitted
+    // This ensures we don't overwrite quotes that came from tool results
+    if (activeChat.quotes && activeChat.quotes.length > 0) {
+      console.log('[Chat] Quotes already exist, skipping text parsing')
+      return
+    }
+
+    if (!tripIdSubmitted) {
+      console.log('[Chat] Trip ID not submitted yet, skipping quote parsing')
+      return
+    }
 
     // Try to parse quotes from the message content
     const parsedQuotes = parseQuotesFromText(lastAgentMessage.content)
 
-    if (parsedQuotes.length > 0 && tripIdSubmitted) {
-      console.log('[Chat] Extracted quotes from agent message:', parsedQuotes.length)
+    if (parsedQuotes.length > 0) {
+      console.log('[Chat] Extracted quotes from agent message text:', parsedQuotes.length)
 
       // Convert to formatted quotes
       const formattedQuotes = parsedQuotes.map((q, index) => ({
@@ -921,7 +1324,7 @@ Ready to create your proposal?`
         ranking: index + 1,
         isRecommended: index === 0,
         operatorEmail: q.operatorEmail,
-        rfqStatus: (q.rfqStatus || 'unanswered') as 'unanswered' | 'quoted' | 'sent' | 'declined' | 'expired',
+        rfqStatus: (q.rfqStatus || 'quoted') as 'unanswered' | 'quoted' | 'sent' | 'declined' | 'expired',
       }))
 
       // Update chat with parsed quotes
@@ -1069,12 +1472,15 @@ Ready to create your proposal?`
   }
 
   /**
-   * Handle Trip ID submission - Step 4: Receiving Quotes
-   * Calls get_rfq MCP tool to retrieve quotes from operators
+   * Handle Trip ID submission - Step 3: View RFQ Flights
+   * Calls get_rfq MCP tool with Trip ID to retrieve all RFQs and quotes for the trip
    */
   const handleTripIdSubmit = async (tripId: string): Promise<void> => {
     setIsTripIdLoading(true)
     setTripIdError(undefined)
+
+    // Parse route to get airport info for RFQ conversion
+    const routeParts = activeChat.route?.split(' → ') || ['N/A', 'N/A']
 
     try {
       // Build conversation history for context
@@ -1083,7 +1489,7 @@ Ready to create your proposal?`
         content: msg.content,
       }))
 
-      // Send Trip ID to the chat API - will trigger get_rfq tool
+      // Send Trip ID to the chat API - will trigger get_rfq tool with Trip ID
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1141,30 +1547,89 @@ Ready to create your proposal?`
               }
 
               if (data.done) {
-                // Mark Trip ID as submitted successfully
-                setTripIdSubmitted(true)
-
-                // Extract quotes data from rfq_data if available
+                // Extract quotes and RFQs data from rfq_data if available
                 let quotes = []
+                let rfqs = [] // Store RFQs separately to handle those without quotes
                 let newStatus = "analyzing_options"
 
                 if (data.rfq_data) {
                   console.log('[TripID] RFQ data received:', data.rfq_data)
                   quotes = data.rfq_data.quotes || []
+                  rfqs = data.rfq_data.rfqs || []
 
-                  if (quotes.length > 0) {
+                  if (quotes.length > 0 || rfqs.length > 0) {
                     newStatus = "analyzing_options"
                   }
                 }
 
-                // Also check tool_calls for get_rfq results
+                // Also check tool_calls for get_rfq results (handles both RFQ IDs and Trip IDs)
                 if (data.tool_calls) {
                   for (const toolCall of data.tool_calls) {
                     if (toolCall.name === "get_rfq" && toolCall.result) {
-                      console.log('[TripID] get_rfq result:', toolCall.result)
-                      if (toolCall.result.quotes) {
-                        quotes = toolCall.result.quotes
+                      console.log('[TripID] get_rfq result structure:', {
+                        hasRfqs: !!toolCall.result.rfqs,
+                        hasQuotes: !!toolCall.result.quotes,
+                        totalRfqs: toolCall.result.total_rfqs,
+                        totalQuotes: toolCall.result.total_quotes,
+                        resultKeys: Object.keys(toolCall.result),
+                        result: toolCall.result
+                      })
+                      
+                      // Store RFQs array for processing RFQs without quotes
+                      // This must be done BEFORE extracting quotes so we have the full RFQ list
+                      if (toolCall.result.rfqs && Array.isArray(toolCall.result.rfqs)) {
+                        rfqs = toolCall.result.rfqs
+                        console.log('[TripID] Found RFQs array:', rfqs.length, 'RFQs')
+                        console.log('[TripID] RFQs details:', rfqs.map((rfq: any) => ({
+                          rfqId: rfq.rfq_id || rfq.id,
+                          status: rfq.status,
+                          hasQuotes: !!(rfq.quotes && rfq.quotes.length > 0),
+                          quotesCount: Array.isArray(rfq.quotes) ? rfq.quotes.length : 0,
+                        })))
                       }
+                      
+                      // Check if result is for a trip (has quotes array at top level or rfqs array)
+                      // Trip ID response structure: { trip_id, rfqs: [...], quotes: [...], total_rfqs, total_quotes }
+                      if (toolCall.result.quotes && Array.isArray(toolCall.result.quotes)) {
+                        // Trip ID response - quotes are already flattened at top level
+                        quotes = toolCall.result.quotes
+                        console.log('[TripID] Using top-level quotes array:', quotes.length)
+                      } else if (toolCall.result.rfqs && Array.isArray(toolCall.result.rfqs)) {
+                        // Trip ID response - extract all quotes from all RFQs
+                        // Each RFQ can have a quotes array, or quotes might be nested differently
+                        quotes = toolCall.result.rfqs.flatMap((rfq: any) => {
+                          // Handle different quote structures in RFQ objects
+                          if (Array.isArray(rfq.quotes)) {
+                            return rfq.quotes
+                          } else if (rfq.quote) {
+                            // Single quote object
+                            return [rfq.quote]
+                          } else if (rfq.quote_id) {
+                            // RFQ with quote_id but quote data might be at top level
+                            return rfq.quote_id ? [rfq] : []
+                          }
+                          return []
+                        })
+                        console.log('[TripID] Extracted quotes from RFQs array:', quotes.length)
+                        console.log('[TripID] RFQs structure:', toolCall.result.rfqs.map((rfq: any) => ({
+                          rfqId: rfq.rfq_id || rfq.id,
+                          hasQuotes: !!rfq.quotes,
+                          quotesCount: Array.isArray(rfq.quotes) ? rfq.quotes.length : 0,
+                          status: rfq.status,
+                          keys: Object.keys(rfq)
+                        })))
+                      } else if (toolCall.result.quote_id || toolCall.result.rfq_id) {
+                        // Single RFQ response - wrap in array if needed
+                        if (Array.isArray(toolCall.result.quotes)) {
+                          quotes = toolCall.result.quotes
+                        } else {
+                          quotes = toolCall.result.quotes ? [toolCall.result.quotes] : []
+                        }
+                        console.log('[TripID] Single RFQ response, quotes:', quotes.length)
+                      }
+                      
+                      console.log('[TripID] Final quotes count:', quotes.length)
+                      console.log('[TripID] Final RFQs count:', rfqs.length)
                     }
                   }
                 }
@@ -1178,30 +1643,78 @@ Ready to create your proposal?`
                   showQuotes: quotes.length > 0,
                 }
 
-                // Convert quotes to the expected format
+                // Convert quotes to the expected format - ensure all fields needed by convertQuoteToRFQFlight are included
                 const formattedQuotes = quotes.map((q: any, index: number) => ({
-                  id: q.quote_id || q.quoteId || `quote-${index}`,
-                  operatorName: q.operator_name || q.operatorName || "Unknown Operator",
-                  aircraftType: q.aircraft_type || q.aircraftType || "Unknown Aircraft",
-                  price: q.total_price || q.price || q.basePrice || 0,
+                  id: q.quote_id || q.quoteId || q.id || `quote-${Date.now()}-${index}`,
+                  operatorName: q.operator_name || q.operatorName || q.operator?.name || "Unknown Operator",
+                  aircraftType: q.aircraft_type || q.aircraftType || q.aircraft?.type || q.aircraft?.model || "Unknown Aircraft",
+                  aircraftModel: q.aircraft_model || q.aircraftModel || q.aircraft?.model || q.aircraft_type || q.aircraftType,
+                  price: q.total_price || q.price || q.totalPrice?.amount || q.pricing?.total || q.basePrice || 0,
+                  currency: q.currency || q.totalPrice?.currency || q.pricing?.currency || 'USD',
                   score: q.score,
                   ranking: index + 1,
-                  operatorRating: q.operator_rating || q.operatorRating,
-                  departureTime: q.departure_time || q.departureTime,
-                  arrivalTime: q.arrival_time || q.arrivalTime,
-                  flightDuration: q.flight_duration || q.flightDuration,
+                  operatorRating: q.operator_rating || q.operatorRating || q.operator?.rating,
+                  operatorEmail: q.operator_email || q.operatorEmail || q.operator?.email || q.operator?.contact?.email,
+                  departureTime: q.departure_time || q.departureTime || q.schedule?.departureTime,
+                  arrivalTime: q.arrival_time || q.arrivalTime || q.schedule?.arrivalTime,
+                  flightDuration: q.flight_duration || q.flightDuration || q.schedule?.duration || 'TBD',
+                  passengerCapacity: q.passenger_capacity || q.passengerCapacity || q.aircraft?.capacity || q.capacity || activeChat.passengers || 0,
+                  tailNumber: q.tail_number || q.tailNumber || q.aircraft?.registration || q.aircraft?.tail_number,
+                  amenities: q.amenities || q.features || q.aircraft?.amenities || [],
+                  rfqStatus: q.status || q.rfq_status || q.quote_status || 'quoted',
                   isRecommended: index === 0,
                 }))
+                
+                // Convert RFQs without quotes to RFQFlight format
+                // This handles RFQs that were created in the Marketplace but don't have quotes yet
+                const rfqsWithoutQuotes = rfqs
+                  .filter((rfq: any) => {
+                    // Only include RFQs that don't have quotes
+                    const hasQuotes = Array.isArray(rfq.quotes) && rfq.quotes.length > 0
+                    const rfqId = rfq.rfq_id || rfq.id
+                    // Check if this RFQ already has quotes in the quotes array
+                    const hasQuoteInQuotesArray = quotes.some((q: any) => {
+                      const quoteRfqId = q.rfq_id || q.rfqId || q.rfq_id
+                      return quoteRfqId === rfqId
+                    })
+                    return !hasQuotes && !hasQuoteInQuotesArray
+                  })
+                  .map((rfq: any): RFQFlight | null => {
+                    try {
+                      return convertRfqToRFQFlight(rfq, routeParts, activeChat.date)
+                    } catch (error) {
+                      console.error('[TripID] Error converting RFQ to RFQFlight:', error, rfq)
+                      return null
+                    }
+                  })
+                  .filter((flight: RFQFlight | null): flight is RFQFlight => flight != null)
+                
+                console.log('[TripID] RFQs without quotes converted:', rfqsWithoutQuotes.length)
+                
+                // Combine quotes and RFQs without quotes
+                const allFormattedQuotes = [...formattedQuotes, ...rfqsWithoutQuotes]
 
                 const updatedMessages = [...latestMessagesRef.current, agentMsg]
                 latestMessagesRef.current = updatedMessages
 
+                // Log formatted quotes for debugging
+                console.log('[TripID] Formatted quotes count:', formattedQuotes.length)
+                console.log('[TripID] RFQs without quotes count:', rfqsWithoutQuotes.length)
+                console.log('[TripID] Total formatted items (quotes + RFQs):', allFormattedQuotes.length)
+                console.log('[TripID] Formatted quotes sample:', formattedQuotes.length > 0 ? formattedQuotes[0] : null)
+                console.log('[TripID] RFQs without quotes sample:', rfqsWithoutQuotes.length > 0 ? rfqsWithoutQuotes[0] : null)
+                
+                // Mark Trip ID as submitted successfully - update both local state and chat state
+                setTripIdSubmitted(true)
+                
                 onUpdateChat(activeChat.id, {
                   messages: updatedMessages,
                   status: newStatus as typeof activeChat.status,
                   currentStep: 4,
                   tripId: tripId,
-                  quotes: formattedQuotes.length > 0 ? formattedQuotes : activeChat.quotes,
+                  tripIdSubmitted: true, // Persist tripIdSubmitted to chat state
+                  // Include both quotes and RFQs without quotes
+                  quotes: allFormattedQuotes.length > 0 ? allFormattedQuotes : activeChat.quotes,
                 })
 
                 setIsTripIdLoading(false)
@@ -1319,7 +1832,7 @@ Ready to create your proposal?`
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 overflow-hidden">
       {/* Dynamic Chat Header - shows flight name, IDs, and quote requests */}
       <DynamicChatHeader
         activeChat={activeChat}
@@ -1330,14 +1843,15 @@ Ready to create your proposal?`
         onCopyTripId={() => console.log('[Chat] Trip ID copied to clipboard')}
       />
 
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      {/* Chat Messages - Fixed height constraint to prevent expansion when RFQ flights load */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        <div className="px-4 py-6 space-y-6">
+          <div className="max-w-4xl mx-auto space-y-6">
           {activeChat.messages.map((message) => (
-            <div key={message.id} className={cn("flex", message.type === "user" ? "justify-end" : "justify-start")}>
+            <div key={message.id} className={cn("flex", message.type === "user" ? "justify-end" : "justify-start text-white")}>
               {message.type === "user" ? (
                 /* User messages - keep bubble styling */
-                <div className="max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap shadow-sm bg-blue-600 text-white">
+                <div className="max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap shadow-sm bg-black dark:bg-gray-900 text-white">
                   <p className="text-sm leading-relaxed">{message.content}</p>
                   <p className="text-xs opacity-60 mt-2">{message.timestamp.toLocaleTimeString()}</p>
                 </div>
@@ -1382,7 +1896,10 @@ Ready to create your proposal?`
                   onDeepLinkClick={() => console.log('[DeepLink] User clicked Avinode marketplace link')}
                   onCopyDeepLink={() => console.log('[DeepLink] User copied deep link')}
                   // RFQ flights for Step 3 display (converted from quotes)
-                  rfqFlights={tripIdSubmitted ? rfqFlights : []}
+                  // Show quotes whenever we have them, regardless of tripIdSubmitted status
+                  // This allows quotes parsed from agent messages to be displayed immediately
+                  // Ensure rfqFlights is always an array, never null/undefined
+                  rfqFlights={Array.isArray(rfqFlights) && rfqFlights.length > 0 ? rfqFlights : []}
                   selectedRfqFlightIds={selectedRfqFlightIds}
                   onRfqFlightSelectionChange={setSelectedRfqFlightIds}
                   onReviewAndBook={handleReviewAndBook}
@@ -1439,19 +1956,25 @@ Ready to create your proposal?`
             <div className="flex justify-start">
               <div className="max-w-[85%] bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl px-4 py-3 border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
-                    <Plane className="w-3 h-3 text-white" />
+                  {/* Jetvision Logo - Dark outlined, 10% bigger than original (24px * 1.10 = 26.46px) */}
+                  <div className="w-[26.46px] h-[26.46px] flex items-center justify-center shrink-0">
+                    <img
+                      src="/images/jvg-logo.svg"
+                      alt="Jetvision"
+                      className="w-full h-full"
+                      style={{ filter: 'brightness(0)' }}
+                    />
                   </div>
-                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Jetvision Agent</span>
+                  <span className="text-xs font-semibold text-black dark:text-gray-100">Jetvision Agent</span>
                 </div>
                 {streamingContent ? (
                   <div>
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{stripMarkdown(streamingContent)}</p>
-                    <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-0.5" />
+                    <span className="inline-block w-2 h-4 bg-black dark:bg-gray-900 animate-pulse ml-0.5" />
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    <Loader2 className="w-4 h-4 animate-spin text-black dark:text-gray-100" />
                     <span className="text-sm">
                       {activeChat.status === 'searching_aircraft' ? 'Searching for flights...' :
                        activeChat.status === 'analyzing_options' ? 'Analyzing quotes...' :
@@ -1466,6 +1989,7 @@ Ready to create your proposal?`
           )}
 
           <div ref={messagesEndRef} />
+          </div>
         </div>
       </div>
 

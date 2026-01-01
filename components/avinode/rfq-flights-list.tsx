@@ -60,9 +60,9 @@ function sortFlights(flights: RFQFlight[], sortBy: SortOption): RFQFlight[] {
   return [...flights].sort((a, b) => {
     switch (sortBy) {
       case 'price-asc':
-        return a.price - b.price;
+        return a.totalPrice - b.totalPrice;
       case 'price-desc':
-        return b.price - a.price;
+        return b.totalPrice - a.totalPrice;
       case 'rating-asc':
         return (a.operatorRating || 0) - (b.operatorRating || 0);
       case 'rating-desc':
@@ -175,7 +175,7 @@ export function RFQFlightsList({
   if (isLoading) {
     return (
       <div data-testid="flights-loading" className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">Loading available flights...</p>
       </div>
     );
@@ -188,9 +188,9 @@ export function RFQFlightsList({
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No flights available</h3>
+          <h3 className="text-lg font-semibold mb-2">No RFQs available</h3>
           <p className="text-muted-foreground">
-            No RFQ flights have been received yet. Please check back later.
+            No RFQ has been submitted yet. Please check back later.
           </p>
         </div>
       );
@@ -216,7 +216,7 @@ export function RFQFlightsList({
             {processedFlights.length} flight{processedFlights.length !== 1 ? 's' : ''} available
           </h3>
           {selectable && selectedIds.size > 0 && (
-            <span className="text-sm text-blue-600 dark:text-blue-400">
+            <span className="text-sm text-primary">
               {selectedIds.size} selected
             </span>
           )}
@@ -254,9 +254,9 @@ export function RFQFlightsList({
         </div>
       </div>
 
-      {/* Status Filters */}
+      {/* Status Filters - Added bottom margin for spacing */}
       {filterable && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mb-6">
           {(['all', 'quoted', 'unanswered', 'sent', 'declined'] as StatusFilter[]).map((status) => (
             <Button
               key={status}
@@ -271,15 +271,15 @@ export function RFQFlightsList({
         </div>
       )}
 
-      {/* Flight Cards List */}
+      {/* Flight Cards List - Added proper spacing between cards */}
       <ul
         data-testid="rfq-flights-list"
         role="list"
         aria-label="Available flights"
-        className={cn('space-y-0', compact && 'space-y-0')}
+        className={cn('space-y-6', compact && 'space-y-4')}
       >
         {processedFlights.map((flight) => (
-          <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+          <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-6 last:pb-0" style={{ minHeight: '282px' }}>
             <RFQFlightCard
               flight={{ ...flight, isSelected: selectedIds.has(flight.id) }}
               selectable={selectable && !showBookButton}
@@ -308,7 +308,7 @@ export function RFQFlightsList({
           <Button
             onClick={handleContinue}
             disabled={selectedIds.size === 0}
-            className="bg-blue-600 hover:bg-blue-700"
+            className=""
           >
             Continue to Send Proposal
             <ArrowRight className="ml-2 h-4 w-4" />

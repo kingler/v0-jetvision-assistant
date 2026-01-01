@@ -495,6 +495,7 @@ export interface ChatSession {
     clientId?: string
     metadata?: Record<string, unknown>
   }
+  tripIdSubmitted?: boolean
   createdAt: Date
   updatedAt: Date
 }

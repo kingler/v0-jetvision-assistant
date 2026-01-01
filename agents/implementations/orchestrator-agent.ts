@@ -31,6 +31,7 @@ import {
   updateConversationState,
 } from '../tools';
 import type { MessageComponent } from '@/components/message-components/types';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * RFP data structure (backward compatibility)
@@ -165,6 +166,12 @@ export class OrchestratorAgent extends BaseAgent {
       content: userMessage,
       timestamp: new Date(),
     });
+
+    // Check if message contains a TripID - handle TripID queries first
+    const tripId = this.extractTripId(userMessage);
+    if (tripId) {
+      return await this.handleTripIDQuery(tripId, conversationState, context);
+    }
 
     // Parse user intent
     const intentResult = await this.intentParser.parseIntent(
@@ -349,6 +356,256 @@ export class OrchestratorAgent extends BaseAgent {
       isComplete: true,
       nextAction: 'create_rfp',
     };
+  }
+
+  /**
+   * Extract TripID from user message
+   * Supports formats: "atrip-123456", "TRP-123456", "123456", or mentions like "Trip ID: atrip-123"
+   */
+  private extractTripId(message: string): string | null {
+    // Pattern 1: atrip-XXXXXXXX format
+    const atripPattern = /\b(atrip-[\d]+)\b/i;
+    const atripMatch = message.match(atripPattern);
+    if (atripMatch) {
+      return atripMatch[1];
+    }
+
+    // Pattern 2: TRP-XXXXXXXX or trp-XXXXXXXX format
+    const trpPattern = /\b(trp-[\d]+)\b/i;
+    const trpMatch = message.match(trpPattern);
+    if (trpMatch) {
+      return trpMatch[1];
+    }
+
+    // Pattern 3: Numeric ID after "trip id" or "tripid" keyword
+    const keywordPattern = /(?:trip\s*id|tripid)[\s:]+([\d]+)/i;
+    const keywordMatch = message.match(keywordPattern);
+    if (keywordMatch) {
+      return `atrip-${keywordMatch[1]}`;
+    }
+
+    // Pattern 4: Standalone numeric ID (6-12 digits, likely a trip ID)
+    // Only match if message is short and seems to be just a trip ID
+    const numericPattern = /^\s*(\d{6,12})\s*$/;
+    const numericMatch = message.trim().match(numericPattern);
+    if (numericMatch) {
+      return `atrip-${numericMatch[1]}`;
+    }
+
+    return null;
+  }
+
+  /**
+   * Handle TripID query - fetch and return linked RFQs
+   */
+  private async handleTripIDQuery(
+    tripId: string,
+    conversationState: ConversationState,
+    context: AgentContext
+  ): Promise<ConversationalResponse> {
+    try {
+      // Build query for requests linked to this TripID
+      // Filter by user_id for security (context.userId should be the database user ID)
+      let query = supabaseAdmin
+        .from('requests')
+        .select(`
+          id,
+          departure_airport,
+          arrival_airport,
+          departure_date,
+          return_date,
+          passengers,
+          status,
+          created_at,
+          updated_at,
+          avinode_rfp_id,
+          avinode_deep_link,
+          user_id,
+          client_profiles (
+            id,
+            contact_name,
+            company_name
+          ),
+          quotes (
+            id,
+            operator_name,
+            aircraft_type,
+            total_price,
+            base_price,
+            score,
+            ranking,
+            status,
+            aircraft_details,
+            availability_confirmed,
+            valid_until
+          )
+        `)
+        .eq('avinode_trip_id', tripId);
+
+      // Filter by user_id if provided in context (security: users should only see their own RFQs)
+      if (context.userId) {
+        query = query.eq('user_id', context.userId);
+      }
+
+      // Order by creation date (most recent first)
+      query = query.order('created_at', { ascending: false });
+
+      const { data: requests, error } = await query;
+
+      if (error) {
+        console.error('[OrchestratorAgent] Error fetching RFQs for TripID:', error);
+        const errorMessage = `I encountered an error while looking up RFQs for Trip ID ${tripId}. Please try again.`;
+        
+        conversationState.conversationHistory.push({
+          role: 'assistant',
+          content: errorMessage,
+          timestamp: new Date(),
+        });
+
+        return {
+          message: errorMessage,
+          components: [
+            {
+              type: 'text',
+              content: errorMessage,
+            },
+          ],
+          intent: UserIntent.INFORMATION_QUERY,
+          conversationState,
+          isComplete: false,
+          nextAction: 'provide_info',
+        };
+      }
+
+      if (!requests || requests.length === 0) {
+        const notFoundMessage = `I couldn't find any RFQs linked to Trip ID ${tripId}. Please verify the Trip ID and try again.`;
+        
+        conversationState.conversationHistory.push({
+          role: 'assistant',
+          content: notFoundMessage,
+          timestamp: new Date(),
+        });
+
+        return {
+          message: notFoundMessage,
+          components: [
+            {
+              type: 'text',
+              content: notFoundMessage,
+            },
+          ],
+          intent: UserIntent.INFORMATION_QUERY,
+          conversationState,
+          isComplete: false,
+          nextAction: 'provide_info',
+        };
+      }
+
+      // Format RFQs for display
+      const components: MessageComponent[] = [];
+      const rfqMessages: string[] = [];
+
+      rfqMessages.push(`I found ${requests.length} RFQ${requests.length > 1 ? 's' : ''} linked to Trip ID ${tripId}:`);
+
+      for (const request of requests) {
+        const clientName = (request.client_profiles as any)?.contact_name || 
+                          (request.client_profiles as any)?.company_name || 
+                          'Unknown Client';
+        
+        const route = `${request.departure_airport} → ${request.arrival_airport}`;
+        const departureDate = new Date(request.departure_date).toLocaleDateString();
+        const quotes = (request.quotes as any[]) || [];
+        const quotesCount = quotes.length;
+
+        // Build RFQ summary message
+        let rfqSummary = `\n**RFQ ${request.id.substring(0, 8)}...**\n`;
+        rfqSummary += `Route: ${route}\n`;
+        rfqSummary += `Date: ${departureDate}\n`;
+        rfqSummary += `Passengers: ${request.passengers}\n`;
+        rfqSummary += `Status: ${request.status}\n`;
+        rfqSummary += `Client: ${clientName}\n`;
+        rfqSummary += `Quotes: ${quotesCount}`;
+
+        rfqMessages.push(rfqSummary);
+
+        // Add quote cards for each quote
+        if (quotes.length > 0) {
+          quotes
+            .sort((a, b) => (a.ranking || 999) - (b.ranking || 999))
+            .forEach((quote, index) => {
+              components.push({
+                type: 'quote_card',
+                quote: {
+                  id: quote.id,
+                  operatorName: quote.operator_name || 'Unknown Operator',
+                  aircraftType: quote.aircraft_type || 'Unknown Aircraft',
+                  price: quote.total_price || 0,
+                  departureTime: '', // Would need flight details
+                  arrivalTime: '',
+                  flightDuration: '',
+                  isRecommended: quote.ranking === 1,
+                },
+              });
+
+              // Add quote details to message
+              rfqMessages.push(
+                `  ${index + 1}. ${quote.operator_name} - ${quote.aircraft_type || 'N/A'}` +
+                ` - $${(quote.total_price || 0).toLocaleString()}` +
+                (quote.ranking === 1 ? ' (Recommended)' : '')
+              );
+            });
+        }
+      }
+
+      const fullMessage = rfqMessages.join('\n');
+
+      // Add text component at the beginning
+      components.unshift({
+        type: 'text',
+        content: fullMessage,
+        markdown: true,
+      });
+
+      conversationState.conversationHistory.push({
+        role: 'assistant',
+        content: fullMessage,
+        timestamp: new Date(),
+      });
+
+      this.conversationStates.set(conversationState.sessionId, conversationState);
+
+      return {
+        message: fullMessage,
+        components,
+        intent: UserIntent.INFORMATION_QUERY,
+        conversationState,
+        isComplete: true,
+        nextAction: 'provide_info',
+      };
+    } catch (error) {
+      console.error('[OrchestratorAgent] Error handling TripID query:', error);
+      const errorMessage = `I encountered an error while processing your Trip ID query. Please try again.`;
+
+      conversationState.conversationHistory.push({
+        role: 'assistant',
+        content: errorMessage,
+        timestamp: new Date(),
+      });
+
+      return {
+        message: errorMessage,
+        components: [
+          {
+            type: 'text',
+            content: errorMessage,
+          },
+        ],
+        intent: UserIntent.INFORMATION_QUERY,
+        conversationState,
+        isComplete: false,
+        nextAction: 'provide_info',
+      };
+    }
   }
 
   /**

@@ -110,6 +110,8 @@ export interface ChatSession {
   needsInitialApiCall?: boolean
   /** The initial user message to send when API call is triggered */
   initialUserMessage?: string
+  /** Flag indicating if tripId was auto-submitted to check for quotes */
+  tripIdSubmitted?: boolean
 }
 
 interface ChatSidebarProps {

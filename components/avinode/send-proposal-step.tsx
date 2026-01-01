@@ -494,7 +494,7 @@ export function SendProposalStep({
         <Button
           onClick={handleSendProposal}
           disabled={isLoading || !hasFlights || status === 'sent' || !onSendProposal}
-          className="flex-1 bg-blue-600 hover:bg-blue-700"
+          className="flex-1"
         >
           {status === 'sending' ? (
             <>

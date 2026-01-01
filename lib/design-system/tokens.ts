@@ -2,7 +2,7 @@
  * Jetvision Group Design System Tokens
  *
  * Comprehensive design tokens for the private aviation charter platform.
- * Based on Aviation Blue (#0066cc), Sky Blue (#00a8e8), and Sunset Orange (#ff6b35).
+ * Based on Sky Blue (#00a8e8) as primary, Aviation Blue (#0066cc) as legacy, and Sunset Orange (#ff6b35).
  *
  * Supports light and dark modes with WCAG AA accessibility compliance.
  */
@@ -16,28 +16,28 @@
  * Inspired by sky, clouds, and premium aviation aesthetics
  */
 export const brandColors = {
-  // Primary - Aviation Blue (Trust, Professionalism)
+  // Legacy - Aviation Blue (kept for backward compatibility)
   aviationBlue: {
     50: '#e6f2ff',
     100: '#cce5ff',
     200: '#99cbff',
     300: '#66b0ff',
     400: '#3396ff',
-    500: '#0066cc', // Primary brand color
+    500: '#0066cc',
     600: '#0052a3',
     700: '#003d7a',
     800: '#002952',
     900: '#001429',
   },
 
-  // Secondary - Sky Blue (Innovation, Speed)
+  // Primary - Sky Blue (Innovation, Speed, Trust, Professionalism)
   skyBlue: {
     50: '#e6f7fc',
     100: '#cceff9',
     200: '#99dff3',
     300: '#66cfed',
     400: '#33bfe7',
-    500: '#00a8e8', // Secondary brand color
+    500: '#00a8e8', // Primary brand color
     600: '#0087ba',
     700: '#00658b',
     800: '#00445d',
@@ -149,10 +149,10 @@ export const cssVarColors = {
     cardForeground: 'oklch(0.3 0 0)',
     popover: 'oklch(1 0 0)',
     popoverForeground: 'oklch(0.25 0 0)',
-    primary: 'oklch(0.5 0.18 250)',
-    primaryForeground: 'oklch(1 0 0)',
-    secondary: 'oklch(0.65 0.18 220)',
-    secondaryForeground: 'oklch(1 0 0)',
+    primary: 'oklch(0.65 0.18 220)', // Sky Blue 500 (#00a8e8)
+    primaryForeground: 'oklch(1 0 0)', // White
+    secondary: 'transparent', // Transparent for text link style
+    secondaryForeground: 'oklch(0.65 0.18 220)', // Sky Blue 500 (primary color for text)
     muted: 'oklch(0.98 0 0)',
     mutedForeground: 'oklch(0.3 0 0)',
     accent: 'oklch(0.65 0.22 40)',
@@ -172,10 +172,10 @@ export const cssVarColors = {
     cardForeground: 'oklch(0.985 0 0)',
     popover: 'oklch(0.145 0 0)',
     popoverForeground: 'oklch(0.985 0 0)',
-    primary: 'oklch(0.6 0.20 250)',
-    primaryForeground: 'oklch(0.98 0 0)',
-    secondary: 'oklch(0.70 0.20 220)',
-    secondaryForeground: 'oklch(0.145 0 0)',
+    primary: 'oklch(0.70 0.20 220)', // Sky Blue (lighter for dark mode)
+    primaryForeground: 'oklch(0.98 0 0)', // White
+    secondary: 'transparent', // Transparent for text link style
+    secondaryForeground: 'oklch(0.70 0.20 220)', // Sky Blue (primary color for text)
     muted: 'oklch(0.269 0 0)',
     mutedForeground: 'oklch(0.708 0 0)',
     accent: 'oklch(0.70 0.24 40)',
@@ -349,7 +349,7 @@ export const shadows = {
   none: 'none',
 
   // Colored shadows for emphasis
-  primary: '0 10px 15px -3px rgb(0 102 204 / 0.2), 0 4px 6px -4px rgb(0 102 204 / 0.1)',
+  primary: '0 10px 15px -3px rgb(0 168 232 / 0.2), 0 4px 6px -4px rgb(0 168 232 / 0.1)', // Sky Blue
   accent: '0 10px 15px -3px rgb(255 107 53 / 0.2), 0 4px 6px -4px rgb(255 107 53 / 0.1)',
 } as const;
 

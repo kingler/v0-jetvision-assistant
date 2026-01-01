@@ -31,9 +31,9 @@ import {
   ArrowRight,
   ClipboardCheck,
   MessageSquare,
+  Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TripIDInput } from './trip-id-input';
 import { RFQFlightsList } from './rfq-flights-list';
 import { SendProposalStep } from './send-proposal-step';
 import { convertToAvinodeRFQFlight } from './utils';
@@ -192,7 +192,7 @@ function StepIndicator({ stepNumber, title, status, isLast, hideWhenComplete }: 
             'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-all',
             // Use gray for completed (per design), blue for active, light gray for pending
             status === 'completed' && 'bg-gray-400 text-white dark:bg-gray-500',
-            status === 'active' && 'bg-blue-500 text-white animate-pulse',
+            status === 'active' && 'bg-primary text-primary-foreground animate-pulse',
             status === 'pending' && 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
           )}
         >
@@ -209,7 +209,7 @@ function StepIndicator({ stepNumber, title, status, isLast, hideWhenComplete }: 
             'mt-1 text-xs font-medium whitespace-nowrap text-center max-w-[80px]',
             // Gray text for all states per design
             status === 'completed' && 'text-gray-500 dark:text-gray-400',
-            status === 'active' && 'text-blue-600 dark:text-blue-400',
+            status === 'active' && 'text-primary',
             status === 'pending' && 'text-gray-400 dark:text-gray-500'
           )}
         >
@@ -301,9 +301,10 @@ function FlightCard({
                 size="sm"
                 className="h-6 text-xs"
                 onClick={() => onViewChat?.(flight.id)}
+                aria-label="View chat"
               >
                 <MessageSquare className="h-3 w-3 mr-1" />
-                View Chat
+                View
               </Button>
             </div>
           </div>
@@ -479,7 +480,7 @@ export function FlightSearchProgress({
                 {currentStep > 1 ? (
                   <CheckCircle2 className="h-5 w-5 text-gray-500" />
                 ) : (
-                  <ClipboardCheck className="h-5 w-5 text-blue-500" />
+                  <ClipboardCheck className="h-5 w-5 text-primary" />
                 )}
                 <h4 className="font-semibold text-sm">
                   Step 1: Trip Request {currentStep > 1 ? 'Created' : 'Creating'}
@@ -494,7 +495,7 @@ export function FlightSearchProgress({
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3 w-3 text-muted-foreground" />
                       <span className="text-lg font-bold text-primary">
-                        {flightRequest.departureAirport.icao}
+                        {flightRequest.departureAirport?.icao?.toUpperCase() || ''}
                       </span>
                     </div>
                     {flightRequest.departureAirport.name && (
@@ -519,7 +520,7 @@ export function FlightSearchProgress({
                   <div className="flex-1 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <span className="text-lg font-bold text-primary">
-                        {flightRequest.arrivalAirport.icao}
+                        {flightRequest.arrivalAirport?.icao?.toUpperCase() || ''}
                       </span>
                       <MapPin className="h-3 w-3 text-muted-foreground" />
                     </div>
@@ -537,7 +538,7 @@ export function FlightSearchProgress({
                 </div>
 
                 {/* Flight Details Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2">
                     <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
@@ -596,7 +597,7 @@ export function FlightSearchProgress({
                 {currentStep > 2 ? (
                   <CheckCircle2 className="h-5 w-5 text-gray-500" />
                 ) : (
-                  <ExternalLink className="h-5 w-5 text-blue-500" />
+                  <ExternalLink className="h-5 w-5 text-primary" />
                 )}
                 <h4 className="font-semibold text-sm">
                   Step 2: {currentStep > 2 ? 'Flight & RFQ Selected' : 'Select Flight & RFQ'}
@@ -608,7 +609,7 @@ export function FlightSearchProgress({
                 <p className="font-medium mb-2">How to search and select flights:</p>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                   <li>Click the button below to open Avinode Marketplace</li>
-                  <li>Enter the airport codes: <span className="font-semibold text-foreground">{flightRequest.departureAirport.icao}</span> (departure) and <span className="font-semibold text-foreground">{flightRequest.arrivalAirport.icao}</span> (arrival)</li>
+                  <li>Enter the airport codes: <span className="font-semibold text-foreground">{flightRequest.departureAirport?.icao?.toUpperCase() || ''}</span> (departure) and <span className="font-semibold text-foreground">{flightRequest.arrivalAirport?.icao?.toUpperCase() || ''}</span> (arrival)</li>
                   <li>Browse available aircraft and operators</li>
                   <li>Select your preferred options and submit your RFQ</li>
                 </ol>
@@ -618,7 +619,11 @@ export function FlightSearchProgress({
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   onClick={handleDeepLinkClick}
-                  className="sm:w-auto bg-blue-600 hover:bg-blue-700"
+                  className="sm:w-auto"
+                  style={{
+                    backgroundClip: 'unset',
+                    WebkitBackgroundClip: 'unset',
+                  }}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Open in Avinode Marketplace
@@ -648,83 +653,110 @@ export function FlightSearchProgress({
           {currentStep >= 3 && (
             <div
               data-testid="step-3-content"
-              className={cn(
-                "border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-4",
-                !tripIdSubmitted && "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30"
-              )}
+              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 mb-6"
             >
-              <div className="flex items-center gap-2 mb-3 px-0">
-                {tripIdSubmitted && rfqFlights.length > 0 ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+              {/* Header Section - Improved spacing */}
+              <div className="flex items-center gap-2 mb-6">
+                {tripIdSubmitted ? (
+                  <CheckCircle2 className="h-5 w-5 text-gray-500" />
                 ) : (
-                  <Clock className="h-5 w-5 text-amber-500" />
+                  <Search className="h-5 w-5 text-primary" />
                 )}
                 <h4 className="font-semibold text-sm">
-                  Step 3: {tripIdSubmitted ? 'View RFQ Flights' : 'Enter Trip ID & View RFQ Flights'}
+                  Step 3: View RFQ Flights
                 </h4>
-                {tripIdSubmitted && tripId && (
-                  <span className="ml-2 px-2 py-0.5 text-xs font-mono bg-gray-100 dark:bg-gray-800 rounded">
-                    Trip ID: {tripId}
-                  </span>
-                )}
               </div>
 
-              {/* Before Trip ID submission - Show instructions and input */}
-              {!tripIdSubmitted && (
-                <>
-                  {/* Instructions */}
-                  <div className="mb-4 p-3 rounded-md bg-white dark:bg-gray-900">
-                    <p className="text-sm font-medium mb-2">Complete these steps in Avinode:</p>
-                    <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
-                      <li>Search for available flights using the details above</li>
-                      <li>Select your preferred aircraft and operator</li>
-                      <li>Submit your RFQ (Request for Quote) to operators</li>
-                      <li>Once complete, copy the <span className="font-semibold text-foreground">Trip ID</span> from Avinode</li>
-                      <li>Return here and enter the Trip ID below</li>
-                    </ol>
-                  </div>
-
-                  {/* Trip ID Input */}
-                  <TripIDInput
-                    onSubmit={onTripIdSubmit || handleTripIdSubmitNoOp}
-                    isLoading={isTripIdLoading}
-                    error={tripIdError}
-                    helpText="Find the Trip ID in your Avinode confirmation email or on the trip details page."
-                  />
-                </>
+              {/* Trip ID not available yet */}
+              {!tripId && (
+                <div className="mb-6 p-4 rounded-md bg-amber-50 dark:bg-amber-950/30">
+                  <p className="text-sm font-medium mb-2">Waiting for Trip ID</p>
+                  <p className="text-xs text-muted-foreground">
+                    Your trip is being created. The Trip ID will appear here once ready.
+                  </p>
+                </div>
               )}
 
-              {/* After Trip ID submission - Show RFQ Flights List */}
-              {tripIdSubmitted && (
-                <div className="mt-4">
-                  {/* Success message */}
-                  <div className="flex items-center gap-3 p-3 rounded-md bg-green-50 dark:bg-green-950/30 mb-4">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-                    <div className="flex-1">
-                      <p className="font-medium text-green-700 dark:text-green-300 text-sm">
-                        Trip ID verified successfully!
-                      </p>
-                      {rfqFlights.length > 0 ? (
-                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                          {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Select the flights you want to include in your proposal, then click "Create Proposal" to generate and send the PDF to your customer.
-                        </p>
-                      ) : (
-                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                          {isRfqFlightsLoading 
-                            ? 'Loading flight quotes...' 
-                            : 'Waiting for quotes from operators. They will appear here once received.'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+              {/* View RFQs button - Always visible when Trip ID is available, even after submission */}
+              {tripId && (
+                <div className="mb-6">
+                  <Button
+                    onClick={() => onTripIdSubmit?.(tripId)}
+                    disabled={isTripIdLoading}
+                    className="flex items-center gap-2"
+                  >
+                    {isTripIdLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading RFQs...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4" />
+                        View RFQs
+                      </>
+                    )}
+                  </Button>
+                  {tripIdError && (
+                    <p className="mt-3 text-xs text-red-600 dark:text-red-400">
+                      {tripIdError}
+                    </p>
+                  )}
+                </div>
+              )}
 
-                  {/* RFQ Flights List */}
-                  {rfqFlights.length > 0 ? (
+              {/* Show RFQ Flights List when Trip ID is submitted OR we have flights to display */}
+              {(tripIdSubmitted || rfqFlights.length > 0) && (
+                <div className="space-y-6">
+                  {/* Success message - Only show when Trip ID is submitted */}
+                  {tripIdSubmitted && (
+                    <div className="flex items-start gap-3 p-4 rounded-md bg-green-50 dark:bg-green-950/30">
+                      <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-green-700 dark:text-green-300 text-sm mb-2">
+                          Trip ID verified successfully!
+                        </p>
+                        {isRfqFlightsLoading ? (
+                          <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                            Loading flight quotes...
+                          </p>
+                        ) : rfqFlights.length > 0 ? (
+                          <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                            {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Select the flights you want to include in your proposal, then click "Create Proposal" to generate and send the PDF to your customer.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                            No RFQs have been submitted yet. Please check back later or try refreshing.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show info message when quotes are available but Trip ID not submitted */}
+                  {!tripIdSubmitted && rfqFlights.length > 0 && (
+                    <div className="flex items-start gap-3 p-4 rounded-md bg-blue-50 dark:bg-blue-950/30">
+                      <CheckCircle2 className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-blue-700 dark:text-blue-300 text-sm mb-2">
+                          Quotes Received
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 leading-relaxed">
+                          {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Review the options below and select flights for your proposal.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* RFQ Flights List - Render when Trip ID is submitted OR when we have flights to display */}
+                  {(tripIdSubmitted || (rfqFlights && rfqFlights.length > 0)) && (
                     <RFQFlightsList
-                      flights={rfqFlights.map(f => ({
-                        ...f,
-                        isSelected: selectedRfqFlightIds.includes(f.id)
-                      }))}
+                      flights={(rfqFlights || [])
+                        .filter(f => f != null && f.id != null) // Filter out null/undefined flights
+                        .map(f => ({
+                          ...f,
+                          isSelected: selectedRfqFlightIds.includes(f.id)
+                        }))}
                       isLoading={isRfqFlightsLoading}
                       selectable={!onReviewAndBook}
                       showSelectAll={!onReviewAndBook}
@@ -738,20 +770,6 @@ export function FlightSearchProgress({
                       onReviewAndBook={onReviewAndBook}
                       onViewChat={onViewChat}
                     />
-                  ) : (
-                    <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
-                      {isRfqFlightsLoading ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Loading flight quotes...</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="mb-2">No RFQ flights have been received yet.</p>
-                          <p className="text-xs">Quotes from operators will appear here once they respond to your RFQ.</p>
-                        </div>
-                      )}
-                    </div>
                   )}
                 </div>
               )}

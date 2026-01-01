@@ -209,6 +209,7 @@ export class AvinodeMCPServer extends BaseMCPServer {
     this.registerTool(this.createGetQuoteStatusTool());
     this.registerTool(this.createGetQuotesTool());
     this.registerTool(this.createCreateTripTool());
+    this.registerTool(this.createGetRFQTool());
   }
 
   /**
@@ -423,6 +424,32 @@ export class AvinodeMCPServer extends BaseMCPServer {
       execute: async (params: any) => {
         this.ensureClientAvailable();
         return await this.client!.createTrip(params);
+      },
+    };
+  }
+
+  /**
+   * Create get_rfq tool - retrieves RFQ details and quotes
+   * Automatically handles both RFQ IDs (arfq-*) and Trip IDs (atrip-*)
+   * When a Trip ID is provided, returns all RFQs for that trip with flattened quotes
+   */
+  private createGetRFQTool(): MCPToolDefinition {
+    return {
+      name: 'get_rfq',
+      description: 'Get RFQ (Request for Quote) details including all received quotes from operators. Automatically handles both RFQ IDs (arfq-*) and Trip IDs (atrip-*). When a Trip ID is provided, returns all RFQs for that trip with their quotes.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          rfq_id: {
+            type: 'string',
+            description: 'The RFQ identifier (e.g., arfq-12345678) or Trip ID (e.g., atrip-12345678). If it starts with "atrip-", returns all RFQs for that trip.',
+          },
+        },
+        required: ['rfq_id'],
+      },
+      execute: async (params: any) => {
+        this.ensureClientAvailable();
+        return await this.client!.getRFQ(params.rfq_id);
       },
     };
   }

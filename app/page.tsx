@@ -4,12 +4,9 @@ import { useState, useEffect } from "react"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
 import { WorkflowVisualization } from "@/components/workflow-visualization"
-import { SettingsDropdownMenu } from "@/components/settings-panel"
 import { ChatSidebar, type ChatSession } from "@/components/chat-sidebar"
 import { LandingPage } from "@/components/landing-page"
-import { Button } from "@/components/ui/button"
-import { Settings, ChevronRight, ChevronLeft } from "lucide-react"
-import Image from "next/image"
+import { AppHeader } from "@/components/app-header"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 type View = "landing" | "chat" | "workflow"
@@ -86,7 +83,7 @@ export default function JetvisionAgent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
       {isMobile && sidebarOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -114,58 +111,16 @@ export default function JetvisionAgent() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="border-b border-gray-800 bg-black sticky top-0 z-30">
-          <div className="container mx-auto px-3 sm:px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="text-gray-300 hover:text-white hover:bg-gray-800 flex-shrink-0"
-                  aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-                  aria-expanded={sidebarOpen}
-                >
-                  {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </Button>
-                <Image
-                  src="/images/jetvision-logo.png"
-                  alt="Jetvision"
-                  width={120}
-                  height={32}
-                  className="h-6 sm:h-7 w-auto flex-shrink-0"
-                />
-                <div className="hidden md:block border-l border-gray-600 pl-4">
-                  <p className="text-sm text-gray-300 font-medium">AI-powered Private Jet Booking</p>
-                </div>
-              </div>
-
-              <nav className="flex items-center space-x-2 sm:space-x-3">
-                <SettingsDropdownMenu />
-                <div className="flex items-center space-x-2">
-                  {user && (
-                    <span className="hidden sm:inline text-sm text-gray-300">
-                      {user.firstName || user.username || user.emailAddresses[0]?.emailAddress}
-                    </span>
-                  )}
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: 'w-8 h-8 sm:w-9 sm:h-9',
-                      },
-                    }}
-                    afterSignOutUrl="/sign-in"
-                  />
-                </div>
-              </nav>
-            </div>
-          </div>
-        </header>
+        <AppHeader
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
+          isMobile={isMobile}
+        />
 
         <main
           className={`
+          flex-1 flex flex-col min-h-0
           ${currentView === "workflow" ? "overflow-y-auto" : "overflow-hidden"}
-          ${isMobile ? "h-[calc(100vh-60px)]" : "h-[calc(100vh-64px)]"}
         `}
         >
           {currentView === "landing" && (

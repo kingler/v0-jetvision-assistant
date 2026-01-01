@@ -8,8 +8,8 @@
  * CSS variables here enable runtime dark mode switching.
  *
  * Design System Colors (from tokens):
- * - Aviation Blue: #0066cc (primary brand)
- * - Sky Blue: #00a8e8 (secondary)
+ * - Sky Blue: #00a8e8 (primary brand)
+ * - Aviation Blue: #0066cc (legacy)
  * - Sunset Orange: #ff6b35 (accent)
  */
 
@@ -36,13 +36,13 @@
   --popover: oklch(1 0 0); /* white */
   --popover-foreground: oklch(0.25 0 0); /* neutral-700 */
 
-  /* Primary - Aviation Blue */
-  --primary: oklch(0.5 0.18 250); /* #0066cc */
+  /* Primary - Sky Blue */
+  --primary: oklch(0.65 0.18 220); /* #00a8e8 */
   --primary-foreground: oklch(1 0 0); /* white */
 
-  /* Secondary - Sky Blue */
-  --secondary: oklch(0.65 0.18 220); /* #00a8e8 */
-  --secondary-foreground: oklch(1 0 0); /* white */
+  /* Secondary - Text link style (transparent background, primary color text) */
+  --secondary: transparent;
+  --secondary-foreground: oklch(0.65 0.18 220); /* #00a8e8 (primary color) */
 
   /* Muted surfaces */
   --muted: oklch(0.98 0 0); /* neutral-50 */
@@ -96,13 +96,13 @@
   --popover: oklch(0.145 0 0);
   --popover-foreground: oklch(0.985 0 0);
 
-  /* Primary - Aviation Blue (lighter for dark mode) */
-  --primary: oklch(0.6 0.20 250);
+  /* Primary - Sky Blue (lighter for dark mode) */
+  --primary: oklch(0.70 0.20 220);
   --primary-foreground: oklch(0.98 0 0);
 
-  /* Secondary - Sky Blue (lighter for dark mode) */
-  --secondary: oklch(0.70 0.20 220);
-  --secondary-foreground: oklch(0.145 0 0);
+  /* Secondary - Text link style (transparent background, primary color text) */
+  --secondary: transparent;
+  --secondary-foreground: oklch(0.70 0.20 220); /* Sky Blue (primary color) */
 
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
