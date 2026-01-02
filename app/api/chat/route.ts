@@ -848,15 +848,33 @@ export async function POST(req: NextRequest) {
         if (toolCall.function.name === 'create_trip') {
           try {
             const parsed = JSON.parse(toolResultContent)
-            if (parsed.trip_id && parsed.deep_link) {
-              tripData = parsed
-              console.log('[Chat API] Trip created with deep link:', {
+            // Log the full parsed result for debugging prod vs dev differences
+            console.log('[Chat API] create_trip parsed result:', {
+              trip_id: parsed.trip_id,
+              deep_link: parsed.deep_link,
+              internal_id: parsed.internal_id,
+              success: parsed.success,
+              hasActions: !!parsed.raw_response?.data?.actions,
+            })
+
+            // Capture trip_id even if deep_link is missing - use fallback URL
+            // This fixes the prod vs dev discrepancy where deep_link may not be returned
+            if (parsed.trip_id) {
+              tripData = {
+                ...parsed,
+                // Provide fallback deep_link if not present in API response
+                deep_link: parsed.deep_link || `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
+              }
+              console.log('[Chat API] Trip created:', {
                 tripId: parsed.trip_id,
-                deepLink: parsed.deep_link,
+                deepLink: tripData.deep_link,
+                deepLinkWasMissing: !parsed.deep_link,
               })
+            } else {
+              console.warn('[Chat API] create_trip response missing trip_id:', parsed)
             }
-          } catch {
-            // Ignore parse errors
+          } catch (parseError) {
+            console.error('[Chat API] Failed to parse create_trip result:', parseError, toolResultContent)
           }
         }
 

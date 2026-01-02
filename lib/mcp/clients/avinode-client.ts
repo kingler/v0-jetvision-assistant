@@ -413,15 +413,28 @@ export class AvinodeClient {
       // The API returns nested structure: { meta: {...}, data: { id, tripId, actions, ... } }
       const tripData = response.data?.data || response.data;
 
+      // Log raw response structure for debugging prod vs dev differences
+      this.logger.info('Avinode API raw response structure:', {
+        hasData: !!response.data,
+        hasNestedData: !!response.data?.data,
+        tripDataKeys: tripData ? Object.keys(tripData) : [],
+        hasActions: !!tripData?.actions,
+        actionKeys: tripData?.actions ? Object.keys(tripData.actions) : [],
+        hasSearchInAvinode: !!tripData?.actions?.searchInAvinode,
+        searchInAvinodeHref: tripData?.actions?.searchInAvinode?.href,
+      });
+
       // Extract the searchInAvinode deep link from actions
       const searchDeepLink = tripData?.actions?.searchInAvinode?.href;
       const viewDeepLink = tripData?.actions?.viewInAvinode?.href;
 
-      // Log successful trip creation
+      // Log successful trip creation with deep link status
       this.logger.info('Trip created successfully', {
         externalTripId,
         tripId: tripData?.tripId || tripData?.id,
         deepLink: searchDeepLink,
+        deepLinkMissing: !searchDeepLink,
+        viewLink: viewDeepLink,
       });
 
       // Return in the format expected by the UI (chat-interface.tsx expects trip_id and deep_link)
