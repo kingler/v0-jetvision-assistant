@@ -1630,21 +1630,44 @@ export function ChatInterface({
                 }
 
                 // Also check tool_calls for get_rfq results (handles both RFQ IDs and Trip IDs)
+                // Track pre-transformed flights from getRFQFlights
+                let preTransformedFlights: RFQFlight[] = []
+
                 if (data.tool_calls) {
                   for (const toolCall of data.tool_calls) {
                     if (toolCall.name === "get_rfq" && toolCall.result) {
                       console.log('[TripID] get_rfq result structure:', {
+                        hasFlights: !!toolCall.result.flights,
                         hasRfqs: !!toolCall.result.rfqs,
                         hasQuotes: !!toolCall.result.quotes,
                         totalRfqs: toolCall.result.total_rfqs,
                         totalQuotes: toolCall.result.total_quotes,
+                        flightsReceived: toolCall.result.flights_received,
+                        status: toolCall.result.status,
                         resultKeys: Object.keys(toolCall.result),
-                        result: toolCall.result
                       })
-                      
-                      // Store RFQs array for processing RFQs without quotes
+
+                      // NEW FORMAT: getRFQFlights returns { flights: RFQFlight[], status, trip_id, rfq_id, ... }
+                      // This is the preferred format from the MCP tool
+                      if (toolCall.result.flights && Array.isArray(toolCall.result.flights)) {
+                        preTransformedFlights = toolCall.result.flights as RFQFlight[]
+                        console.log('[TripID] Using pre-transformed flights array:', preTransformedFlights.length, 'flights')
+
+                        // Also populate quotes for backward compatibility with conversion logic
+                        // The flights are already in RFQFlight format, so we'll use them directly later
+                        quotes = preTransformedFlights
+
+                        // Check for RFQs without quotes (status is 'sent' or 'unanswered')
+                        const rfqsAwaitingQuotes = preTransformedFlights.filter(
+                          f => f.rfqStatus === 'sent' || f.rfqStatus === 'unanswered'
+                        )
+                        if (rfqsAwaitingQuotes.length > 0) {
+                          console.log('[TripID] Found', rfqsAwaitingQuotes.length, 'RFQs awaiting quotes')
+                        }
+                      }
+                      // LEGACY FORMAT: Store RFQs array for processing RFQs without quotes
                       // This must be done BEFORE extracting quotes so we have the full RFQ list
-                      if (toolCall.result.rfqs && Array.isArray(toolCall.result.rfqs)) {
+                      else if (toolCall.result.rfqs && Array.isArray(toolCall.result.rfqs)) {
                         rfqs = toolCall.result.rfqs
                         console.log('[TripID] Found RFQs array:', rfqs.length, 'RFQs')
                         console.log('[TripID] RFQs details:', rfqs.map((rfq: any) => ({
@@ -1653,40 +1676,27 @@ export function ChatInterface({
                           hasQuotes: !!(rfq.quotes && rfq.quotes.length > 0),
                           quotesCount: Array.isArray(rfq.quotes) ? rfq.quotes.length : 0,
                         })))
-                      }
-                      
-                      // Check if result is for a trip (has quotes array at top level or rfqs array)
-                      // Trip ID response structure: { trip_id, rfqs: [...], quotes: [...], total_rfqs, total_quotes }
-                      if (toolCall.result.quotes && Array.isArray(toolCall.result.quotes)) {
-                        // Trip ID response - quotes are already flattened at top level
-                        quotes = toolCall.result.quotes
-                        console.log('[TripID] Using top-level quotes array:', quotes.length)
-                      } else if (toolCall.result.rfqs && Array.isArray(toolCall.result.rfqs)) {
-                        // Trip ID response - extract all quotes from all RFQs
-                        // Each RFQ can have a quotes array, or quotes might be nested differently
+
+                        // Extract all quotes from all RFQs
                         quotes = toolCall.result.rfqs.flatMap((rfq: any) => {
-                          // Handle different quote structures in RFQ objects
                           if (Array.isArray(rfq.quotes)) {
                             return rfq.quotes
                           } else if (rfq.quote) {
-                            // Single quote object
                             return [rfq.quote]
                           } else if (rfq.quote_id) {
-                            // RFQ with quote_id but quote data might be at top level
                             return rfq.quote_id ? [rfq] : []
                           }
                           return []
                         })
                         console.log('[TripID] Extracted quotes from RFQs array:', quotes.length)
-                        console.log('[TripID] RFQs structure:', toolCall.result.rfqs.map((rfq: any) => ({
-                          rfqId: rfq.rfq_id || rfq.id,
-                          hasQuotes: !!rfq.quotes,
-                          quotesCount: Array.isArray(rfq.quotes) ? rfq.quotes.length : 0,
-                          status: rfq.status,
-                          keys: Object.keys(rfq)
-                        })))
-                      } else if (toolCall.result.quote_id || toolCall.result.rfq_id) {
-                        // Single RFQ response - wrap in array if needed
+                      }
+                      // LEGACY FORMAT: Top-level quotes array
+                      else if (toolCall.result.quotes && Array.isArray(toolCall.result.quotes)) {
+                        quotes = toolCall.result.quotes
+                        console.log('[TripID] Using top-level quotes array:', quotes.length)
+                      }
+                      // LEGACY FORMAT: Single RFQ response
+                      else if (toolCall.result.quote_id || toolCall.result.rfq_id) {
                         if (Array.isArray(toolCall.result.quotes)) {
                           quotes = toolCall.result.quotes
                         } else {
@@ -1694,9 +1704,10 @@ export function ChatInterface({
                         }
                         console.log('[TripID] Single RFQ response, quotes:', quotes.length)
                       }
-                      
+
                       console.log('[TripID] Final quotes count:', quotes.length)
                       console.log('[TripID] Final RFQs count:', rfqs.length)
+                      console.log('[TripID] Pre-transformed flights count:', preTransformedFlights.length)
                     }
                   }
                 }
@@ -1710,84 +1721,89 @@ export function ChatInterface({
                   showQuotes: quotes.length > 0,
                 }
 
-                // Convert quotes to the expected format - ensure all fields needed by convertQuoteToRFQFlight are included
-                const formattedQuotes = quotes.map((q: any, index: number) => ({
-                  id: q.quote_id || q.quoteId || q.id || `quote-${Date.now()}-${index}`,
-                  operatorName: q.operator_name || q.operatorName || q.operator?.name || "Unknown Operator",
-                  aircraftType: q.aircraft_type || q.aircraftType || q.aircraft?.type || q.aircraft?.model || "Unknown Aircraft",
-                  aircraftModel: q.aircraft_model || q.aircraftModel || q.aircraft?.model || q.aircraft_type || q.aircraftType,
-                  price: q.total_price || q.price || q.totalPrice?.amount || q.pricing?.total || q.basePrice || 0,
-                  currency: q.currency || q.totalPrice?.currency || q.pricing?.currency || 'USD',
-                  score: q.score,
-                  ranking: index + 1,
-                  operatorRating: q.operator_rating || q.operatorRating || q.operator?.rating,
-                  operatorEmail: q.operator_email || q.operatorEmail || q.operator?.email || q.operator?.contact?.email,
-                  departureTime: q.departure_time || q.departureTime || q.schedule?.departureTime,
-                  arrivalTime: q.arrival_time || q.arrivalTime || q.schedule?.arrivalTime,
-                  flightDuration: q.flight_duration || q.flightDuration || q.schedule?.duration || 'TBD',
-                  passengerCapacity: q.passenger_capacity || q.passengerCapacity || q.aircraft?.capacity || q.capacity || activeChat.passengers || 0,
-                  tailNumber: q.tail_number || q.tailNumber || q.aircraft?.registration || q.aircraft?.tail_number,
-                  amenities: q.amenities || q.features || q.aircraft?.amenities || [],
-                  rfqStatus: q.status || q.rfq_status || q.quote_status || 'quoted',
-                  isRecommended: index === 0,
-                }))
-                
-                // Convert formatted quotes to RFQFlight format
-                // This ensures all quotes are in the correct format for display
-                const convertedQuotes: RFQFlight[] = formattedQuotes
-                  .map((quote: any) => {
-                    try {
-                      return convertQuoteToRFQFlight(quote, routeParts, activeChat.date)
-                    } catch (error) {
-                      console.error('[TripID] Error converting formatted quote to RFQFlight:', error, quote)
-                      return null
-                    }
-                  })
-                  .filter((flight: RFQFlight | null): flight is RFQFlight => flight != null)
-                
-                console.log('[TripID] Converted quotes count:', convertedQuotes.length)
-                
-                // Convert RFQs without quotes to RFQFlight format
-                // This handles RFQs that were created in the Marketplace but don't have quotes yet
-                const rfqsWithoutQuotes = rfqs
-                  .filter((rfq: any) => {
-                    // Only include RFQs that don't have quotes
-                    const hasQuotes = Array.isArray(rfq.quotes) && rfq.quotes.length > 0
-                    const rfqId = rfq.rfq_id || rfq.id
-                    // Check if this RFQ already has quotes in the quotes array
-                    const hasQuoteInQuotesArray = quotes.some((q: any) => {
-                      const quoteRfqId = q.rfq_id || q.rfqId || q.rfq_id
-                      return quoteRfqId === rfqId
+                // Determine final RFQFlight array based on data source
+                let allFormattedQuotes: RFQFlight[] = []
+
+                // If we have pre-transformed flights from getRFQFlights, use them directly
+                // No conversion needed - data is already in RFQFlight format
+                if (preTransformedFlights.length > 0) {
+                  console.log('[TripID] Using pre-transformed flights directly:', preTransformedFlights.length)
+                  allFormattedQuotes = preTransformedFlights
+                } else {
+                  // LEGACY PATH: Convert raw API quotes to RFQFlight format
+                  // This handles old format responses that need conversion
+
+                  // Convert quotes to the expected format
+                  const formattedQuotes = quotes.map((q: any, index: number) => ({
+                    id: q.quote_id || q.quoteId || q.id || `quote-${Date.now()}-${index}`,
+                    operatorName: q.operator_name || q.operatorName || q.operator?.name || "Unknown Operator",
+                    aircraftType: q.aircraft_type || q.aircraftType || q.aircraft?.type || q.aircraft?.model || "Unknown Aircraft",
+                    aircraftModel: q.aircraft_model || q.aircraftModel || q.aircraft?.model || q.aircraft_type || q.aircraftType,
+                    price: q.total_price || q.price || q.totalPrice?.amount || q.pricing?.total || q.basePrice || 0,
+                    currency: q.currency || q.totalPrice?.currency || q.pricing?.currency || 'USD',
+                    score: q.score,
+                    ranking: index + 1,
+                    operatorRating: q.operator_rating || q.operatorRating || q.operator?.rating,
+                    operatorEmail: q.operator_email || q.operatorEmail || q.operator?.email || q.operator?.contact?.email,
+                    departureTime: q.departure_time || q.departureTime || q.schedule?.departureTime,
+                    arrivalTime: q.arrival_time || q.arrivalTime || q.schedule?.arrivalTime,
+                    flightDuration: q.flight_duration || q.flightDuration || q.schedule?.duration || 'TBD',
+                    passengerCapacity: q.passenger_capacity || q.passengerCapacity || q.aircraft?.capacity || q.capacity || activeChat.passengers || 0,
+                    tailNumber: q.tail_number || q.tailNumber || q.aircraft?.registration || q.aircraft?.tail_number,
+                    amenities: q.amenities || q.features || q.aircraft?.amenities || [],
+                    rfqStatus: q.status || q.rfq_status || q.quote_status || 'quoted',
+                    isRecommended: index === 0,
+                  }))
+
+                  // Convert formatted quotes to RFQFlight format
+                  const convertedQuotes: RFQFlight[] = formattedQuotes
+                    .map((quote: any) => {
+                      try {
+                        return convertQuoteToRFQFlight(quote, routeParts, activeChat.date)
+                      } catch (error) {
+                        console.error('[TripID] Error converting formatted quote to RFQFlight:', error, quote)
+                        return null
+                      }
                     })
-                    return !hasQuotes && !hasQuoteInQuotesArray
-                  })
-                  .map((rfq: any): RFQFlight | null => {
-                    try {
-                      return convertRfqToRFQFlight(rfq, routeParts, activeChat.date)
-                    } catch (error) {
-                      console.error('[TripID] Error converting RFQ to RFQFlight:', error, rfq)
-                      return null
-                    }
-                  })
-                  .filter((flight: RFQFlight | null): flight is RFQFlight => flight != null)
-                
-                console.log('[TripID] RFQs without quotes converted:', rfqsWithoutQuotes.length)
-                
-                // Combine converted quotes and RFQs without quotes
-                // Both are now in RFQFlight format
-                const allFormattedQuotes = [...convertedQuotes, ...rfqsWithoutQuotes]
+                    .filter((flight: RFQFlight | null): flight is RFQFlight => flight != null)
+
+                  console.log('[TripID] Converted quotes count:', convertedQuotes.length)
+
+                  // Convert RFQs without quotes to RFQFlight format
+                  const rfqsWithoutQuotes = rfqs
+                    .filter((rfq: any) => {
+                      const hasQuotes = Array.isArray(rfq.quotes) && rfq.quotes.length > 0
+                      const rfqId = rfq.rfq_id || rfq.id
+                      const hasQuoteInQuotesArray = quotes.some((q: any) => {
+                        const quoteRfqId = q.rfq_id || q.rfqId || q.rfq_id
+                        return quoteRfqId === rfqId
+                      })
+                      return !hasQuotes && !hasQuoteInQuotesArray
+                    })
+                    .map((rfq: any): RFQFlight | null => {
+                      try {
+                        return convertRfqToRFQFlight(rfq, routeParts, activeChat.date)
+                      } catch (error) {
+                        console.error('[TripID] Error converting RFQ to RFQFlight:', error, rfq)
+                        return null
+                      }
+                    })
+                    .filter((flight: RFQFlight | null): flight is RFQFlight => flight != null)
+
+                  console.log('[TripID] RFQs without quotes converted:', rfqsWithoutQuotes.length)
+
+                  // Combine converted quotes and RFQs without quotes
+                  allFormattedQuotes = [...convertedQuotes, ...rfqsWithoutQuotes]
+                }
 
                 const updatedMessages = [...latestMessagesRef.current, agentMsg]
                 latestMessagesRef.current = updatedMessages
 
                 // Log formatted quotes for debugging
                 console.log('[TripID] Original quotes count:', quotes.length)
-                console.log('[TripID] Formatted quotes count:', formattedQuotes.length)
-                console.log('[TripID] Converted quotes count:', convertedQuotes.length)
-                console.log('[TripID] RFQs without quotes count:', rfqsWithoutQuotes.length)
-                console.log('[TripID] Total RFQFlight items (quotes + RFQs):', allFormattedQuotes.length)
-                console.log('[TripID] Converted quote sample:', convertedQuotes.length > 0 ? convertedQuotes[0] : null)
-                console.log('[TripID] RFQ without quotes sample:', rfqsWithoutQuotes.length > 0 ? rfqsWithoutQuotes[0] : null)
+                console.log('[TripID] Pre-transformed flights used:', preTransformedFlights.length > 0)
+                console.log('[TripID] Total RFQFlight items:', allFormattedQuotes.length)
+                console.log('[TripID] Sample flight:', allFormattedQuotes.length > 0 ? allFormattedQuotes[0] : null)
                 
                 // Mark Trip ID as submitted successfully - update both local state and chat state
                 setTripIdSubmitted(true)
