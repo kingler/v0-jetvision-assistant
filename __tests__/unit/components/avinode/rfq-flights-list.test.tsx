@@ -99,7 +99,7 @@ describe('RFQFlightsList', () => {
     it('renders empty state when no flights', () => {
       render(<RFQFlightsList flights={[]} />);
 
-      expect(screen.getByText(/no flights available/i)).toBeInTheDocument();
+      expect(screen.getByText(/No RFQs available/i)).toBeInTheDocument();
     });
 
     it('displays flight count', () => {
@@ -377,7 +377,7 @@ describe('RFQFlightsList', () => {
       render(<RFQFlightsList flights={mockFlights} compact />);
 
       const list = screen.getByTestId('rfq-flights-list');
-      expect(list).toHaveClass('space-y-2');
+      expect(list).toHaveClass('space-y-4');
     });
   });
 

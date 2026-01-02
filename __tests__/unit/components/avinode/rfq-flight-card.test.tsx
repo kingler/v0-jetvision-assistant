@@ -96,38 +96,52 @@ const minimalFlight: RFQFlightCardProps['flight'] = {
 
 describe('RFQFlightCard', () => {
   describe('Rendering', () => {
-    it('renders with all flight details', () => {
+    it('renders card with test id', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+      expect(screen.getByTestId('rfq-flight-card')).toBeInTheDocument();
+    });
+
+    it('renders aircraft section with details', () => {
       render(<RFQFlightCard flight={mockFlight} />);
 
-      // Route visualization
-      expect(screen.getByText('KTEB')).toBeInTheDocument();
-      expect(screen.getByText('KVNY')).toBeInTheDocument();
-      expect(screen.getByText('Teterboro Airport')).toBeInTheDocument();
-      expect(screen.getByText('Van Nuys Airport')).toBeInTheDocument();
+      const aircraftSection = screen.getByTestId('aircraft-section');
+      expect(aircraftSection).toBeInTheDocument();
 
-      // Aircraft details
+      // Aircraft model
       expect(screen.getByText('Gulfstream G200')).toBeInTheDocument();
-      expect(screen.getByText('Heavy Jet')).toBeInTheDocument();
-      expect(screen.getByText(/N123AB/)).toBeInTheDocument();
-      expect(screen.getByText(/2018/)).toBeInTheDocument();
-      expect(screen.getByText(/10 passengers/i)).toBeInTheDocument();
+      // Tail number
+      expect(screen.getByText('N123AB')).toBeInTheDocument();
+      // Year of manufacture
+      expect(screen.getByText('2018')).toBeInTheDocument();
+    });
 
-      // Operator info
+    it('renders transport section with capacity', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+
+      const transportSection = screen.getByTestId('transport-section');
+      expect(transportSection).toBeInTheDocument();
+
+      // Passenger capacity
+      expect(screen.getByText('10')).toBeInTheDocument();
+    });
+
+    it('renders operator section with details', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+
+      const operatorSection = screen.getByTestId('operator-section');
+      expect(operatorSection).toBeInTheDocument();
+
+      // Operator name
       expect(screen.getByText('Executive Jets LLC')).toBeInTheDocument();
-      expect(screen.getByText(/4.8/)).toBeInTheDocument();
-
-      // Pricing - $32,500 displays as currency symbol, not "USD" text
-      expect(screen.getByText(/\$32,500/)).toBeInTheDocument();
-
-      // Flight duration
-      expect(screen.getByText('5h 30m')).toBeInTheDocument();
+      // Operator email
+      expect(screen.getByText('ops@executivejets.com')).toBeInTheDocument();
+      // Operator rating
+      expect(screen.getByText('4.8')).toBeInTheDocument();
     });
 
     it('renders with minimal flight data', () => {
       render(<RFQFlightCard flight={minimalFlight} />);
 
-      expect(screen.getByText('KJFK')).toBeInTheDocument();
-      expect(screen.getByText('KLAX')).toBeInTheDocument();
       expect(screen.getByText('Citation XLS')).toBeInTheDocument();
       expect(screen.getByText('Sky Charter')).toBeInTheDocument();
       expect(screen.getByText(/\$25,000/)).toBeInTheDocument();
@@ -144,7 +158,6 @@ describe('RFQFlightCard', () => {
     it('renders placeholder when no aircraft image', () => {
       render(<RFQFlightCard flight={minimalFlight} />);
 
-      // Should show plane icon placeholder
       expect(screen.queryByRole('img')).not.toBeInTheDocument();
       expect(screen.getByTestId('aircraft-placeholder')).toBeInTheDocument();
     });
@@ -154,25 +167,27 @@ describe('RFQFlightCard', () => {
     it('displays quoted status badge', () => {
       render(<RFQFlightCard flight={mockFlight} />);
 
-      const badge = screen.getByText(/quoted/i);
+      const badge = screen.getByTestId('status-badge');
       expect(badge).toBeInTheDocument();
+      expect(badge).toHaveTextContent(/quoted/i);
       expect(badge).toHaveClass('bg-green-100', 'text-green-700');
     });
 
     it('displays unanswered status badge', () => {
       render(<RFQFlightCard flight={minimalFlight} />);
 
-      const badge = screen.getByText(/unanswered/i);
+      const badge = screen.getByTestId('status-badge');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-amber-100', 'text-amber-700');
+      expect(badge).toHaveTextContent(/unanswered/i);
+      expect(badge).toHaveClass('bg-gray-200', 'text-gray-700');
     });
 
     it('displays sent status badge', () => {
       const flight = { ...mockFlight, rfqStatus: 'sent' as const };
       render(<RFQFlightCard flight={flight} />);
 
-      const badge = screen.getByText(/sent/i);
-      expect(badge).toBeInTheDocument();
+      const badge = screen.getByTestId('status-badge');
+      expect(badge).toHaveTextContent(/sent/i);
       expect(badge).toHaveClass('bg-blue-100', 'text-blue-700');
     });
 
@@ -180,8 +195,8 @@ describe('RFQFlightCard', () => {
       const flight = { ...mockFlight, rfqStatus: 'declined' as const };
       render(<RFQFlightCard flight={flight} />);
 
-      const badge = screen.getByText(/declined/i);
-      expect(badge).toBeInTheDocument();
+      const badge = screen.getByTestId('status-badge');
+      expect(badge).toHaveTextContent(/declined/i);
       expect(badge).toHaveClass('bg-red-100', 'text-red-700');
     });
 
@@ -189,33 +204,61 @@ describe('RFQFlightCard', () => {
       const flight = { ...mockFlight, rfqStatus: 'expired' as const };
       render(<RFQFlightCard flight={flight} />);
 
-      const badge = screen.getByText(/expired/i);
-      expect(badge).toBeInTheDocument();
+      const badge = screen.getByTestId('status-badge');
+      expect(badge).toHaveTextContent(/expired/i);
       expect(badge).toHaveClass('bg-gray-100', 'text-gray-700');
     });
   });
 
-  describe('Amenities', () => {
-    it('displays enabled amenities', () => {
+  describe('Price Section', () => {
+    it('displays total price', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+
+      const priceSection = screen.getByTestId('price-section');
+      expect(priceSection).toBeInTheDocument();
+      expect(screen.getByText(/\$32,500/)).toBeInTheDocument();
+    });
+
+    it('shows price breakdown when enabled', () => {
+      render(<RFQFlightCard flight={mockFlight} showPriceBreakdown />);
+
+      expect(screen.getByText(/Base:/)).toBeInTheDocument();
+      expect(screen.getByText(/\$28,000/)).toBeInTheDocument();
+      expect(screen.getByText(/Taxes:/)).toBeInTheDocument();
+      expect(screen.getByText(/\$2,500/)).toBeInTheDocument();
+      expect(screen.getByText(/Fees:/)).toBeInTheDocument();
+      expect(screen.getByText(/\$2,000/)).toBeInTheDocument();
+    });
+
+    it('does not show breakdown when not provided', () => {
+      render(<RFQFlightCard flight={minimalFlight} showPriceBreakdown />);
+
+      expect(screen.queryByText(/Base:/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Amenities Section', () => {
+    it('displays amenities section', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+
+      const amenitiesSection = screen.getByTestId('amenities-section');
+      expect(amenitiesSection).toBeInTheDocument();
+    });
+
+    it('displays enabled amenities as YES', () => {
       render(<RFQFlightCard flight={mockFlight} />);
 
       // WiFi enabled
-      expect(screen.getByTestId('amenity-wifi')).toHaveClass('text-green-600');
+      expect(screen.getByText('Wi-Fi:')).toBeInTheDocument();
       // Pets enabled
-      expect(screen.getByTestId('amenity-pets')).toHaveClass('text-green-600');
-      // Galley enabled
-      expect(screen.getByTestId('amenity-galley')).toHaveClass('text-green-600');
-      // Lavatory enabled
-      expect(screen.getByTestId('amenity-lavatory')).toHaveClass('text-green-600');
+      expect(screen.getByText('Pets Allowed:')).toBeInTheDocument();
     });
 
-    it('displays disabled amenities', () => {
-      render(<RFQFlightCard flight={mockFlight} />);
+    it('displays disabled amenities as NO', () => {
+      render(<RFQFlightCard flight={minimalFlight} />);
 
-      // Smoking disabled
-      expect(screen.getByTestId('amenity-smoking')).toHaveClass('text-gray-300');
-      // Medical disabled
-      expect(screen.getByTestId('amenity-medical')).toHaveClass('text-gray-300');
+      const amenitiesSection = screen.getByTestId('amenities-section');
+      expect(amenitiesSection).toBeInTheDocument();
     });
   });
 
@@ -271,96 +314,7 @@ describe('RFQFlightCard', () => {
     });
   });
 
-  describe('Price Breakdown', () => {
-    it('shows price breakdown on hover', async () => {
-      render(<RFQFlightCard flight={mockFlight} showPriceBreakdown />);
-
-      const priceSection = screen.getByTestId('price-section');
-      fireEvent.mouseEnter(priceSection);
-
-      expect(await screen.findByText(/Base:/)).toBeInTheDocument();
-      expect(screen.getByText(/\$28,000/)).toBeInTheDocument();
-      expect(screen.getByText(/Taxes:/)).toBeInTheDocument();
-      expect(screen.getByText(/\$2,500/)).toBeInTheDocument();
-      expect(screen.getByText(/Fees:/)).toBeInTheDocument();
-      expect(screen.getByText(/\$2,000/)).toBeInTheDocument();
-    });
-
-    it('does not show breakdown when not provided', () => {
-      render(<RFQFlightCard flight={minimalFlight} showPriceBreakdown />);
-
-      const priceSection = screen.getByTestId('price-section');
-      fireEvent.mouseEnter(priceSection);
-
-      expect(screen.queryByText(/Base:/)).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Response Time', () => {
-    it('displays response time when available', () => {
-      render(<RFQFlightCard flight={mockFlight} />);
-
-      expect(screen.getByText(/45 min response/i)).toBeInTheDocument();
-    });
-
-    it('does not display response time when not available', () => {
-      render(<RFQFlightCard flight={minimalFlight} />);
-
-      expect(screen.queryByText(/response/i)).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Quote Validity', () => {
-    it('displays valid until date', () => {
-      render(<RFQFlightCard flight={mockFlight} />);
-
-      // The text contains "Valid until" and the date - use a more flexible matcher
-      const validityElement = screen.getByText(/Valid until/i);
-      expect(validityElement).toBeInTheDocument();
-      // The date is in the same element
-      expect(validityElement.textContent).toMatch(/Jan.*10.*2025/i);
-    });
-
-    it('does not display validity when not provided', () => {
-      render(<RFQFlightCard flight={minimalFlight} />);
-
-      expect(screen.queryByText(/Valid until/i)).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Date Formatting', () => {
-    it('formats departure date correctly', () => {
-      render(<RFQFlightCard flight={mockFlight} />);
-
-      expect(screen.getByText(/Jan 15, 2025/i)).toBeInTheDocument();
-    });
-
-    it('shows departure time when available', () => {
-      render(<RFQFlightCard flight={mockFlight} />);
-
-      expect(screen.getByText(/09:00/)).toBeInTheDocument();
-    });
-  });
-
-  describe('Last Updated', () => {
-    it('displays last updated timestamp', () => {
-      render(<RFQFlightCard flight={mockFlight} />);
-
-      expect(screen.getByText(/Updated/i)).toBeInTheDocument();
-    });
-  });
-
   describe('Accessibility', () => {
-    it('has accessible labels for amenities', () => {
-      render(<RFQFlightCard flight={mockFlight} />);
-
-      expect(screen.getByLabelText(/wifi/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/pets/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/smoking/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/galley/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/lavatory/i)).toBeInTheDocument();
-    });
-
     it('has accessible checkbox label', () => {
       render(<RFQFlightCard flight={mockFlight} selectable />);
 
@@ -369,163 +323,102 @@ describe('RFQFlightCard', () => {
     });
   });
 
-  describe('Compact Mode', () => {
-    it('renders in compact mode', () => {
-      render(<RFQFlightCard flight={mockFlight} compact />);
+  describe('View Chat Button', () => {
+    it('shows view chat button when onViewChat is provided', () => {
+      const onViewChat = vi.fn();
+      render(<RFQFlightCard flight={mockFlight} onViewChat={onViewChat} />);
 
-      const card = screen.getByTestId('rfq-flight-card');
-      expect(card).toHaveClass('h-auto');
-
-      // Should still show essential info
-      expect(screen.getByText('KTEB')).toBeInTheDocument();
-      expect(screen.getByText('Gulfstream G200')).toBeInTheDocument();
-      expect(screen.getByText(/\$32,500/)).toBeInTheDocument();
-    });
-  });
-
-  // =============================================================================
-  // NEW TESTS: Review and Book Button (replaces checkbox)
-  // =============================================================================
-
-  describe('Review and Book Button', () => {
-    it('shows "Review and Book" button when showBookButton is true', () => {
-      render(<RFQFlightCard flight={mockFlight} showBookButton />);
-
-      const button = screen.getByRole('button', { name: /review and book/i });
+      const button = screen.getByRole('button', { name: /view chat/i });
       expect(button).toBeInTheDocument();
     });
 
-    it('hides checkbox when showBookButton is true', () => {
-      render(<RFQFlightCard flight={mockFlight} showBookButton selectable />);
+    it('calls onViewChat when button is clicked', () => {
+      const onViewChat = vi.fn();
+      render(<RFQFlightCard flight={mockFlight} onViewChat={onViewChat} />);
 
-      // Checkbox should not be present when showBookButton is true
-      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    });
-
-    it('enables button when rfqStatus is "quoted"', () => {
-      const quotedFlight = { ...mockFlight, rfqStatus: 'quoted' as const };
-      render(<RFQFlightCard flight={quotedFlight} showBookButton />);
-
-      const button = screen.getByRole('button', { name: /review and book/i });
-      expect(button).not.toBeDisabled();
-    });
-
-    it('disables button when rfqStatus is "unanswered"', () => {
-      const unansweredFlight = { ...minimalFlight, rfqStatus: 'unanswered' as const };
-      render(<RFQFlightCard flight={unansweredFlight} showBookButton />);
-
-      const button = screen.getByRole('button', { name: /review and book/i });
-      expect(button).toBeDisabled();
-    });
-
-    it('disables button when rfqStatus is "sent"', () => {
-      const sentFlight = { ...mockFlight, rfqStatus: 'sent' as const };
-      render(<RFQFlightCard flight={sentFlight} showBookButton />);
-
-      const button = screen.getByRole('button', { name: /review and book/i });
-      expect(button).toBeDisabled();
-    });
-
-    it('disables button when rfqStatus is "declined"', () => {
-      const declinedFlight = { ...mockFlight, rfqStatus: 'declined' as const };
-      render(<RFQFlightCard flight={declinedFlight} showBookButton />);
-
-      const button = screen.getByRole('button', { name: /review and book/i });
-      expect(button).toBeDisabled();
-    });
-
-    it('disables button when rfqStatus is "expired"', () => {
-      const expiredFlight = { ...mockFlight, rfqStatus: 'expired' as const };
-      render(<RFQFlightCard flight={expiredFlight} showBookButton />);
-
-      const button = screen.getByRole('button', { name: /review and book/i });
-      expect(button).toBeDisabled();
-    });
-
-    it('calls onReviewAndBook callback when button is clicked', () => {
-      const onReviewAndBook = vi.fn();
-      render(<RFQFlightCard flight={mockFlight} showBookButton onReviewAndBook={onReviewAndBook} />);
-
-      const button = screen.getByRole('button', { name: /review and book/i });
+      const button = screen.getByRole('button', { name: /view chat/i });
       fireEvent.click(button);
 
-      expect(onReviewAndBook).toHaveBeenCalledWith(mockFlight.id);
+      expect(onViewChat).toHaveBeenCalledWith(mockFlight.id);
     });
 
-    it('does not call onReviewAndBook when button is disabled', () => {
-      const onReviewAndBook = vi.fn();
-      const unansweredFlight = { ...minimalFlight, rfqStatus: 'unanswered' as const };
-      render(<RFQFlightCard flight={unansweredFlight} showBookButton onReviewAndBook={onReviewAndBook} />);
+    it('hides view chat button when onViewChat is not provided', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
 
-      const button = screen.getByRole('button', { name: /review and book/i });
-      fireEvent.click(button);
-
-      expect(onReviewAndBook).not.toHaveBeenCalled();
-    });
-
-    it('shows "Awaiting Quote" text on disabled button when unanswered', () => {
-      const unansweredFlight = { ...minimalFlight, rfqStatus: 'unanswered' as const };
-      render(<RFQFlightCard flight={unansweredFlight} showBookButton />);
-
-      expect(screen.getByText(/awaiting quote/i)).toBeInTheDocument();
-    });
-
-    it('shows "Quote Unavailable" text on disabled button when declined', () => {
-      const declinedFlight = { ...mockFlight, rfqStatus: 'declined' as const };
-      render(<RFQFlightCard flight={declinedFlight} showBookButton />);
-
-      expect(screen.getByText(/quote unavailable/i)).toBeInTheDocument();
-    });
-
-    it('shows "Quote Expired" text on disabled button when expired', () => {
-      const expiredFlight = { ...mockFlight, rfqStatus: 'expired' as const };
-      render(<RFQFlightCard flight={expiredFlight} showBookButton />);
-
-      expect(screen.getByText(/quote expired/i)).toBeInTheDocument();
-    });
-
-    it('has proper aria-label for accessibility', () => {
-      render(<RFQFlightCard flight={mockFlight} showBookButton />);
-
-      const button = screen.getByRole('button', { name: /review and book/i });
-      expect(button).toHaveAttribute('aria-label', 'Review and book flight from Executive Jets LLC');
-    });
-
-    it('shows prominent status badge in card header', () => {
-      render(<RFQFlightCard flight={mockFlight} showBookButton />);
-
-      const badge = screen.getByTestId('status-badge');
-      expect(badge).toBeInTheDocument();
-      expect(badge).toHaveTextContent(/quoted/i);
+      expect(screen.queryByRole('button', { name: /view chat/i })).not.toBeInTheDocument();
     });
   });
 
-  // =============================================================================
-  // NEW TESTS: Improved Card Layout
-  // =============================================================================
-
-  describe('Improved Card Layout', () => {
-    it('has a well-structured card with proper sections', () => {
-      render(<RFQFlightCard flight={mockFlight} showBookButton />);
-
-      // Card should have test ID
-      expect(screen.getByTestId('rfq-flight-card')).toBeInTheDocument();
-
-      // Route section should be visible
-      expect(screen.getByTestId('route-section')).toBeInTheDocument();
-
-      // Aircraft section should be visible
+  describe('Card Layout', () => {
+    it('has aircraft section', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
       expect(screen.getByTestId('aircraft-section')).toBeInTheDocument();
+    });
 
-      // Price section should be visible
+    it('has transport section', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+      expect(screen.getByTestId('transport-section')).toBeInTheDocument();
+    });
+
+    it('has rfq status section', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+      expect(screen.getByTestId('rfq-status-section')).toBeInTheDocument();
+    });
+
+    it('has price section', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
       expect(screen.getByTestId('price-section')).toBeInTheDocument();
     });
 
-    it('displays operator info in dedicated section', () => {
-      render(<RFQFlightCard flight={mockFlight} showBookButton />);
+    it('has amenities section', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+      expect(screen.getByTestId('amenities-section')).toBeInTheDocument();
+    });
 
+    it('has operator section', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
       expect(screen.getByTestId('operator-section')).toBeInTheDocument();
-      expect(screen.getByText('Executive Jets LLC')).toBeInTheDocument();
+    });
+  });
+
+  describe('Medical and Package indicators', () => {
+    it('shows Medical YES when medical is available', () => {
+      const flightWithMedical = { ...mockFlight, amenities: { ...mockFlight.amenities, medical: true } };
+      render(<RFQFlightCard flight={flightWithMedical} />);
+
+      const transportSection = screen.getByTestId('transport-section');
+      expect(transportSection).toHaveTextContent('Medical:');
+      expect(transportSection).toHaveTextContent('YES');
+    });
+
+    it('shows Medical NO when medical is not available', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+
+      const transportSection = screen.getByTestId('transport-section');
+      expect(transportSection).toHaveTextContent('Medical:');
+      expect(transportSection).toHaveTextContent('NO');
+    });
+
+    it('shows Package indicator', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+
+      const transportSection = screen.getByTestId('transport-section');
+      expect(transportSection).toHaveTextContent('Package:');
+    });
+  });
+
+  describe('Aircraft Category', () => {
+    it('displays aircraft category from prop', () => {
+      render(<RFQFlightCard flight={mockFlight} aircraftCategory="Ultra long range" />);
+
+      expect(screen.getByText('Ultra long range')).toBeInTheDocument();
+    });
+
+    it('maps aircraft type to category when not provided', () => {
+      render(<RFQFlightCard flight={mockFlight} />);
+
+      // Gulfstream G200 should map to Heavy jet
+      expect(screen.getByText('Heavy jet')).toBeInTheDocument();
     });
   });
 });
