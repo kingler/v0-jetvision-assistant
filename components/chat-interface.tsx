@@ -1807,7 +1807,21 @@ export function ChatInterface({
                 
                 // Mark Trip ID as submitted successfully - update both local state and chat state
                 setTripIdSubmitted(true)
-                
+
+                // Convert RFQFlight[] to ChatSession.quotes format
+                // Note: RFQFlight from rfq-flight-card.tsx uses totalPrice
+                const quotesForChatSession = allFormattedQuotes.map((flight, index) => ({
+                  id: flight.id,
+                  operatorName: flight.operatorName,
+                  aircraftType: flight.aircraftType,
+                  price: flight.totalPrice,
+                  ranking: index + 1,
+                  operatorRating: flight.operatorRating,
+                  departureTime: flight.departureTime,
+                  flightDuration: flight.flightDuration,
+                  isRecommended: index === 0,
+                }))
+
                 onUpdateChat(activeChat.id, {
                   messages: updatedMessages,
                   status: newStatus as typeof activeChat.status,
@@ -1815,7 +1829,7 @@ export function ChatInterface({
                   tripId: tripId,
                   tripIdSubmitted: true, // Persist tripIdSubmitted to chat state
                   // Include both quotes and RFQs without quotes
-                  quotes: allFormattedQuotes.length > 0 ? allFormattedQuotes : activeChat.quotes,
+                  quotes: quotesForChatSession.length > 0 ? quotesForChatSession : activeChat.quotes,
                 })
 
                 setIsTripIdLoading(false)
