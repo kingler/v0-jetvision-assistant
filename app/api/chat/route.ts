@@ -845,10 +845,12 @@ export async function POST(req: NextRequest) {
           : JSON.stringify(toolResult.content)
 
         // Handle create_trip tool - returns deep_link (PRIMARY workflow)
+        // Per Avinode API docs, createTrip always returns both trip_id and deep_link
+        // @see https://developer.avinodegroup.com/reference/createtrip
         if (toolCall.function.name === 'create_trip') {
           try {
             const parsed = JSON.parse(toolResultContent)
-            // Log the full parsed result for debugging prod vs dev differences
+            // Log the full parsed result for debugging
             console.log('[Chat API] create_trip parsed result:', {
               trip_id: parsed.trip_id,
               deep_link: parsed.deep_link,
@@ -857,21 +859,19 @@ export async function POST(req: NextRequest) {
               hasActions: !!parsed.raw_response?.data?.actions,
             })
 
-            // Capture trip_id even if deep_link is missing - use fallback URL
-            // This fixes the prod vs dev discrepancy where deep_link may not be returned
-            if (parsed.trip_id) {
-              tripData = {
-                ...parsed,
-                // Provide fallback deep_link if not present in API response
-                deep_link: parsed.deep_link || `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
-              }
+            // Avinode API returns both trip_id and deep_link together
+            if (parsed.trip_id && parsed.deep_link) {
+              tripData = parsed
               console.log('[Chat API] Trip created:', {
                 tripId: parsed.trip_id,
-                deepLink: tripData.deep_link,
-                deepLinkWasMissing: !parsed.deep_link,
+                deepLink: parsed.deep_link,
               })
             } else {
-              console.warn('[Chat API] create_trip response missing trip_id:', parsed)
+              console.warn('[Chat API] create_trip response missing required fields:', {
+                hasTripId: !!parsed.trip_id,
+                hasDeepLink: !!parsed.deep_link,
+                parsed,
+              })
             }
           } catch (parseError) {
             console.error('[Chat API] Failed to parse create_trip result:', parseError, toolResultContent)
