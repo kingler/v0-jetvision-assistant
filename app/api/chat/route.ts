@@ -610,18 +610,42 @@ export async function POST(req: NextRequest) {
       messageText.includes('pending requests') ||
       (messageText.includes('show') && messageText.includes('request'))
 
-    // Detect if message contains a Trip ID (6-12 alphanumeric characters)
-    // Pattern: standalone alphanumeric string that looks like a Trip ID
-    const tripIdPattern = /\b[A-Z0-9]{6,12}\b/i
-    const hasTripId = tripIdPattern.test(message) &&
+    // Detect if message contains a Trip ID
+    // Pattern 1: Avinode format atrip-XXXXXXXX (8+ digits)
+    // Pattern 2: Standalone alphanumeric ID (6-12 chars) with context keywords
+    const avinodeTripIdPattern = /\batrip-\d{6,12}\b/i
+    const genericTripIdPattern = /\b[A-Z0-9]{6,12}\b/i
+
+    // Direct Avinode Trip ID format is always recognized (e.g., atrip-64956150)
+    const hasAvinodeTripId = avinodeTripIdPattern.test(message)
+
+    // Generic Trip ID pattern requires context keywords
+    const hasGenericTripId = genericTripIdPattern.test(message) &&
                       (messageText.includes('trip id') ||
                        messageText.includes('tripid') ||
                        messageText.includes('trip:') ||
                        messageText.includes('here is') ||
                        messageText.includes("here's") ||
                        messageText.includes('my trip') ||
+                       messageText.includes('search') ||
+                       messageText.includes('lookup') ||
+                       messageText.includes('find') ||
+                       messageText.includes('get rfq') ||
+                       messageText.includes('get quotes') ||
                        // Also match if context indicates we're waiting for a trip ID
                        context?.tripId !== undefined)
+
+    const hasTripId = hasAvinodeTripId || hasGenericTripId
+
+    // Extract the Trip ID if found (for later use in tool calls)
+    let detectedTripId: string | undefined
+    if (hasAvinodeTripId) {
+      const match = message.match(avinodeTripIdPattern)
+      detectedTripId = match?.[0]
+    } else if (hasGenericTripId) {
+      const match = message.match(genericTripIdPattern)
+      detectedTripId = match?.[0]
+    }
 
     // Use 'required' for tool_choice when flight details, RFP request, or Trip ID is detected
     const toolChoice = hasFlightDetails || wantsRFP || hasTripId ? 'required' : 'auto'
@@ -634,6 +658,9 @@ export async function POST(req: NextRequest) {
     console.log(`  - wantsRFP: ${wantsRFP}`)
     console.log(`  - wantsPipeline: ${wantsPipeline}`)
     console.log(`  - hasTripId: ${hasTripId}`)
+    if (detectedTripId) {
+      console.log(`  - detectedTripId: ${detectedTripId}`)
+    }
     console.log(`[Chat API] Tool choice: ${toolChoice}`)
 
     // ONEK-139: Handle pipeline requests with early return (no OpenAI call needed)

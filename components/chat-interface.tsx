@@ -941,6 +941,22 @@ export function ChatInterface({
                     } else if (toolCall.name === "get_quotes" || toolCall.name === "get_quote_status") {
                       newStatus = "analyzing_options"
                       newStep = 4
+                    } else if (toolCall.name === "get_rfq") {
+                      // Handle get_rfq tool - triggered when user provides Trip ID in chat
+                      newStatus = "analyzing_options"
+                      newStep = 4
+                      showDeepLink = true
+                      // Extract trip data for deeplink display
+                      if (toolCall.result) {
+                        deepLinkData = {
+                          tripId: toolCall.result.trip_id || toolCall.result.rfq_id,
+                          deepLink: toolCall.result.deep_link,
+                          departureAirport: toolCall.result.departure_airport || toolCall.result.route?.departure?.airport,
+                          arrivalAirport: toolCall.result.arrival_airport || toolCall.result.route?.arrival?.airport,
+                          departureDate: toolCall.result.route?.departure?.date || toolCall.result.departure_date,
+                          passengers: toolCall.result.passengers,
+                        }
+                      }
                     }
                   }
                 }
@@ -1018,7 +1034,19 @@ export function ChatInterface({
                         totalRfqs: toolCall.result.total_rfqs,
                         resultKeys: Object.keys(toolCall.result || {})
                       })
-                      
+
+                      // When get_rfq is called, mark Trip ID as submitted
+                      // This enables the RFQFlightsList display in the agent response
+                      tripIdSubmittedLocal = true
+                      console.log('[Chat] get_rfq tool called - marking tripIdSubmitted = true')
+
+                      // Extract Trip ID from result if available
+                      if (toolCall.result.trip_id && !deepLinkData) {
+                        deepLinkData = {
+                          tripId: toolCall.result.trip_id,
+                        }
+                      }
+
                       // Trip ID response structure: { trip_id, rfqs: [...], quotes: [...], total_rfqs, total_quotes }
                       // Quotes are already flattened at top level in result.quotes
                       if (toolCall.result.quotes && Array.isArray(toolCall.result.quotes)) {
@@ -1247,10 +1275,15 @@ export function ChatInterface({
                 // Only update quotes if we have new ones
                 if (formattedQuotes && formattedQuotes.length > 0) {
                   updateData.quotes = formattedQuotes
-                  // If we auto-submitted tripId, include that in the update
-                  if (tripIdSubmittedLocal && !activeChat.tripIdSubmitted) {
-                    updateData.tripIdSubmitted = true
-                  }
+                }
+
+                // If get_rfq was called (tripIdSubmittedLocal = true), update tripIdSubmitted
+                // This enables the RFQFlightsList display even if no quotes are available yet
+                if (tripIdSubmittedLocal && !activeChat.tripIdSubmitted) {
+                  updateData.tripIdSubmitted = true
+                  // Also update local state immediately
+                  setTripIdSubmitted(true)
+                  console.log('[Chat] Setting tripIdSubmitted = true from get_rfq call')
                 }
 
                 onUpdateChat(activeChat.id, updateData)
