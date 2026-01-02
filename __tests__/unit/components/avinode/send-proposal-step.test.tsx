@@ -42,7 +42,7 @@ const mockFlight1: RFQFlight = {
   passengerCapacity: 16,
   operatorName: 'Executive Jet Management',
   operatorRating: 4.8,
-  price: 45000,
+  totalPrice: 45000,
   currency: 'USD',
   priceBreakdown: {
     base: 40000,
@@ -84,7 +84,7 @@ const mockFlight2: RFQFlight = {
   passengerCapacity: 9,
   operatorName: 'NetJets',
   operatorRating: 4.9,
-  price: 35000,
+  totalPrice: 35000,
   currency: 'USD',
   amenities: {
     wifi: true,

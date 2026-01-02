@@ -449,7 +449,9 @@ export class AvinodeMCPServer extends BaseMCPServer {
       },
       execute: async (params: any) => {
         this.ensureClientAvailable();
-        return await this.client!.getRFQ(params.rfq_id);
+        // Use getRFQFlights to return transformed data in RFQFlight format
+        // This provides a consistent, well-structured response for the UI
+        return await this.client!.getRFQFlights(params.rfq_id);
       },
     };
   }

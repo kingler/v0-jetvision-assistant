@@ -41,7 +41,7 @@ const mockFlight1: RFQFlight = {
   operatorName: 'Executive Jet Management',
   operatorRating: 4.8,
   operatorEmail: 'ops@executivejets.com',
-  price: 45000,
+  totalPrice: 45000,
   currency: 'USD',
   priceBreakdown: {
     base: 40000,
@@ -87,7 +87,7 @@ const mockFlight2: RFQFlight = {
   operatorName: 'NetJets',
   operatorRating: 4.9,
   operatorEmail: 'sales@netjets.com',
-  price: 35000,
+  totalPrice: 35000,
   currency: 'USD',
   priceBreakdown: {
     base: 30000,
@@ -193,7 +193,7 @@ describe('prepareProposalData', () => {
     it('should calculate subtotal from base prices', () => {
       const data = prepareProposalData(validInput);
 
-      // Base price: $40,000
+      // Base totalPrice: $40,000
       expect(data.pricing.subtotal).toBe(40000);
     });
 

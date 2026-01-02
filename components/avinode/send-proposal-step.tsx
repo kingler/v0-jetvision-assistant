@@ -148,7 +148,7 @@ function isValidEmail(email: string): boolean {
 function calculateTotalPrice(flights: RFQFlight[]): { total: number; currency: string } {
   if (flights.length === 0) return { total: 0, currency: 'USD' };
 
-  const total = flights.reduce((sum, flight) => sum + flight.price, 0);
+  const total = flights.reduce((sum, flight) => sum + flight.totalPrice, 0);
   const currency = flights[0]?.currency || 'USD';
   return { total, currency };
 }
@@ -177,7 +177,7 @@ function CompactFlightItem({ flight }: CompactFlightItemProps) {
         </div>
       </div>
       <p className="text-sm font-semibold text-foreground">
-        {formatPrice(flight.price, flight.currency)}
+        {formatPrice(flight.totalPrice, flight.currency)}
       </p>
     </div>
   );

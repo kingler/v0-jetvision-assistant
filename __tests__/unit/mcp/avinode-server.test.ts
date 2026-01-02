@@ -144,6 +144,60 @@ vi.mock('@/lib/mcp/clients/avinode-client', () => {
           quotes: [],
         });
       }),
+      // getRFQFlights returns pre-transformed RFQFlight format for UI consumption
+      getRFQFlights: vi.fn().mockImplementation((rfqId: string) => {
+        const isTrip = rfqId.startsWith('atrip-');
+        return Promise.resolve({
+          rfq_id: isTrip ? 'arfq-12345' : rfqId,
+          trip_id: isTrip ? rfqId : rfqId.replace('arfq-', 'atrip-'),
+          status: 'quotes_received',
+          created_at: '2025-11-15T10:00:00Z',
+          quote_deadline: '2025-11-16T10:00:00Z',
+          departure_airport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro' },
+          arrival_airport: { icao: 'KVNY', name: 'Van Nuys Airport', city: 'Van Nuys' },
+          departure_date: '2025-11-20',
+          passengers: 6,
+          operators_contacted: 2,
+          flights_received: 2,
+          flights: [
+            {
+              id: 'flight-001',
+              quoteId: 'aquote-001',
+              departureAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro' },
+              arrivalAirport: { icao: 'KVNY', name: 'Van Nuys Airport', city: 'Van Nuys' },
+              departureDate: '2025-11-20',
+              departureTime: '08:00',
+              flightDuration: '5h 30m',
+              aircraftType: 'Large Jet',
+              aircraftModel: 'Gulfstream G650',
+              passengerCapacity: 14,
+              operatorName: 'NetJets',
+              operatorRating: 4.8,
+              totalPrice: 52000,
+              currency: 'USD',
+              rfqStatus: 'quoted',
+            },
+            {
+              id: 'flight-002',
+              quoteId: 'aquote-002',
+              departureAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro' },
+              arrivalAirport: { icao: 'KVNY', name: 'Van Nuys Airport', city: 'Van Nuys' },
+              departureDate: '2025-11-20',
+              departureTime: '09:30',
+              flightDuration: '5h 45m',
+              aircraftType: 'Super Midsize',
+              aircraftModel: 'Challenger 350',
+              passengerCapacity: 10,
+              operatorName: 'VistaJet',
+              operatorRating: 4.6,
+              totalPrice: 44000,
+              currency: 'USD',
+              rfqStatus: 'quoted',
+            },
+          ],
+          deep_link: `https://app.avinode.com/rfq/${rfqId}`,
+        });
+      }),
     })),
   };
 });
@@ -430,60 +484,64 @@ describe('AvinodeMCPServer', () => {
       await server.start();
     });
 
-    it('should return single RFQ details for RFQ ID', async () => {
+    it('should return RFQFlights format for RFQ ID', async () => {
       const result = await server.executeTool('get_rfq', {
         rfq_id: 'arfq-12345',
       });
 
+      // Now returns RFQFlights format with flights array
       expect(result).toHaveProperty('rfq_id');
+      expect(result).toHaveProperty('trip_id');
       expect(result).toHaveProperty('status');
+      expect(result).toHaveProperty('flights');
+      expect(Array.isArray(result.flights)).toBe(true);
     });
 
-    it('should return array of RFQs for Trip ID', async () => {
+    it('should return RFQFlights format for Trip ID', async () => {
       const result = await server.executeTool('get_rfq', {
         rfq_id: 'atrip-64956150',
       });
 
-      // Trip ID response returns array of RFQs
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBeGreaterThan(0);
-
-      // First RFQ should have expected structure
-      const firstRfq = result[0];
-      expect(firstRfq).toHaveProperty('rfq_id');
-      expect(firstRfq).toHaveProperty('trip_id');
-      expect(firstRfq).toHaveProperty('status');
+      // Trip ID response now returns RFQFlights format (not array of RFQs)
+      expect(result).toHaveProperty('rfq_id');
+      expect(result).toHaveProperty('trip_id');
+      expect(result).toHaveProperty('status');
+      expect(result).toHaveProperty('flights');
+      expect(Array.isArray(result.flights)).toBe(true);
+      expect(result.flights.length).toBeGreaterThan(0);
     });
 
-    it('should include quotes in each RFQ from Trip ID response', async () => {
+    it('should include pre-transformed flights in RFQFlight format', async () => {
       const result = await server.executeTool('get_rfq', {
         rfq_id: 'atrip-64956150',
       });
 
-      // Check that RFQs contain quotes array
-      expect(Array.isArray(result)).toBe(true);
-      const rfqWithQuotes = result.find((rfq: any) => rfq.quotes && rfq.quotes.length > 0);
-      expect(rfqWithQuotes).toBeDefined();
-      expect(Array.isArray(rfqWithQuotes.quotes)).toBe(true);
-
-      // Verify quote structure
-      const quote = rfqWithQuotes.quotes[0];
-      expect(quote).toHaveProperty('quote_id');
-      expect(quote).toHaveProperty('operator_name');
-      expect(quote).toHaveProperty('aircraft_type');
+      // Verify flights are in RFQFlight format
+      expect(result.flights.length).toBeGreaterThan(0);
+      const flight = result.flights[0];
+      expect(flight).toHaveProperty('id');
+      expect(flight).toHaveProperty('quoteId');
+      expect(flight).toHaveProperty('operatorName');
+      expect(flight).toHaveProperty('aircraftType');
+      expect(flight).toHaveProperty('totalPrice');
+      expect(flight).toHaveProperty('rfqStatus');
     });
 
-    it('should include RFQ details in each array item', async () => {
+    it('should include airport and flight details', async () => {
       const result = await server.executeTool('get_rfq', {
         rfq_id: 'atrip-64956150',
       });
 
-      // Each RFQ in array should have expected structure
-      const rfq = result[0];
-      expect(rfq).toHaveProperty('rfq_id');
-      expect(rfq).toHaveProperty('trip_id');
-      expect(rfq).toHaveProperty('status');
-      expect(rfq).toHaveProperty('quotes');
+      // Response includes departure and arrival airports
+      expect(result).toHaveProperty('departure_airport');
+      expect(result.departure_airport).toHaveProperty('icao');
+      expect(result).toHaveProperty('arrival_airport');
+      expect(result.arrival_airport).toHaveProperty('icao');
+
+      // Response includes flight metadata
+      expect(result).toHaveProperty('departure_date');
+      expect(result).toHaveProperty('passengers');
+      expect(result).toHaveProperty('deep_link');
     });
 
     it('should validate rfq_id parameter is required', async () => {

@@ -177,7 +177,7 @@ function calculatePricing(
     // If flight has breakdown, use base price; otherwise use total price
     const price = flight.priceBreakdown
       ? new Decimal(flight.priceBreakdown.base)
-      : new Decimal(flight.price);
+      : new Decimal(flight.totalPrice);
     return sum.plus(price);
   }, new Decimal(0));
 

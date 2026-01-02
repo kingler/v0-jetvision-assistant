@@ -45,7 +45,8 @@ export interface RFQFlight {
   operatorName: string;
   operatorRating?: number;
   operatorEmail?: string;
-  price: number;
+  /** Total price - maps to pricing.total in Avinode API */
+  totalPrice: number;
   currency: string;
   priceBreakdown?: {
     base: number;
@@ -754,7 +755,7 @@ export class AvinodeClient {
    * @returns Object containing price, currency, price breakdown, and validity period
    */
   private extractPricing(quote: any, hasQuote: boolean): {
-    price: number;
+    totalPrice: number;
     currency: string;
     priceBreakdown?: {
       base: number;
@@ -764,7 +765,7 @@ export class AvinodeClient {
     validUntil?: string;
   } {
     return {
-      price: hasQuote ? (quote.totalPrice?.amount || quote.quote?.totalPrice?.amount || 0) : 0,
+      totalPrice: hasQuote ? (quote.totalPrice?.amount || quote.quote?.totalPrice?.amount || 0) : 0,
       currency: hasQuote ? (quote.totalPrice?.currency || quote.quote?.totalPrice?.currency || 'USD') : 'USD',
       priceBreakdown: hasQuote && quote.pricing ? {
         base: quote.pricing.basePrice || 0,

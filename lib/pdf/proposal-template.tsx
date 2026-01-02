@@ -363,7 +363,7 @@ function FlightCard({ flight, index }: FlightCardProps) {
           </Text>
         </View>
         <Text style={styles.priceText}>
-          {formatPrice(flight.price, flight.currency)}
+          {formatPrice(flight.totalPrice, flight.currency)}
         </Text>
       </View>
 

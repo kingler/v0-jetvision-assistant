@@ -36,7 +36,7 @@ export function convertToAvinodeRFQFlight(flight: RFQFlight): AvinodeRFQFlight {
     passengerCapacity: flight.passengerCapacity ?? 0,
     operatorName: flight.operatorName,
     operatorRating: flight.operatorRating,
-    price: flight.totalPrice,
+    totalPrice: flight.totalPrice,
     currency: flight.currency || 'USD',
     priceBreakdown: flight.priceBreakdown ? {
       base: flight.priceBreakdown.basePrice,
