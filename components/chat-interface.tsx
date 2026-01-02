@@ -539,18 +539,52 @@ export function ChatInterface({
   // Use useMemo to prevent recalculation on every render and avoid side effects during render
   const rfqFlights: RFQFlight[] = useMemo(() => {
     // Convert quotes from activeChat.quotes
+    // Note: activeChat.quotes may contain either plain quote objects or already-converted RFQFlight objects
     const rfqFlightsFromChat: RFQFlight[] = (activeChat.quotes || [])
       .filter((quote) => quote != null)
-      .map((quote) => {
+      .map((quote: any) => {
         try {
-          const flight = convertQuoteToRFQFlight(quote, routeParts)
-          if (!flight || !flight.id) {
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('[ChatInterface] Converted flight missing id:', flight, quote)
+          // Check if quote is already a RFQFlight object (has totalPrice and other RFQFlight fields)
+          if (quote.totalPrice !== undefined && quote.departureAirport && quote.arrivalAirport) {
+            // Already a RFQFlight - return as-is, but ensure all required fields are present
+            const flight: RFQFlight = {
+              id: quote.id || quote.quoteId || `flight-${Date.now()}`,
+              quoteId: quote.quoteId || quote.id || `flight-${Date.now()}`,
+              departureAirport: quote.departureAirport,
+              arrivalAirport: quote.arrivalAirport,
+              departureDate: quote.departureDate || activeChat.date || new Date().toISOString().split('T')[0],
+              departureTime: quote.departureTime,
+              flightDuration: quote.flightDuration || 'TBD',
+              aircraftType: quote.aircraftType || 'Unknown Aircraft',
+              aircraftModel: quote.aircraftModel || quote.aircraftType || 'Unknown Aircraft',
+              tailNumber: quote.tailNumber,
+              passengerCapacity: quote.passengerCapacity || activeChat.passengers || 0,
+              operatorName: quote.operatorName || 'Unknown Operator',
+              operatorRating: quote.operatorRating,
+              operatorEmail: quote.operatorEmail,
+              totalPrice: quote.totalPrice || 0,
+              currency: quote.currency || 'USD',
+              amenities: quote.amenities || { wifi: false, pets: false, smoking: false, galley: false, lavatory: false, medical: false },
+              rfqStatus: quote.rfqStatus || 'quoted',
+              lastUpdated: quote.lastUpdated || new Date().toISOString(),
+              isSelected: quote.isSelected || false,
+              validUntil: quote.validUntil,
+              aircraftCategory: quote.aircraftCategory,
+              hasMedical: quote.hasMedical || false,
+              hasPackage: quote.hasPackage || false,
             }
-            return null
+            return flight
+          } else {
+            // Plain quote object - convert to RFQFlight
+            const flight = convertQuoteToRFQFlight(quote, routeParts)
+            if (!flight || !flight.id) {
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('[ChatInterface] Converted flight missing id:', flight, quote)
+              }
+              return null
+            }
+            return flight
           }
-          return flight
         } catch (error) {
           if (process.env.NODE_ENV === 'development') {
             console.error('[ChatInterface] Error converting quote to RFQFlight:', error, quote)
@@ -1665,6 +1699,21 @@ export function ChatInterface({
                   isRecommended: index === 0,
                 }))
                 
+                // Convert formatted quotes to RFQFlight format
+                // This ensures all quotes are in the correct format for display
+                const convertedQuotes: RFQFlight[] = formattedQuotes
+                  .map((quote: any) => {
+                    try {
+                      return convertQuoteToRFQFlight(quote, routeParts, activeChat.date)
+                    } catch (error) {
+                      console.error('[TripID] Error converting formatted quote to RFQFlight:', error, quote)
+                      return null
+                    }
+                  })
+                  .filter((flight: RFQFlight | null): flight is RFQFlight => flight != null)
+                
+                console.log('[TripID] Converted quotes count:', convertedQuotes.length)
+                
                 // Convert RFQs without quotes to RFQFlight format
                 // This handles RFQs that were created in the Marketplace but don't have quotes yet
                 const rfqsWithoutQuotes = rfqs
@@ -1691,18 +1740,21 @@ export function ChatInterface({
                 
                 console.log('[TripID] RFQs without quotes converted:', rfqsWithoutQuotes.length)
                 
-                // Combine quotes and RFQs without quotes
-                const allFormattedQuotes = [...formattedQuotes, ...rfqsWithoutQuotes]
+                // Combine converted quotes and RFQs without quotes
+                // Both are now in RFQFlight format
+                const allFormattedQuotes = [...convertedQuotes, ...rfqsWithoutQuotes]
 
                 const updatedMessages = [...latestMessagesRef.current, agentMsg]
                 latestMessagesRef.current = updatedMessages
 
                 // Log formatted quotes for debugging
+                console.log('[TripID] Original quotes count:', quotes.length)
                 console.log('[TripID] Formatted quotes count:', formattedQuotes.length)
+                console.log('[TripID] Converted quotes count:', convertedQuotes.length)
                 console.log('[TripID] RFQs without quotes count:', rfqsWithoutQuotes.length)
-                console.log('[TripID] Total formatted items (quotes + RFQs):', allFormattedQuotes.length)
-                console.log('[TripID] Formatted quotes sample:', formattedQuotes.length > 0 ? formattedQuotes[0] : null)
-                console.log('[TripID] RFQs without quotes sample:', rfqsWithoutQuotes.length > 0 ? rfqsWithoutQuotes[0] : null)
+                console.log('[TripID] Total RFQFlight items (quotes + RFQs):', allFormattedQuotes.length)
+                console.log('[TripID] Converted quote sample:', convertedQuotes.length > 0 ? convertedQuotes[0] : null)
+                console.log('[TripID] RFQ without quotes sample:', rfqsWithoutQuotes.length > 0 ? rfqsWithoutQuotes[0] : null)
                 
                 // Mark Trip ID as submitted successfully - update both local state and chat state
                 setTripIdSubmitted(true)
