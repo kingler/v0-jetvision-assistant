@@ -28,6 +28,10 @@ export {
   createQuote,
   syncUserFromClerk,
   updateRequestWithAvinodeTrip,
+  // Trip ID lookup helpers
+  findRequestByTripId,
+  listUserTrips,
+  upsertRequestWithTripId,
 } from './admin';
 
 // MCP Server helpers (generic query operations for AI agents)

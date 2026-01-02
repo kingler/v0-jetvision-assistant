@@ -15,7 +15,7 @@ import OpenAI from 'openai'
 import type { ChatCompletionMessageToolCall } from 'openai/resources/chat/completions'
 import { z } from 'zod'
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, findRequestByTripId, listUserTrips } from '@/lib/supabase'
 import type { PipelineData, PipelineStats, PipelineRequest } from '@/lib/types/chat-agent'
 
 // Agent integration imports
@@ -610,20 +610,29 @@ export async function POST(req: NextRequest) {
       messageText.includes('pending requests') ||
       (messageText.includes('show') && messageText.includes('request'))
 
-    // Detect if message contains a Trip ID
+    // =========================================================================
+    // TRIP ID DETECTION (Enhanced for auto-search)
+    // =========================================================================
     // Pattern 1: Avinode format atrip-XXXXXXXX (8+ digits)
-    // Pattern 2: Standalone alphanumeric ID (6-12 chars) with context keywords
+    // Pattern 2: Standalone alphanumeric ID (6-8 chars) - auto-detect when message is short
+    // Pattern 3: Generic ID with context keywords
     const avinodeTripIdPattern = /\batrip-\d{6,12}\b/i
-    const genericTripIdPattern = /\b[A-Z0-9]{6,12}\b/i
+    const genericTripIdPattern = /\b[A-Z0-9]{6,8}\b/gi  // 6-8 chars for Trip IDs like B22E7Z
 
     // Direct Avinode Trip ID format is always recognized (e.g., atrip-64956150)
     const hasAvinodeTripId = avinodeTripIdPattern.test(message)
 
-    // Generic Trip ID pattern requires context keywords
-    const hasGenericTripId = genericTripIdPattern.test(message) &&
+    // Check if message is JUST a Trip ID (short message with only alphanumeric ID)
+    const trimmedMessage = message.trim()
+    const isStandaloneTripId = /^[A-Z0-9]{6,8}$/i.test(trimmedMessage)
+
+    // Generic Trip ID pattern with context keywords
+    const hasGenericTripIdWithContext = genericTripIdPattern.test(message) &&
                       (messageText.includes('trip id') ||
                        messageText.includes('tripid') ||
                        messageText.includes('trip:') ||
+                       messageText.includes('trip #') ||
+                       messageText.includes('trip number') ||
                        messageText.includes('here is') ||
                        messageText.includes("here's") ||
                        messageText.includes('my trip') ||
@@ -632,23 +641,34 @@ export async function POST(req: NextRequest) {
                        messageText.includes('find') ||
                        messageText.includes('get rfq') ||
                        messageText.includes('get quotes') ||
+                       messageText.includes('check trip') ||
                        // Also match if context indicates we're waiting for a trip ID
                        context?.tripId !== undefined)
 
-    const hasTripId = hasAvinodeTripId || hasGenericTripId
+    const hasTripId = hasAvinodeTripId || isStandaloneTripId || hasGenericTripIdWithContext
 
     // Extract the Trip ID if found (for later use in tool calls)
     let detectedTripId: string | undefined
     if (hasAvinodeTripId) {
       const match = message.match(avinodeTripIdPattern)
       detectedTripId = match?.[0]
-    } else if (hasGenericTripId) {
-      const match = message.match(genericTripIdPattern)
-      detectedTripId = match?.[0]
+    } else if (isStandaloneTripId) {
+      detectedTripId = trimmedMessage.toUpperCase()
+    } else if (hasGenericTripIdWithContext) {
+      const matches = message.match(genericTripIdPattern)
+      detectedTripId = matches?.[0]?.toUpperCase()
     }
 
-    // Use 'required' for tool_choice when flight details, RFP request, or Trip ID is detected
-    const toolChoice = hasFlightDetails || wantsRFP || hasTripId ? 'required' : 'auto'
+    // =========================================================================
+    // "SHOW ME ALL MY TRIPS" INTENT DETECTION
+    // =========================================================================
+    const wantsAllTrips = /\b(show|list|get|see|view)\b.*(all\s+)?(my\s+)?trips?\b/i.test(messageText) ||
+                         /\ball\s+(my\s+)?trips\b/i.test(messageText) ||
+                         /\bmy\s+trips\b/i.test(messageText) ||
+                         /\blist\s+trips\b/i.test(messageText)
+
+    // Use 'required' for tool_choice when flight details, RFP request, Trip ID, or list trips is detected
+    const toolChoice = hasFlightDetails || wantsRFP || hasTripId || wantsAllTrips ? 'required' : 'auto'
     console.log(`[Chat API] Message analysis:`)
     console.log(`  - hasAirportCode: ${hasAirportCode}`)
     console.log(`  - hasPassengers: ${hasPassengers}`)
@@ -916,6 +936,7 @@ export async function POST(req: NextRequest) {
         rfp_data?: unknown
         rfq_data?: unknown
         mock_mode: boolean
+        _debug?: unknown
       } = {
         content: finalContent,
         done: true,
@@ -929,6 +950,46 @@ export async function POST(req: NextRequest) {
         })),
         mock_mode: isMockMode,
       }
+
+      // Add diagnostic data to help debug prod vs dev differences
+      // This will be visible in frontend console
+      const debugInfo: {
+        toolCallNames: string[]
+        hasCreateTrip: boolean
+        tripDataSet: boolean
+        createTripResult?: {
+          hasTripId: boolean
+          hasDeepLink: boolean
+          tripId?: string
+          deepLink?: string
+        }
+      } = {
+        toolCallNames: allFunctionToolCalls.map(tc => tc.function.name),
+        hasCreateTrip: allFunctionToolCalls.some(tc => tc.function.name === 'create_trip'),
+        tripDataSet: tripData !== null,
+      }
+
+      // Find create_trip result if it exists
+      const createTripIndex = allFunctionToolCalls.findIndex(tc => tc.function.name === 'create_trip')
+      if (createTripIndex >= 0 && toolResults[createTripIndex]) {
+        try {
+          const createTripContent = toolResults[createTripIndex].content
+          const parsed = JSON.parse(
+            typeof createTripContent === 'string' ? createTripContent : JSON.stringify(createTripContent)
+          )
+          debugInfo.createTripResult = {
+            hasTripId: !!parsed.trip_id,
+            hasDeepLink: !!parsed.deep_link,
+            tripId: parsed.trip_id,
+            deepLink: parsed.deep_link,
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      responseData._debug = debugInfo
+      console.log('[Chat API] Debug info:', JSON.stringify(debugInfo, null, 2))
 
       if (tripData) {
         responseData.trip_data = tripData

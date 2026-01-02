@@ -850,6 +850,18 @@ export function ChatInterface({
               }
 
               if (data.done) {
+                // Log debug info from server to help diagnose prod vs dev differences
+                if (data._debug) {
+                  console.log('[Chat] Server debug info:', JSON.stringify(data._debug, null, 2))
+                  console.log('[Chat] Debug summary:', {
+                    toolCalls: data._debug.toolCallNames,
+                    hasCreateTrip: data._debug.hasCreateTrip,
+                    tripDataSet: data._debug.tripDataSet,
+                    createTripTripId: data._debug.createTripResult?.tripId,
+                    createTripDeepLink: data._debug.createTripResult?.deepLink,
+                  })
+                }
+
                 // Stream complete - add final message
                 // Determine workflow status based on tool calls and agent metadata
                 let newStatus: string = "understanding_request"
