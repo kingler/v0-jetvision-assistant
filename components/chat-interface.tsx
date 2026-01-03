@@ -496,13 +496,68 @@ export function ChatInterface({
     return allRfqFlights.filter((f): f is RFQFlight => f != null && f.id != null)
   }, [activeChat.rfqFlights, activeChat.quotes, activeChat.messages, activeChat.date, routeParts])
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  /**
+   * Ref to track the messages container for scroll position detection
+   */
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * Track previous message count to detect actual new messages
+   * Only scroll when there's a genuine new message, not just state updates
+   */
+  const prevMessageCountRef = useRef(activeChat.messages.length)
+  const prevStreamingContentRef = useRef(streamingContent)
+
+  /**
+   * Scroll to bottom of messages container
+   * Only scrolls when appropriate (new messages, not during RFQ loading)
+   * Uses block: 'nearest' to prevent full page scroll jumps
+   */
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current && messagesContainerRef.current) {
+      // Check if user has manually scrolled up - if so, don't auto-scroll
+      const container = messagesContainerRef.current
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
+      
+      // Only scroll if user is near bottom (within 100px) or if it's the first load
+      if (isNearBottom || prevMessageCountRef.current === 0) {
+        // Use 'nearest' block to minimize scroll impact and prevent full page jumps
+        // This ensures we only scroll the messages container, not the entire page
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: "smooth",
+          block: "nearest",
+          inline: "nearest"
+        })
+      }
+    }
+  }, [])
 
   useEffect(() => {
-    scrollToBottom()
-  }, [activeChat.messages, isTyping, streamingContent])
+    // Don't scroll if Trip ID is being submitted/loaded (causes layout shifts and unwanted scroll)
+    // This prevents scroll jumps when RFQ flights list component loads
+    if (isTripIdLoading) {
+      return
+    }
+
+    // Check if there's actually a new message (not just a state update)
+    const hasNewMessage = activeChat.messages.length > prevMessageCountRef.current
+    const hasNewStreamingContent = streamingContent !== prevStreamingContentRef.current && streamingContent.length > 0
+
+    // Only scroll if:
+    // 1. There's a new message, OR
+    // 2. There's new streaming content, OR
+    // 3. Typing indicator appears
+    if (hasNewMessage || hasNewStreamingContent || isTyping) {
+      // Use requestAnimationFrame to ensure DOM has updated before scrolling
+      requestAnimationFrame(() => {
+        scrollToBottom()
+      })
+    }
+
+    // Update refs for next comparison
+    prevMessageCountRef.current = activeChat.messages.length
+    prevStreamingContentRef.current = streamingContent
+  }, [activeChat.messages, isTyping, streamingContent, isTripIdLoading, scrollToBottom])
 
   useEffect(() => {
     latestMessagesRef.current = activeChat.messages
@@ -1945,7 +2000,7 @@ export function ChatInterface({
       />
 
       {/* Chat Messages - Fixed height constraint to prevent expansion when RFQ flights load */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <div className="px-4 py-6 space-y-6">
           <div className="max-w-4xl mx-auto space-y-6">
           {activeChat.messages.map((message) => (

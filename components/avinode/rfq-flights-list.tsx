@@ -247,7 +247,7 @@ export function RFQFlightsList({
               onChange={handleSortChange}
               aria-label="Sort by"
               role="combobox"
-              className="text-sm border border-gray-200 dark:border-gray-700 rounded-md px-3 py-1.5 bg-white dark:bg-gray-900"
+              className="text-sm border border-gray-200 dark:border-gray-700 rounded-md px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             >
               <option value="price-asc">Price: Low to High</option>
               <option value="price-desc">Price: High to Low</option>
@@ -268,7 +268,11 @@ export function RFQFlightsList({
               variant={currentFilter === status ? 'default' : 'outline'}
               size="sm"
               onClick={() => setCurrentFilter(status)}
-              className="capitalize"
+              className={cn(
+                'capitalize',
+                // Only apply explicit text color to outline buttons (default buttons already have white text)
+                currentFilter !== status && 'text-gray-900 dark:text-gray-100'
+              )}
             >
               {status === 'all' ? 'All' : status}
             </Button>

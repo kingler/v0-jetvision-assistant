@@ -565,14 +565,14 @@ export function FlightSearchProgress({
                     <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground">Date</p>
-                      <p className="font-medium text-xs">{formatDate(flightRequest.departureDate)}</p>
+                      <p className="font-medium text-xs text-gray-900 dark:text-gray-100">{formatDate(flightRequest.departureDate)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2">
                     <Users className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground">Passengers</p>
-                      <p className="font-medium text-xs">{flightRequest.passengers}</p>
+                      <p className="font-medium text-xs text-gray-900 dark:text-gray-100">{flightRequest.passengers}</p>
                     </div>
                   </div>
                   {flightRequest.requestId && (
@@ -580,7 +580,7 @@ export function FlightSearchProgress({
                       <span className="text-muted-foreground font-bold text-xs">#</span>
                       <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Request ID</p>
-                        <p className="font-medium text-xs font-mono truncate">
+                        <p className="font-medium text-xs font-mono truncate text-gray-900 dark:text-gray-100">
                           {flightRequest.requestId}
                         </p>
                       </div>
@@ -628,7 +628,7 @@ export function FlightSearchProgress({
 
               {/* Instructions for searching flights */}
               <div className="mb-4 p-3 rounded-md bg-gray-50 dark:bg-gray-800 text-sm">
-                <p className="font-medium mb-2">How to search and select flights:</p>
+                <p className="font-medium mb-2 text-gray-900 dark:text-gray-100">How to search and select flights:</p>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                   <li>Click the button below to open Avinode Marketplace</li>
                   <li>Enter the airport codes: <span className="font-semibold text-foreground">{flightRequest.departureAirport?.icao?.toUpperCase() || ''}</span> (departure) and <span className="font-semibold text-foreground">{flightRequest.arrivalAirport?.icao?.toUpperCase() || ''}</span> (arrival)</li>
@@ -653,7 +653,7 @@ export function FlightSearchProgress({
                 <Button
                   variant="outline"
                   onClick={handleCopyLink}
-                  className="sm:w-auto"
+                  className="sm:w-auto text-gray-900 dark:text-gray-100"
                 >
                   {copied ? (
                     <>
