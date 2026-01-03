@@ -176,7 +176,7 @@ function calculatePricing(
   const subtotalDecimal = flights.reduce((sum, flight) => {
     // If flight has breakdown, use base price; otherwise use total price
     const price = flight.priceBreakdown
-      ? new Decimal(flight.priceBreakdown.base)
+      ? new Decimal(flight.priceBreakdown.basePrice)
       : new Decimal(flight.totalPrice);
     return sum.plus(price);
   }, new Decimal(0));

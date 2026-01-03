@@ -15,7 +15,6 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   CheckCircle2,
@@ -104,6 +103,8 @@ export interface FlightSearchProgressProps {
   isRfqFlightsLoading?: boolean;
   /** Selected flight IDs for proposal */
   selectedRfqFlightIds?: string[];
+  /** Timestamp when RFQs were last fetched */
+  rfqsLastFetchedAt?: string;
   /** Customer email for proposal */
   customerEmail?: string;
   /** Customer name for proposal */
@@ -330,6 +331,7 @@ export function FlightSearchProgress({
   rfqFlights = [],
   isRfqFlightsLoading = false,
   selectedRfqFlightIds = [],
+  rfqsLastFetchedAt,
   customerEmail,
   customerName,
   onTripIdSubmit,
@@ -368,6 +370,26 @@ export function FlightSearchProgress({
 
   // Determine if we should hide the stepper (when TripID is entered and flights are shown)
   const hideStepperWhenComplete = tripIdSubmitted && selectedFlights.length > 0;
+
+  /**
+   * Format timestamp to relative time (e.g., "2 minutes ago")
+   */
+  const formatLastFetchedTime = (timestamp?: string): string => {
+    if (!timestamp) return '';
+
+    const now = new Date();
+    const fetchedAt = new Date(timestamp);
+    const diffMs = now.getTime() - fetchedAt.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+
+    if (diffSec < 60) return 'Just now';
+    if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+    if (diffHour < 24) return `${diffHour} hour${diffHour !== 1 ? 's' : ''} ago`;
+
+    return fetchedAt.toLocaleString();
+  };
 
   /**
    * Format date string to human-readable format
@@ -439,8 +461,8 @@ export function FlightSearchProgress({
   }, [deepLink, onDeepLinkClick]);
 
   return (
-    <Card data-testid="flight-search-progress" className={cn('w-full bg-white dark:bg-gray-900 border-0 shadow-none', className)}>
-      <CardContent className="py-6">
+    <div data-testid="flight-search-progress" className={cn('w-full bg-white dark:bg-gray-900', className)}>
+      <div className="py-6">
         {/* Step Progress Indicator - Hidden when complete with flights shown */}
         {!hideStepperWhenComplete && (
           <div className="flex items-start justify-center mb-6 overflow-x-auto pb-2">
@@ -653,126 +675,142 @@ export function FlightSearchProgress({
           {currentStep >= 3 && (
             <div
               data-testid="step-3-content"
-              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 mb-6"
+              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 mb-6"
             >
-              {/* Header Section - Improved spacing */}
-              <div className="flex items-center gap-2 mb-6">
-                {tripIdSubmitted ? (
-                  <CheckCircle2 className="h-5 w-5 text-gray-500" />
-                ) : (
-                  <Search className="h-5 w-5 text-primary" />
+              {/* Fixed header section - not scrollable */}
+              <div className="p-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                {/* Header Section - Improved spacing */}
+                <div className="flex items-center gap-2 mb-6">
+                  {tripIdSubmitted ? (
+                    <CheckCircle2 className="h-5 w-5 text-gray-500" />
+                  ) : (
+                    <Search className="h-5 w-5 text-primary" />
+                  )}
+                  <h4 className="font-semibold text-sm">
+                    Step 3: View RFQ Flights
+                  </h4>
+                </div>
+
+                {/* Trip ID not available yet */}
+                {!tripId && (
+                  <div className="mb-6 p-4 rounded-md bg-amber-50 dark:bg-amber-950/30">
+                    <p className="text-sm font-medium mb-2">Waiting for Trip ID</p>
+                    <p className="text-xs text-muted-foreground">
+                      Your trip is being created. The Trip ID will appear here once ready.
+                    </p>
+                  </div>
                 )}
-                <h4 className="font-semibold text-sm">
-                  Step 3: View RFQ Flights
-                </h4>
+
+                {/* View RFQs button - Always visible when Trip ID is available */}
+                {tripId && (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={() => onTripIdSubmit?.(tripId)}
+                        disabled={isTripIdLoading}
+                        className="flex items-center gap-2"
+                      >
+                        {isTripIdLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading RFQs...
+                          </>
+                        ) : (
+                          <>
+                            <Search className="h-4 w-4" />
+                            View RFQs
+                          </>
+                        )}
+                      </Button>
+                      {rfqsLastFetchedAt && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Last updated {formatLastFetchedTime(rfqsLastFetchedAt)}
+                        </span>
+                      )}
+                    </div>
+                    {tripIdError && (
+                      <p className="mt-3 text-xs text-red-600 dark:text-red-400">
+                        {tripIdError}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Trip ID not available yet */}
-              {!tripId && (
-                <div className="mb-6 p-4 rounded-md bg-amber-50 dark:bg-amber-950/30">
-                  <p className="text-sm font-medium mb-2">Waiting for Trip ID</p>
-                  <p className="text-xs text-muted-foreground">
-                    Your trip is being created. The Trip ID will appear here once ready.
-                  </p>
-                </div>
-              )}
+              {/* Scrollable content area - RFQ Flights List with fixed height to prevent layout shifts */}
+              <div className="overflow-y-auto" style={{ maxHeight: '500px' }}>
+                <div className="p-6 pt-4">
+                  {/* Show RFQ Flights List when Trip ID is submitted OR we have flights to display */}
+                  {(tripIdSubmitted || rfqFlights.length > 0) && (
+                    <div className="space-y-6">
+                      {/* Success message - Only show when Trip ID is submitted */}
+                      {tripIdSubmitted && (
+                        <div className="flex items-start gap-3 p-4 rounded-md bg-green-50 dark:bg-green-950/30">
+                          <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-green-700 dark:text-green-300 text-sm mb-2">
+                              Trip ID verified successfully!
+                            </p>
+                            {isRfqFlightsLoading ? (
+                              <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                                Loading flight quotes...
+                              </p>
+                            ) : rfqFlights.length > 0 ? (
+                              <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                                {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Select the flights you want to include in your proposal, then click "Create Proposal" to generate and send the PDF to your customer.
+                              </p>
+                            ) : (
+                              <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                                No RFQs have been submitted yet. Please check back later or try refreshing.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
-              {/* View RFQs button - Always visible when Trip ID is available, even after submission */}
-              {tripId && (
-                <div className="mb-6">
-                  <Button
-                    onClick={() => onTripIdSubmit?.(tripId)}
-                    disabled={isTripIdLoading}
-                    className="flex items-center gap-2"
-                  >
-                    {isTripIdLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading RFQs...
-                      </>
-                    ) : (
-                      <>
-                        <Search className="h-4 w-4" />
-                        View RFQs
-                      </>
-                    )}
-                  </Button>
-                  {tripIdError && (
-                    <p className="mt-3 text-xs text-red-600 dark:text-red-400">
-                      {tripIdError}
-                    </p>
-                  )}
-                </div>
-              )}
+                      {/* Show info message when quotes are available but Trip ID not submitted */}
+                      {!tripIdSubmitted && rfqFlights.length > 0 && (
+                        <div className="flex items-start gap-3 p-4 rounded-md bg-blue-50 dark:bg-blue-950/30">
+                          <CheckCircle2 className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-blue-700 dark:text-blue-300 text-sm mb-2">
+                              Quotes Received
+                            </p>
+                            <p className="text-xs text-blue-600 dark:text-blue-400 leading-relaxed">
+                              {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Review the options below and select flights for your proposal.
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
-              {/* Show RFQ Flights List when Trip ID is submitted OR we have flights to display */}
-              {(tripIdSubmitted || rfqFlights.length > 0) && (
-                <div className="space-y-6">
-                  {/* Success message - Only show when Trip ID is submitted */}
-                  {tripIdSubmitted && (
-                    <div className="flex items-start gap-3 p-4 rounded-md bg-green-50 dark:bg-green-950/30">
-                      <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-green-700 dark:text-green-300 text-sm mb-2">
-                          Trip ID verified successfully!
-                        </p>
-                        {isRfqFlightsLoading ? (
-                          <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
-                            Loading flight quotes...
-                          </p>
-                        ) : rfqFlights.length > 0 ? (
-                          <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
-                            {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Select the flights you want to include in your proposal, then click "Create Proposal" to generate and send the PDF to your customer.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
-                            No RFQs have been submitted yet. Please check back later or try refreshing.
-                          </p>
-                        )}
-                      </div>
+                      {/* RFQ Flights List - Render when Trip ID is submitted OR when we have flights to display */}
+                      {(tripIdSubmitted || (rfqFlights && rfqFlights.length > 0)) && (
+                        <RFQFlightsList
+                          flights={(rfqFlights || [])
+                            .filter(f => f != null && f.id != null) // Filter out null/undefined flights
+                            .map(f => ({
+                              ...f,
+                              isSelected: selectedRfqFlightIds.includes(f.id)
+                            }))}
+                          isLoading={isRfqFlightsLoading}
+                          selectable={!onReviewAndBook}
+                          showSelectAll={!onReviewAndBook}
+                          sortable
+                          filterable
+                          showContinueButton={!onReviewAndBook}
+                          showPriceBreakdown
+                          showBookButton={!!onReviewAndBook}
+                          onSelectionChange={onRfqFlightSelectionChange}
+                          onContinue={onContinueToProposal}
+                          onReviewAndBook={onReviewAndBook}
+                          onViewChat={onViewChat}
+                        />
+                      )}
                     </div>
                   )}
-
-                  {/* Show info message when quotes are available but Trip ID not submitted */}
-                  {!tripIdSubmitted && rfqFlights.length > 0 && (
-                    <div className="flex items-start gap-3 p-4 rounded-md bg-blue-50 dark:bg-blue-950/30">
-                      <CheckCircle2 className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-blue-700 dark:text-blue-300 text-sm mb-2">
-                          Quotes Received
-                        </p>
-                        <p className="text-xs text-blue-600 dark:text-blue-400 leading-relaxed">
-                          {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Review the options below and select flights for your proposal.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* RFQ Flights List - Render when Trip ID is submitted OR when we have flights to display */}
-                  {(tripIdSubmitted || (rfqFlights && rfqFlights.length > 0)) && (
-                    <RFQFlightsList
-                      flights={(rfqFlights || [])
-                        .filter(f => f != null && f.id != null) // Filter out null/undefined flights
-                        .map(f => ({
-                          ...f,
-                          isSelected: selectedRfqFlightIds.includes(f.id)
-                        }))}
-                      isLoading={isRfqFlightsLoading}
-                      selectable={!onReviewAndBook}
-                      showSelectAll={!onReviewAndBook}
-                      sortable
-                      filterable
-                      showContinueButton={!onReviewAndBook}
-                      showPriceBreakdown
-                      showBookButton={!!onReviewAndBook}
-                      onSelectionChange={onRfqFlightSelectionChange}
-                      onContinue={onContinueToProposal}
-                      onReviewAndBook={onReviewAndBook}
-                      onViewChat={onViewChat}
-                    />
-                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -819,8 +857,8 @@ export function FlightSearchProgress({
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

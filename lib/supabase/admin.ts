@@ -9,6 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/database';
+import { normalizeTripId } from '@/lib/avinode/trip-id';
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
   throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
@@ -137,14 +138,21 @@ export async function findRequestByTripId(
   tripId: string,
   userId: string
 ): Promise<Database['public']['Tables']['requests']['Row'] | null> {
-  // Normalize trip ID - strip 'atrip-' prefix if present for consistent lookup
-  const normalizedTripId = tripId.replace(/^atrip-/i, '');
+  const parsedTripId = normalizeTripId(tripId);
+  const normalizedTripId = parsedTripId?.normalized ?? tripId.trim();
+  const unprefixedTripId = normalizedTripId.replace(/^atrip-/i, '');
+  const candidateTripIds = Array.from(
+    new Set([tripId, normalizedTripId, unprefixedTripId].filter((value) => value))
+  );
+  const exactFilters = candidateTripIds.map((value) => `avinode_trip_id.eq.${value}`).join(',');
+  const fuzzyFilter = unprefixedTripId ? `avinode_trip_id.ilike.%${unprefixedTripId}%` : '';
+  const orFilter = [exactFilters, fuzzyFilter].filter(Boolean).join(',');
 
   const { data, error } = await supabaseAdmin
     .from('requests')
     .select('*')
     .eq('user_id', userId)
-    .or(`avinode_trip_id.eq.${tripId},avinode_trip_id.eq.${normalizedTripId},avinode_trip_id.ilike.%${normalizedTripId}%`)
+    .or(orFilter)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();

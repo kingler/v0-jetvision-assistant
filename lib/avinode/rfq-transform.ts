@@ -1,0 +1,302 @@
+import type { RFQFlight } from '@/components/avinode/rfq-flight-card';
+
+interface NormalizeRfqFlightsArgs {
+  rfqData?: any;
+  quotes?: Array<Record<string, any> | RFQFlight | null | undefined>;
+  route?: {
+    departureAirport?: { icao?: string; name?: string; city?: string };
+    arrivalAirport?: { icao?: string; name?: string; city?: string };
+    departureDate?: string;
+    departureTime?: string;
+    arrivalTime?: string;
+  };
+  passengers?: number;
+  deepLink?: string;
+}
+
+const RFQ_STATUS_VALUES = new Set(['sent', 'unanswered', 'quoted', 'declined', 'expired']);
+
+function formatDuration(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes < 0) {
+    return '0h 0m';
+  }
+  const hours = Math.floor(minutes / 60);
+  const remaining = Math.round(minutes % 60);
+  return `${hours}h ${remaining}m`;
+}
+
+function mapAmenities(amenities: Array<string | null | undefined>): RFQFlight['amenities'] {
+  const normalized = amenities
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.toLowerCase().trim());
+
+  return {
+    wifi: normalized.includes('wifi') || normalized.includes('wi-fi'),
+    pets: normalized.includes('pets') || normalized.includes('pet'),
+    smoking: normalized.includes('smoking') || normalized.includes('smoke'),
+    galley: normalized.includes('galley') || normalized.includes('kitchen'),
+    lavatory: normalized.includes('lavatory') || normalized.includes('bathroom') || normalized.includes('restroom'),
+    medical: normalized.includes('medical') || normalized.includes('medevac'),
+  };
+}
+
+function resolveRoute(
+  quote: Record<string, any>,
+  rfqData: any,
+  route?: NormalizeRfqFlightsArgs['route']
+) {
+  const quoteRoute = quote?.route;
+  const rfqRoute = rfqData?.route;
+
+  const departureAirport =
+    quoteRoute?.departure?.airport ||
+    rfqRoute?.departure?.airport ||
+    route?.departureAirport ||
+    undefined;
+  const arrivalAirport =
+    quoteRoute?.arrival?.airport ||
+    rfqRoute?.arrival?.airport ||
+    route?.arrivalAirport ||
+    undefined;
+  const departureDate =
+    quoteRoute?.departure?.date ||
+    rfqRoute?.departure?.date ||
+    route?.departureDate ||
+    undefined;
+  const departureTime =
+    quoteRoute?.departure?.time ||
+    rfqRoute?.departure?.time ||
+    route?.departureTime ||
+    undefined;
+  const arrivalTime =
+    quoteRoute?.arrival?.time ||
+    rfqRoute?.arrival?.time ||
+    route?.arrivalTime ||
+    undefined;
+
+  return {
+    departureAirport,
+    arrivalAirport,
+    departureDate,
+    departureTime,
+    arrivalTime,
+  };
+}
+
+function normalizeQuoteToFlight(
+  quote: Record<string, any>,
+  index: number,
+  args: NormalizeRfqFlightsArgs
+): RFQFlight | null {
+  if (!quote) {
+    return null;
+  }
+
+  if (
+    typeof (quote as RFQFlight).totalPrice === 'number' &&
+    (quote as RFQFlight).departureAirport &&
+    (quote as RFQFlight).arrivalAirport
+  ) {
+    return quote as RFQFlight;
+  }
+
+  const { rfqData, route, passengers, deepLink } = args;
+  const { departureAirport, arrivalAirport, departureDate, departureTime, arrivalTime } = resolveRoute(
+    quote,
+    rfqData,
+    route
+  );
+
+  const aircraft = quote.aircraft || {};
+  const pricing = quote.pricing || {};
+  const operator = quote.operator || {};
+
+  const quoteId =
+    quote.id ||
+    quote.quote_id ||
+    quote.quoteId ||
+    quote.rfq_id ||
+    `quote-${Date.now()}-${index}`;
+
+  const rfqStatusRaw =
+    quote.rfqStatus ||
+    quote.status ||
+    quote.quote_status ||
+    quote.rfq_status ||
+    'quoted';
+  const rfqStatus = RFQ_STATUS_VALUES.has(String(rfqStatusRaw))
+    ? (rfqStatusRaw as RFQFlight['rfqStatus'])
+    : 'quoted';
+
+  const pricingTotal =
+    pricing.total ||
+    quote.total_price ||
+    quote.totalPrice?.amount ||
+    quote.price ||
+    0;
+  const pricingCurrency =
+    pricing.currency ||
+    quote.currency ||
+    quote.totalPrice?.currency ||
+    'USD';
+
+  const flightDuration =
+    typeof quote.flightDuration === 'string'
+      ? quote.flightDuration
+      : typeof quote.flight_duration === 'string'
+        ? quote.flight_duration
+        : typeof quote.schedule?.flightDuration === 'number'
+          ? formatDuration(quote.schedule.flightDuration)
+          : typeof quote.schedule?.duration === 'number'
+            ? formatDuration(quote.schedule.duration)
+            : '0h 0m';
+
+  const amenitySource = [
+    ...(Array.isArray(quote.amenities) ? quote.amenities : []),
+    ...(Array.isArray(quote.features) ? quote.features : []),
+    ...(Array.isArray(aircraft.amenities) ? aircraft.amenities : []),
+  ];
+
+  const amenities = mapAmenities(amenitySource);
+
+  const passengerCapacity =
+    Number(aircraft.capacity) ||
+    Number(quote.passengerCapacity) ||
+    Number(quote.passenger_capacity) ||
+    Number(rfqData?.passengers) ||
+    Number(passengers) ||
+    0;
+
+  return {
+    id: quoteId,
+    quoteId,
+    departureAirport: {
+      icao: departureAirport?.icao || route?.departureAirport?.icao || 'N/A',
+      name: departureAirport?.name || route?.departureAirport?.name,
+      city: departureAirport?.city || route?.departureAirport?.city,
+    },
+    arrivalAirport: {
+      icao: arrivalAirport?.icao || route?.arrivalAirport?.icao || 'N/A',
+      name: arrivalAirport?.name || route?.arrivalAirport?.name,
+      city: arrivalAirport?.city || route?.arrivalAirport?.city,
+    },
+    departureDate: departureDate || new Date().toISOString().split('T')[0],
+    departureTime,
+    flightDuration,
+    aircraftType:
+      quote.aircraftType ||
+      quote.aircraft_type ||
+      aircraft.type ||
+      aircraft.model ||
+      'Unknown Aircraft',
+    aircraftModel:
+      quote.aircraftModel ||
+      quote.aircraft_model ||
+      aircraft.model ||
+      aircraft.type ||
+      'Unknown Aircraft',
+    tailNumber:
+      quote.tailNumber ||
+      quote.tail_number ||
+      aircraft.registration ||
+      aircraft.tail_number,
+    yearOfManufacture: aircraft.year_built || quote.year_built,
+    passengerCapacity,
+    operatorName: operator.name || quote.operator_name || quote.operatorName || 'Unknown Operator',
+    operatorRating:
+      operator.rating != null
+        ? Number(operator.rating)
+        : quote.operator_rating != null
+          ? Number(quote.operator_rating)
+          : quote.operatorRating != null
+            ? Number(quote.operatorRating)
+            : undefined,
+    operatorEmail: operator.email || quote.operator_email || quote.operatorEmail,
+    totalPrice: Number(pricingTotal) || 0,
+    currency: pricingCurrency || 'USD',
+    priceBreakdown: pricing.base_price
+      ? {
+          basePrice: pricing.base_price,
+          fuelSurcharge: pricing.fuel_surcharge || 0,
+          taxes: pricing.taxes || 0,
+          fees: pricing.fees || 0,
+        }
+      : pricing.fuel_surcharge || pricing.taxes || pricing.fees
+        ? {
+            basePrice: Number(pricingTotal) || 0,
+            fuelSurcharge: pricing.fuel_surcharge || 0,
+            taxes: pricing.taxes || 0,
+            fees: pricing.fees || 0,
+          }
+        : undefined,
+    amenities,
+    rfqStatus,
+    lastUpdated: quote.updated_at || quote.last_updated || new Date().toISOString(),
+    responseTimeMinutes: quote.responseTimeMinutes,
+    isSelected: Boolean(quote.isSelected),
+    aircraftCategory:
+      aircraft.category?.name ||
+      quote.aircraftCategory ||
+      quote.aircraft_category,
+    hasMedical: amenities.medical,
+    hasPackage: Boolean(quote.hasPackage),
+    avinodeDeepLink: rfqData?.deep_link || rfqData?.deepLink || deepLink,
+  };
+}
+
+export function normalizeRfqFlights(args: NormalizeRfqFlightsArgs): RFQFlight[] {
+  if (!args) {
+    return [];
+  }
+
+  const quotes: Array<Record<string, any>> = [];
+
+  if (Array.isArray(args.quotes)) {
+    quotes.push(...(args.quotes.filter(Boolean) as Array<Record<string, any>>));
+  }
+
+  const rfqData = args.rfqData;
+  if (Array.isArray(rfqData)) {
+    rfqData.forEach((rfq) => {
+      if (Array.isArray(rfq?.quotes)) {
+        quotes.push(...rfq.quotes);
+      }
+      if (Array.isArray(rfq?.responses)) {
+        quotes.push(...rfq.responses);
+      }
+      if (Array.isArray(rfq?.requests)) {
+        quotes.push(...rfq.requests);
+      }
+    });
+  } else if (rfqData) {
+    if (Array.isArray(rfqData.quotes)) {
+      quotes.push(...rfqData.quotes);
+    }
+    if (Array.isArray(rfqData.responses)) {
+      quotes.push(...rfqData.responses);
+    }
+    if (Array.isArray(rfqData.requests)) {
+      quotes.push(...rfqData.requests);
+    }
+  }
+
+  const seen = new Set<string>();
+  const flights: RFQFlight[] = [];
+
+  quotes.forEach((quote, index) => {
+    const flight = normalizeQuoteToFlight(quote, index, {
+      ...args,
+      rfqData: rfqData || quote?.rfq_data,
+    });
+    if (!flight) {
+      return;
+    }
+    if (seen.has(flight.id)) {
+      return;
+    }
+    seen.add(flight.id);
+    flights.push(flight);
+  });
+
+  return flights;
+}

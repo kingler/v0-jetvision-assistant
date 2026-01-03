@@ -53,6 +53,7 @@ import type {
   CancelTripParams,
   SendTripMessageParams,
   GetTripMessagesParams,
+  RFQFlight,
 } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -395,13 +396,13 @@ const tools: Tool[] = [
   },
   {
     name: 'get_rfq',
-    description: 'Retrieve details of a Request for Quote (RFQ) including status and received quotes. Automatically handles both RFQ IDs (arfq-*) and Trip IDs (atrip-*). When a Trip ID is provided, returns all RFQs for that trip.',
+    description: 'Retrieve details of a Request for Quote (RFQ) including status and received quotes. Automatically handles both RFQ IDs (arfq-*) and Trip IDs (atrip-*). When a Trip ID is provided, uses the Read all RFQs for a given trip identifier endpoint (GET /rfqs/{tripId}) per Avinode API documentation: https://developer.avinodegroup.com/reference/readtriprfqs. Returns all RFQs and quotes for that trip with comprehensive aircraft, operator, and pricing details.',
     inputSchema: {
       type: 'object',
       properties: {
         rfq_id: {
           type: 'string',
-          description: 'The RFQ identifier (e.g., arfq-12345678) or Trip ID (e.g., atrip-12345678). If it starts with "atrip-", returns all RFQs for that trip.',
+          description: 'The RFQ identifier (e.g., arfq-12345678) or Trip ID (e.g., atrip-12345678). If it starts with "atrip-", uses GET /rfqs/{tripId} endpoint to return all RFQs for that trip per https://developer.avinodegroup.com/reference/readtriprfqs.',
         },
       },
       required: ['rfq_id'],
@@ -904,15 +905,162 @@ async function createTrip(params: CreateTripParams) {
 }
 
 /**
+ * Transform Avinode API response to RFQFlight array format
+ * Maps the raw API response to the format expected by UI components
+ */
+function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
+  // Combine ALL quotes from ALL possible arrays to ensure we don't miss any
+  const quotesFromQuotes = Array.isArray(rfqData.quotes) ? rfqData.quotes : [];
+  const quotesFromRequests = Array.isArray(rfqData.requests) ? rfqData.requests : [];
+  const quotesFromResponses = Array.isArray(rfqData.responses) ? rfqData.responses : [];
+  
+  // Use a Set to deduplicate by quote ID if the same quote appears in multiple arrays
+  const allQuotesMap = new Map<string, any>();
+  
+  // Add quotes from all sources, using quote ID as key to prevent duplicates
+  [...quotesFromQuotes, ...quotesFromRequests, ...quotesFromResponses].forEach((quote: any) => {
+    const quoteId = quote.quote?.id || quote.id;
+    if (quoteId && !allQuotesMap.has(quoteId)) {
+      allQuotesMap.set(quoteId, quote);
+    } else if (!quoteId) {
+      // If no ID, add with index-based key to preserve it
+      allQuotesMap.set(`no-id-${allQuotesMap.size}`, quote);
+    }
+  });
+  
+  // Convert map back to array
+  const quotes = Array.from(allQuotesMap.values());
+
+  // Get route data from RFQ level (fallback for quote-level route data)
+  const rfqDepartureAirport = rfqData.route?.departure?.airport;
+  const rfqArrivalAirport = rfqData.route?.arrival?.airport;
+  const rfqDepartureDate = rfqData.route?.departure?.date;
+
+  return quotes.map((quote: any, index: number) => {
+    // Derive RFQ status
+    const hasResponse = quote.status === 'quoted' || quote.status === 'declined';
+    const rfqStatus: RFQFlight['rfqStatus'] = hasResponse
+      ? (quote.status === 'quoted' ? 'quoted' : 'declined')
+      : 'unanswered';
+    const hasQuote = rfqStatus === 'quoted';
+
+    // Extract aircraft data
+    const aircraftType = quote.aircraft?.type || 'Unknown';
+    const aircraftModel = quote.aircraft?.model || quote.aircraft?.type || 'Unknown';
+    const tailNumber = quote.aircraft?.tailNumber || quote.aircraft?.registration;
+    const yearOfManufacture = quote.aircraft?.yearOfManufacture || quote.aircraft?.year_built;
+    const passengerCapacity = quote.aircraft?.capacity || rfqData.passengers || 0;
+
+    // Extract pricing data
+    const totalPrice = hasQuote ? (quote.totalPrice?.amount || quote.quote?.totalPrice?.amount || quote.pricing?.total || 0) : 0;
+    const currency = hasQuote ? (quote.totalPrice?.currency || quote.quote?.totalPrice?.currency || quote.pricing?.currency || 'USD') : 'USD';
+    const priceBreakdown = hasQuote && quote.pricing ? {
+      basePrice: quote.pricing.basePrice || quote.pricing.base_price || 0,
+      fuelSurcharge: quote.pricing.fuelSurcharge || quote.pricing.fuel_surcharge,
+      taxes: quote.pricing.taxes || 0,
+      fees: quote.pricing.fees || 0,
+    } : undefined;
+
+    // Map amenities
+    const amenitiesArray = quote.aircraft?.amenities || [];
+    const amenities: RFQFlight['amenities'] = {
+      wifi: amenitiesArray.includes('WiFi') || amenitiesArray.includes('wifi') || false,
+      pets: amenitiesArray.includes('Pets') || amenitiesArray.includes('pets') || false,
+      smoking: false, // Smoking is always false per business rules
+      galley: amenitiesArray.includes('Galley') || amenitiesArray.includes('galley') || false,
+      lavatory: amenitiesArray.includes('Lavatory') || amenitiesArray.includes('lavatory') || false,
+      medical: amenitiesArray.includes('Medical') || amenitiesArray.includes('medical') || false,
+    };
+
+    // Extract route data - prefer quote-level, fallback to RFQ-level
+    const departureAirport = quote.route?.departure?.airport || rfqDepartureAirport;
+    const arrivalAirport = quote.route?.arrival?.airport || rfqArrivalAirport;
+    const departureDate = quote.route?.departure?.date || rfqDepartureDate;
+
+    // Validate that we have airport data
+    if (!departureAirport?.icao || !arrivalAirport?.icao) {
+      console.error('[transformToRFQFlights] Missing airport data', {
+        quoteId: quote.quote?.id || quote.id,
+        hasQuoteDeparture: !!quote.route?.departure?.airport,
+        hasRfqDeparture: !!rfqDepartureAirport,
+        hasQuoteArrival: !!quote.route?.arrival?.airport,
+        hasRfqArrival: !!rfqArrivalAirport,
+      });
+      // Skip this quote if we don't have required airport data
+      return null;
+    }
+
+    // Format flight duration
+    const formatDuration = (minutes?: number): string => {
+      if (!minutes) return '0h 0m';
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours}h ${mins}m`;
+    };
+
+    const tailPhotoUrl =
+      quote.aircraft?.photos?.[0]?.url ||
+      quote.aircraft?.tail_photo_url ||
+      quote.tailPhotos?.[0]?.url ||
+      quote.typePhotos?.[0]?.url ||
+      quote.lift?.tailPhotos?.[0]?.url ||
+      quote.lift?.typePhotos?.[0]?.url;
+
+    // Assemble the RFQFlight object
+    return {
+      id: `flight-${quote.quote?.id || quote.id || index + 1}`,
+      quoteId: quote.quote?.id || quote.id || `quote-${index + 1}`,
+      departureAirport: {
+        icao: departureAirport.icao,
+        name: departureAirport.name || quote.route?.departure?.name,
+        city: departureAirport.city || quote.route?.departure?.city,
+      },
+      arrivalAirport: {
+        icao: arrivalAirport.icao,
+        name: arrivalAirport.name || quote.route?.arrival?.name,
+        city: arrivalAirport.city || quote.route?.arrival?.city,
+      },
+      departureDate: departureDate || new Date().toISOString().split('T')[0],
+      departureTime: quote.schedule?.departureTime ? new Date(quote.schedule.departureTime).toTimeString().slice(0, 5) : undefined,
+      flightDuration: formatDuration(quote.schedule?.flightDuration || quote.schedule?.duration_minutes),
+      aircraftType,
+      aircraftModel,
+      tailNumber,
+      yearOfManufacture,
+      passengerCapacity,
+      tailPhotoUrl,
+      operatorName: quote.seller?.companyName || quote.operator?.name || quote.operator_name || 'Unknown Operator',
+      operatorRating: quote.seller?.rating || quote.operator?.rating,
+      operatorEmail: quote.seller?.email || quote.operator?.email,
+      totalPrice,
+      currency,
+      priceBreakdown,
+      validUntil: hasQuote ? quote.validUntil : undefined,
+      amenities,
+      rfqStatus,
+      lastUpdated: quote.updated_at || quote.received_at || new Date().toISOString(),
+      responseTimeMinutes: quote.response_time_minutes,
+      isSelected: false,
+      avinodeDeepLink: rfqData.deep_link,
+    };
+  }).filter((flight): flight is RFQFlight => flight !== null);
+}
+
+/**
  * Get RFQ details including status and quotes
  * 
- * Automatically handles both RFQ IDs and Trip IDs:
- * - RFQ ID (arfq-*): Returns single RFQ with quotes
- *   @see https://developer.avinodegroup.com/reference/readbynumericid
- * - Trip ID (atrip-*): Returns all RFQs for that trip
- *   @see https://developer.avinodegroup.com/reference/readtriprfqs
+ * PRIMARY PATTERN (per test script): For Trip IDs, use GET /trips/{tripId} -> extract data.rfqs[]
+ * Correct pattern: GET /trips/{tripId} -> extract data.rfqs[]
  * 
- * Optional query parameters:
+ * Automatically handles both RFQ IDs and Trip IDs:
+ * - Trip ID (atrip-*, alphanumeric like B22E7Z): Uses GET /trips/{tripId} first, extracts data.rfqs[]
+ *   @see https://developer.avinodegroup.com/reference/readtriprfqs
+ * - RFQ ID (arfq-*): Uses GET /rfqs/{id} for single RFQ lookup
+ *   @see https://developer.avinodegroup.com/reference/readbynumericid
+ * 
+ * Returns response in format: { flights: RFQFlight[], ... } for UI components
+ * 
+ * Optional query parameters (for /rfqs endpoint):
  * - taildetails: Additional aircraft information
  * - tailphotos: Links to aircraft photos
  * - timestamps: Include updatedByBuyer and latestUpdatedDateBySeller
@@ -924,67 +1072,244 @@ async function getRFQ(params: GetRFQParams) {
     throw new Error('rfq_id is required');
   }
 
+  // Log the incoming RFQ ID for debugging
+  console.log('[getRFQ] Received RFQ ID:', params.rfq_id, 'Type:', typeof params.rfq_id);
+
   // Extract ID for API call
-  // Handle different formats: arfq-*, atrip-*, or other formats like QQ263P
+  // Handle different formats: arfq-*, atrip-*, or other formats like QQ263P, B22E7Z
   let apiId: string;
-  if (params.rfq_id.startsWith('atrip-') || params.rfq_id.startsWith('arfq-')) {
+  const isTripId = params.rfq_id.startsWith('atrip-');
+  const isRfqId = params.rfq_id.startsWith('arfq-');
+  
+  if (isTripId || isRfqId) {
     // Extract numeric ID from prefixed format
     try {
       apiId = extractNumericId(params.rfq_id);
+      console.log('[getRFQ] Extracted API ID from prefixed format:', apiId);
     } catch (error) {
+      console.error('[getRFQ] Error extracting numeric ID:', error);
       throw new Error(
         `Invalid RFQ ID format: "${params.rfq_id}". ${error instanceof Error ? error.message : String(error)}`
       );
     }
   } else {
-    // For other formats (like QQ263P), use as-is
+    // For other formats (like QQ263P, B22E7Z), use as-is
+    // Alphanumeric IDs like "B22E7Z" are typically Trip IDs
     apiId = params.rfq_id;
+    console.log('[getRFQ] Using RFQ ID as-is (no prefix):', apiId);
   }
 
-  // Request with optional query parameters for additional details
-  // Per API docs: https://developer.avinodegroup.com/reference/readtriprfqs
-  // Endpoint: GET /rfqs/{tripId}
-  // The endpoint returns an array of RFQ objects for a Trip ID
-  const response = await avinodeClient.get(`/rfqs/${apiId}`, {
-    params: {
-      taildetails: true, // Include aircraft details
-      typedetails: true, // Include aircraft type details
-      timestamps: true, // Include update timestamps
-      quotebreakdown: true, // Include detailed quote breakdown
-      latestquote: true, // Include latest quote on each lift
-      tailphotos: true, // Include links to aircraft photos
-      typephotos: true, // Include links to generic aircraft type photos
-    },
-  });
+  let response;
+  
+  // PRIMARY PATTERN: For Trip IDs, use GET /trips/{tripId} first (per test script)
+  // Correct pattern: GET /trips/{tripId} -> extract data.rfqs[]
+  // The test script shows this is the correct approach for Trip IDs
+  if (isTripId || (!isRfqId && /^[A-Z0-9]+$/.test(apiId))) {
+    // Alphanumeric IDs (like B22E7Z) or atrip-* are Trip IDs - use /trips endpoint
+    console.log('[getRFQ] Detected Trip ID, using GET /trips/' + apiId + ' (primary pattern)');
+    console.log('[getRFQ] Pattern: GET /trips/{tripId} -> extract data.rfqs[]');
+    
+    try {
+      const tripResponse = await avinodeClient.get(`/trips/${apiId}`);
+      console.log('[getRFQ] /trips endpoint call successful');
+      
+      // Extract RFQs from trip response structure: data.rfqs[] or data.data.rfqs[]
+      const tripPayload = (tripResponse as any)?.data ?? tripResponse;
+      const tripRfqs = tripPayload?.rfqs || tripPayload?.data?.rfqs || tripPayload?.data?.data?.rfqs;
+      
+      console.log('[getRFQ] Trip response structure:', {
+        hasData: !!(tripResponse as any)?.data,
+        hasPayloadRfqs: !!tripPayload?.rfqs,
+        hasPayloadDataRfqs: !!tripPayload?.data?.rfqs,
+        tripPayloadKeys: tripPayload ? Object.keys(tripPayload) : [],
+      });
 
-  console.log('[getRFQ] API response type:', typeof response, 'isArray:', Array.isArray(response));
-  console.log('[getRFQ] Response keys:', response && typeof response === 'object' ? Object.keys(response) : 'N/A');
+      if (Array.isArray(tripRfqs)) {
+        console.log('[getRFQ] Extracted', tripRfqs.length, 'RFQs from trip response');
+        response = tripRfqs;
+      } else if (tripRfqs) {
+        // If rfqs is not an array but exists, wrap it
+        response = [tripRfqs];
+        console.log('[getRFQ] Wrapped single RFQ in array');
+      } else {
+        // No RFQs found in trip response - return empty array
+        console.warn('[getRFQ] Trip response has no rfqs array - trip may not have RFQs yet');
+        response = [];
+      }
+    } catch (tripError: any) {
+      const errorMessage = tripError?.message || 'Unknown error';
+      console.error('[getRFQ] /trips endpoint failed:', {
+        error: errorMessage,
+        status: tripError?.response?.status,
+        statusText: tripError?.response?.statusText,
+        data: tripError?.response?.data,
+        tripId: params.rfq_id,
+        apiId: apiId,
+      });
+      
+      // Fallback to /rfqs/{tripId} if /trips fails (for API compatibility)
+      try {
+        console.warn('[getRFQ] /trips failed, attempting /rfqs fallback');
+        response = await avinodeClient.get(`/rfqs/${apiId}`, {
+          params: {
+            taildetails: true,
+            typedetails: true,
+            timestamps: true,
+            quotebreakdown: true,
+            latestquote: true,
+            tailphotos: true,
+            typephotos: true,
+          },
+        });
+        console.log('[getRFQ] /rfqs fallback successful');
+      } catch (rfqError: any) {
+        throw new Error(
+          `Failed to fetch RFQs for Trip ID "${params.rfq_id}" (API ID: "${apiId}"): ` +
+          `Both /trips (${tripError?.response?.status || tripError?.message}) and /rfqs (${rfqError?.response?.status || rfqError?.message}) failed.`
+        );
+      }
+    }
+  } else {
+    // For RFQ IDs (arfq-* or single RFQ lookups), use /rfqs/{id} endpoint
+    console.log('[getRFQ] Detected RFQ ID, using GET /rfqs/' + apiId);
+    console.log('[getRFQ] Full API URL will be: /rfqs/' + apiId + ' with query params');
+    
+    try {
+      response = await avinodeClient.get(`/rfqs/${apiId}`, {
+        params: {
+          taildetails: true, // Additional information about the aircraft (per API docs)
+          typedetails: true, // Detailed information about the aircraft type (per API docs)
+          timestamps: true, // Include updatedByBuyer and latestUpdatedDateBySeller fields (per API docs)
+          quotebreakdown: true, // A detailed breakdown of the quote consisting of different sections and line items (per API docs)
+          latestquote: true, // The latest added quote on a lift (per API docs)
+          tailphotos: true, // Links to photos of the actual aircraft (per API docs)
+          typephotos: true, // Links to generic photos of the aircraft type (per API docs)
+        },
+      });
+      console.log('[getRFQ] /rfqs endpoint call successful');
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error';
+      console.error('[getRFQ] /rfqs endpoint failed:', {
+        error: errorMessage,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        rfqId: params.rfq_id,
+        apiId: apiId,
+      });
+      
+      // Re-throw with more context
+      throw new Error(
+        `Failed to fetch RFQ "${params.rfq_id}" (API ID: "${apiId}"): ${errorMessage}. ` +
+        `Status: ${error?.response?.status || 'N/A'}. ` +
+        `Response: ${JSON.stringify(error?.response?.data || {})}`
+      );
+    }
+  }
+
+  console.log('[getRFQ] API response received');
+  console.log('[getRFQ] Response type:', typeof response);
+  console.log('[getRFQ] Response isArray:', Array.isArray(response));
+  console.log('[getRFQ] Response isNull:', response === null);
+  console.log('[getRFQ] Response isUndefined:', response === undefined);
+  
+  // Log full response structure for debugging
+  if (response === null || response === undefined) {
+    console.warn('[getRFQ] Response is null or undefined!');
+  } else if (Array.isArray(response)) {
+    console.log('[getRFQ] Response is an array with length:', response.length);
+    if (response.length > 0) {
+      console.log('[getRFQ] First RFQ sample (first 1000 chars):', JSON.stringify(response[0], null, 2).substring(0, 1000));
+      console.log('[getRFQ] First RFQ keys:', Object.keys(response[0]));
+    } else {
+      console.warn('[getRFQ] Response is an empty array - no RFQs found for Trip ID:', params.rfq_id);
+    }
+  } else if (typeof response === 'object') {
+    console.log('[getRFQ] Response is an object with keys:', Object.keys(response));
+    console.log('[getRFQ] Response object sample (first 1000 chars):', JSON.stringify(response, null, 2).substring(0, 1000));
+    
+    // Check for common response wrapper patterns
+    if (response.data !== undefined) {
+      console.log('[getRFQ] Response has .data property:', typeof response.data, Array.isArray(response.data));
+    }
+    if (response.rfqs !== undefined) {
+      console.log('[getRFQ] Response has .rfqs property:', typeof response.rfqs, Array.isArray(response.rfqs));
+    }
+    if (response.results !== undefined) {
+      console.log('[getRFQ] Response has .results property:', typeof response.results, Array.isArray(response.results));
+    }
+  } else {
+    console.warn('[getRFQ] Unexpected response type:', typeof response, 'Value:', response);
+  }
 
   // Per API docs: GET /rfqs/{tripId} returns an array of RFQ objects
   // Single RFQ endpoint returns a single object with rfq_id field
+  // However, the response might be wrapped in an object with a data or rfqs property
+  // Check for nested arrays first
+  let actualResponse = response;
+  if (response && typeof response === 'object' && !Array.isArray(response)) {
+    // Check if response has a nested array (common API pattern)
+    if (Array.isArray(response.data)) {
+      console.log('[getRFQ] Found nested array in response.data');
+      actualResponse = response.data;
+    } else if (Array.isArray(response.rfqs)) {
+      console.log('[getRFQ] Found nested array in response.rfqs');
+      actualResponse = response.rfqs;
+    } else if (Array.isArray(response.results)) {
+      console.log('[getRFQ] Found nested array in response.results');
+      actualResponse = response.results;
+    }
+  }
+  
   // Detect if response is for a Trip ID (array of RFQs) or single RFQ (object with rfq_id)
-  const isTripIdResponse = Array.isArray(response);
+  const isTripIdResponse = Array.isArray(actualResponse);
 
   if (isTripIdResponse) {
-    // Trip ID response: response is already an array of RFQs
-    const rfqs = response;
+    // Trip ID response: actualResponse is already an array of RFQs
+    const rfqs = actualResponse;
     
-    // Flatten all quotes from all RFQs
-    const allQuotes: any[] = [];
-    const rfqDetails: any[] = [];
-
+    console.log('[getRFQ] Detected Trip ID response (array format)');
     console.log('[getRFQ] Processing', rfqs.length, 'RFQs from Trip ID response');
     
+    // Transform all RFQs to RFQFlight format
+    const allFlights: RFQFlight[] = [];
+    const rfqDetails: any[] = [];
+    
     for (const rfq of rfqs) {
-      // Extract quotes from the RFQ object
-      // Quotes may be in 'quotes', 'requests', 'responses', or 'lifts' array
+      // Extract quotes for backward compatibility
+      // Check multiple possible locations for quotes in the response
       const quotes = rfq.quotes || 
                     rfq.requests || 
                     rfq.responses || 
                     (rfq.lifts && Array.isArray(rfq.lifts) ? rfq.lifts.flatMap((lift: any) => lift.quotes || []) : []) ||
                     [];
       
-      console.log('[getRFQ] RFQ', rfq.rfq_id || rfq.id, 'has', quotes.length, 'quotes');
+      console.log('[getRFQ] Processing RFQ:', {
+        rfq_id: rfq.rfq_id || rfq.id,
+        trip_id: rfq.trip_id,
+        status: rfq.status,
+        has_quotes: !!(rfq.quotes && rfq.quotes.length > 0),
+        has_lifts: !!(rfq.lifts && Array.isArray(rfq.lifts) && rfq.lifts.length > 0),
+        has_requests: !!(rfq.requests && rfq.requests.length > 0),
+        has_responses: !!(rfq.responses && rfq.responses.length > 0),
+        quotes_count: quotes.length,
+        rfq_keys: Object.keys(rfq),
+      });
+      
+      // Transform this RFQ's quotes to RFQFlight format
+      const flights = transformToRFQFlights(rfq, rfq.trip_id || params.rfq_id);
+      console.log('[getRFQ] RFQ', rfq.rfq_id || rfq.id, 'has', quotes.length, 'quotes, transformed to', flights.length, 'flights');
+      
+      // If no flights were created but RFQ exists, log a warning
+      if (flights.length === 0 && quotes.length === 0) {
+        console.warn('[getRFQ] RFQ exists but has no quotes and no flights were created:', {
+          rfq_id: rfq.rfq_id || rfq.id,
+          status: rfq.status,
+          route: rfq.route,
+        });
+      }
+      
+      allFlights.push(...flights);
       
       rfqDetails.push({
         rfq_id: rfq.rfq_id || rfq.id,
@@ -998,49 +1323,126 @@ async function getRFQ(params: GetRFQParams) {
         operators_contacted: rfq.operators_contacted,
         deep_link: rfq.deep_link,
       });
-
-      // Add all quotes from this RFQ
-      allQuotes.push(...quotes);
     }
 
-    console.log('[getRFQ] Total quotes extracted:', allQuotes.length);
+    console.log('[getRFQ] Total flights transformed:', allFlights.length);
+    console.log('[getRFQ] Total RFQ details:', rfqDetails.length);
+
+    // If no RFQs found, return user-friendly message directing to Step 2
+    if (rfqDetails.length === 0) {
+      console.warn('[getRFQ] No RFQs found for Trip ID:', params.rfq_id);
+      console.warn('[getRFQ] This could mean:');
+      console.warn('[getRFQ]   1. No RFQs have been created for this trip yet');
+      console.warn('[getRFQ]   2. The trip ID format is incorrect');
+      console.warn('[getRFQ]   3. The API returned an empty array');
+      console.warn('[getRFQ]   4. Authentication/authorization issue');
+      console.warn('[getRFQ] Original API response was:', {
+        type: typeof actualResponse,
+        isArray: Array.isArray(actualResponse),
+        length: Array.isArray(actualResponse) ? actualResponse.length : 'N/A',
+        sample: Array.isArray(actualResponse) && actualResponse.length > 0 
+          ? actualResponse[0] 
+          : actualResponse,
+      });
+      
+      return {
+        trip_id: params.rfq_id,
+        rfqs: [],
+        total_rfqs: 0,
+        quotes: [],
+        total_quotes: 0,
+        flights: [],
+        flights_received: 0,
+        message: "No RFQs have been submitted yet for this Trip ID. Please follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.",
+      };
+    }
+    
+    // Log final result summary
+    console.log('[getRFQ] Successfully processed Trip ID response:', {
+      trip_id: params.rfq_id,
+      total_rfqs: rfqDetails.length,
+      total_flights: allFlights.length,
+      has_flights: allFlights.length > 0,
+    });
 
     return {
       trip_id: params.rfq_id,
       rfqs: rfqDetails,
       total_rfqs: rfqDetails.length,
-      quotes: allQuotes,
-      total_quotes: allQuotes.length,
+      quotes: allFlights.map(f => ({
+        id: f.id,
+        operatorName: f.operatorName,
+        aircraftType: f.aircraftType,
+        price: f.totalPrice,
+        currency: f.currency,
+      })),
+      total_quotes: allFlights.length,
+      // PRIMARY: Return flights array in RFQFlight format for UI components
+      flights: allFlights,
+      flights_received: allFlights.length,
+      status: allFlights.length > 0 ? 'quotes_received' : 'pending',
     };
   }
 
   // Single RFQ response (original behavior)
-  const quotes = response.quotes || response.requests || response.responses || [];
-  const quotesReceived = response.quotes_received || quotes.length || 0;
+  // Use actualResponse which might be the unwrapped response
+  const singleRfqData = actualResponse;
+  
+  console.log('[getRFQ] Processing single RFQ response');
+  console.log('[getRFQ] Single RFQ data keys:', singleRfqData && typeof singleRfqData === 'object' ? Object.keys(singleRfqData) : 'N/A');
+  
+  // Extract quotes from multiple possible locations, including lifts
+  const quotesFromQuotes = Array.isArray(singleRfqData.quotes) ? singleRfqData.quotes : [];
+  const quotesFromRequests = Array.isArray(singleRfqData.requests) ? singleRfqData.requests : [];
+  const quotesFromResponses = Array.isArray(singleRfqData.responses) ? singleRfqData.responses : [];
+  const quotesFromLifts = singleRfqData.lifts && Array.isArray(singleRfqData.lifts) 
+    ? singleRfqData.lifts.flatMap((lift: any) => lift.quotes || []) 
+    : [];
+  
+  const quotes = [...quotesFromQuotes, ...quotesFromRequests, ...quotesFromResponses, ...quotesFromLifts];
+  const quotesReceived = singleRfqData.quotes_received || quotes.length || 0;
+
+  console.log('[getRFQ] Single RFQ quote sources:', {
+    quotes: quotesFromQuotes.length,
+    requests: quotesFromRequests.length,
+    responses: quotesFromResponses.length,
+    lifts: quotesFromLifts.length,
+    total: quotes.length,
+    quotes_received_field: quotesReceived,
+  });
 
   // Log quote count for debugging discrepancy issues
   if (quotes.length !== quotesReceived) {
-    console.error(`[getRFQ] Quote count mismatch for RFQ ${params.rfq_id}:`, {
+    console.warn(`[getRFQ] Quote count mismatch for RFQ ${params.rfq_id}:`, {
       quotesArrayLength: quotes.length,
-      quotesReceivedField: response.quotes_received,
-      hasQuotes: !!response.quotes,
-      hasRequests: !!response.requests,
-      hasResponses: !!response.responses,
+      quotesReceivedField: singleRfqData.quotes_received,
+      hasQuotes: !!singleRfqData.quotes,
+      hasRequests: !!singleRfqData.requests,
+      hasResponses: !!singleRfqData.responses,
+      hasLifts: !!singleRfqData.lifts,
     });
   }
 
+  // Transform quotes to RFQFlight format
+  const flights = transformToRFQFlights(singleRfqData, singleRfqData.trip_id);
+
+  console.log('[getRFQ] Single RFQ transformed to', flights.length, 'flights');
+
   return {
-    rfq_id: response.rfq_id || params.rfq_id,
-    trip_id: response.trip_id,
-    status: response.status,
-    created_at: response.created_at,
-    quote_deadline: response.quote_deadline,
-    route: response.route,
-    passengers: response.passengers,
+    rfq_id: singleRfqData.rfq_id || params.rfq_id,
+    trip_id: singleRfqData.trip_id,
+    status: singleRfqData.status,
+    created_at: singleRfqData.created_at,
+    quote_deadline: singleRfqData.quote_deadline,
+    route: singleRfqData.route,
+    passengers: singleRfqData.passengers,
     quotes_received: quotesReceived,
-    quotes: quotes,
-    operators_contacted: response.operators_contacted,
-    deep_link: response.deep_link,
+    quotes: quotes, // Keep for backward compatibility
+    // PRIMARY: Return flights array in RFQFlight format for UI components
+    flights: flights,
+    flights_received: flights.length,
+    operators_contacted: singleRfqData.operators_contacted,
+    deep_link: singleRfqData.deep_link,
   };
 }
 
@@ -1052,20 +1454,32 @@ async function getQuote(params: GetQuoteParams) {
     throw new Error('quote_id is required');
   }
 
-  const response = await avinodeClient.get(`/quotes/${params.quote_id}`);
+  const response = await avinodeClient.get(`/quotes/${params.quote_id}`, {
+    params: {
+      taildetails: true,
+      typedetails: true,
+      tailphotos: true,
+      typephotos: true,
+    },
+  });
+
+  const payload = (response as any)?.data ?? response;
+  const quote = payload?.data ?? payload;
 
   return {
-    quote_id: response.quote_id || params.quote_id,
-    rfq_id: response.rfq_id,
-    trip_id: response.trip_id,
-    status: response.status,
-    operator: response.operator,
-    aircraft: response.aircraft,
-    pricing: response.pricing,
-    availability: response.availability,
-    valid_until: response.valid_until,
-    created_at: response.created_at,
-    notes: response.notes,
+    quote_id: quote?.id || quote?.quote_id || params.quote_id,
+    rfq_id: quote?.rfq_id,
+    trip_id: quote?.trip_id,
+    status: quote?.status,
+    operator: quote?.sellerCompany || quote?.operator,
+    aircraft: quote?.lift,
+    segments: quote?.segments,
+    pricing: quote?.sellerPrice || quote?.pricing,
+    availability: quote?.availability,
+    valid_until: quote?.valid_until,
+    created_at: quote?.createdOn || quote?.created_at,
+    notes: quote?.sellerMessage || quote?.notes,
+    photos: quote?.tailPhotos || quote?.typePhotos || quote?.photos,
   };
 }
 

@@ -17,6 +17,7 @@ import { z } from 'zod'
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
 import { supabaseAdmin, findRequestByTripId, listUserTrips } from '@/lib/supabase'
 import type { PipelineData, PipelineStats, PipelineRequest } from '@/lib/types/chat-agent'
+import { detectTripId, normalizeTripId } from '@/lib/avinode/trip-id'
 
 // Agent integration imports
 import {
@@ -613,51 +614,14 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     // TRIP ID DETECTION (Enhanced for auto-search)
     // =========================================================================
-    // Pattern 1: Avinode format atrip-XXXXXXXX (8+ digits)
-    // Pattern 2: Standalone alphanumeric ID (6-8 chars) - auto-detect when message is short
-    // Pattern 3: Generic ID with context keywords
-    const avinodeTripIdPattern = /\batrip-\d{6,12}\b/i
-    const genericTripIdPattern = /\b[A-Z0-9]{6,8}\b/gi  // 6-8 chars for Trip IDs like B22E7Z
-
-    // Direct Avinode Trip ID format is always recognized (e.g., atrip-64956150)
-    const hasAvinodeTripId = avinodeTripIdPattern.test(message)
-
-    // Check if message is JUST a Trip ID (short message with only alphanumeric ID)
     const trimmedMessage = message.trim()
-    const isStandaloneTripId = /^[A-Z0-9]{6,8}$/i.test(trimmedMessage)
-
-    // Generic Trip ID pattern with context keywords
-    const hasGenericTripIdWithContext = genericTripIdPattern.test(message) &&
-                      (messageText.includes('trip id') ||
-                       messageText.includes('tripid') ||
-                       messageText.includes('trip:') ||
-                       messageText.includes('trip #') ||
-                       messageText.includes('trip number') ||
-                       messageText.includes('here is') ||
-                       messageText.includes("here's") ||
-                       messageText.includes('my trip') ||
-                       messageText.includes('search') ||
-                       messageText.includes('lookup') ||
-                       messageText.includes('find') ||
-                       messageText.includes('get rfq') ||
-                       messageText.includes('get quotes') ||
-                       messageText.includes('check trip') ||
-                       // Also match if context indicates we're waiting for a trip ID
-                       context?.tripId !== undefined)
-
-    const hasTripId = hasAvinodeTripId || isStandaloneTripId || hasGenericTripIdWithContext
-
-    // Extract the Trip ID if found (for later use in tool calls)
-    let detectedTripId: string | undefined
-    if (hasAvinodeTripId) {
-      const match = message.match(avinodeTripIdPattern)
-      detectedTripId = match?.[0]
-    } else if (isStandaloneTripId) {
-      detectedTripId = trimmedMessage.toUpperCase()
-    } else if (hasGenericTripIdWithContext) {
-      const matches = message.match(genericTripIdPattern)
-      detectedTripId = matches?.[0]?.toUpperCase()
-    }
+    const standaloneCandidate = normalizeTripId(trimmedMessage)
+    const tripIdDetection = detectTripId(message, {
+      allowStandalone: Boolean(standaloneCandidate),
+      awaitingTripId: context?.tripId !== undefined,
+    })
+    const hasTripId = Boolean(tripIdDetection)
+    const detectedTripId = tripIdDetection?.normalized
 
     // =========================================================================
     // "SHOW ME ALL MY TRIPS" INTENT DETECTION
@@ -682,6 +646,91 @@ export async function POST(req: NextRequest) {
       console.log(`  - detectedTripId: ${detectedTripId}`)
     }
     console.log(`[Chat API] Tool choice: ${toolChoice}`)
+    console.log(`  - wantsAllTrips: ${wantsAllTrips}`)
+
+    // =========================================================================
+    // DATABASE LOOKUP FOR TRIP ID
+    // =========================================================================
+    // When a Trip ID is detected, check if we have an existing request in the database
+    // This enables session continuity and avoids duplicate API calls
+    let existingRequest: Awaited<ReturnType<typeof findRequestByTripId>> = null
+
+    if (detectedTripId && userId) {
+      try {
+        console.log(`[Chat API] Looking up Trip ID ${detectedTripId} in database for user ${userId}`)
+        existingRequest = await findRequestByTripId(detectedTripId, userId)
+
+        if (existingRequest) {
+          console.log(`[Chat API] Found existing request:`, {
+            id: existingRequest.id,
+            tripId: existingRequest.avinode_trip_id,
+            route: `${existingRequest.departure_airport} → ${existingRequest.arrival_airport}`,
+            status: existingRequest.status,
+          })
+        } else {
+          console.log(`[Chat API] No existing request found for Trip ID ${detectedTripId}`)
+        }
+      } catch (error) {
+        console.error(`[Chat API] Error looking up Trip ID:`, error)
+        // Continue without existing request - will create new one after API call
+      }
+    }
+
+    // =========================================================================
+    // HANDLE "SHOW ME ALL MY TRIPS" REQUEST
+    // =========================================================================
+    if (wantsAllTrips && userId) {
+      console.log('[Chat API] All trips intent detected - fetching user trips')
+      try {
+        const { trips, total } = await listUserTrips(userId, { limit: 20, status: 'all' })
+
+        const tripsContent = total > 0
+          ? `Found ${total} trip${total !== 1 ? 's' : ''} in your account. Here are your recent flights:`
+          : `You don't have any trips yet. Start by telling me where you'd like to fly!`
+
+        const mcp = getAvinodeMCP()
+        const isMockMode = mcp.isUsingMockMode()
+
+        const responseData = {
+          content: tripsContent,
+          done: true,
+          mock_mode: isMockMode,
+          trips_data: {
+            trips: trips.map(t => ({
+              id: t.id,
+              trip_id: t.avinode_trip_id,
+              route: `${t.departure_airport} → ${t.arrival_airport}`,
+              date: t.departure_date,
+              passengers: t.passengers,
+              status: t.status,
+              quote_count: t.quote_count,
+              deep_link: t.avinode_deep_link,
+            })),
+            total,
+          },
+        }
+
+        const encoder = new TextEncoder()
+        const readableStream = new ReadableStream({
+          start(controller) {
+            const data = JSON.stringify(responseData)
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`))
+            controller.close()
+          },
+        })
+
+        return new Response(readableStream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        })
+      } catch (error) {
+        console.error('[Chat API] Error fetching user trips:', error)
+        // Fall through to normal handling - will try Avinode API
+      }
+    }
 
     // ONEK-139: Handle pipeline requests with early return (no OpenAI call needed)
     if (wantsPipeline) {
@@ -937,6 +986,17 @@ export async function POST(req: NextRequest) {
         rfq_data?: unknown
         mock_mode: boolean
         _debug?: unknown
+        // Trip ID search fields
+        detected_trip_id?: string
+        existing_request?: {
+          id: string
+          trip_id: string | null
+          route: string
+          date: string
+          passengers: number
+          status: string
+          deep_link: string | null
+        }
       } = {
         content: finalContent,
         done: true,
@@ -1002,6 +1062,25 @@ export async function POST(req: NextRequest) {
 
       if (rfqData) {
         responseData.rfq_data = rfqData
+      }
+
+      // Include detected Trip ID and existing request in response
+      if (detectedTripId) {
+        responseData.detected_trip_id = detectedTripId
+        console.log(`[Chat API] Including detected_trip_id in response: ${detectedTripId}`)
+      }
+
+      if (existingRequest) {
+        responseData.existing_request = {
+          id: existingRequest.id,
+          trip_id: existingRequest.avinode_trip_id,
+          route: `${existingRequest.departure_airport} → ${existingRequest.arrival_airport}`,
+          date: existingRequest.departure_date,
+          passengers: existingRequest.passengers,
+          status: existingRequest.status,
+          deep_link: existingRequest.avinode_deep_link,
+        }
+        console.log(`[Chat API] Including existing_request in response:`, responseData.existing_request)
       }
 
       // Return as SSE format for consistency

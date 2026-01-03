@@ -32,6 +32,7 @@ import {
 } from '../tools';
 import type { MessageComponent } from '@/components/message-components/types';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { detectTripId } from '@/lib/avinode/trip-id';
 
 /**
  * RFP data structure (backward compatibility)
@@ -363,36 +364,8 @@ export class OrchestratorAgent extends BaseAgent {
    * Supports formats: "atrip-123456", "TRP-123456", "123456", or mentions like "Trip ID: atrip-123"
    */
   private extractTripId(message: string): string | null {
-    // Pattern 1: atrip-XXXXXXXX format
-    const atripPattern = /\b(atrip-[\d]+)\b/i;
-    const atripMatch = message.match(atripPattern);
-    if (atripMatch) {
-      return atripMatch[1];
-    }
-
-    // Pattern 2: TRP-XXXXXXXX or trp-XXXXXXXX format
-    const trpPattern = /\b(trp-[\d]+)\b/i;
-    const trpMatch = message.match(trpPattern);
-    if (trpMatch) {
-      return trpMatch[1];
-    }
-
-    // Pattern 3: Numeric ID after "trip id" or "tripid" keyword
-    const keywordPattern = /(?:trip\s*id|tripid)[\s:]+([\d]+)/i;
-    const keywordMatch = message.match(keywordPattern);
-    if (keywordMatch) {
-      return `atrip-${keywordMatch[1]}`;
-    }
-
-    // Pattern 4: Standalone numeric ID (6-12 digits, likely a trip ID)
-    // Only match if message is short and seems to be just a trip ID
-    const numericPattern = /^\s*(\d{6,12})\s*$/;
-    const numericMatch = message.trim().match(numericPattern);
-    if (numericMatch) {
-      return `atrip-${numericMatch[1]}`;
-    }
-
-    return null;
+    const detection = detectTripId(message, { allowStandalone: true, awaitingTripId: true });
+    return detection?.normalized ?? null;
   }
 
   /**

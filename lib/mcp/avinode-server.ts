@@ -193,7 +193,7 @@ export class AvinodeMCPServer extends BaseMCPServer {
       case 'get_rfq':
         // Get RFQ details including all received quotes
         // Called when user provides a Trip ID after completing Avinode selection
-        return await this.client!.getRFQ(params.rfq_id);
+        return await this.client!.getRFQFlights(params.rfq_id);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -210,6 +210,7 @@ export class AvinodeMCPServer extends BaseMCPServer {
     this.registerTool(this.createGetQuotesTool());
     this.registerTool(this.createCreateTripTool());
     this.registerTool(this.createGetRFQTool());
+    this.registerTool(this.createListTripsTool());
   }
 
   /**
@@ -452,6 +453,41 @@ export class AvinodeMCPServer extends BaseMCPServer {
         // Use getRFQFlights to return transformed data in RFQFlight format
         // This provides a consistent, well-structured response for the UI
         return await this.client!.getRFQFlights(params.rfq_id);
+      },
+    };
+  }
+
+  /**
+   * Create list_trips tool - lists all trips for the user
+   * Tries Avinode API first, falls back to local database if unavailable
+   */
+  private createListTripsTool(): MCPToolDefinition {
+    return {
+      name: 'list_trips',
+      description: 'List all trips for the user. Returns trips from Avinode API if available, falls back to local database. Use this when the user asks to see their trips, flight requests, or wants to review past bookings.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: {
+            type: 'number',
+            description: 'Maximum number of trips to return (default: 20)',
+            default: 20,
+          },
+          status: {
+            type: 'string',
+            description: 'Filter by trip status',
+            enum: ['all', 'active', 'completed'],
+            default: 'all',
+          },
+        },
+        required: [],
+      },
+      execute: async (params: any) => {
+        this.ensureClientAvailable();
+        return await this.client!.listTrips({
+          limit: params.limit || 20,
+          status: params.status || 'all',
+        });
       },
     };
   }

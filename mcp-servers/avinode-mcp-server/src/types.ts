@@ -383,3 +383,59 @@ export interface GetMessagesResponse {
   total_count: number;
   has_more: boolean;
 }
+
+/**
+ * RFQFlight interface matching the UI component requirements
+ * This is what RFQFlightCard and RFQFlightsList expect
+ */
+export interface RFQFlight {
+  id: string;
+  quoteId: string;
+  departureAirport: {
+    icao: string;
+    name?: string;
+    city?: string;
+  };
+  arrivalAirport: {
+    icao: string;
+    name?: string;
+    city?: string;
+  };
+  departureDate: string;
+  departureTime?: string;
+  flightDuration: string;
+  aircraftType: string;
+  aircraftModel: string;
+  tailNumber?: string;
+  yearOfManufacture?: number;
+  passengerCapacity: number;
+  tailPhotoUrl?: string;
+  operatorName: string;
+  operatorRating?: number;
+  operatorEmail?: string;
+  totalPrice: number;
+  currency: string;
+  priceBreakdown?: {
+    basePrice: number;
+    fuelSurcharge?: number;
+    taxes: number;
+    fees: number;
+  };
+  validUntil?: string;
+  amenities: {
+    wifi: boolean;
+    pets: boolean;
+    smoking: boolean;
+    galley: boolean;
+    lavatory: boolean;
+    medical: boolean;
+  };
+  rfqStatus: 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired';
+  lastUpdated: string;
+  responseTimeMinutes?: number;
+  isSelected?: boolean;
+  aircraftCategory?: string;
+  hasMedical?: boolean;
+  hasPackage?: boolean;
+  avinodeDeepLink?: string;
+}

@@ -124,6 +124,8 @@ export interface AgentMessageProps {
   isRfqFlightsLoading?: boolean
   /** Selected RFQ flight IDs for proposal */
   selectedRfqFlightIds?: string[]
+  /** Timestamp when RFQs were last fetched */
+  rfqsLastFetchedAt?: string
   /** Customer email for proposal */
   customerEmail?: string
   /** Customer name for proposal */
@@ -202,6 +204,7 @@ export function AgentMessage({
   rfqFlights = [],
   isRfqFlightsLoading = false,
   selectedRfqFlightIds = [],
+  rfqsLastFetchedAt,
   customerEmail,
   customerName,
   onRfqFlightSelectionChange,
@@ -282,7 +285,7 @@ export function AgentMessage({
   const shouldShowFlightSearchProgress = showDeepLink || showTripIdInput || (showWorkflow && workflowProps)
 
   return (
-    <div data-testid="agent-message" className="flex flex-col space-y-3 max-w-[85%]">
+    <div data-testid="agent-message" className="flex flex-col space-y-3 max-w-[85%] overflow-hidden">
       {/* Avatar + Badge Header */}
       <div className="flex items-center space-x-2">
         {/* Jetvision Logo - Dark outlined, 10% bigger than original (24px * 1.10 = 26.46px) */}
@@ -361,6 +364,7 @@ export function AgentMessage({
           rfqFlights={rfqFlights}
           isRfqFlightsLoading={isRfqFlightsLoading}
           selectedRfqFlightIds={selectedRfqFlightIds}
+          rfqsLastFetchedAt={rfqsLastFetchedAt}
           customerEmail={customerEmail}
           customerName={customerName}
           onTripIdSubmit={onTripIdSubmit}

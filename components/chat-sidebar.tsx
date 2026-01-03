@@ -76,6 +76,11 @@ export interface ChatSession {
     flightDuration?: string
     isRecommended?: boolean
   }>
+  /** Full RFQ flight data with all fields (departureAirport, arrivalAirport, amenities, etc.) */
+  /** This preserves all data needed by RFQFlightCard and RFQFlightsList components */
+  rfqFlights?: Array<import('./avinode/rfq-flight-card').RFQFlight>
+  /** Timestamp when RFQs were last fetched from Avinode */
+  rfqsLastFetchedAt?: string
   customer?: {
     name: string
     isReturning: boolean
@@ -217,8 +222,9 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
       </div>
 
       {/* Chat List */}
-      <ScrollArea className="flex-1">
-        <div className="p-1 sm:p-2 space-y-2">
+      <div className="relative flex-1 min-h-0">
+        <ScrollArea className="h-full">
+          <div className="p-1 sm:p-2 space-y-2">
           {chatSessions.map((session) => (
             <Card
               key={session.id}
@@ -287,8 +293,9 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
               </CardContent>
             </Card>
           ))}
-        </div>
-      </ScrollArea>
+          </div>
+        </ScrollArea>
+      </div>
 
       {/* Footer */}
       <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-800">

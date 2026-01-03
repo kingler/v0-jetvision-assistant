@@ -38,19 +38,30 @@ export interface RFQFlight {
   flightDuration: string;
   aircraftType: string;
   aircraftModel: string;
+  /** Aircraft tail number (registration) - maps to aircraft.registration in API */
   tailNumber?: string;
+  /** Year aircraft was manufactured - maps to aircraft.year_built in API */
   yearOfManufacture?: number;
+  /** Maximum passenger capacity - maps to aircraft.capacity in API */
   passengerCapacity: number;
-  aircraftImageUrl?: string;
+  /** Aircraft photo URL - retrieved via tailphotos=true query param */
+  tailPhotoUrl?: string;
   operatorName: string;
   operatorRating?: number;
   operatorEmail?: string;
   /** Total price - maps to pricing.total in Avinode API */
   totalPrice: number;
+  /** Currency code (ISO 4217) - maps to pricing.currency in API */
   currency: string;
+  /** Price breakdown - maps to pricing.breakdown in API */
   priceBreakdown?: {
-    base: number;
+    /** Base charter price - maps to pricing.base_price */
+    basePrice: number;
+    /** Fuel surcharge - maps to pricing.fuel_surcharge */
+    fuelSurcharge?: number;
+    /** Tax amount - maps to pricing.taxes */
     taxes: number;
+    /** Additional fees - maps to pricing.fees */
     fees: number;
   };
   validUntil?: string;
@@ -66,6 +77,14 @@ export interface RFQFlight {
   lastUpdated: string;
   responseTimeMinutes?: number;
   isSelected?: boolean;
+  /** Aircraft category (e.g., "Heavy jet", "Light jet") - maps to aircraftCategory.name in API */
+  aircraftCategory?: string;
+  /** Whether medical equipment is available */
+  hasMedical?: boolean;
+  /** Whether package/cargo transport is available */
+  hasPackage?: boolean;
+  /** Deep link to view this flight in Avinode marketplace - maps to actions.viewInAvinode.href */
+  avinodeDeepLink?: string;
 }
 
 /**
@@ -214,17 +233,11 @@ export class AvinodeClient {
   /**
    * Get RFQ details by ID or all RFQs for a trip identifier
    * 
-   * Automatically detects response format to determine if it's a Trip ID or RFQ ID:
-   * - Trip ID: GET /rfqs/{tripId} - Returns array of RFQs for the trip (per https://developer.avinodegroup.com/reference/readtriprfqs)
-   * - RFQ ID: GET /rfqs/{id} - Returns single RFQ object (per https://developer.avinodegroup.com/reference/readbynumericid)
+   * PRIMARY PATTERN (per test script): For Trip IDs, use GET /trips/{tripId} -> extract data.rfqs[]
+   * - Trip ID (atrip-*, alphanumeric like B22E7Z): GET /trips/{tripId} - Returns trip with embedded rfqs[] array
+   * - RFQ ID (arfq-*): GET /rfqs/{id} - Returns single RFQ object
    * 
-   * Detection logic:
-   * - If response is an array → Trip ID response (all RFQs for trip)
-   * - If response has rfq_id field → Single RFQ response
-   * - If ID starts with 'arfq-' → Treat as RFQ ID
-   * - Otherwise → Check response format (array = Trip ID, object = RFQ)
-   * 
-   * @param id - The RFQ or Trip identifier (e.g., arfq-12345678, atrip-12345678, QQ263P, or numeric ID)
+   * @param id - The RFQ or Trip identifier (e.g., arfq-12345678, atrip-12345678, B22E7Z, QQ263P, or numeric ID)
    * @param options - Optional query parameters for additional details
    * @returns RFQ data - single RFQ object for RFQ ID, or array of RFQs for Trip ID
    */
@@ -240,63 +253,138 @@ export class AvinodeClient {
       latestquote?: boolean;
     }
   ) {
+    // Handle different ID formats - extract numeric ID if prefixed
+    // For IDs like QQ263P, B22E7Z, use as-is (Avinode API accepts various formats)
+    let apiId = id;
+    const isTripId = id.startsWith('atrip-');
+    const isRfqId = id.startsWith('arfq-');
+    
+    if (isTripId || isRfqId) {
+      // Extract numeric ID from prefixed format (handles IDs with hyphens like "atrip-123-456")
+      const match = id.match(/^(?:arfq|atrip)-(.+)$/);
+      if (match && match[1]) {
+        apiId = match[1].trim();
+      }
+    }
+    // For other formats (like QQ263P, B22E7Z), use the ID as-is
+
+    // Default query parameters for comprehensive data
+    const defaultParams = {
+      taildetails: true,
+      typedetails: true,
+      timestamps: true,
+      tailphotos: true,
+      typephotos: true,
+      ...options,
+    };
+
     try {
-      // Handle different ID formats - extract numeric ID if prefixed
-      // For IDs like QQ263P, use as-is (Avinode API accepts various formats)
-      let apiId = id;
-      if (id.startsWith('atrip-') || id.startsWith('arfq-')) {
-        apiId = id.split('-')[1];
-      }
-      // For other formats (like QQ263P), use the ID as-is
+      // PRIMARY PATTERN: For Trip IDs, use GET /trips/{tripId} first (per test script)
+      // Correct pattern: GET /trips/{tripId} -> extract data.rfqs[]
+      if (isTripId || (!isRfqId && /^[A-Z0-9]+$/.test(apiId))) {
+        // Alphanumeric IDs (like B22E7Z) or atrip-* are Trip IDs - use /trips endpoint
+        this.logger.debug('Using GET /trips/{tripId} pattern for Trip ID', { id, apiId });
+        
+        try {
+          const tripResponse = await this.client.get(`/trips/${apiId}`);
+          const tripPayload = tripResponse.data?.data ?? tripResponse.data;
+          const tripRfqs = tripPayload?.rfqs || tripPayload?.data?.rfqs || tripPayload?.data?.data?.rfqs;
 
-      // Default query parameters for comprehensive data
-      const defaultParams = {
-        taildetails: true,
-        typedetails: true,
-        timestamps: true,
-        tailphotos: true,
-        typephotos: true,
-      };
+          this.logger.debug('Extracted RFQs from trip response', {
+            id,
+            hasData: !!tripResponse.data?.data,
+            hasPayloadRfqs: !!tripPayload?.rfqs,
+            rfqsCount: Array.isArray(tripRfqs) ? tripRfqs.length : tripRfqs ? 1 : 0,
+          });
 
-      const response = await this.client.get(`/rfqs/${apiId}`, {
-        params: { ...defaultParams, ...options },
-      });
-      
-      // Detect response type by checking the structure
-      // Trip ID responses return an array of RFQs
-      // RFQ ID responses return a single object with rfq_id field
-      const responseData = response.data;
-      
-      // Check if response is an array (Trip ID response)
-      if (Array.isArray(responseData)) {
-        return responseData;
+          if (Array.isArray(tripRfqs)) {
+            return tripRfqs;
+          } else if (tripRfqs) {
+            // If rfqs is not an array but exists, wrap it
+            return [tripRfqs];
+          } else {
+            // No RFQs found in trip response - return empty array
+            this.logger.warn('Trip response has no rfqs array', { id, apiId });
+            return [];
+          }
+        } catch (tripError: any) {
+          this.logger.warn('GET /trips/{tripId} failed, attempting /rfqs fallback', {
+            id,
+            apiId,
+            error: tripError?.message,
+            status: tripError?.response?.status,
+          });
+          
+          // Fallback to /rfqs/{tripId} if /trips fails (for API compatibility)
+          const response = await this.client.get(`/rfqs/${apiId}`, {
+            params: defaultParams,
+          });
+          return this.extractRfqsFromResponse(response.data);
+        }
+      } else {
+        // For RFQ IDs (arfq-* or single RFQ lookups), use /rfqs/{id} endpoint
+        this.logger.debug('Using GET /rfqs/{id} pattern for RFQ ID', { id, apiId });
+        
+        const response = await this.client.get(`/rfqs/${apiId}`, {
+          params: defaultParams,
+        });
+
+        // Extract RFQs from response (handles both single RFQ and array responses)
+        return this.extractRfqsFromResponse(response.data);
       }
+    } catch (error: any) {
+      const status = error?.response?.status;
       
-      // Check if response has nested rfqs array
-      if (responseData?.rfqs && Array.isArray(responseData.rfqs)) {
-        return responseData.rfqs;
+      // Legacy fallback: if /rfqs fails with 404, try /trips (for backward compatibility)
+      if ((status === 404 || status === 400) && !isTripId) {
+        try {
+          this.logger.debug('GET /rfqs/{id} failed, attempting /trips fallback', { id, apiId });
+          const tripResponse = await this.client.get(`/trips/${apiId}`);
+          const tripPayload = tripResponse.data?.data ?? tripResponse.data;
+          const tripRfqs = tripPayload?.rfqs || tripPayload?.data?.rfqs;
+
+          if (Array.isArray(tripRfqs)) {
+            return tripRfqs;
+          }
+        } catch (tripError) {
+          // If fallback also fails, throw the original error
+          throw this.sanitizeError(error);
+        }
       }
-      
-      // Check if response has nested data array
-      if (responseData?.data && Array.isArray(responseData.data)) {
-        return responseData.data;
-      }
-      
-      // If response has rfq_id field, it's a single RFQ
-      if (responseData?.rfq_id) {
-        return responseData;
-      }
-      
-      // If ID starts with 'arfq-', definitely an RFQ
-      if (id.startsWith('arfq-')) {
-        return responseData;
-      }
-      
-      // Default: treat as single RFQ if it's an object, or wrap in array if needed
-      return responseData;
-    } catch (error) {
+
       throw this.sanitizeError(error);
     }
+  }
+
+  /**
+   * Extract RFQs from API response (handles various response structures)
+   * 
+   * @param responseData - The response data from the API
+   * @returns Array of RFQs or single RFQ object
+   */
+  private extractRfqsFromResponse(responseData: any): any {
+    // Check if response is an array (Trip ID response)
+    if (Array.isArray(responseData)) {
+      return responseData;
+    }
+
+    // Check if response has nested rfqs array
+    if (responseData?.rfqs && Array.isArray(responseData.rfqs)) {
+      return responseData.rfqs;
+    }
+
+    // Check if response has nested data array
+    if (responseData?.data && Array.isArray(responseData.data)) {
+      return responseData.data;
+    }
+
+    // If response has rfq_id field, it's a single RFQ
+    if (responseData?.rfq_id) {
+      return responseData;
+    }
+
+    // Default: treat as single RFQ if it's an object, or wrap in array if needed
+    return responseData;
   }
 
   /**
@@ -479,24 +567,98 @@ export class AvinodeClient {
     flights_received: number;
     flights: RFQFlight[];
     deep_link: string;
+    rfqs?: any[];
+    total_rfqs?: number;
+    total_quotes?: number;
   }> {
     try {
       // Fetch RFQ data from Avinode API
       const rfqData = await this.getRFQ(rfqId);
 
-      // Validate critical fields before processing
-      this.validateCriticalFields(rfqData, rfqId);
+      const rfqItems = Array.isArray(rfqData) ? rfqData : [rfqData];
 
-      // Transform Avinode API response to RFQFlight format
-      const flights = this.transformToRFQFlights(rfqData);
+      if (rfqItems.length === 0) {
+        const fallbackAirport = { icao: 'N/A', name: 'Unknown', city: 'Unknown' };
+        return {
+          rfq_id: rfqId,
+          trip_id: rfqId,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          quote_deadline: new Date().toISOString(),
+          departure_airport: fallbackAirport,
+          arrival_airport: fallbackAirport,
+          departure_date: new Date().toISOString().split('T')[0],
+          passengers: 0,
+          operators_contacted: 0,
+          flights_received: 0,
+          flights: [],
+          deep_link: '',
+          rfqs: [],
+          total_rfqs: 0,
+          total_quotes: 0,
+        };
+      }
+
+      const flights: RFQFlight[] = [];
+      const rfqs: any[] = [];
+
+      for (const rfqItem of rfqItems) {
+        if (!rfqItem) {
+          continue;
+        }
+
+        rfqs.push(rfqItem);
+
+        const lifts = rfqItem.lifts || rfqItem.sellerLift || [];
+        const quoteIds = Array.isArray(lifts)
+          ? lifts.flatMap((lift: any) => {
+              const quotes = lift?.links?.quotes || lift?.quotes || [];
+              return quotes.map((quote: any) => quote.id || quote.quote_id).filter(Boolean);
+            })
+          : [];
+
+        if ((!rfqItem.quotes || rfqItem.quotes.length === 0) && quoteIds.length > 0) {
+          const quoteDetails = await Promise.all(
+            quoteIds.map(async (quoteId: string) => {
+              try {
+                return await this.fetchQuoteDetails(quoteId);
+              } catch (error) {
+                this.logger.warn('Failed to fetch quote details', {
+                  quoteId,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+                return null;
+              }
+            })
+          );
+
+          rfqItem.quotes = quoteDetails.filter(Boolean);
+        }
+
+        const rfqItemId = rfqItem.rfq_id || rfqItem.id || rfqId;
+        try {
+          this.validateCriticalFields(rfqItem, rfqItemId);
+        } catch (error) {
+          this.logger.warn('Skipping RFQ with missing critical fields', {
+            rfqId: rfqItemId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          continue;
+        }
+
+        const itemFlights = this.transformToRFQFlights(rfqItem);
+        flights.push(...itemFlights);
+      }
 
       // Derive trip_id using a simple sequential approach consistent with getRFQ
       // Priority: rfqData.trip_id > atrip- prefix > arfq- prefix > numeric ID > fallback extraction
       let tripId: string;
       
+      const primaryRfq = rfqItems[0];
+
       // Step 1: Use trip_id from response data if present
-      if (rfqData.trip_id) {
-        tripId = rfqData.trip_id;
+      if (primaryRfq?.trip_id) {
+        tripId = primaryRfq.trip_id;
       }
       // Step 2: If rfqId already has 'atrip-' prefix, use as-is
       else if (rfqId.startsWith('atrip-')) {
@@ -510,23 +672,9 @@ export class AvinodeClient {
       else if (/^\d+$/.test(rfqId)) {
         tripId = `atrip-${rfqId}`;
       }
-      // Step 5: Attempt safe fallback extraction - strip any single prefix and use remainder
+      // Default: If no specific prefix, treat the rfqId as a direct Avinode ID for the trip_id
       else {
-        const fallbackMatch = rfqId.match(/^[a-z]+-(.+)$/i);
-        if (fallbackMatch && fallbackMatch[1]) {
-          // Extract the ID portion after the prefix and prepend 'atrip-'
-          tripId = `atrip-${fallbackMatch[1]}`;
-          // Log warning for unexpected format that required fallback extraction
-          this.logger.warn('Unexpected rfqId format, using fallback extraction to derive trip_id', {
-            rfqId,
-            derivedTripId: tripId,
-          });
-        } else {
-          // Cannot derive meaningful trip_id - throw error with accurate format description
-          const errorMessage = `Invalid rfqId format: "${rfqId}". Expected format: "arfq-{id}", "atrip-{id}", or numeric ID. Cannot derive valid trip_id.`;
-          this.logger.error(errorMessage, { rfqId });
-          throw new Error(errorMessage);
-        }
+        tripId = rfqId;
       }
 
       // Build return object with validated critical fields and fallbacks for non-critical fields
@@ -544,10 +692,13 @@ export class AvinodeClient {
         flights_received: number;
         flights: RFQFlight[];
         deep_link: string;
+        rfqs?: any[];
+        total_rfqs?: number;
+        total_quotes?: number;
       } = {
         rfq_id: this.getFieldWithFallback(
           'rfq_id',
-          rfqData.rfq_id,
+          primaryRfq?.rfq_id,
           rfqId,
           rfqId
         ),
@@ -555,28 +706,49 @@ export class AvinodeClient {
         status: (flights.length >= 2 ? 'quotes_received' : 'pending') as 'pending' | 'quotes_received' | 'completed' | 'expired',
         created_at: this.getFieldWithFallback(
           'created_at',
-          rfqData.created_at,
+          primaryRfq?.created_at,
           rfqId,
           new Date().toISOString()
         ),
         quote_deadline: this.getFieldWithFallback(
           'quote_deadline',
-          rfqData.quote_deadline,
+          primaryRfq?.quote_deadline,
           rfqId,
           new Date(Date.now() + 86400000).toISOString()
         ),
-        departure_airport: rfqData.route?.departure?.airport, // Already validated
-        arrival_airport: rfqData.route?.arrival?.airport, // Already validated
-        departure_date: rfqData.route?.departure?.date, // Already validated
+        departure_airport: (() => {
+          const airport = this.extractRouteFromRfq(primaryRfq || {})?.departureAirport;
+          return this.getFieldWithFallback(
+            'departure_airport',
+            airport ? { icao: airport.icao, name: airport.name || 'Unknown', city: airport.city || 'Unknown' } : undefined,
+            rfqId,
+            { icao: 'UNKNOWN', name: 'Unknown', city: 'Unknown' }
+          );
+        })(),
+        arrival_airport: (() => {
+          const airport = this.extractRouteFromRfq(primaryRfq || {})?.arrivalAirport;
+          return this.getFieldWithFallback(
+            'arrival_airport',
+            airport ? { icao: airport.icao, name: airport.name || 'Unknown', city: airport.city || 'Unknown' } : undefined,
+            rfqId,
+            { icao: 'UNKNOWN', name: 'Unknown', city: 'Unknown' }
+          );
+        })(),
+        departure_date: this.getFieldWithFallback(
+          'departure_date',
+          this.extractRouteFromRfq(primaryRfq || {})?.departureDate,
+          rfqId,
+          new Date().toISOString().split('T')[0]
+        ),
         passengers: this.getFieldWithFallback(
           'passengers',
-          rfqData.passengers,
+          primaryRfq?.passengers,
           rfqId,
           4
         ),
         operators_contacted: this.getFieldWithFallback(
           'operators_contacted',
-          rfqData.operators_contacted,
+          primaryRfq?.operators_contacted,
           rfqId,
           flights.length
         ),
@@ -584,10 +756,13 @@ export class AvinodeClient {
         flights,
         deep_link: this.getFieldWithFallback(
           'deep_link',
-          rfqData.deep_link,
+          primaryRfq?.deep_link,
           rfqId,
           `${this.baseUrl}/marketplace/mvc/trips/selling/rfq?source=api&rfq=${rfqId}`
         ),
+        rfqs,
+        total_rfqs: rfqs.length,
+        total_quotes: flights.length,
       };
 
       return result;
@@ -606,23 +781,24 @@ export class AvinodeClient {
    */
   private validateCriticalFields(rfqData: any, rfqId: string): void {
     const missingFields: string[] = [];
+    const route = this.extractRouteFromRfq(rfqData);
 
     // Validate departure airport
-    if (!rfqData.route?.departure?.airport) {
+    if (!route?.departureAirport) {
       missingFields.push('route.departure.airport');
-    } else if (!rfqData.route.departure.airport.icao) {
+    } else if (!route.departureAirport.icao) {
       missingFields.push('route.departure.airport.icao');
     }
 
     // Validate arrival airport
-    if (!rfqData.route?.arrival?.airport) {
+    if (!route?.arrivalAirport) {
       missingFields.push('route.arrival.airport');
-    } else if (!rfqData.route.arrival.airport.icao) {
+    } else if (!route.arrivalAirport.icao) {
       missingFields.push('route.arrival.airport.icao');
     }
 
     // Validate departure date
-    if (!rfqData.route?.departure?.date) {
+    if (!route?.departureDate) {
       missingFields.push('route.departure.date');
     }
 
@@ -638,11 +814,13 @@ export class AvinodeClient {
     }
 
     // Log successful validation
+    // Use the normalized route object from extractRouteFromRfq instead of accessing rfqData.route.departure
+    // This handles both route.departure format and segments[] format from the API
     this.logger.debug('Critical fields validated successfully', {
       rfqId,
-      departureAirport: rfqData.route.departure.airport.icao,
-      arrivalAirport: rfqData.route.arrival.airport.icao,
-      departureDate: rfqData.route.departure.date,
+      departureAirport: route.departureAirport?.icao,
+      arrivalAirport: route.arrivalAirport?.icao,
+      departureDate: route.departureDate,
     });
   }
 
@@ -702,6 +880,65 @@ export class AvinodeClient {
     };
   }
 
+  private extractRouteFromRfq(rfqData: any): {
+    departureAirport?: { icao: string; name?: string; city?: string };
+    arrivalAirport?: { icao: string; name?: string; city?: string };
+    departureDate?: string;
+  } {
+    const route = rfqData.route;
+    if (route?.departure?.airport?.icao && route?.arrival?.airport?.icao && route?.departure?.date) {
+      return {
+        departureAirport: route.departure.airport,
+        arrivalAirport: route.arrival.airport,
+        departureDate: route.departure.date,
+      };
+    }
+
+    const segments = Array.isArray(rfqData.segments) ? rfqData.segments : [];
+    if (segments.length === 0) {
+      return {};
+    }
+
+    const segment = segments[0];
+    const startDetails = segment.startAirportDetails || segment.startAirport;
+    const endDetails = segment.endAirportDetails || segment.endAirport;
+
+    const normalizeAirport = (airport: any) => {
+      if (!airport || !airport.icao) return undefined;
+      return {
+        icao: airport.icao,
+        name: airport.name,
+        city: airport.city,
+      };
+    };
+
+    const departureDate =
+      segment.dateTime?.date ||
+      segment.departureDateTime?.dateTimeLocal?.split('T')[0] ||
+      segment.departureDateTime?.dateTimeUTC?.split('T')[0];
+
+    return {
+      departureAirport: normalizeAirport(startDetails),
+      arrivalAirport: normalizeAirport(endDetails),
+      departureDate,
+    };
+  }
+
+  private async fetchQuoteDetails(quoteId: string): Promise<any> {
+    const response = await this.client.get(`/quotes/${quoteId}`, {
+      params: {
+        taildetails: true,
+        typedetails: true,
+        tailphotos: true,
+        typephotos: true,
+        quotebreakdown: true,
+        latestquote: true,
+      },
+    });
+
+    return response.data?.data ?? response.data;
+  }
+
   /**
    * Transform Avinode API response to RFQFlight array
    * Maps the raw API response to the format expected by UI components
@@ -717,6 +954,9 @@ export class AvinodeClient {
     // 'unanswered' = RFQ sent but no response yet
     // 'quoted' = Response received with quote
     // 'declined' = Response received with decline
+    if (quote.status === 'quoted' && quote.validUntil && new Date(quote.validUntil) < new Date()) {
+      return 'expired';
+    }
     const hasResponse = quote.status === 'quoted' || quote.status === 'declined';
     return hasResponse
       ? (quote.status === 'quoted' ? 'quoted' : 'declined')
@@ -736,13 +976,21 @@ export class AvinodeClient {
     tailNumber?: string;
     yearOfManufacture?: number;
     passengerCapacity: number;
+    tailPhotoUrl?: string;
   } {
     return {
-      aircraftType: quote.aircraft?.type || 'Unknown',
-      aircraftModel: quote.aircraft?.model || 'Unknown',
-      tailNumber: quote.aircraft?.tailNumber,
+      aircraftType: quote.aircraft?.type || quote.lift?.aircraftType || 'Unknown',
+      aircraftModel: quote.aircraft?.model || quote.lift?.aircraftSuperType || 'Unknown',
+      tailNumber: quote.aircraft?.tailNumber || quote.lift?.aircraftTail,
       yearOfManufacture: quote.aircraft?.yearOfManufacture,
-      passengerCapacity: quote.aircraft?.capacity || 0,
+      passengerCapacity: quote.aircraft?.capacity || quote.lift?.maxPax || 0,
+      tailPhotoUrl:
+        quote.aircraft?.tail_photo_url ||
+        quote.aircraft?.tailPhotoUrl ||
+        quote.tailPhotos?.[0]?.url ||
+        quote.typePhotos?.[0]?.url ||
+        quote.lift?.tailPhotos?.[0]?.url ||
+        quote.lift?.typePhotos?.[0]?.url,
     };
   }
 
@@ -758,17 +1006,32 @@ export class AvinodeClient {
     totalPrice: number;
     currency: string;
     priceBreakdown?: {
-      base: number;
+      basePrice: number;
+      fuelSurcharge?: number;
       taxes: number;
       fees: number;
     };
     validUntil?: string;
   } {
+    const sellerPrice = quote.sellerPrice || quote.sellerPriceWithoutCommission;
     return {
-      totalPrice: hasQuote ? (quote.totalPrice?.amount || quote.quote?.totalPrice?.amount || 0) : 0,
-      currency: hasQuote ? (quote.totalPrice?.currency || quote.quote?.totalPrice?.currency || 'USD') : 'USD',
+      totalPrice: hasQuote
+        ? (quote.totalPrice?.amount ||
+            quote.quote?.totalPrice?.amount ||
+            sellerPrice?.price ||
+            quote.pricing?.total ||
+            0)
+        : 0,
+      currency: hasQuote
+        ? (quote.totalPrice?.currency ||
+            quote.quote?.totalPrice?.currency ||
+            sellerPrice?.currency ||
+            quote.pricing?.currency ||
+            'USD')
+        : 'USD',
       priceBreakdown: hasQuote && quote.pricing ? {
-        base: quote.pricing.basePrice || 0,
+        basePrice: quote.pricing.basePrice || 0,
+        fuelSurcharge: quote.pricing.fuelSurcharge,
         taxes: quote.pricing.taxes || 0,
         fees: quote.pricing.fees || 0,
       } : undefined,
@@ -792,6 +1055,50 @@ export class AvinodeClient {
       galley: amenitiesArray.includes('Galley') || false,
       lavatory: amenitiesArray.includes('Lavatory') || false,
       medical: amenitiesArray.includes('Medical') || false,
+    };
+  }
+
+  private extractQuoteRoute(quote: any): {
+    departureAirport?: { icao: string; name?: string; city?: string };
+    arrivalAirport?: { icao: string; name?: string; city?: string };
+    departureDate?: string;
+    departureTime?: string;
+    flightMinutes?: number;
+  } {
+    if (quote?.route?.departure?.airport?.icao && quote?.route?.arrival?.airport?.icao) {
+      return {
+        departureAirport: quote.route.departure.airport,
+        arrivalAirport: quote.route.arrival.airport,
+        departureDate: quote.route.departure.date,
+      };
+    }
+
+    const segments = Array.isArray(quote?.segments) ? quote.segments : [];
+    if (segments.length === 0) {
+      return {};
+    }
+
+    const segment = segments[0];
+    const normalizeAirport = (airport: any) => {
+      if (!airport || !airport.icao) return undefined;
+      return {
+        icao: airport.icao,
+        name: airport.name,
+        city: airport.city,
+      };
+    };
+
+    return {
+      departureAirport: normalizeAirport(segment.startAirportDetails || segment.startAirport),
+      arrivalAirport: normalizeAirport(segment.endAirportDetails || segment.endAirport),
+      departureDate:
+        segment.dateTime?.date ||
+        segment.departureDateTime?.dateTimeLocal?.split('T')[0] ||
+        segment.departureDateTime?.dateTimeUTC?.split('T')[0],
+      departureTime:
+        segment.dateTime?.time ||
+        segment.departureDateTime?.dateTimeLocal?.split('T')[1]?.slice(0, 5),
+      flightMinutes: segment.flightMinutes || segment.blockMinutes,
     };
   }
 
@@ -837,9 +1144,10 @@ export class AvinodeClient {
     });
 
     // Get route data from RFQ level (fallback for quote-level route data)
-    const rfqDepartureAirport = rfqData.route?.departure?.airport;
-    const rfqArrivalAirport = rfqData.route?.arrival?.airport;
-    const rfqDepartureDate = rfqData.route?.departure?.date;
+    const rfqRoute = this.extractRouteFromRfq(rfqData);
+    const rfqDepartureAirport = rfqRoute?.departureAirport;
+    const rfqArrivalAirport = rfqRoute?.arrivalAirport;
+    const rfqDepartureDate = rfqRoute?.departureDate;
 
     return quotes.map((quote: any, index: number) => {
       // Derive RFQ status using helper method
@@ -856,9 +1164,10 @@ export class AvinodeClient {
       const amenities = this.mapAmenities(quote);
 
       // Extract route data - prefer quote-level, fallback to RFQ-level, NEVER use hardcoded values
-      const departureAirport = quote.route?.departure?.airport || rfqDepartureAirport;
-      const arrivalAirport = quote.route?.arrival?.airport || rfqArrivalAirport;
-      const departureDate = quote.route?.departure?.date || rfqDepartureDate;
+      const quoteRoute = this.extractQuoteRoute(quote);
+      const departureAirport = quoteRoute.departureAirport || rfqDepartureAirport;
+      const arrivalAirport = quoteRoute.arrivalAirport || rfqArrivalAirport;
+      const departureDate = quoteRoute.departureDate || rfqDepartureDate;
 
       // Validate that we have airport data (should have been validated earlier, but double-check)
       if (!departureAirport?.icao || !arrivalAirport?.icao) {
@@ -888,21 +1197,99 @@ export class AvinodeClient {
           city: arrivalAirport.city || quote.route?.arrival?.city,
         },
         departureDate: departureDate || new Date().toISOString().split('T')[0],
-        departureTime: quote.schedule?.departureTime ? new Date(quote.schedule.departureTime).toTimeString().slice(0, 5) : undefined,
-        flightDuration: this.formatDuration(quote.schedule?.flightDuration),
+        departureTime: quoteRoute.departureTime || (quote.schedule?.departureTime ? new Date(quote.schedule.departureTime).toTimeString().slice(0, 5) : undefined),
+        flightDuration: this.formatDuration(
+          quoteRoute.flightMinutes || quote.schedule?.flightDuration || quote.schedule?.duration_minutes
+        ),
         ...aircraft,
         aircraftImageUrl: undefined,
-        operatorName: quote.seller?.companyName || quote.operator?.name || quote.operator_name || 'Unknown Operator',
+        operatorName:
+          quote.seller?.companyName ||
+          quote.sellerCompany?.displayName ||
+          quote.operator?.name ||
+          quote.operator_name ||
+          'Unknown Operator',
         operatorRating: quote.seller?.rating || quote.operator?.rating,
-        operatorEmail: quote.seller?.email || quote.operator?.email,
+        operatorEmail:
+          quote.seller?.email ||
+          quote.operator?.email ||
+          quote.sellerCompany?.contactInfo?.emails?.[0],
         ...pricing,
         amenities,
         rfqStatus,
-        lastUpdated: quote.updated_at || quote.received_at || new Date().toISOString(),
+        lastUpdated: quote.updated_at || quote.received_at || quote.createdOn || new Date().toISOString(),
         responseTimeMinutes: quote.response_time_minutes,
         isSelected: false,
       };
     });
+  }
+
+  /**
+   * List trips from Avinode API
+   * Falls back to empty array if API is unavailable
+   *
+   * @param options - Optional filters for the trip list
+   * @returns Array of trip summaries with metadata about source
+   */
+  async listTrips(options?: {
+    limit?: number;
+    status?: 'all' | 'active' | 'completed';
+  }): Promise<{
+    trips: Array<{
+      trip_id: string;
+      route: string;
+      departure_airport: string;
+      arrival_airport: string;
+      departure_date: string;
+      passengers: number;
+      status: string;
+      deep_link?: string;
+      quote_count?: number;
+      created_at: string;
+    }>;
+    source: 'api' | 'database';
+    total: number;
+  }> {
+    try {
+      // Try Avinode API first
+      const response = await this.client.get('/trips', {
+        params: {
+          limit: options?.limit || 20,
+          ...(options?.status && options.status !== 'all' ? { status: options.status } : {}),
+        },
+      });
+
+      // Transform API response to standard format
+      const apiTrips = Array.isArray(response.data?.data) ? response.data.data : [];
+      const trips = apiTrips.map((trip: any) => ({
+        trip_id: trip.tripId || trip.id || '',
+        route: `${trip.departure?.icao || 'N/A'} → ${trip.arrival?.icao || 'N/A'}`,
+        departure_airport: trip.departure?.icao || '',
+        arrival_airport: trip.arrival?.icao || '',
+        departure_date: trip.departureDateTime || trip.departure_date || '',
+        passengers: trip.passengers || trip.pax || 0,
+        status: trip.status || 'unknown',
+        deep_link: trip.actions?.searchInAvinode?.href || trip.deep_link,
+        quote_count: trip.quoteCount || trip.rfqs?.length || 0,
+        created_at: trip.created_at || trip.createdAt || new Date().toISOString(),
+      }));
+
+      return {
+        trips,
+        source: 'api',
+        total: response.data?.meta?.total || trips.length,
+      };
+    } catch (error) {
+      // API unavailable - return empty array (caller should use database fallback)
+      this.logger.warn('Avinode API unavailable for listTrips, returning empty result', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return {
+        trips: [],
+        source: 'api',
+        total: 0,
+      };
+    }
   }
 
   /**

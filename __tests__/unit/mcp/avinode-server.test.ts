@@ -222,7 +222,7 @@ describe('AvinodeMCPServer', () => {
   });
 
   describe('Tool Registration', () => {
-    it('should register all 6 Avinode tools', () => {
+    it('should register all 7 Avinode tools', () => {
       const tools = server.getTools();
       expect(tools).toContain('search_flights');
       expect(tools).toContain('create_rfp');
@@ -230,11 +230,12 @@ describe('AvinodeMCPServer', () => {
       expect(tools).toContain('get_quotes');
       expect(tools).toContain('create_trip');
       expect(tools).toContain('get_rfq');
+      expect(tools).toContain('list_trips');
     });
 
-    it('should have exactly 6 tools registered', () => {
+    it('should have exactly 7 tools registered', () => {
       const tools = server.getTools();
-      expect(tools).toHaveLength(6);
+      expect(tools).toHaveLength(7);
     });
   });
 

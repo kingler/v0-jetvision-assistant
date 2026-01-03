@@ -442,7 +442,7 @@ export function RFQFlightCard({
       style={{ height: 'fit-content' }}
     >
       {/* 3-Column Layout: Image (225px) | Aircraft/Transport/RFQ Status (middle) | Price/Amenities/Operator (right) */}
-      <div className={cn('flex pb-4', compact ? 'flex-col sm:flex-row' : 'flex-row')} style={{ minHeight: '282px' }}>
+      <div className={cn('flex pb-4', compact ? 'flex-col sm:flex-row' : 'flex-row')}>
         {/* Column 1: Aircraft Image - 225px width, column layout, 280px height */}
         <div className={cn(
           'bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center shrink-0',
@@ -453,11 +453,15 @@ export function RFQFlightCard({
               src={flight.tailPhotoUrl}
               alt={flight.aircraftModel}
               className="w-full h-full object-cover"
+              style={{ objectFit: 'cover' }}
               onError={handleImageError}
             />
           ) : (
-            <div data-testid="aircraft-placeholder" className="flex items-center justify-center w-full h-full bg-gray-200 dark:bg-gray-700" style={{ height: 'fit-content' }}>
-              <Plane className="h-16 w-16 text-gray-400 dark:text-gray-500" style={{ height: '100%' }} />
+            <div
+              data-testid="aircraft-placeholder"
+              className="flex items-center justify-center w-full h-full bg-gray-200 dark:bg-gray-700"
+            >
+              <Plane className="h-16 w-16 text-gray-400 dark:text-gray-500" />
             </div>
           )}
         </div>
@@ -528,6 +532,16 @@ export function RFQFlightCard({
                 {formatPrice(flight.totalPrice, flight.currency)}
               </p>
             </div>
+            {showBookButton && (
+              <Button
+                data-testid="review-and-book"
+                onClick={handleReviewAndBook}
+                disabled={!isBookingEnabled}
+                className="justify-center"
+              >
+                {getButtonText(flight.rfqStatus)}
+              </Button>
+            )}
             {showPriceBreakdown && flight.priceBreakdown && (
               <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
                 <p>Base: {formatPrice(flight.priceBreakdown.basePrice, flight.currency)}</p>

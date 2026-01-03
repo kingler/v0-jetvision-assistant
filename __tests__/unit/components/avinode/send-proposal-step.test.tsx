@@ -45,7 +45,7 @@ const mockFlight1: RFQFlight = {
   totalPrice: 45000,
   currency: 'USD',
   priceBreakdown: {
-    base: 40000,
+    basePrice: 40000,
     taxes: 3000,
     fees: 2000,
   },

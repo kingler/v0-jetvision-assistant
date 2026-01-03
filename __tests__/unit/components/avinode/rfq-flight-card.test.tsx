@@ -421,4 +421,40 @@ describe('RFQFlightCard', () => {
       expect(screen.getByText('Heavy jet')).toBeInTheDocument();
     });
   });
+
+  describe('Review and Book CTA', () => {
+    it('renders enabled button for quoted flights and invokes callback', () => {
+      const onReviewAndBook = vi.fn();
+      render(
+        <RFQFlightCard
+          flight={{ ...mockFlight, rfqStatus: 'quoted' }}
+          showBookButton
+          onReviewAndBook={onReviewAndBook}
+        />
+      );
+
+      const button = screen.getByTestId('review-and-book');
+      expect(button).toBeEnabled();
+
+      fireEvent.click(button);
+      expect(onReviewAndBook).toHaveBeenCalledWith(mockFlight.id);
+    });
+
+    it('renders disabled button when RFQ not quoted', () => {
+      const onReviewAndBook = vi.fn();
+      render(
+        <RFQFlightCard
+          flight={{ ...mockFlight, rfqStatus: 'sent' }}
+          showBookButton
+          onReviewAndBook={onReviewAndBook}
+        />
+      );
+
+      const button = screen.getByTestId('review-and-book');
+      expect(button).toBeDisabled();
+
+      fireEvent.click(button);
+      expect(onReviewAndBook).not.toHaveBeenCalled();
+    });
+  });
 });

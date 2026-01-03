@@ -20,6 +20,11 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, ArrowRight, Plane } from 'lucide-react';
+/**
+ * Import RFQFlightCard component and RFQFlight type
+ * This component is used to render individual flight cards in the list
+ * Maps to the get_rfq API response data schema for displaying RFQ, flight, and operator details
+ */
 import { RFQFlightCard, type RFQFlight } from './rfq-flight-card';
 
 // =============================================================================
@@ -190,7 +195,7 @@ export function RFQFlightsList({
           <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
           <h3 className="text-lg font-semibold mb-2">No RFQs available</h3>
           <p className="text-muted-foreground">
-            No RFQ has been submitted yet. Please check back later.
+            No RFQ has been submitted yet. Please follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.
           </p>
         </div>
       );
@@ -279,7 +284,7 @@ export function RFQFlightsList({
         className={cn('space-y-6', compact && 'space-y-4')}
       >
         {processedFlights.map((flight) => (
-          <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-6 last:pb-0" style={{ minHeight: '282px' }}>
+          <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-6 last:pb-0">
             <RFQFlightCard
               flight={{ ...flight, isSelected: selectedIds.has(flight.id) }}
               selectable={selectable && !showBookButton}
