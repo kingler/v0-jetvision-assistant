@@ -3,16 +3,17 @@
 /**
  * RFQFlightsList Component
  *
- * Displays a list of RFQ flights with selection, sorting, and filtering capabilities.
+ * Displays a list of RFQ flights with selection and sorting capabilities.
  * Used in Step 3 of the RFP workflow to show available flight options.
  *
  * Features:
  * - List of RFQFlightCard components
  * - Multi-select capability
- * - Sorting by price, rating
- * - Filtering by status
+ * - Sorting by price, rating, departure time
  * - Selection summary
  * - Continue button to proceed to proposal
+ *
+ * Note: Filtering by status has been removed as it's not necessary with an average of 2-3 RFQs.
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -54,7 +55,11 @@ export interface RFQFlightsListProps {
   /** Callback when "Review and Book" button is clicked (triggers Step 4) */
   onReviewAndBook?: (flightId: string) => void;
   /** Callback when "View Chat" button is clicked */
-  onViewChat?: (flightId: string) => void;
+  onViewChat?: (flightId: string, quoteId?: string, messageId?: string) => void;
+  /** Callback when "Book flight" button is clicked */
+  onBookFlight?: (flightId: string, quoteId?: string) => void;
+  /** Callback when "Generate flight proposal" button is clicked */
+  onGenerateProposal?: (flightId: string, quoteId?: string) => void;
 }
 
 // =============================================================================
@@ -82,10 +87,7 @@ function sortFlights(flights: RFQFlight[], sortBy: SortOption): RFQFlight[] {
   });
 }
 
-function filterFlightsByStatus(flights: RFQFlight[], status: StatusFilter): RFQFlight[] {
-  if (status === 'all') return flights;
-  return flights.filter((f) => f.rfqStatus === status);
-}
+// Filter function removed - filtering not needed with average of 2-3 RFQs
 
 // =============================================================================
 // MAIN COMPONENT
@@ -104,27 +106,28 @@ export function RFQFlightsList({
   showContinueButton = false,
   onContinue,
   showPriceBreakdown = false,
-  compact = false,
+  compact = true, // Default to true to show compact view with expand/collapse functionality
   className,
   showBookButton = false,
   onReviewAndBook,
   onViewChat,
+  onBookFlight,
+  onGenerateProposal,
 }: RFQFlightsListProps) {
   const [sortBy, setSortBy] = useState<SortOption>(initialSortBy);
-  const [currentFilter, setCurrentFilter] = useState<StatusFilter>(statusFilter);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
     const initialSelected = flights.filter((f) => f.isSelected).map((f) => f.id);
     return new Set(initialSelected);
   });
 
-  // Compute filtered and sorted flights
+  // Compute sorted flights (filtering removed as not needed with 2-3 RFQs average)
   const processedFlights = useMemo(() => {
-    let result = filterFlightsByStatus(flights, currentFilter);
+    let result = flights;
     if (sortable) {
       result = sortFlights(result, sortBy);
     }
     return result;
-  }, [flights, currentFilter, sortBy, sortable]);
+  }, [flights, sortBy, sortable]);
 
   // Get selected flights
   const selectedFlights = useMemo(() => {
@@ -186,7 +189,7 @@ export function RFQFlightsList({
     );
   }
 
-  // Empty state - check filtered results to show appropriate message
+  // Empty state - check if there are any flights to display
   if (processedFlights.length === 0) {
     // No flights at all - show initial empty state
     if (flights.length === 0) {
@@ -200,13 +203,13 @@ export function RFQFlightsList({
         </div>
       );
     }
-    // Flights exist but filters produce zero results
+    // This case should not occur since we removed filtering, but keeping for safety
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No flights match your filters</h3>
+        <h3 className="text-lg font-semibold mb-2">No flights available</h3>
         <p className="text-muted-foreground">
-          No flights match your filters — try clearing filters
+          No flights are currently available to display.
         </p>
       </div>
     );
@@ -259,27 +262,6 @@ export function RFQFlightsList({
         </div>
       </div>
 
-      {/* Status Filters - Added bottom margin for spacing */}
-      {filterable && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {(['all', 'quoted', 'unanswered', 'sent', 'declined'] as StatusFilter[]).map((status) => (
-            <Button
-              key={status}
-              variant={currentFilter === status ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setCurrentFilter(status)}
-              className={cn(
-                'capitalize',
-                // Only apply explicit text color to outline buttons (default buttons already have white text)
-                currentFilter !== status && 'text-gray-900 dark:text-gray-100'
-              )}
-            >
-              {status === 'all' ? 'All' : status}
-            </Button>
-          ))}
-        </div>
-      )}
-
       {/* Flight Cards List - Added proper spacing between cards */}
       <ul
         data-testid="rfq-flights-list"
@@ -298,6 +280,11 @@ export function RFQFlightsList({
               showBookButton={showBookButton}
               onReviewAndBook={onReviewAndBook}
               onViewChat={onViewChat}
+              onBookFlight={onBookFlight}
+              onGenerateProposal={onGenerateProposal}
+              hasMessages={(flight as any).hasMessages ?? (flight.rfqStatus === 'quoted')}
+              quoteId={flight.quoteId}
+              messageId={(flight as any).messageId}
               aircraftCategory={(flight as any).aircraftCategory}
               hasMedical={(flight as any).hasMedical}
               hasPackage={(flight as any).hasPackage}

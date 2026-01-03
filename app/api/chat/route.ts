@@ -80,6 +80,7 @@ CRITICAL WORKFLOW: When a user provides flight details (airports, dates, passeng
 Tool Usage Rules:
 - Flight request with airports + date + passengers → Call create_trip (returns deep_link)
 - User provides a Trip ID → Call get_rfq with the Trip ID to retrieve all RFQs and quotes for that trip
+- When user clicks "Update RFQs" or requests RFQ updates → Call BOTH get_rfq AND get_trip_messages to retrieve RFQ status, quotes, and message activities
 - User asks about quote status → Call get_quote_status or get_quotes
 - For flight search preview → Call search_flights (optional, for showing options)
 
@@ -93,7 +94,9 @@ Human-in-the-Loop Workflow:
 2. You present the Avinode marketplace deep link prominently
 3. The user opens the deep link in Avinode, reviews operators, and selects which ones to contact
 4. After operators respond (10-30 minutes), user gets quotes with a Trip ID
-5. User provides the Trip ID → You call get_rfq with the Trip ID to retrieve all RFQs and quotes for that trip
+5. User provides the Trip ID or clicks "Update RFQs" → You call BOTH get_rfq AND get_trip_messages with the Trip ID to retrieve:
+   - All RFQs and quotes for that trip (get_rfq)
+   - Message activities and operator responses (get_trip_messages)
 6. DO NOT list flight details in your response - they are already displayed in Step 3 of the UI
 7. Instead, provide clear instructions about next steps
 
@@ -309,6 +312,35 @@ const AVINODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           },
         },
         required: ['quote_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_trip_messages',
+      description: 'Retrieve the message history for a trip conversation thread. Use this to check for operator messages and responses. Supports both trip ID and request ID (RFQ ID) formats. When updating RFQs, use this tool to retrieve message activities and check if operators have sent messages.',
+      parameters: {
+        type: 'object',
+        properties: {
+          trip_id: {
+            type: 'string',
+            description: 'The trip identifier (e.g., atrip-12345678). Use this for trip-level messages.',
+          },
+          request_id: {
+            type: 'string',
+            description: 'The request ID (RFQ ID) for request-specific messages. When provided, uses GET /tripmsgs/{requestId}/chat endpoint.',
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of messages to retrieve (default: 50)',
+          },
+          since: {
+            type: 'string',
+            description: 'Optional ISO 8601 timestamp to retrieve messages after',
+          },
+        },
+        required: [],
       },
     },
   },
@@ -919,31 +951,56 @@ export async function POST(req: NextRequest) {
         if (toolCall.function.name === 'create_trip') {
           try {
             const parsed = JSON.parse(toolResultContent)
-            // Log the full parsed result for debugging
+            
+            // Log the full parsed result for debugging production issues
             console.log('[Chat API] create_trip parsed result:', {
               trip_id: parsed.trip_id,
               deep_link: parsed.deep_link,
               internal_id: parsed.internal_id,
               success: parsed.success,
               hasActions: !!parsed.raw_response?.data?.actions,
+              allKeys: Object.keys(parsed),
             })
 
-            // Avinode API returns both trip_id and deep_link together
-            if (parsed.trip_id && parsed.deep_link) {
+            // Avinode API should return both trip_id and deep_link
+            // But trip_id is the critical field - deep_link can be optional
+            if (parsed.trip_id) {
               tripData = parsed
-              console.log('[Chat API] Trip created:', {
+              console.log('[Chat API] Trip created successfully:', {
                 tripId: parsed.trip_id,
-                deepLink: parsed.deep_link,
+                deepLink: parsed.deep_link || 'MISSING',
+                hasDeepLink: !!parsed.deep_link,
               })
+              
+              // If deep_link is missing, log a warning but don't fail
+              if (!parsed.deep_link) {
+                console.warn('[Chat API] WARNING: create_trip returned trip_id but no deep_link:', {
+                  trip_id: parsed.trip_id,
+                  parsed,
+                })
+              }
             } else {
-              console.warn('[Chat API] create_trip response missing required fields:', {
+              // This is a critical error - trip_id is required
+              console.error('[Chat API] CRITICAL: create_trip response missing trip_id:', {
                 hasTripId: !!parsed.trip_id,
                 hasDeepLink: !!parsed.deep_link,
-                parsed,
+                parsedKeys: Object.keys(parsed),
+                parsed: JSON.stringify(parsed).substring(0, 1000), // Limit log size
               })
+              
+              // Still set tripData if we have any data, but log the issue
+              // The UI should handle missing trip_id gracefully
+              if (parsed.deep_link || parsed.internal_id) {
+                console.warn('[Chat API] Using partial trip data (missing trip_id):', parsed)
+                tripData = parsed
+              }
             }
           } catch (parseError) {
-            console.error('[Chat API] Failed to parse create_trip result:', parseError, toolResultContent)
+            console.error('[Chat API] Failed to parse create_trip result:', {
+              error: parseError instanceof Error ? parseError.message : String(parseError),
+              stack: parseError instanceof Error ? parseError.stack : undefined,
+              rawContent: toolResultContent.substring(0, 500), // Limit log size
+            })
           }
         }
 

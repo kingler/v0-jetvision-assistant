@@ -56,6 +56,14 @@ import type {
   RFQFlight,
 } from './types.js';
 
+/**
+ * Get Message Parameters
+ * Retrieves a specific message by message ID
+ */
+interface GetMessageParams {
+  message_id: string;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -469,13 +477,17 @@ const tools: Tool[] = [
   },
   {
     name: 'get_trip_messages',
-    description: 'Retrieve the message history for a trip conversation thread',
+    description: 'Retrieve the message history for a trip conversation thread. Supports both trip ID and request ID (RFQ ID) formats. When request_id is provided, uses GET /tripmsgs/{requestId}/chat endpoint per Avinode API documentation.',
     inputSchema: {
       type: 'object',
       properties: {
         trip_id: {
           type: 'string',
-          description: 'The trip identifier',
+          description: 'The trip identifier (e.g., atrip-12345678). Use this for trip-level messages.',
+        },
+        request_id: {
+          type: 'string',
+          description: 'The request ID (RFQ ID) for request-specific messages. When provided, uses GET /tripmsgs/{requestId}/chat endpoint per https://developer.avinodegroup.com/reference/readmessage',
         },
         limit: {
           type: 'number',
@@ -486,7 +498,21 @@ const tools: Tool[] = [
           description: 'Optional ISO 8601 timestamp to retrieve messages after',
         },
       },
-      required: ['trip_id'],
+      required: [],
+    },
+  },
+  {
+    name: 'get_message',
+    description: 'Retrieve a specific trip message by message ID. Uses GET /tripmsgs/{messageId} endpoint per Avinode API documentation: https://developer.avinodegroup.com/reference/readmessage and https://sandbox.avinode.com/api/tripmsgs/{messageId}',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        message_id: {
+          type: 'string',
+          description: 'The message identifier (e.g., asellermsg-12345678). Extracts numeric ID if prefixed.',
+        },
+      },
+      required: ['message_id'],
     },
   },
 ];
@@ -585,8 +611,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_trip_messages': {
-        const params = args as unknown as GetTripMessagesParams;
+        const params = args as unknown as GetTripMessagesParams & { request_id?: string };
         result = await getTripMessages(params);
+        break;
+      }
+
+      case 'get_message': {
+        const params = args as unknown as { message_id: string };
+        result = await getMessage(params);
         break;
       }
 
@@ -857,51 +889,118 @@ async function createTrip(params: CreateTripParams) {
     requestBody.externalTripId = params.client_reference;
   }
 
-  const response = await avinodeClient.post('/trips', requestBody);
+  try {
+    // Log request for debugging production issues
+    console.error('[createTrip] Making API request to /trips with:', {
+      segments: requestBody.segments?.length || 0,
+      hasSourcing: !!requestBody.sourcing,
+      hasCriteria: !!requestBody.criteria,
+      hasExternalTripId: !!requestBody.externalTripId,
+    });
 
-  // Avinode API response format per documentation:
-  // {
-  //   "data": {
-  //     "id": "atrip-64956153",
-  //     "href": "https://sandbox.avinode.com/api/trips/atrip-64956153",
-  //     "actions": {
-  //       "searchInAvinode": { "href": "...", "description": "..." },
-  //       "viewInAvinode": { "href": "...", "description": "..." }
-  //     }
-  //   }
-  // }
-  // @see https://developer.avinodegroup.com/reference/createtrip
-  const tripData = response.data || response;
-  const tripId = tripData.id || tripData.trip_id;
-  const actions = tripData.actions || {};
-  const deepLink = actions.searchInAvinode?.href || actions.viewInAvinode?.href || tripData.href;
+    // Note: avinodeClient.post() already returns response.data (not the full axios response)
+    // So 'response' here is already the data object
+    const response = await avinodeClient.post('/trips', requestBody);
 
-  return {
-    trip_id: tripId,
-    deep_link: deepLink,
-    search_link: actions.searchInAvinode?.href || deepLink,
-    view_link: actions.viewInAvinode?.href,
-    cancel_link: actions.cancel?.href,
-    status: 'created',
-    created_at: new Date().toISOString(),
-    route: {
-      departure: {
-        airport: params.departure_airport,
-        date: params.departure_date,
-        time: params.departure_time,
+    // Log raw response structure for debugging production vs dev differences
+    console.error('[createTrip] Raw API response structure:', {
+      hasData: !!response.data,
+      hasNestedData: !!response.data?.data,
+      responseKeys: Object.keys(response || {}),
+      dataKeys: response.data ? Object.keys(response.data) : [],
+      nestedDataKeys: response.data?.data ? Object.keys(response.data.data) : [],
+    });
+
+    // Handle different response structures:
+    // 1. Direct response: { id, actions, ... }
+    // 2. Nested response: { data: { id, actions, ... } }
+    // 3. Double nested: { data: { data: { id, actions, ... } } }
+    let tripData = response;
+    if (response.data) {
+      tripData = response.data;
+      // Handle double nesting (some API versions)
+      if (tripData.data) {
+        tripData = tripData.data;
+      }
+    }
+
+    // Extract trip ID from various possible locations
+    // Avinode API may return: id, tripId, or trip_id
+    const tripId = tripData.id || tripData.tripId || tripData.trip_id;
+    
+    // Extract actions (deep links)
+    const actions = tripData.actions || {};
+    const deepLink = actions.searchInAvinode?.href || actions.viewInAvinode?.href || tripData.href;
+
+    // Log extracted values for debugging
+    console.error('[createTrip] Extracted trip data:', {
+      tripId: tripId || 'MISSING',
+      hasDeepLink: !!deepLink,
+      deepLink: deepLink || 'MISSING',
+      hasActions: !!tripData.actions,
+      actionKeys: tripData.actions ? Object.keys(tripData.actions) : [],
+    });
+
+    // Validate that we have a trip ID - this is critical for the UI
+    if (!tripId) {
+      const errorMsg = `Failed to extract trip_id from Avinode API response. Response structure: ${JSON.stringify(response).substring(0, 500)}`;
+      console.error('[createTrip] ERROR:', errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Return in the format expected by the UI
+    const result = {
+      trip_id: tripId,
+      deep_link: deepLink || undefined,
+      search_link: actions.searchInAvinode?.href || deepLink || undefined,
+      view_link: actions.viewInAvinode?.href || undefined,
+      cancel_link: actions.cancel?.href || undefined,
+      status: 'created',
+      created_at: new Date().toISOString(),
+      route: {
+        departure: {
+          airport: params.departure_airport,
+          date: params.departure_date,
+          time: params.departure_time,
+        },
+        arrival: {
+          airport: params.arrival_airport,
+        },
+        return: params.return_date
+          ? {
+              date: params.return_date,
+              time: params.return_time,
+            }
+          : undefined,
       },
-      arrival: {
-        airport: params.arrival_airport,
+      passengers: params.passengers,
+    };
+
+    console.error('[createTrip] Successfully created trip:', {
+      trip_id: result.trip_id,
+      has_deep_link: !!result.deep_link,
+    });
+
+    return result;
+  } catch (error) {
+    // Enhanced error logging for production debugging
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('[createTrip] ERROR creating trip:', {
+      error: errorMessage,
+      stack: errorStack,
+      params: {
+        departure_airport: params.departure_airport,
+        arrival_airport: params.arrival_airport,
+        departure_date: params.departure_date,
+        passengers: params.passengers,
       },
-      return: params.return_date
-        ? {
-            date: params.return_date,
-            time: params.return_time,
-          }
-        : undefined,
-    },
-    passengers: params.passengers,
-  };
+    });
+
+    // Re-throw with more context
+    throw new Error(`Failed to create trip in Avinode: ${errorMessage}`);
+  }
 }
 
 /**
@@ -937,11 +1036,27 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
   const rfqDepartureDate = rfqData.route?.departure?.date;
 
   return quotes.map((quote: any, index: number) => {
-    // Derive RFQ status
-    const hasResponse = quote.status === 'quoted' || quote.status === 'declined';
-    const rfqStatus: RFQFlight['rfqStatus'] = hasResponse
-      ? (quote.status === 'quoted' ? 'quoted' : 'declined')
-      : 'unanswered';
+    // Derive RFQ status from quote response
+    // When operator responds with a quote, status should be 'quoted'
+    // When operator declines, status should be 'declined'
+    // Otherwise, status is 'unanswered' or 'sent' (if RFQ was sent but no response yet)
+    let rfqStatus: RFQFlight['rfqStatus'];
+    
+    // Check quote status first (most reliable indicator of operator response)
+    if (quote.status === 'quoted' || quote.quote?.status === 'quoted') {
+      rfqStatus = 'quoted';
+    } else if (quote.status === 'declined' || quote.quote?.status === 'declined') {
+      rfqStatus = 'declined';
+    } else if (quote.status === 'expired' || quote.quote?.status === 'expired') {
+      rfqStatus = 'expired';
+    } else if (quote.status === 'sent' || rfqData.status === 'sent') {
+      // RFQ was sent but no response yet
+      rfqStatus = 'sent';
+    } else {
+      // Default to unanswered if no clear status
+      rfqStatus = 'unanswered';
+    }
+    
     const hasQuote = rfqStatus === 'quoted';
 
     // Extract aircraft data
@@ -1006,10 +1121,20 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
       quote.lift?.tailPhotos?.[0]?.url ||
       quote.lift?.typePhotos?.[0]?.url;
 
+    // Extract message ID if available (from webhook events or API response)
+    // Message ID may be in various locations: message.id, messageId, latestMessage.id, etc.
+    const messageId = quote.message?.id || 
+                     quote.messageId || 
+                     quote.latestMessage?.id ||
+                     quote.messages?.[0]?.id ||
+                     quote.sellerMessage?.id;
+
     // Assemble the RFQFlight object
     return {
       id: `flight-${quote.quote?.id || quote.id || index + 1}`,
       quoteId: quote.quote?.id || quote.id || `quote-${index + 1}`,
+      // Include messageId if available (for retrieving specific messages)
+      messageId: messageId,
       departureAirport: {
         icao: departureAirport.icao,
         name: departureAirport.name || quote.route?.departure?.name,
@@ -1561,28 +1686,98 @@ async function sendTripMessage(params: SendTripMessageParams) {
 }
 
 /**
- * Get message history for a trip
+ * Get a specific message by message ID
+ * 
+ * Uses GET /tripmsgs/{messageId} endpoint per Avinode API documentation
  * 
  * @see https://developer.avinodegroup.com/reference/readmessage
- * Endpoint: GET /api/tripmsgs/{tripId}
+ * @see https://sandbox.avinode.com/api/tripmsgs/{messageId}
  */
-async function getTripMessages(params: GetTripMessagesParams) {
-  if (!params.trip_id) {
-    throw new Error('trip_id is required');
+async function getMessage(params: GetMessageParams) {
+  if (!params.message_id) {
+    throw new Error('message_id is required');
   }
 
-  // Extract numeric ID if prefixed
-  // Uses robust extraction to handle IDs with additional hyphens (e.g., "atrip-123-456")
+  // Extract numeric ID if prefixed (e.g., asellermsg-12345678)
   let numericId: string;
   try {
-    numericId = extractNumericId(params.trip_id);
+    // Handle message ID prefixes (asellermsg-, abuyermsg-, etc.)
+    if (params.message_id.includes('-')) {
+      const parts = params.message_id.split('-');
+      if (parts.length >= 2) {
+        numericId = parts.slice(1).join('-'); // Preserve full suffix after first hyphen
+      } else {
+        numericId = params.message_id;
+      }
+    } else {
+      numericId = params.message_id;
+    }
   } catch (error) {
     throw new Error(
-      `Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`
+      `Invalid message ID format: "${params.message_id}". ${error instanceof Error ? error.message : String(error)}`
     );
   }
 
-  const response = await avinodeClient.get(`/tripmsgs/${numericId}`, {
+  const response = await avinodeClient.get(`/tripmsgs/${numericId}`);
+
+  return {
+    message_id: params.message_id,
+    message: response.message || response.data?.message || response,
+    sender: response.sender || response.data?.sender,
+    sent_at: response.sent_at || response.data?.sent_at || response.created_at,
+    trip_id: response.trip_id || response.data?.trip_id,
+    request_id: response.request_id || response.data?.request_id,
+    content: response.content || response.message?.content || response.data?.content,
+  };
+}
+
+/**
+ * Get message history for a trip or request
+ * 
+ * Supports two endpoint patterns per Avinode API documentation:
+ * 1. GET /tripmsgs/{tripId} - Get messages for a trip (when trip_id is provided)
+ * 2. GET /tripmsgs/{requestId}/chat - Get messages for a specific request/RFQ (when request_id is provided)
+ * 
+ * @see https://developer.avinodegroup.com/reference/readmessage
+ * @see https://sandbox.avinode.com/api/tripmsgs/{requestId}/chat
+ */
+async function getTripMessages(params: GetTripMessagesParams & { request_id?: string }) {
+  // Require either trip_id or request_id
+  if (!params.trip_id && !params.request_id) {
+    throw new Error('Either trip_id or request_id is required');
+  }
+
+  let endpoint: string;
+  let identifier: string;
+
+  // If request_id is provided, use the /chat endpoint per API docs
+  if (params.request_id) {
+    // Extract numeric ID if prefixed (e.g., arfq-12345678)
+    try {
+      identifier = extractNumericId(params.request_id);
+      // Use /chat endpoint for request-specific messages per Avinode API docs
+      endpoint = `/tripmsgs/${identifier}/chat`;
+    } catch (error) {
+      throw new Error(
+        `Invalid request ID format: "${params.request_id}". ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  } else if (params.trip_id) {
+    // Extract numeric ID if prefixed (e.g., atrip-12345678)
+    try {
+      identifier = extractNumericId(params.trip_id);
+      // Use standard endpoint for trip-level messages
+      endpoint = `/tripmsgs/${identifier}`;
+    } catch (error) {
+      throw new Error(
+        `Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  } else {
+    throw new Error('Either trip_id or request_id must be provided');
+  }
+
+  const response = await avinodeClient.get(endpoint, {
     params: {
       limit: params.limit || 50,
       since: params.since,
@@ -1591,9 +1786,10 @@ async function getTripMessages(params: GetTripMessagesParams) {
 
   return {
     trip_id: params.trip_id,
-    messages: response.messages || [],
-    total_count: response.total_count || response.messages?.length || 0,
-    has_more: response.has_more || false,
+    request_id: params.request_id,
+    messages: response.messages || response.data?.messages || [],
+    total_count: response.total_count || response.data?.total_count || response.messages?.length || 0,
+    has_more: response.has_more || response.data?.has_more || false,
   };
 }
 

@@ -115,10 +115,14 @@ export interface SendTripMessageParams {
 
 /**
  * Get Trip Messages Parameters
- * Retrieves message history for a trip
+ * Retrieves message history for a trip or request
+ * Supports both trip-level and request-specific message retrieval
+ * - trip_id: Use for trip-level messages (GET /tripmsgs/{tripId})
+ * - request_id: Use for request-specific messages (GET /tripmsgs/{requestId}/chat)
  */
 export interface GetTripMessagesParams {
-  trip_id: string;
+  trip_id?: string;
+  request_id?: string;
   limit?: number;
   since?: string;
 }
@@ -438,4 +442,6 @@ export interface RFQFlight {
   hasMedical?: boolean;
   hasPackage?: boolean;
   avinodeDeepLink?: string;
+  /** Message ID for retrieving specific operator messages (from webhook events) */
+  messageId?: string;
 }

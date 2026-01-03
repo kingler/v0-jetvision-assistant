@@ -879,6 +879,10 @@ export function ChatInterface({
                           passengers: toolCall.result.passengers,
                         }
                       }
+                    } else if (toolCall.name === "get_trip_messages") {
+                      // Handle get_trip_messages tool - retrieve message activities
+                      // Messages are processed and stored in operatorMessages in the tool_calls handler below
+                      console.log('[Chat] get_trip_messages tool called, messages will be stored in operatorMessages')
                     }
                   }
                 }
@@ -1453,6 +1457,104 @@ export function ChatInterface({
   }
 
   /**
+   * Handle "View Chat" button click on RFQ flight card
+   * Retrieves messages using quote ID and message ID, then inserts into chat input and sends to agent
+   * 
+   * Uses MCP tools:
+   * - get_message (message_id) - When messageId is provided, uses GET /tripmsgs/{messageId}
+   * - get_trip_messages (request_id) - When quoteId is provided, uses GET /tripmsgs/{requestId}/chat
+   * 
+   * @param flightId - The flight ID
+   * @param quoteId - The quote ID for retrieving messages (used as request_id)
+   * @param messageId - The message ID for retrieving specific message (optional)
+   * 
+   * @see https://sandbox.avinode.com/api/tripmsgs/{messageId}
+   * @see https://developer.avinodegroup.com/reference/readmessage
+   */
+  const handleViewChat = async (flightId: string, quoteId?: string, messageId?: string) => {
+    console.log('[Chat] View chat clicked for flight:', flightId, 'quoteId:', quoteId, 'messageId:', messageId)
+    
+    try {
+      // Build message retrieval request for the agent
+      // The agent will call the appropriate MCP tool based on the request
+      let messageText = ''
+      
+      if (messageId) {
+        // Retrieve specific message using messageId via get_message tool
+        // Uses GET /tripmsgs/{messageId} endpoint
+        messageText = `Retrieve the operator message with ID ${messageId} for quote ${quoteId || flightId} using the get_message tool. Show me the message content and any relevant details.`
+      } else if (quoteId) {
+        // Retrieve all messages for this quote/request via get_trip_messages tool
+        // Uses GET /tripmsgs/{requestId}/chat endpoint when request_id is provided
+        messageText = `Retrieve all operator messages for quote ${quoteId} (request ID: ${quoteId}) using the get_trip_messages tool with request_id parameter. Show me all messages from the operator.`
+      } else {
+        // Fallback: request messages for this flight
+        messageText = `Show me the messages from the operator for flight ${flightId}. Retrieve messages using the get_trip_messages tool.`
+      }
+
+      // Insert message into chat input
+      setInputValue(messageText)
+      
+      // Auto-send the message after a brief delay to allow state update
+      setTimeout(() => {
+        handleSendMessage()
+      }, 100)
+    } catch (error) {
+      console.error('[Chat] Error handling view chat:', error)
+      // Fallback: just open the drawer
+      handleViewQuoteDetails(flightId)
+    }
+  }
+
+  /**
+   * Handle "Book flight" button click
+   * Transitions to booking flow
+   */
+  const handleBookFlight = (flightId: string, quoteId?: string) => {
+    console.log('[Chat] Book flight clicked for flight:', flightId, 'quoteId:', quoteId)
+    // Select this flight and transition to booking
+    setSelectedRfqFlightIds([flightId])
+    onUpdateChat(activeChat.id, {
+      currentStep: 4,
+      status: 'proposal_ready',
+      selectedQuoteId: quoteId || flightId,
+    })
+    
+    // Insert booking message into chat input
+    const bookingMessage = `Book the flight for quote ${quoteId || flightId}. Please proceed with the booking process.`
+    setInputValue(bookingMessage)
+    
+    // Auto-send after brief delay
+    setTimeout(() => {
+      handleSendMessage()
+    }, 100)
+  }
+
+  /**
+   * Handle "Generate flight proposal" button click
+   * Generates a proposal PDF for the selected flight
+   */
+  const handleGenerateProposal = (flightId: string, quoteId?: string) => {
+    console.log('[Chat] Generate proposal clicked for flight:', flightId, 'quoteId:', quoteId)
+    // Select this flight for proposal
+    setSelectedRfqFlightIds([flightId])
+    onUpdateChat(activeChat.id, {
+      currentStep: 4,
+      status: 'proposal_ready',
+      selectedQuoteId: quoteId || flightId,
+    })
+    
+    // Insert proposal generation message into chat input
+    const proposalMessage = `Generate a flight proposal PDF for quote ${quoteId || flightId}. Include all flight details, pricing, and terms.`
+    setInputValue(proposalMessage)
+    
+    // Auto-send after brief delay
+    setTimeout(() => {
+      handleSendMessage()
+    }, 100)
+  }
+
+  /**
    * Close the quote details drawer
    */
   const handleCloseDrawer = () => {
@@ -1522,20 +1624,21 @@ export function ChatInterface({
         content: msg.content,
       }))
 
-      // Send Trip ID to the chat API - will trigger get_rfq tool with Trip ID
+      // Send Trip ID to the chat API - will trigger get_rfq and get_trip_messages tools
+      // Explicitly request both RFQ status and message activities
       console.log('[Chat] Sending Trip ID to API:', tripId);
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `Here is my Trip ID: ${tripId}`,
+          message: `Update RFQs for Trip ID: ${tripId}. Please retrieve RFQ status, quotes, and message activities using get_rfq and get_trip_messages tools.`,
           conversationHistory,
           context: {
             flightRequestId: activeChat.id,
             route: activeChat.route,
             passengers: activeChat.passengers,
             date: activeChat.date,
-            tripId: tripId, // Include Trip ID in context to trigger get_rfq
+            tripId: tripId, // Include Trip ID in context to trigger get_rfq and get_trip_messages
           },
         }),
       })
@@ -1681,6 +1784,54 @@ export function ChatInterface({
                       console.log('[TripID] Final quotes count:', quotes.length)
                       console.log('[TripID] Final RFQs count:', rfqs.length)
                       console.log('[TripID] Pre-transformed flights count:', preTransformedFlights.length)
+                    } else if (toolCall.name === "get_trip_messages" && toolCall.result) {
+                      // Handle get_trip_messages tool result
+                      // Store operator messages keyed by quote ID or RFQ ID
+                      console.log('[TripID] get_trip_messages result:', {
+                        hasMessages: !!toolCall.result.messages,
+                        messageCount: Array.isArray(toolCall.result.messages) ? toolCall.result.messages.length : 0,
+                        resultKeys: Object.keys(toolCall.result),
+                      })
+
+                      if (toolCall.result.messages && Array.isArray(toolCall.result.messages)) {
+                        // Group messages by quote ID or RFQ ID
+                        const operatorMessagesMap: Record<string, Array<{
+                          id: string
+                          type: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
+                          content: string
+                          timestamp: string
+                          sender?: string
+                        }>> = {}
+
+                        for (const msg of toolCall.result.messages) {
+                          // Extract quote ID or RFQ ID from message
+                          // Messages may have quote_id, rfq_id, or request_id
+                          const quoteId = msg.quote_id || msg.rfq_id || msg.request_id
+                          if (quoteId) {
+                            if (!operatorMessagesMap[quoteId]) {
+                              operatorMessagesMap[quoteId] = []
+                            }
+                            operatorMessagesMap[quoteId].push({
+                              id: msg.message_id || msg.id || `msg-${Date.now()}`,
+                              type: msg.type === 'SELLER' || msg.sender_type === 'SELLER' ? 'RESPONSE' : 'REQUEST',
+                              content: msg.content || msg.message || msg.text || '',
+                              timestamp: msg.timestamp || msg.created_at || msg.sent_at || new Date().toISOString(),
+                              sender: msg.sender_name || msg.operator_name || msg.sender || undefined,
+                            })
+                          }
+                        }
+
+                        // Update activeChat with operator messages
+                        if (Object.keys(operatorMessagesMap).length > 0) {
+                          console.log('[TripID] Storing operator messages for', Object.keys(operatorMessagesMap).length, 'quotes/RFQs')
+                          onUpdateChat(activeChat.id, {
+                            operatorMessages: {
+                              ...activeChat.operatorMessages,
+                              ...operatorMessagesMap,
+                            },
+                          })
+                        }
+                      }
                     }
                   }
                 }
@@ -2055,7 +2206,21 @@ export function ChatInterface({
                   // Show quotes whenever we have them, regardless of tripIdSubmitted status
                   // This allows quotes parsed from agent messages to be displayed immediately
                   // Ensure rfqFlights is always an array, never null/undefined
-                  rfqFlights={Array.isArray(rfqFlights) && rfqFlights.length > 0 ? rfqFlights : []}
+                  rfqFlights={Array.isArray(rfqFlights) && rfqFlights.length > 0 ? rfqFlights.map(flight => ({
+                    ...flight,
+                    // Determine if messages exist for this flight
+                    // When status is 'quoted', check if operatorMessages exist for this quoteId
+                    // If operatorMessages exist, hasMessages is true; otherwise assume messages may exist if quoted
+                    hasMessages: flight.rfqStatus === 'quoted' && (
+                      (activeChat.operatorMessages && flight.quoteId && activeChat.operatorMessages[flight.quoteId]?.length > 0) ||
+                      flight.rfqStatus === 'quoted' // If quoted, assume messages may exist (will be verified when user clicks Messages)
+                    ),
+                    // Extract messageId from operatorMessages if available
+                    // This is used by get_message tool (GET /tripmsgs/{messageId}) to retrieve specific messages
+                    messageId: activeChat.operatorMessages && flight.quoteId && activeChat.operatorMessages[flight.quoteId]?.length > 0
+                      ? activeChat.operatorMessages[flight.quoteId][0]?.id
+                      : flight.messageId, // Use messageId from flight data if available (from webhook events)
+                  })) : []}
                   selectedRfqFlightIds={selectedRfqFlightIds}
                   rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
                   onRfqFlightSelectionChange={setSelectedRfqFlightIds}
@@ -2080,9 +2245,14 @@ export function ChatInterface({
                     hasWifi: true,
                     rfqStatus: 'unanswered' as const,
                   })) : []}
-                  onViewChat={(flightId) => {
-                    console.log('[Chat] View chat for flight:', flightId)
-                    handleViewQuoteDetails(flightId)
+                  onViewChat={(flightId, quoteId, messageId) => {
+                    handleViewChat(flightId, quoteId, messageId)
+                  }}
+                  onBookFlight={(flightId, quoteId) => {
+                    handleBookFlight(flightId, quoteId)
+                  }}
+                  onGenerateProposal={(flightId, quoteId) => {
+                    handleGenerateProposal(flightId, quoteId)
                   }}
                   // Pipeline dashboard props for inline deals/requests view
                   showPipeline={message.showPipeline}

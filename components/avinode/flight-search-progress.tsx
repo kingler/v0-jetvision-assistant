@@ -116,7 +116,11 @@ export interface FlightSearchProgressProps {
   /** Callback when deep link is copied */
   onCopyDeepLink?: () => void;
   /** Callback when View Chat is clicked for a flight */
-  onViewChat?: (flightId: string) => void;
+  onViewChat?: (flightId: string, quoteId?: string, messageId?: string) => void;
+  /** Callback when "Book flight" button is clicked */
+  onBookFlight?: (flightId: string, quoteId?: string) => void;
+  /** Callback when "Generate flight proposal" button is clicked */
+  onGenerateProposal?: (flightId: string, quoteId?: string) => void;
   /** Callback when RFQ flight selection changes */
   onRfqFlightSelectionChange?: (selectedIds: string[]) => void;
   /** Callback when user clicks continue to proposal */
@@ -338,6 +342,8 @@ export function FlightSearchProgress({
   onDeepLinkClick,
   onCopyDeepLink,
   onViewChat,
+  onBookFlight,
+  onGenerateProposal,
   onRfqFlightSelectionChange,
   onContinueToProposal,
   onReviewAndBook,
@@ -718,7 +724,7 @@ export function FlightSearchProgress({
                         ) : (
                           <>
                             <Search className="h-4 w-4" />
-                            View RFQs
+                            Update RFQs
                           </>
                         )}
                       </Button>
@@ -738,8 +744,8 @@ export function FlightSearchProgress({
                 )}
               </div>
 
-              {/* Scrollable content area - RFQ Flights List with fixed height to prevent layout shifts */}
-              <div className="overflow-y-auto" style={{ maxHeight: '500px' }}>
+              {/* Content area - RFQ Flights List without height constraints to show all flights at once */}
+              <div>
                 <div className="p-6 pt-4">
                   {/* Show RFQ Flights List when Trip ID is submitted OR we have flights to display */}
                   {(tripIdSubmitted || rfqFlights.length > 0) && (
@@ -797,7 +803,6 @@ export function FlightSearchProgress({
                           selectable={!onReviewAndBook}
                           showSelectAll={!onReviewAndBook}
                           sortable
-                          filterable
                           showContinueButton={!onReviewAndBook}
                           showPriceBreakdown
                           showBookButton={!!onReviewAndBook}
@@ -805,6 +810,8 @@ export function FlightSearchProgress({
                           onContinue={onContinueToProposal}
                           onReviewAndBook={onReviewAndBook}
                           onViewChat={onViewChat}
+                          onBookFlight={onBookFlight}
+                          onGenerateProposal={onGenerateProposal}
                         />
                       )}
                     </div>
