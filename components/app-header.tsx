@@ -72,8 +72,9 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
 
           {/* Right side: Settings, User info, User button */}
           <nav className="flex items-center space-x-2 sm:space-x-3">
-            <SettingsDropdownMenu />
             <div className="flex items-center space-x-2">
+              {/* Settings dropdown menu - moved before user name */}
+              <SettingsDropdownMenu />
               {/* User name (hidden on mobile) */}
               {user && (
                 <span className="hidden sm:inline text-sm text-gray-300">

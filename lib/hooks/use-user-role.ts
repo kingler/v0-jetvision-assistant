@@ -34,14 +34,25 @@ export function useUserRole(): UseUserRoleReturn {
         const response = await fetch('/api/users/me');
         if (response.ok) {
           const userData = await response.json();
-          setRole(userData.role);
+          setRole(userData.user?.role || userData.role);
+        } else if (response.status === 403 || response.status === 404) {
+          // User not found or not synced to database - expected for new users
+          // Don't log as error, just set role to null
+          setRole(null);
         } else {
-          console.error('Failed to fetch user role');
+          // Only log unexpected errors
+          console.error('Failed to fetch user role:', response.status, response.statusText);
           setRole(null);
         }
       } catch (error) {
-        console.error('Error fetching user role:', error);
-        setRole(null);
+        // Only log unexpected errors (network issues, etc.)
+        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+          // Network error - don't spam console
+          setRole(null);
+        } else {
+          console.error('Error fetching user role:', error);
+          setRole(null);
+        }
       } finally {
         setLoading(false);
       }

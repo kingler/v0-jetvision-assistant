@@ -151,6 +151,8 @@ export interface RFQFlightCardProps {
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
   /** Whether operator messages exist for this flight (triggers display of action buttons) */
   hasMessages?: boolean;
+  /** Whether there are new/unread messages from the operator (shows notification dot on Messages button) */
+  hasNewMessages?: boolean;
   /** Quote ID for retrieving messages and status */
   quoteId?: string;
   /** Message ID for retrieving specific message */
@@ -385,6 +387,7 @@ export function RFQFlightCard({
   onBookFlight,
   onGenerateProposal,
   hasMessages = false,
+  hasNewMessages = false,
   quoteId,
   messageId,
   aircraftCategory,
@@ -593,18 +596,28 @@ export function RFQFlightCard({
                 >
                   {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
                 </span>
-                {/* Messages Button */}
+                {/* Messages Button with notification dot for new messages */}
                 {onViewChat && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleViewChat}
-                    className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
-                    aria-label="View chat"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    Messages
-                  </Button>
+                  <div className="relative inline-block">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleViewChat}
+                      className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                      aria-label="View chat"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Messages
+                    </Button>
+                    {/* Notification dot - positioned at top right corner, overlaps button border */}
+                    {hasNewMessages && (
+                      <span
+                        className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-gray-900 z-10"
+                        aria-label="New messages"
+                        title="New messages from operator"
+                      />
+                    )}
+                  </div>
                 )}
 
                 {/* Action Buttons: Book flight and Generate proposal (shown when status is 'quoted' and messages exist) */}
@@ -799,16 +812,26 @@ export function RFQFlightCard({
                 Messages from operators can be retrieved via get_trip_messages tool (GET /tripmsgs/{requestId}/chat)
               */}
               {onViewChat && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleViewChat}
-                  className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100"
-                  aria-label="View chat"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  View Messages
-                </Button>
+                <div className="relative inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleViewChat}
+                    className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100"
+                    aria-label="View chat"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    View Messages
+                  </Button>
+                  {/* Notification dot - positioned at top right corner, overlaps button border */}
+                  {hasNewMessages && (
+                    <span
+                      className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-gray-900 z-10"
+                      aria-label="New messages"
+                      title="New messages from operator"
+                    />
+                  )}
+                </div>
               )}
               {/* Action Buttons: Book flight and Generate proposal (shown when status is 'quoted' and messages exist) */}
               {/* Positioned after Messages button to the right in the same flex container */}

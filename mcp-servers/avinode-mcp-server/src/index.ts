@@ -1009,16 +1009,117 @@ async function createTrip(params: CreateTripParams) {
  */
 function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
   // Combine ALL quotes from ALL possible arrays to ensure we don't miss any
+  // Avinode API response structure can have quotes in multiple locations:
+  // - rfqData.quotes[] - Direct quotes array
+  // - rfqData.requests[] - Request objects with quotes
+  // - rfqData.responses[] - Response objects with quotes
+  // - rfqData.sellerLift[] - Seller lift array (PRIMARY location for quotes with prices)
+  // - rfqData.lifts[] - Alternative lift array name
   const quotesFromQuotes = Array.isArray(rfqData.quotes) ? rfqData.quotes : [];
   const quotesFromRequests = Array.isArray(rfqData.requests) ? rfqData.requests : [];
   const quotesFromResponses = Array.isArray(rfqData.responses) ? rfqData.responses : [];
+  
+  // PRIMARY: Extract quotes from sellerLift array (this is where Avinode API returns quotes with prices)
+  // sellerLift[] contains lift objects, each lift may have:
+  // - lift.quote_id - The quote ID
+  // - lift.price - The quote price
+  // - lift.currency - The currency
+  // - lift.status - Quote status (quoted, declined, etc.)
+  // - lift.sellerCompany - Operator information
+  // - lift.links.quotes[] - Links to quote details
+  const sellerLifts = Array.isArray(rfqData.sellerLift) ? rfqData.sellerLift : 
+                      (Array.isArray(rfqData.lifts) ? rfqData.lifts : []);
+  
+  // Extract quotes from sellerLift array
+  // IMPORTANT: Based on API testing, sellerLift[] contains lift objects with:
+  // - lift.id - Lift identifier (asellerlift-*)
+  // - lift.links.quotes[] - Array of quote link objects with { id, href, type }
+  // - lift.aircraftType, lift.aircraftTail - Aircraft information
+  // - lift.sourcingStatus, lift.sourcingDisplayStatus - Status information
+  // NOTE: Prices are NOT in sellerLift directly - they must be fetched from the quote endpoint
+  // using the quote ID from lift.links.quotes[].id
+  // IMPORTANT: After fetching quote details, the lift object is merged with quote details
+  // So lift.sellerPrice, lift.sellerMessage, etc. are already available from the merged quote details
+  const quotesFromSellerLift = sellerLifts.flatMap((lift: any) => {
+    // Check if lift has quote links (PRIMARY structure from API)
+    if (lift.links?.quotes && Array.isArray(lift.links.quotes)) {
+      // Each quote link contains { id, href, type }
+      // CRITICAL: After fetching quote details, the lift object is merged with quote details
+      // So we should use the lift object directly (which has sellerPrice, sellerMessage merged in)
+      // instead of creating a new object with price: 0
+      return lift.links.quotes.map((quoteLink: any) => {
+        // Use the merged lift object as the base (includes sellerPrice, sellerMessage from fetched quote details)
+        // Only override specific fields that come from the quote link
+        return {
+          ...lift, // Spread the entire lift object (includes merged quote details: sellerPrice, sellerMessage, etc.)
+          // Quote ID from link (override if needed)
+          quote_id: quoteLink.id,
+          id: quoteLink.id,
+          // Ensure aircraft data is accessible (may already be in lift from merge)
+          aircraft: lift.aircraft || {
+            type: lift.aircraftType,
+            tailNumber: lift.aircraftTail,
+            category: lift.aircraftCategory,
+          },
+          // Status from lift
+          status: lift.sourcingDisplayStatus === 'Accepted' ? 'quoted' : 
+                  lift.sourcingDisplayStatus === 'Declined' ? 'declined' : 
+                  lift.status || 'pending',
+          sourcingStatus: lift.sourcingStatus,
+          sourcingDisplayStatus: lift.sourcingDisplayStatus,
+          // Store lift ID for reference
+          lift_id: lift.id,
+          // CRITICAL: sellerPrice and sellerMessage are already in lift from merged quote details
+          // Don't override with price: 0 - use the merged data
+          // price and currency will come from lift.sellerPrice (merged from quote details)
+        };
+      });
+    }
+    // Fallback: If lift itself has quote_id or price, treat it as a quote
+    // In this case, the lift is already the quote object (possibly merged with quote details)
+    if (lift.quote_id || lift.id || lift.price !== undefined || lift.sellerPrice) {
+      return [lift];
+    }
+    return [];
+  });
+  
+  // Log sellerLift extraction for debugging
+  if (quotesFromSellerLift.length > 0) {
+    const sampleQuote = quotesFromSellerLift[0];
+    console.log('[transformToRFQFlights] Extracted', quotesFromSellerLift.length, 'quotes from sellerLift');
+    console.log('[transformToRFQFlights] Sample sellerLift quote:', {
+      quote_id: sampleQuote.quote_id,
+      id: sampleQuote.id,
+      // CRITICAL: Check if sellerPrice is present (from merged quote details)
+      has_sellerPrice: !!sampleQuote.sellerPrice,
+      sellerPrice: sampleQuote.sellerPrice,
+      sellerPrice_price: sampleQuote.sellerPrice?.price,
+      sellerPrice_currency: sampleQuote.sellerPrice?.currency,
+      // Legacy price fields (should be 0 if sellerPrice is used)
+      price: sampleQuote.price,
+      currency: sampleQuote.currency,
+      status: sampleQuote.status,
+      operator: sampleQuote.sellerCompany?.displayName,
+      has_sellerMessage: !!sampleQuote.sellerMessage,
+      // Log all keys to see what's available
+      keys: Object.keys(sampleQuote),
+    });
+    
+    // CRITICAL: Verify that sellerPrice is accessible
+    if (sampleQuote.sellerPrice?.price) {
+      console.log('[transformToRFQFlights] ✅ sellerPrice found in quote object:', sampleQuote.sellerPrice.price, sampleQuote.sellerPrice.currency);
+    } else {
+      console.warn('[transformToRFQFlights] ⚠️ sellerPrice NOT found in quote object - price extraction will fail');
+    }
+  }
   
   // Use a Set to deduplicate by quote ID if the same quote appears in multiple arrays
   const allQuotesMap = new Map<string, any>();
   
   // Add quotes from all sources, using quote ID as key to prevent duplicates
-  [...quotesFromQuotes, ...quotesFromRequests, ...quotesFromResponses].forEach((quote: any) => {
-    const quoteId = quote.quote?.id || quote.id;
+  // PRIORITY: sellerLift quotes first (most reliable source with prices), then others
+  [...quotesFromSellerLift, ...quotesFromQuotes, ...quotesFromRequests, ...quotesFromResponses].forEach((quote: any) => {
+    const quoteId = quote.quote_id || quote.quote?.id || quote.id;
     if (quoteId && !allQuotesMap.has(quoteId)) {
       allQuotesMap.set(quoteId, quote);
     } else if (!quoteId) {
@@ -1029,6 +1130,17 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
   
   // Convert map back to array
   const quotes = Array.from(allQuotesMap.values());
+  
+  // Log quote sources for debugging
+  if (quotes.length > 0) {
+    console.log('[transformToRFQFlights] Quote sources:', {
+      sellerLift: quotesFromSellerLift.length,
+      quotes: quotesFromQuotes.length,
+      requests: quotesFromRequests.length,
+      responses: quotesFromResponses.length,
+      total: quotes.length,
+    });
+  }
 
   // Get route data from RFQ level (fallback for quote-level route data)
   const rfqDepartureAirport = rfqData.route?.departure?.airport;
@@ -1040,10 +1152,29 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     // When operator responds with a quote, status should be 'quoted'
     // When operator declines, status should be 'declined'
     // Otherwise, status is 'unanswered' or 'sent' (if RFQ was sent but no response yet)
+    // 
+    // CRITICAL: Status can come from multiple sources:
+    // 1. quote.status (direct status field)
+    // 2. quote.sourcingDisplayStatus (from sellerLift - "Accepted" = quoted, "Declined" = declined)
+    // 3. quote.sourcingStatus (numeric: 2 = Accepted/quoted)
+    // 4. quote.quote?.status (nested quote object)
+    // 5. rfqData.status (RFQ-level status)
     let rfqStatus: RFQFlight['rfqStatus'];
     
-    // Check quote status first (most reliable indicator of operator response)
-    if (quote.status === 'quoted' || quote.quote?.status === 'quoted') {
+    // PRIMARY: Check sourcingDisplayStatus from sellerLift (most reliable for Avinode API)
+    // "Accepted" means operator has provided a quote (quoted status)
+    // "Declined" means operator declined the request
+    if (quote.sourcingDisplayStatus === 'Accepted') {
+      rfqStatus = 'quoted';
+    } else if (quote.sourcingDisplayStatus === 'Declined') {
+      rfqStatus = 'declined';
+    }
+    // SECONDARY: Check sourcingStatus (numeric: 2 = Accepted/quoted)
+    else if (quote.sourcingStatus === 2) {
+      rfqStatus = 'quoted';
+    }
+    // TERTIARY: Check quote.status (direct status field)
+    else if (quote.status === 'quoted' || quote.quote?.status === 'quoted') {
       rfqStatus = 'quoted';
     } else if (quote.status === 'declined' || quote.quote?.status === 'declined') {
       rfqStatus = 'declined';
@@ -1057,6 +1188,18 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
       rfqStatus = 'unanswered';
     }
     
+           // Log status determination for debugging
+           console.log('[transformToRFQFlights] 📊 Status determination for quote', quote.quote?.id || quote.id || quote.quote_id, ':', {
+             finalStatus: rfqStatus,
+             sourcingDisplayStatus: quote.sourcingDisplayStatus,
+             sourcingStatus: quote.sourcingStatus,
+             quote_status: quote.status,
+             quote_quote_status: quote.quote?.status,
+             rfqData_status: rfqData.status,
+             statusIsUnanswered: rfqStatus === 'unanswered',
+             statusIsQuoted: rfqStatus === 'quoted',
+           })
+    
     const hasQuote = rfqStatus === 'quoted';
 
     // Extract aircraft data
@@ -1067,8 +1210,75 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     const passengerCapacity = quote.aircraft?.capacity || rfqData.passengers || 0;
 
     // Extract pricing data
-    const totalPrice = hasQuote ? (quote.totalPrice?.amount || quote.quote?.totalPrice?.amount || quote.pricing?.total || 0) : 0;
-    const currency = hasQuote ? (quote.totalPrice?.currency || quote.quote?.totalPrice?.currency || quote.pricing?.currency || 'USD') : 'USD';
+    // IMPORTANT: Based on API testing, prices are in sellerPrice object when fetching quote details
+    // When you fetch /quotes/{id}, the response contains:
+    // - sellerPrice.price (PRIMARY - the actual quote price)
+    // - sellerPrice.currency (PRIMARY - the currency code)
+    // - sellerPriceWithoutCommission.price (alternative - price without commission)
+    // The fetched quote details are merged into the lift object, so we check:
+    // - quote.sellerPrice.price (PRIMARY - from fetched quote details)
+    // - quote.sellerPrice.currency (PRIMARY - from fetched quote details)
+    // - quote.sellerPriceWithoutCommission.price (fallback - price without commission)
+    // - quote.totalPrice.amount (fallback - if available in some responses)
+    // - quote.price (fallback - direct price if available)
+    // CRITICAL: After merging quote details into sellerLift, sellerPrice is at the top level
+    // Check sellerPrice first (from merged quote details), then fallbacks
+    const totalPrice = hasQuote ? (
+      quote.sellerPrice?.price || // PRIMARY: From fetched quote details (merged at top level)
+      quote.sellerPriceWithoutCommission?.price || // Fallback: Price without commission
+      quote.totalPrice?.amount || // Fallback: Structured price object (if available)
+      quote.quote?.sellerPrice?.price || // Fallback: Nested quote.sellerPrice
+      quote.quote?.totalPrice?.amount || // Fallback: Nested quote object
+      quote.price || // Fallback: Direct price from sellerLift (if available)
+      quote.pricing?.total || // Fallback: Pricing breakdown total
+      0
+    ) : 0;
+    const currency = hasQuote ? (
+      quote.sellerPrice?.currency || // PRIMARY: From fetched quote details (merged at top level)
+      quote.sellerPriceWithoutCommission?.currency || // Fallback: Currency without commission
+      quote.totalPrice?.currency || // Fallback: Structured price object (if available)
+      quote.quote?.sellerPrice?.currency || // Fallback: Nested quote.sellerPrice
+      quote.quote?.totalPrice?.currency || // Fallback: Nested quote object
+      quote.currency || // Fallback: Direct currency from sellerLift (if available)
+      quote.pricing?.currency || // Fallback: Pricing breakdown currency
+      'USD'
+    ) : 'USD';
+    
+           // Log price extraction for debugging
+           if (hasQuote && totalPrice > 0) {
+             console.log('[transformToRFQFlights] ✅ Extracted price for quote', quote.quote?.id || quote.id || quote.quote_id, ':', currency, totalPrice, {
+               from_sellerPrice: !!quote.sellerPrice?.price,
+               from_quote_sellerPrice: !!quote.quote?.sellerPrice?.price,
+               from_totalPrice: !!quote.totalPrice?.amount,
+               from_price: !!quote.price,
+               sellerPrice_value: quote.sellerPrice,
+               quote_keys: Object.keys(quote),
+             });
+           } else if (hasQuote && totalPrice === 0) {
+             console.error('[transformToRFQFlights] ❌ Quote has no price extracted - THIS IS THE PROBLEM:', {
+               quote_id: quote.quote?.id || quote.id || quote.quote_id,
+               has_sellerPrice: !!quote.sellerPrice,
+               sellerPrice_value: quote.sellerPrice,
+               sellerPrice_type: typeof quote.sellerPrice,
+               has_quote: !!quote.quote,
+               quote_keys: quote.quote ? Object.keys(quote.quote) : [],
+               quote_keys_all: Object.keys(quote),
+               // Log the actual quote object structure to debug
+               quote_sample: JSON.stringify(quote).substring(0, 500),
+             });
+           }
+           
+           // CRITICAL: Always log price extraction result (even if 0) to debug
+           console.log('[transformToRFQFlights] 💰 Price extraction result:', {
+             quoteId: quote.quote?.id || quote.id || quote.quote_id,
+             totalPrice,
+             currency,
+             hasQuote,
+             priceIsZero: totalPrice === 0,
+             sellerPrice: quote.sellerPrice,
+             sellerPricePrice: quote.sellerPrice?.price,
+             sellerPriceCurrency: quote.sellerPrice?.currency,
+           })
     const priceBreakdown = hasQuote && quote.pricing ? {
       basePrice: quote.pricing.basePrice || quote.pricing.base_price || 0,
       fuelSurcharge: quote.pricing.fuelSurcharge || quote.pricing.fuel_surcharge,
@@ -1123,18 +1333,36 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
 
     // Extract message ID if available (from webhook events or API response)
     // Message ID may be in various locations: message.id, messageId, latestMessage.id, etc.
+    // NOTE: sellerMessage is a string field (operator message text), not an object with an ID
+    // For actual message objects, check message.id or links.tripmsgs[]
     const messageId = quote.message?.id || 
                      quote.messageId || 
                      quote.latestMessage?.id ||
                      quote.messages?.[0]?.id ||
-                     quote.sellerMessage?.id;
+                     (quote.sellerMessage && typeof quote.sellerMessage === 'object' ? quote.sellerMessage.id : undefined);
+    
+    // Extract seller message text (PRIMARY source for operator messages from quote API)
+    // sellerMessage is a string field in the quote response containing the operator's message
+    // This is the message that operators include when submitting quotes
+    // Example: "This price is subject to availability, slots, traffic rights and schedule..."
+    const sellerMessageText = typeof quote.sellerMessage === 'string' 
+      ? quote.sellerMessage 
+      : (quote.sellerMessage?.content || quote.sellerMessage?.text || undefined);
+    
+    // Log seller message extraction for debugging
+    if (sellerMessageText) {
+      console.log('[transformToRFQFlights] Found seller message for quote', quote.quote?.id || quote.id, ':', sellerMessageText.substring(0, 100));
+    }
 
-    // Assemble the RFQFlight object
-    return {
+    // CRITICAL: Log final RFQFlight object before returning
+    const finalRFQFlight = {
       id: `flight-${quote.quote?.id || quote.id || index + 1}`,
       quoteId: quote.quote?.id || quote.id || `quote-${index + 1}`,
       // Include messageId if available (for retrieving specific messages)
       messageId: messageId,
+      // Include seller message text if available (from quote.sellerMessage field)
+      // This is the PRIMARY source for operator messages when fetching quote details
+      sellerMessage: sellerMessageText,
       departureAirport: {
         icao: departureAirport.icao,
         name: departureAirport.name || quote.route?.departure?.name,
@@ -1154,11 +1382,18 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
       yearOfManufacture,
       passengerCapacity,
       tailPhotoUrl,
-      operatorName: quote.seller?.companyName || quote.operator?.name || quote.operator_name || 'Unknown Operator',
+      operatorName: quote.sellerCompany?.displayName || // From sellerLift (PRIMARY)
+                    quote.seller?.companyName || 
+                    quote.operator?.name || 
+                    quote.operator_name || 
+                    quote.seller?.name ||
+                    'Unknown Operator',
       operatorRating: quote.seller?.rating || quote.operator?.rating,
       operatorEmail: quote.seller?.email || quote.operator?.email,
-      totalPrice,
-      currency,
+      // CRITICAL: Set totalPrice and currency from extracted values
+      // These should come from quote.sellerPrice (merged from fetched quote details)
+      totalPrice: totalPrice || 0, // Ensure it's never undefined
+      currency: currency || 'USD', // Ensure it's never undefined
       priceBreakdown,
       validUntil: hasQuote ? quote.validUntil : undefined,
       amenities,
@@ -1167,7 +1402,22 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
       responseTimeMinutes: quote.response_time_minutes,
       isSelected: false,
       avinodeDeepLink: rfqData.deep_link,
-    };
+    }
+    
+    // CRITICAL: Log final RFQFlight object to verify price and status
+    console.log('[transformToRFQFlights] 🎯 FINAL RFQFlight object:', {
+      id: finalRFQFlight.id,
+      quoteId: finalRFQFlight.quoteId,
+      totalPrice: finalRFQFlight.totalPrice,
+      currency: finalRFQFlight.currency,
+      rfqStatus: finalRFQFlight.rfqStatus,
+      operatorName: finalRFQFlight.operatorName,
+      priceIsZero: finalRFQFlight.totalPrice === 0,
+      statusIsUnanswered: finalRFQFlight.rfqStatus === 'unanswered',
+      statusIsQuoted: finalRFQFlight.rfqStatus === 'quoted',
+    })
+    
+    return finalRFQFlight
   }).filter((flight): flight is RFQFlight => flight !== null);
 }
 
@@ -1403,23 +1653,142 @@ async function getRFQ(params: GetRFQParams) {
     for (const rfq of rfqs) {
       // Extract quotes for backward compatibility
       // Check multiple possible locations for quotes in the response
+      // NOTE: sellerLift is handled in transformToRFQFlights, not here
       const quotes = rfq.quotes || 
                     rfq.requests || 
                     rfq.responses || 
                     (rfq.lifts && Array.isArray(rfq.lifts) ? rfq.lifts.flatMap((lift: any) => lift.quotes || []) : []) ||
                     [];
       
+      // Check for sellerLift array (PRIMARY location for quotes with prices in Avinode API)
+      const hasSellerLift = !!(rfq.sellerLift && Array.isArray(rfq.sellerLift) && rfq.sellerLift.length > 0);
+      const sellerLiftCount = hasSellerLift ? rfq.sellerLift.length : 0;
+      
       console.log('[getRFQ] Processing RFQ:', {
         rfq_id: rfq.rfq_id || rfq.id,
         trip_id: rfq.trip_id,
         status: rfq.status,
         has_quotes: !!(rfq.quotes && rfq.quotes.length > 0),
+        has_sellerLift: hasSellerLift, // PRIMARY: Check sellerLift array
+        sellerLift_count: sellerLiftCount,
         has_lifts: !!(rfq.lifts && Array.isArray(rfq.lifts) && rfq.lifts.length > 0),
         has_requests: !!(rfq.requests && rfq.requests.length > 0),
         has_responses: !!(rfq.responses && rfq.responses.length > 0),
         quotes_count: quotes.length,
         rfq_keys: Object.keys(rfq),
       });
+      
+      // IMPORTANT: Extract quote IDs from sellerLift[].links.quotes[] and fetch quote details for prices
+      // Based on API testing, sellerLift contains lift objects with links.quotes[] array
+      // Each quote link has { id, href, type } - we need to fetch the quote details to get prices
+      if (hasSellerLift) {
+        const quoteIds: string[] = [];
+        for (const lift of rfq.sellerLift) {
+          if (lift.links?.quotes && Array.isArray(lift.links.quotes)) {
+            for (const quoteLink of lift.links.quotes) {
+              if (quoteLink.id) {
+                quoteIds.push(quoteLink.id);
+              }
+            }
+          }
+        }
+        
+        if (quoteIds.length > 0) {
+          console.log('[getRFQ] Found', quoteIds.length, 'quote IDs in sellerLift, fetching quote details for prices...');
+          
+          // Fetch quote details to get prices
+          // This ensures we have complete price information when transforming to RFQFlight
+          const quoteDetails = await Promise.all(
+            quoteIds.map(async (quoteId: string) => {
+              try {
+                const quoteResponse = await avinodeClient.get(`/quotes/${quoteId}`);
+                return quoteResponse.data?.data || quoteResponse.data;
+              } catch (error: any) {
+                console.warn('[getRFQ] Failed to fetch quote details for', quoteId, ':', error?.message || 'Unknown error');
+                return null;
+              }
+            })
+          );
+          
+          // Merge quote details into sellerLift objects
+          const validQuoteDetails = quoteDetails.filter(Boolean);
+          if (validQuoteDetails.length > 0) {
+            console.log('[getRFQ] Successfully fetched', validQuoteDetails.length, 'quote details with prices');
+            // Attach quote details to sellerLift for transformToRFQFlights to use
+            for (let i = 0; i < rfq.sellerLift.length; i++) {
+              const lift = rfq.sellerLift[i];
+              if (lift.links?.quotes && Array.isArray(lift.links.quotes)) {
+                for (let j = 0; j < lift.links.quotes.length; j++) {
+                  const quoteLink = lift.links.quotes[j];
+                  const quoteDetail = validQuoteDetails.find((qd: any) => qd.id === quoteLink.id || qd.quote_id === quoteLink.id);
+                  if (quoteDetail) {
+                    // Merge quote details into lift object for transformToRFQFlights
+                    // IMPORTANT: sellerMessage contains the operator's message text
+                    // This is the PRIMARY source for operator messages when quotes are fetched
+                    // CRITICAL: Preserve the lift structure while merging quote details
+                    // The transformToRFQFlights function expects sellerLift items to have:
+                    // - links.quotes[] (for quote ID)
+                    // - sellerPrice (from quoteDetail)
+                    // - sellerMessage (from quoteDetail)
+                    // - All other quote fields merged at top level
+                    rfq.sellerLift[i] = {
+                      ...lift,
+                      ...quoteDetail, // Merge all quote detail fields (including sellerPrice, sellerMessage)
+                      quote: quoteDetail, // Also store in quote field for compatibility
+                      // Ensure sellerPrice is accessible at top level (PRIMARY source for price extraction)
+                      sellerPrice: quoteDetail.sellerPrice || lift.sellerPrice,
+                      // Ensure sellerMessage is accessible at top level (PRIMARY source for message extraction)
+                      sellerMessage: quoteDetail.sellerMessage || lift.sellerMessage,
+                      // Preserve links structure (needed for quote ID extraction)
+                      links: lift.links || quoteDetail.links,
+                    };
+                    
+                    // Log price and message extraction for debugging
+                    if (quoteDetail.sellerPrice?.price) {
+                      console.log('[getRFQ] Merged quote details for', quoteLink.id, '- Price:', quoteDetail.sellerPrice.price, quoteDetail.sellerPrice.currency);
+                    }
+                    if (quoteDetail.sellerMessage) {
+                      console.log('[getRFQ] Found seller message for quote', quoteLink.id, ':', quoteDetail.sellerMessage.substring(0, 100));
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Log sellerLift structure if present (for debugging price extraction)
+      if (hasSellerLift && rfq.sellerLift.length > 0) {
+        const sampleLift = rfq.sellerLift[0];
+        console.log('[getRFQ] sellerLift sample after fetching quote details:', {
+          lift_id: sampleLift.id,
+          quote_id: sampleLift.quote_id || sampleLift.id,
+          // CRITICAL: Check if sellerPrice is present (from merged quote details)
+          has_sellerPrice: !!sampleLift.sellerPrice,
+          sellerPrice: sampleLift.sellerPrice,
+          sellerPrice_price: sampleLift.sellerPrice?.price,
+          sellerPrice_currency: sampleLift.sellerPrice?.currency,
+          // Legacy price fields (may be 0 if sellerPrice is used)
+          price: sampleLift.price,
+          totalPrice: sampleLift.totalPrice,
+          currency: sampleLift.currency,
+          status: sampleLift.status,
+          operator: sampleLift.sellerCompany?.displayName || sampleLift.seller?.displayName,
+          has_links: !!sampleLift.links,
+          has_quote_detail: !!sampleLift.quote,
+          has_sellerMessage: !!sampleLift.sellerMessage,
+          // Log all keys to see what's available
+          keys: Object.keys(sampleLift),
+        });
+        
+        // CRITICAL: Verify that sellerPrice is accessible at top level after merge
+        if (sampleLift.sellerPrice?.price) {
+          console.log('[getRFQ] ✅ Price successfully merged into sellerLift:', sampleLift.sellerPrice.price, sampleLift.sellerPrice.currency);
+        } else {
+          console.warn('[getRFQ] ⚠️ Price NOT found in sellerLift after merge - check quote detail fetching');
+        }
+      }
       
       // Transform this RFQ's quotes to RFQFlight format
       const flights = transformToRFQFlights(rfq, rfq.trip_id || params.rfq_id);

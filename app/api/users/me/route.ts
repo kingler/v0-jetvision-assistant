@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withRBAC } from '@/lib/middleware/rbac';
-import { createClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -37,11 +37,10 @@ export const GET = withRBAC(
       }
 
       const { userId } = context;
-      const supabase = await createClient();
 
       // Query iso_agents table using Clerk user ID
       // Note: Table name is 'iso_agents' but RBAC resource is 'users' for consistency
-      const { data: isoAgent, error } = await supabase
+      const { data: isoAgent, error } = await supabaseAdmin
         .from('iso_agents')
         .select('*')
         .eq('clerk_user_id', userId)
@@ -108,11 +107,9 @@ export const PATCH = withRBAC(
         );
       }
 
-      const supabase = await createClient();
-
       // Update iso_agents table using Clerk user ID
       // Note: Table name is 'iso_agents' but RBAC resource is 'users' for consistency
-      const { data: isoAgent, error } = await supabase
+      const { data: isoAgent, error } = await supabaseAdmin
         .from('iso_agents')
         .update({
           ...allowedUpdates,

@@ -283,6 +283,7 @@ export function RFQFlightsList({
               onBookFlight={onBookFlight}
               onGenerateProposal={onGenerateProposal}
               hasMessages={(flight as any).hasMessages ?? (flight.rfqStatus === 'quoted')}
+              hasNewMessages={(flight as any).hasNewMessages ?? false}
               quoteId={flight.quoteId}
               messageId={(flight as any).messageId}
               aircraftCategory={(flight as any).aircraftCategory}

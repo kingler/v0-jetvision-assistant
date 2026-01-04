@@ -58,7 +58,7 @@ export const PERMISSIONS: PermissionMatrix = {
     clients: ['create', 'read', 'update', 'delete'],
     requests: ['create', 'read', 'update', 'delete'],
     quotes: ['create', 'read', 'update', 'delete'],
-    users: ['create', 'read', 'update', 'delete'],
+    users: ['create', 'read', 'update', 'delete', 'read_own', 'update_own'],
     analytics: ['read_all'],
   },
   customer: {

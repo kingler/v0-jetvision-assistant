@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { createClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { UserRole } from '@/lib/types/database';
 
 // ============================================================================
@@ -79,7 +79,7 @@ export const PERMISSIONS: PermissionMatrix = {
     clients: ['create', 'read', 'update', 'delete'],
     requests: ['create', 'read', 'update', 'delete'],
     quotes: ['create', 'read', 'update', 'delete'],
-    users: ['create', 'read', 'update', 'delete'],
+    users: ['create', 'read', 'update', 'delete', 'read_own', 'update_own'],
     analytics: ['read_all'],
   },
   customer: {
@@ -163,9 +163,7 @@ export function hasPermission(
  */
 export async function getUserRole(clerkUserId: string): Promise<UserRole | null> {
   try {
-    const supabase = await createClient();
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('iso_agents')
       .select('role')
       .eq('clerk_user_id', clerkUserId)

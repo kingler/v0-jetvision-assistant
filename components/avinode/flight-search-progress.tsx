@@ -354,6 +354,19 @@ export function FlightSearchProgress({
 }: FlightSearchProgressProps) {
   const [copied, setCopied] = useState(false);
 
+  // Debug: Log button label calculation
+  const buttonLabel = useMemo(() => {
+    const label = rfqsLastFetchedAt || rfqFlights.length > 0 ? 'Update RFQs' : 'View RFQs';
+    console.log('[FlightSearchProgress] Button label calculation:', {
+      rfqsLastFetchedAt,
+      rfqFlightsCount: rfqFlights.length,
+      calculatedLabel: label,
+      tripId,
+      hasOnTripIdSubmit: !!onTripIdSubmit,
+    });
+    return label;
+  }, [rfqsLastFetchedAt, rfqFlights.length, tripId, onTripIdSubmit]);
+
   /**
    * Memoized no-op function for Trip ID submission fallback.
    * Prevents creating new function instances on every render,
@@ -707,14 +720,35 @@ export function FlightSearchProgress({
                   </div>
                 )}
 
-                {/* View RFQs button - Always visible when Trip ID is available */}
+                {/* View/Update RFQs button - Always visible when Trip ID is available */}
+                {/* Button label changes conditionally: "View RFQs" first time, "Update RFQs" after RFQs are loaded */}
                 {tripId && (
                   <div className="mb-6">
                     <div className="flex items-center gap-3">
                       <Button
-                        onClick={() => onTripIdSubmit?.(tripId)}
-                        disabled={isTripIdLoading}
+                        onClick={() => {
+                          // Log button click for debugging
+                          console.log('[FlightSearchProgress] Button clicked:', {
+                            tripId,
+                            hasOnTripIdSubmit: !!onTripIdSubmit,
+                            isTripIdLoading,
+                            rfqsLastFetchedAt,
+                            rfqFlightsCount: rfqFlights.length,
+                            buttonLabel,
+                          })
+                          
+                          // Call handler if provided, otherwise log warning
+                          if (onTripIdSubmit) {
+                            onTripIdSubmit(tripId).catch((error) => {
+                              console.error('[FlightSearchProgress] Error in onTripIdSubmit:', error)
+                            })
+                          } else {
+                            console.warn('[FlightSearchProgress] onTripIdSubmit is not provided - button click ignored')
+                          }
+                        }}
+                        disabled={isTripIdLoading || !onTripIdSubmit}
                         className="flex items-center gap-2"
+                        aria-label={rfqsLastFetchedAt || rfqFlights.length > 0 ? 'Update RFQs' : 'View RFQs'}
                       >
                         {isTripIdLoading ? (
                           <>
@@ -724,7 +758,8 @@ export function FlightSearchProgress({
                         ) : (
                           <>
                             <Search className="h-4 w-4" />
-                            Update RFQs
+                            {/* Conditional label: "View RFQs" first time, "Update RFQs" after RFQs are loaded */}
+                            {rfqsLastFetchedAt || rfqFlights.length > 0 ? 'Update RFQs' : 'View RFQs'}
                           </>
                         )}
                       </Button>

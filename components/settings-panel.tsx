@@ -54,7 +54,7 @@ export function SettingsDropdownMenu() {
         <Button
           variant="ghost"
           size="sm"
-          className="flex items-center space-x-2 rounded-lg transition-all text-gray-300 hover:text-white hover:bg-gray-800 data-[state=open]:bg-cyan-600 data-[state=open]:hover:bg-cyan-700 data-[state=open]:text-white data-[state=open]:shadow-sm"
+          className="flex items-center space-x-2 rounded-lg border-0 bg-transparent text-gray-300 transition-colors hover:bg-cyan-700 hover:text-white data-[state=open]:bg-cyan-600 data-[state=open]:text-white data-[state=open]:shadow-sm"
         >
           <Settings className="w-4 h-4" />
           <span className="hidden sm:inline">Settings</span>
@@ -75,103 +75,6 @@ export function SettingsDropdownMenu() {
             Configure margins and commission structures
           </p>
         </div>
-
-        <DropdownMenuSeparator />
-
-        {/* Margin Configuration Section */}
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="flex items-center space-x-2 px-0 py-2 font-[family-name:var(--font-space-grotesk)]">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-base font-semibold">Margin Configuration</span>
-          </DropdownMenuLabel>
-          
-          <div className="space-y-4 pl-6">
-            <div className="space-y-2">
-              <Label>Base Margin Type</Label>
-              <Select value={marginType} onValueChange={(value: "fixed" | "percentage") => setMarginType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fixed">Fixed Amount</SelectItem>
-                  <SelectItem value="percentage">Percentage</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {marginType === "fixed" ? (
-              <div className="space-y-2">
-                <Label>Default Margin ($)</Label>
-                <Input
-                  type="number"
-                  value={marginValue}
-                  onChange={(e) => setMarginValue(Number(e.target.value))}
-                  placeholder="5000"
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Default Margin (%)</Label>
-                <div className="px-3">
-                  <Slider
-                    value={[marginPercentage]}
-                    onValueChange={(value) => setMarginPercentage(value[0])}
-                    max={100}
-                    min={10}
-                    step={5}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                    <span>10%</span>
-                    <span className="font-medium">{marginPercentage}%</span>
-                    <span>100%</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <Separator />
-
-            <div className="space-y-3">
-              <Label>Dynamic Margin Rules</Label>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="client-pricing" className="text-sm cursor-pointer">
-                    Enable client-based pricing
-                  </Label>
-                  <Switch 
-                    id="client-pricing" 
-                    checked={enableClientPricing} 
-                    onCheckedChange={setEnableClientPricing}
-                    aria-label="Enable client-based pricing"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="route-pricing" className="text-sm cursor-pointer">
-                    Enable route-based pricing
-                  </Label>
-                  <Switch 
-                    id="route-pricing" 
-                    checked={enableRoutePricing} 
-                    onCheckedChange={setEnableRoutePricing}
-                    aria-label="Enable route-based pricing"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="demand-pricing" className="text-sm cursor-pointer">
-                    Enable demand-based pricing
-                  </Label>
-                  <Switch 
-                    id="demand-pricing" 
-                    checked={enableDemandPricing} 
-                    onCheckedChange={setEnableDemandPricing}
-                    aria-label="Enable demand-based pricing"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
 
@@ -296,4 +199,3 @@ export function SettingsDropdownMenu() {
     </DropdownMenu>
   )
 }
-

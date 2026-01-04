@@ -15,7 +15,7 @@ import OpenAI from 'openai'
 import type { ChatCompletionMessageToolCall } from 'openai/resources/chat/completions'
 import { z } from 'zod'
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
-import { supabaseAdmin, findRequestByTripId, listUserTrips } from '@/lib/supabase'
+import { supabaseAdmin, findRequestByTripId, listUserTrips, upsertRequestWithTripId } from '@/lib/supabase'
 import type { PipelineData, PipelineStats, PipelineRequest } from '@/lib/types/chat-agent'
 import { detectTripId, normalizeTripId } from '@/lib/avinode/trip-id'
 
@@ -26,6 +26,14 @@ import {
   SSE_HEADERS,
 } from '@/lib/agents'
 import type { AgentStreamResponse } from '@/lib/types/chat-agent'
+
+// Message persistence imports
+import {
+  getOrCreateConversation,
+  saveMessage,
+  getIsoAgentIdFromClerkUserId,
+  linkConversationToRequest,
+} from '@/lib/conversation/message-persistence'
 
 // Feature flag for agent-based processing
 const USE_AGENT_ORCHESTRATION = process.env.USE_AGENT_ORCHESTRATION !== 'false'
@@ -80,7 +88,7 @@ CRITICAL WORKFLOW: When a user provides flight details (airports, dates, passeng
 Tool Usage Rules:
 - Flight request with airports + date + passengers → Call create_trip (returns deep_link)
 - User provides a Trip ID → Call get_rfq with the Trip ID to retrieve all RFQs and quotes for that trip
-- When user clicks "Update RFQs" or requests RFQ updates → Call BOTH get_rfq AND get_trip_messages to retrieve RFQ status, quotes, and message activities
+- When user clicks "View RFQs" (first time) or "Update RFQs" (subsequent refreshes) → Call BOTH get_rfq AND get_trip_messages to retrieve RFQ status, quotes, and message activities
 - User asks about quote status → Call get_quote_status or get_quotes
 - For flight search preview → Call search_flights (optional, for showing options)
 
@@ -94,9 +102,11 @@ Human-in-the-Loop Workflow:
 2. You present the Avinode marketplace deep link prominently
 3. The user opens the deep link in Avinode, reviews operators, and selects which ones to contact
 4. After operators respond (10-30 minutes), user gets quotes with a Trip ID
-5. User provides the Trip ID or clicks "Update RFQs" → You call BOTH get_rfq AND get_trip_messages with the Trip ID to retrieve:
-   - All RFQs and quotes for that trip (get_rfq)
+5. User provides the Trip ID or clicks "View RFQs" / "Update RFQs" → You MUST call BOTH get_rfq AND get_trip_messages with the Trip ID to retrieve:
+   - RFQ status, quotes with prices, operator names, and quote statuses (get_rfq)
    - Message activities and operator responses (get_trip_messages)
+   - This ensures the UI displays the latest RFQ status, pricing, and any new messages from operators
+   - NOTE: Both initial viewing and updates use the SAME tools to ensure consistency
 6. DO NOT list flight details in your response - they are already displayed in Step 3 of the UI
 7. Instead, provide clear instructions about next steps
 
@@ -285,7 +295,7 @@ const AVINODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_rfq',
-      description: 'Get RFQ (Request for Quote) details including all received quotes from operators. This tool automatically handles both RFQ IDs and Trip IDs: Use with RFQ ID (arfq-*) for a single RFQ, or Trip ID (atrip-*) to get all RFQs for that trip. When user provides a Trip ID, use this tool with the Trip ID to retrieve all RFQs and quotes.',
+      description: 'Get RFQ (Request for Quote) details including RFQ status, all received quotes from operators with prices, currency, quote status, and operator names. This tool automatically handles both RFQ IDs and Trip IDs: Use with RFQ ID (arfq-*) for a single RFQ, or Trip ID (atrip-*) to get all RFQs for that trip. Returns: RFQ status, quotes with price/currency/status/operator, and message links. When user provides a Trip ID or clicks "View RFQs" / "Update RFQs", use this tool to retrieve the latest RFQ status and quote information.',
       parameters: {
         type: 'object',
         properties: {
@@ -319,7 +329,7 @@ const AVINODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_trip_messages',
-      description: 'Retrieve the message history for a trip conversation thread. Use this to check for operator messages and responses. Supports both trip ID and request ID (RFQ ID) formats. When updating RFQs, use this tool to retrieve message activities and check if operators have sent messages.',
+      description: 'Retrieve the message history for a trip conversation thread. Use this to check for operator messages and responses. Supports both trip ID and request ID (RFQ ID) formats. When user clicks "View RFQs" (first time) or "Update RFQs" (subsequent refreshes), use this tool to retrieve message activities and check if operators have sent messages.',
       parameters: {
         type: 'object',
         properties: {
@@ -455,13 +465,8 @@ async function fetchPipelineData(userId: string): Promise<PipelineData> {
  */
 export async function POST(req: NextRequest) {
   try {
-    // Check for auth bypass in development mode
-    const isDevelopment = process.env.NODE_ENV === 'development'
-    const bypassAuth = isDevelopment && process.env.BYPASS_AUTH === 'true'
-
-    // Authenticate user with Clerk (or use dev bypass)
-    const { userId: clerkUserId } = await auth()
-    const userId = clerkUserId || (bypassAuth ? 'dev-user-bypass' : null)
+    // Authenticate user with Clerk - required in all environments
+    const { userId } = await auth()
 
     if (!userId) {
       return new Response(
@@ -494,6 +499,51 @@ export async function POST(req: NextRequest) {
     }
 
     const { message, conversationHistory, context } = validationResult.data
+
+    // =========================================================================
+    // MESSAGE PERSISTENCE: Save user message and get/create conversation
+    // =========================================================================
+    let conversationId: string | null = null
+    let userMessageId: string | null = null
+    let isoAgentId: string | null = null
+
+    // Get ISO agent ID for message persistence
+    try {
+      isoAgentId = await getIsoAgentIdFromClerkUserId(userId)
+    } catch (error) {
+      console.error('[Chat API] Error getting ISO agent ID:', error)
+      // Continue without message persistence if this fails
+    }
+
+    // Save user message if we have ISO agent ID
+    // Note: requestId may be a temp ID for new chats - we'll handle that in getOrCreateConversation
+    if (isoAgentId) {
+      try {
+        conversationId = await getOrCreateConversation({
+          requestId: context?.flightRequestId, // May be undefined or temp ID
+          userId: isoAgentId,
+          subject: context?.route 
+            ? `Flight Request: ${context.route}`
+            : 'New Flight Request',
+        })
+
+        userMessageId = await saveMessage({
+          conversationId,
+          senderType: 'iso_agent',
+          senderIsoAgentId: isoAgentId,
+          content: message,
+          contentType: 'text',
+        })
+
+        console.log('[Chat API] Saved user message:', {
+          conversationId,
+          messageId: userMessageId,
+        })
+      } catch (error) {
+        console.error('[Chat API] Error saving user message:', error)
+        // Continue processing even if message save fails
+      }
+    }
 
     // =========================================================================
     // ONEK-137: Multi-Agent System Integration
@@ -543,8 +593,36 @@ export async function POST(req: NextRequest) {
           // Continue to legacy processing below
         } else {
           // Check if MCP is using mock mode for response metadata
-          const mcp = getAvinodeMCP()
-          const isMockMode = mcp.isUsingMockMode()
+          const orchestratorMCP = getAvinodeMCP()
+          const isMockMode = orchestratorMCP.isUsingMockMode()
+
+          // Extract response content from agent result for persistence
+          const agentResponseContent = (result.data as { response?: string })?.response || ''
+          
+          // Save agent response to database if we have a conversation
+          if (conversationId && agentResponseContent.trim()) {
+            try {
+              await saveMessage({
+                conversationId,
+                senderType: 'ai_assistant',
+                senderName: 'JetVision AI',
+                content: agentResponseContent,
+                contentType: 'text',
+                metadata: {
+                  agent: 'orchestrator',
+                  success: result.success,
+                  hasError: !!result.error,
+                },
+              })
+              console.log('[Chat API] Saved orchestrator agent response:', {
+                conversationId,
+                contentLength: agentResponseContent.length,
+              })
+            } catch (error) {
+              console.error('[Chat API] Error saving orchestrator response:', error)
+              // Don't fail the request if message save fails
+            }
+          }
 
           // Stream response using the new adapter
           return new Response(createAgentSSEStream(result, isMockMode), {
@@ -591,11 +669,11 @@ export async function POST(req: NextRequest) {
     // Add current user message
     messages.push({ role: 'user', content: message })
 
-    // Check if Avinode MCP is available (for tool use)
-    const mcp = getAvinodeMCP()
-    const isMockMode = mcp.isUsingMockMode()
+    // Get Avinode MCP instance once for the entire function (used in multiple places)
+    const avinodeMCPInstance = getAvinodeMCP()
+    const isMockModeValue = avinodeMCPInstance.isUsingMockMode()
 
-    console.log(`[Chat API] Processing message with Avinode tools (mock mode: ${isMockMode})`)
+    console.log(`[Chat API] Processing message with Avinode tools (mock mode: ${isMockModeValue})`)
 
     // Detect if message contains flight details that should trigger tool usage
     const messageText = message.toLowerCase()
@@ -720,13 +798,13 @@ export async function POST(req: NextRequest) {
           ? `Found ${total} trip${total !== 1 ? 's' : ''} in your account. Here are your recent flights:`
           : `You don't have any trips yet. Start by telling me where you'd like to fly!`
 
-        const mcp = getAvinodeMCP()
-        const isMockMode = mcp.isUsingMockMode()
+        const tripsMCP = getAvinodeMCP()
+        const isMockMode = tripsMCP.isUsingMockMode()
 
         const responseData = {
           content: tripsContent,
           done: true,
-          mock_mode: isMockMode,
+          mock_mode: isMockModeValue,
           trips_data: {
             trips: trips.map(t => ({
               id: t.id,
@@ -768,8 +846,8 @@ export async function POST(req: NextRequest) {
     if (wantsPipeline) {
       console.log('[Chat API] Pipeline intent detected - fetching pipeline data')
       const pipelineData = await fetchPipelineData(userId)
-      const mcp = getAvinodeMCP()
-      const isMockMode = mcp.isUsingMockMode()
+      const pipelineMCP = getAvinodeMCP()
+      const isMockMode = pipelineMCP.isUsingMockMode()
 
       // Generate a friendly response message
       const pipelineContent = pipelineData.stats.totalRequests > 0
@@ -779,7 +857,7 @@ export async function POST(req: NextRequest) {
       const responseData = {
         content: pipelineContent,
         done: true,
-        mock_mode: isMockMode,
+        mock_mode: isMockModeValue,
         pipeline_data: pipelineData,
       }
 
@@ -1065,7 +1143,7 @@ export async function POST(req: NextRequest) {
               : JSON.stringify(toolResults[i].content)
           ) : null,
         })),
-        mock_mode: isMockMode,
+        mock_mode: isMockModeValue,
       }
 
       // Add diagnostic data to help debug prod vs dev differences
@@ -1110,6 +1188,44 @@ export async function POST(req: NextRequest) {
 
       if (tripData) {
         responseData.trip_data = tripData
+        
+        // If create_trip was successful and we have a conversation, try to create/link request
+        if (tripData.trip_id && isoAgentId && conversationId) {
+          try {
+            // Extract flight details from tool call arguments
+            const createTripCall = allFunctionToolCalls.find(tc => tc.function.name === 'create_trip')
+            if (createTripCall) {
+              const tripArgs = JSON.parse(createTripCall.function.arguments)
+              
+              // Create or update request with trip ID
+              const request = await upsertRequestWithTripId(
+                tripData.trip_id,
+                isoAgentId,
+                {
+                  departure_airport: tripArgs.departure_airport || '',
+                  arrival_airport: tripArgs.arrival_airport || '',
+                  departure_date: tripArgs.departure_date || new Date().toISOString(),
+                  passengers: tripArgs.passengers || 1,
+                  deep_link: tripData.deep_link,
+                }
+              )
+
+              // Link conversation to the newly created/updated request
+              if (request) {
+                await linkConversationToRequest(conversationId, request.id)
+                console.log('[Chat API] Linked conversation to request:', {
+                  conversationId,
+                  requestId: request.id,
+                  tripId: tripData.trip_id,
+                })
+              }
+            }
+          } catch (error) {
+            console.error('[Chat API] Error creating/linking request from trip:', error)
+            // Don't fail the request if this fails
+          }
+        }
+        
         console.log(`[Chat API] Including trip_data in response:`, JSON.stringify(tripData, null, 2))
       }
 
@@ -1160,6 +1276,8 @@ export async function POST(req: NextRequest) {
     }
 
     // No tool calls - stream the response directly
+    // Reuse the MCP instance already declared above
+    
     const stream = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages,
@@ -1169,8 +1287,9 @@ export async function POST(req: NextRequest) {
       user: userId,
     })
 
-    // Set up SSE response
+    // Set up SSE response with message accumulation for persistence
     const encoder = new TextEncoder()
+    let accumulatedContent = ''
 
     const readableStream = new ReadableStream({
       async start(controller) {
@@ -1178,14 +1297,41 @@ export async function POST(req: NextRequest) {
           for await (const chunk of stream) {
             const content = chunk.choices[0]?.delta?.content || ''
             if (content) {
+              // Accumulate content for persistence
+              accumulatedContent += content
+              
               // Send SSE formatted data
-              const data = JSON.stringify({ content, done: false, mock_mode: isMockMode })
+              const data = JSON.stringify({ content, done: false, mock_mode: isMockModeValue })
               controller.enqueue(encoder.encode(`data: ${data}\n\n`))
             }
 
             // Check if stream is complete
             if (chunk.choices[0]?.finish_reason === 'stop') {
-              const doneData = JSON.stringify({ content: '', done: true, mock_mode: isMockMode })
+              // Save agent response to database before closing stream
+              if (conversationId && accumulatedContent.trim()) {
+                try {
+                  await saveMessage({
+                    conversationId,
+                    senderType: 'ai_assistant',
+                    senderName: 'JetVision AI',
+                    content: accumulatedContent,
+                    contentType: 'text',
+                    metadata: {
+                      finish_reason: chunk.choices[0]?.finish_reason,
+                      model: 'gpt-4o',
+                    },
+                  })
+                  console.log('[Chat API] Saved agent response:', {
+                    conversationId,
+                    contentLength: accumulatedContent.length,
+                  })
+                } catch (error) {
+                  console.error('[Chat API] Error saving agent response:', error)
+                  // Don't fail the request if message save fails
+                }
+              }
+
+              const doneData = JSON.stringify({ content: '', done: true, mock_mode: isMockModeValue })
               controller.enqueue(encoder.encode(`data: ${doneData}\n\n`))
             }
           }
@@ -1193,6 +1339,26 @@ export async function POST(req: NextRequest) {
           controller.close()
         } catch (error) {
           console.error('[Chat API] Streaming error:', error)
+          
+          // Try to save partial response if we have content
+          if (conversationId && accumulatedContent.trim()) {
+            try {
+              await saveMessage({
+                conversationId,
+                senderType: 'ai_assistant',
+                senderName: 'JetVision AI',
+                content: accumulatedContent,
+                contentType: 'text',
+                metadata: {
+                  error: true,
+                  partial: true,
+                },
+              })
+            } catch (saveError) {
+              console.error('[Chat API] Error saving partial response:', saveError)
+            }
+          }
+
           const errorData = JSON.stringify({
             error: true,
             message: 'Stream interrupted',

@@ -390,7 +390,54 @@ export function ChatInterface({
     // PRIMARY: Use rfqFlights from ChatSession if available (preserves all RFQFlight data)
     // This avoids data loss from converting between formats
     if (activeChat.rfqFlights && activeChat.rfqFlights.length > 0) {
-      return activeChat.rfqFlights.filter((f): f is RFQFlight => f != null && f.id != null)
+      const filtered = activeChat.rfqFlights.filter((f): f is RFQFlight => f != null && f.id != null)
+      
+      // CRITICAL: Log prices to verify they're being passed correctly
+      if (filtered.length > 0) {
+        console.log('[ChatInterface] 🔍 rfqFlights useMemo - retrieving from activeChat:', {
+          count: filtered.length,
+          sample: {
+            id: filtered[0].id,
+            quoteId: filtered[0].quoteId,
+            totalPrice: filtered[0].totalPrice,
+            currency: filtered[0].currency,
+            rfqStatus: filtered[0].rfqStatus,
+            priceIsZero: filtered[0].totalPrice === 0,
+            statusIsUnanswered: filtered[0].rfqStatus === 'unanswered',
+          },
+          allFlights: filtered.map(f => ({ 
+            id: f.id, 
+            quoteId: f.quoteId,
+            price: f.totalPrice, 
+            currency: f.currency,
+            status: f.rfqStatus,
+            priceIsZero: f.totalPrice === 0,
+            statusIsUnanswered: f.rfqStatus === 'unanswered',
+          })),
+        })
+        
+        // WARNING: If prices are still 0, log a warning
+        const flightsWithZeroPrice = filtered.filter(f => f.totalPrice === 0)
+        if (flightsWithZeroPrice.length > 0) {
+          console.warn('[ChatInterface] ⚠️ WARNING: Found flights with $0 price:', flightsWithZeroPrice.map(f => ({
+            id: f.id,
+            quoteId: f.quoteId,
+            status: f.rfqStatus,
+          })))
+        }
+        
+        // WARNING: If status is still "unanswered", log a warning
+        const flightsWithUnansweredStatus = filtered.filter(f => f.rfqStatus === 'unanswered')
+        if (flightsWithUnansweredStatus.length > 0) {
+          console.warn('[ChatInterface] ⚠️ WARNING: Found flights with "unanswered" status:', flightsWithUnansweredStatus.map(f => ({
+            id: f.id,
+            quoteId: f.quoteId,
+            price: f.totalPrice,
+          })))
+        }
+      }
+      
+      return filtered
     }
 
     // FALLBACK: Convert quotes from activeChat.quotes (for backward compatibility)
@@ -1033,10 +1080,14 @@ export function ChatInterface({
                   const aircraftType = q.aircraft_type || q.aircraftType || q.aircraft?.type || q.aircraft?.model || "Unknown Aircraft"
                   
                   // Extract price (supports nested pricing object or flat structure)
-                  const price = q.total_price || q.price || q.totalPrice?.amount || q.pricing?.total || q.pricing?.base_price || q.basePrice || 0
+                  // PRIMARY: sellerPrice.price (from fetched quote details via API)
+                  // Fallback: other price fields for backward compatibility
+                  const price = q.sellerPrice?.price || q.total_price || q.price || q.totalPrice?.amount || q.pricing?.total || q.pricing?.base_price || q.basePrice || 0
                   
                   // Extract currency (supports nested pricing object or flat structure)
-                  const currency = q.currency || q.totalPrice?.currency || q.pricing?.currency || 'USD'
+                  // PRIMARY: sellerPrice.currency (from fetched quote details via API)
+                  // Fallback: other currency fields for backward compatibility
+                  const currency = q.sellerPrice?.currency || q.currency || q.totalPrice?.currency || q.pricing?.currency || 'USD'
                   
                   // Extract operator rating (supports nested operator object or flat structure)
                   const operatorRating = q.operator_rating || q.operatorRating || q.operator?.rating
@@ -1307,10 +1358,12 @@ export function ChatInterface({
 
     if (!lastAgentMessage || !lastAgentMessage.content) return
 
-    // Only parse if we don't have quotes yet AND trip ID is submitted
-    // This ensures we don't overwrite quotes that came from tool results
+    // This useEffect is ONLY for parsing quotes from agent message text (fallback mechanism)
+    // It should NOT prevent updates when tool results are processed in the streaming handler
+    // Tool results are handled in the streaming response handler (handleTripIdSubmit), not here
+    // Only skip text parsing if quotes exist - but tool results will still update via streaming handler
     if (activeChat.quotes && activeChat.quotes.length > 0) {
-      console.log('[Chat] Quotes already exist, skipping text parsing')
+      console.log('[Chat] Quotes already exist, skipping text parsing (tool results will still update via streaming handler)')
       return
     }
 
@@ -1475,6 +1528,26 @@ export function ChatInterface({
     console.log('[Chat] View chat clicked for flight:', flightId, 'quoteId:', quoteId, 'messageId:', messageId)
     
     try {
+      // Mark messages as read when user views them
+      // Update lastMessagesReadAt timestamp for this quote ID
+      if (quoteId) {
+        const now = new Date().toISOString()
+        onUpdateChat(activeChat.id, {
+          lastMessagesReadAt: {
+            ...(activeChat.lastMessagesReadAt || {}),
+            [quoteId]: now,
+          },
+        })
+        console.log('[Chat] Marked messages as read for quote:', quoteId, 'at:', now)
+      }
+      
+      // Try to open quote details drawer if we have quote data
+      if (quoteId && activeChat.operatorMessages?.[quoteId]) {
+        setSelectedQuoteId(quoteId)
+        setIsDrawerOpen(true)
+        return
+      }
+      
       // Build message retrieval request for the agent
       // The agent will call the appropriate MCP tool based on the request
       let messageText = ''
@@ -1596,10 +1669,30 @@ export function ChatInterface({
   }
 
   /**
-   * Handle Trip ID submission - Step 3: View RFQ Flights
-   * Calls get_rfq MCP tool with Trip ID to retrieve all RFQs and quotes for the trip
-   * Uses the Avinode API endpoint: GET /rfqs/{tripId}
-   * Documentation: https://developer.avinodegroup.com/reference/readtriprfqs
+   * Handle Trip ID submission - Step 3: View/Update RFQ Flights
+   * 
+   * This function is called by BOTH:
+   * 1. Initial "View RFQs" button (first time viewing RFQs for a trip)
+   * 2. "Update RFQs" button (refreshing RFQs to get latest status, prices, and messages)
+   * 
+   * Both buttons use the SAME underlying functions:
+   * - get_rfq tool: Retrieves RFQ status, quotes with prices, operator information
+   * - get_trip_messages tool: Retrieves operator messages and responses
+   * 
+   * This ensures consistency - both initial viewing and updates fetch:
+   * - RFQ status (sent, unanswered, quoted, declined, expired)
+   * - Quote prices and currency
+   * - Operator names and details
+   * - Message activities from operators
+   * - Message timestamps for new message indicator calculation
+   * 
+   * Uses the Avinode API endpoints:
+   * - GET /trips/{tripId} or GET /rfqs/{id} (for get_rfq)
+   * - GET /tripmsgs/{tripId} or GET /tripmsgs/{requestId}/chat (for get_trip_messages)
+   * 
+   * Documentation: 
+   * - https://developer.avinodegroup.com/reference/readtriprfqs
+   * - https://developer.avinodegroup.com/reference/readmessage
    */
   const handleTripIdSubmit = async (tripId: string): Promise<void> => {
     console.log('[Chat] handleTripIdSubmit called with tripId:', tripId);
@@ -1626,12 +1719,15 @@ export function ChatInterface({
 
       // Send Trip ID to the chat API - will trigger get_rfq and get_trip_messages tools
       // Explicitly request both RFQ status and message activities
-      console.log('[Chat] Sending Trip ID to API:', tripId);
+      // Use the same message format for both initial viewing and updates to ensure consistency
+      const isUpdate = !!activeChat.rfqsLastFetchedAt
+      const actionText = isUpdate ? 'Update' : 'View'
+      console.log('[Chat] Sending Trip ID to API:', tripId, isUpdate ? '(Update RFQs)' : '(View RFQs - initial)');
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `Update RFQs for Trip ID: ${tripId}. Please retrieve RFQ status, quotes, and message activities using get_rfq and get_trip_messages tools.`,
+          message: `${actionText} RFQs for Trip ID: ${tripId}. Please retrieve the latest RFQ status, quotes with prices and operator information, and all message activities from operators. Use both get_rfq (for RFQ status, quotes, prices, and operator details) and get_trip_messages (for operator messages and responses) tools to get complete information.`,
           conversationHistory,
           context: {
             flightRequestId: activeChat.id,
@@ -1686,6 +1782,11 @@ export function ChatInterface({
               }
 
               if (data.done) {
+                // IMPORTANT: This block ALWAYS processes tool results, even if quotes already exist
+                // The "Quotes already exist, skipping text parsing" message is from a different useEffect
+                // that only handles text parsing - it does NOT prevent tool results from updating here
+                // This ensures prices, status, and messages are always refreshed when "View RFQs" or "Update RFQs" is clicked
+                
                 // Extract quotes and RFQs data from rfq_data if available
                 let quotes = []
                 let rfqs = [] // Store RFQs separately to handle those without quotes
@@ -1723,7 +1824,102 @@ export function ChatInterface({
                       // This is the preferred format from the MCP tool
                       if (toolCall.result.flights && Array.isArray(toolCall.result.flights)) {
                         preTransformedFlights = toolCall.result.flights as RFQFlight[]
-                        console.log('[TripID] Using pre-transformed flights array:', preTransformedFlights.length, 'flights')
+                        console.log('[TripID] ✅ Using pre-transformed flights array:', preTransformedFlights.length, 'flights')
+                        
+                        // CRITICAL: Log prices and status for each flight to verify extraction
+                        preTransformedFlights.forEach((flight, idx) => {
+                          console.log(`[TripID] Flight ${idx + 1} details:`, {
+                            id: flight.id,
+                            quoteId: flight.quoteId,
+                            totalPrice: flight.totalPrice,
+                            currency: flight.currency,
+                            rfqStatus: flight.rfqStatus,
+                            operatorName: flight.operatorName,
+                            priceIsZero: flight.totalPrice === 0,
+                            priceIsUndefined: flight.totalPrice === undefined,
+                            priceIsNull: flight.totalPrice === null,
+                            statusIsUnanswered: flight.rfqStatus === 'unanswered',
+                          })
+                        })
+
+                        // IMPORTANT: Extract seller messages from quotes and add to operatorMessages
+                        // sellerMessage is a string field in quote responses containing operator messages
+                        // These messages should be stored in operatorMessages[quoteId] for UI display
+                        const sellerMessagesFromQuotes: Record<string, Array<{
+                          id: string
+                          type: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
+                          content: string
+                          timestamp: string
+                          sender?: string
+                        }>> = {}
+                        
+                        for (const flight of preTransformedFlights) {
+                          // Check if flight has sellerMessage (from quote.sellerMessage field)
+                          const sellerMessage = (flight as any).sellerMessage
+                          if (sellerMessage && typeof sellerMessage === 'string' && sellerMessage.trim()) {
+                            const quoteId = flight.quoteId
+                            if (quoteId) {
+                              if (!sellerMessagesFromQuotes[quoteId]) {
+                                sellerMessagesFromQuotes[quoteId] = []
+                              }
+                              // Add seller message as a RESPONSE type (from operator)
+                              sellerMessagesFromQuotes[quoteId].push({
+                                id: `seller-msg-${quoteId}-${Date.now()}`,
+                                type: 'RESPONSE' as const,
+                                content: sellerMessage,
+                                timestamp: flight.lastUpdated || new Date().toISOString(),
+                                sender: flight.operatorName,
+                              })
+                              console.log('[TripID] Found seller message for quote', quoteId, ':', sellerMessage.substring(0, 100))
+                            }
+                          }
+                        }
+                        
+                        // Merge seller messages from quotes into operatorMessages
+                        if (Object.keys(sellerMessagesFromQuotes).length > 0) {
+                          console.log('[TripID] Extracted seller messages from', Object.keys(sellerMessagesFromQuotes).length, 'quotes')
+                          const updatedOperatorMessages: Record<string, Array<{
+                            id: string
+                            type: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
+                            content: string
+                            timestamp: string
+                            sender?: string
+                          }>> = { ...activeChat.operatorMessages }
+                          
+                          for (const [quoteId, messages] of Object.entries(sellerMessagesFromQuotes)) {
+                            const existingMessages = updatedOperatorMessages[quoteId] || []
+                            const existingMessageIds = new Set(existingMessages.map(m => m.id))
+                            
+                            // Add seller messages if not already present
+                            const uniqueSellerMessages = messages.filter(msg => !existingMessageIds.has(msg.id))
+                            if (uniqueSellerMessages.length > 0) {
+                              updatedOperatorMessages[quoteId] = [...existingMessages, ...uniqueSellerMessages]
+                              console.log('[TripID] ✅ Added', uniqueSellerMessages.length, 'seller messages for quote:', quoteId, {
+                                messageContent: uniqueSellerMessages[0].content.substring(0, 100),
+                                messageType: uniqueSellerMessages[0].type,
+                                sender: uniqueSellerMessages[0].sender,
+                              })
+                            } else {
+                              updatedOperatorMessages[quoteId] = existingMessages
+                              console.log('[TripID] Seller messages already exist for quote:', quoteId, 'count:', existingMessages.length)
+                            }
+                          }
+                          
+                          // Update chat with seller messages from quotes
+                          // CRITICAL: This ensures seller messages from quote.sellerMessage are available for message indicators
+                          console.log('[TripID] Updating operatorMessages with seller messages from quotes:', {
+                            totalQuotes: Object.keys(updatedOperatorMessages).length,
+                            messagesPerQuote: Object.entries(updatedOperatorMessages).map(([qId, msgs]) => ({
+                              quoteId: qId,
+                              messageCount: msgs.length,
+                            })),
+                          })
+                          onUpdateChat(activeChat.id, {
+                            operatorMessages: updatedOperatorMessages,
+                          })
+                        } else {
+                          console.log('[TripID] No seller messages found in pre-transformed flights')
+                        }
 
                         // Also populate quotes for backward compatibility with conversion logic
                         // The flights are already in RFQFlight format, so we'll use them directly later
@@ -1731,6 +1927,32 @@ export function ChatInterface({
 
                         if (toolCall.result.rfqs && Array.isArray(toolCall.result.rfqs)) {
                           rfqs = toolCall.result.rfqs
+                          
+                          // Extract message IDs from trip response's links.tripmsgs[] if available
+                          // These message IDs can be used to fetch individual messages
+                          const messageIdsFromTrip: string[] = []
+                          for (const rfqItem of toolCall.result.rfqs) {
+                            if (rfqItem.links?.tripmsgs && Array.isArray(rfqItem.links.tripmsgs)) {
+                              for (const msgLink of rfqItem.links.tripmsgs) {
+                                if (msgLink.id) {
+                                  messageIdsFromTrip.push(msgLink.id)
+                                }
+                              }
+                            }
+                          }
+                          // Also check trip-level message links if available
+                          if (toolCall.result.links?.tripmsgs && Array.isArray(toolCall.result.links.tripmsgs)) {
+                            for (const msgLink of toolCall.result.links.tripmsgs) {
+                              if (msgLink.id && !messageIdsFromTrip.includes(msgLink.id)) {
+                                messageIdsFromTrip.push(msgLink.id)
+                              }
+                            }
+                          }
+                          if (messageIdsFromTrip.length > 0) {
+                            console.log('[TripID] Found message IDs in trip response:', messageIdsFromTrip.length, 'messages')
+                            // Note: Individual messages will be fetched via get_trip_messages or get_message tools
+                            // The agent should handle fetching these messages
+                          }
                         }
 
                         // Check for RFQs without quotes (status is 'sent' or 'unanswered')
@@ -1754,7 +1976,15 @@ export function ChatInterface({
                         })))
 
                         // Extract all quotes from all RFQs
+                        // IMPORTANT: Check sellerLift array (PRIMARY location for quotes with prices in Avinode API)
                         quotes = toolCall.result.rfqs.flatMap((rfq: any) => {
+                          // PRIMARY: Check sellerLift array (contains quotes with prices)
+                          if (rfq.sellerLift && Array.isArray(rfq.sellerLift) && rfq.sellerLift.length > 0) {
+                            console.log('[TripID] Found sellerLift array in RFQ:', rfq.rfq_id || rfq.id, 'with', rfq.sellerLift.length, 'lifts')
+                            // sellerLift contains lift objects which are quote objects with prices
+                            return rfq.sellerLift
+                          }
+                          // SECONDARY: Check quotes array
                           if (Array.isArray(rfq.quotes)) {
                             return rfq.quotes
                           } else if (rfq.quote) {
@@ -1765,6 +1995,17 @@ export function ChatInterface({
                           return []
                         })
                         console.log('[TripID] Extracted quotes from RFQs array:', quotes.length)
+                        if (quotes.length > 0) {
+                          console.log('[TripID] Sample quote structure:', {
+                            hasPrice: 'price' in quotes[0],
+                            price: quotes[0].price,
+                            hasTotalPrice: 'totalPrice' in quotes[0],
+                            totalPrice: quotes[0].totalPrice,
+                            hasPricing: 'pricing' in quotes[0],
+                            pricing: quotes[0].pricing,
+                            quoteKeys: Object.keys(quotes[0]),
+                          })
+                        }
                       }
                       // LEGACY FORMAT: Top-level quotes array
                       else if (toolCall.result.quotes && Array.isArray(toolCall.result.quotes)) {
@@ -1804,31 +2045,83 @@ export function ChatInterface({
                         }>> = {}
 
                         for (const msg of toolCall.result.messages) {
-                          // Extract quote ID or RFQ ID from message
-                          // Messages may have quote_id, rfq_id, or request_id
-                          const quoteId = msg.quote_id || msg.rfq_id || msg.request_id
+                          // Extract quote ID from message
+                          // Messages from Avinode API have sellerQuote.id which is the quote ID
+                          // Also check links.quotes[] or lift[].links.quotes[] for quote IDs
+                          let quoteId: string | undefined
+                          
+                          // Primary: sellerQuote.id (from message response)
+                          if (msg.sellerQuote?.id) {
+                            quoteId = msg.sellerQuote.id
+                          }
+                          // Secondary: lift[].links.quotes[].id (from message lift array)
+                          else if (msg.lift && Array.isArray(msg.lift) && msg.lift.length > 0) {
+                            const firstLift = msg.lift[0]
+                            if (firstLift.links?.quotes && Array.isArray(firstLift.links.quotes) && firstLift.links.quotes.length > 0) {
+                              quoteId = firstLift.links.quotes[0].id
+                            }
+                          }
+                          // Tertiary: links.quotes[].id (from message links)
+                          else if (msg.links?.quotes && Array.isArray(msg.links.quotes) && msg.links.quotes.length > 0) {
+                            quoteId = msg.links.quotes[0].id
+                          }
+                          // Fallback: rfq_id or request_id (map to RFQ, will need to find quote later)
+                          else {
+                            quoteId = msg.quote_id || msg.rfq_id || msg.request_id
+                          }
+                          
                           if (quoteId) {
                             if (!operatorMessagesMap[quoteId]) {
                               operatorMessagesMap[quoteId] = []
                             }
                             operatorMessagesMap[quoteId].push({
                               id: msg.message_id || msg.id || `msg-${Date.now()}`,
-                              type: msg.type === 'SELLER' || msg.sender_type === 'SELLER' ? 'RESPONSE' : 'REQUEST',
-                              content: msg.content || msg.message || msg.text || '',
-                              timestamp: msg.timestamp || msg.created_at || msg.sent_at || new Date().toISOString(),
-                              sender: msg.sender_name || msg.operator_name || msg.sender || undefined,
+                              type: msg.type === 'SELLER' || msg.sender_type === 'SELLER' || msg.rfqAccepted ? 'RESPONSE' : 'REQUEST',
+                              content: msg.content || msg.message || msg.text || msg.message || '',
+                              timestamp: msg.timestamp || msg.created_at || msg.createdOn || msg.sent_at || new Date().toISOString(),
+                              sender: msg.sender_name || msg.operator_name || msg.sellerCompany?.displayName || msg.sender || undefined,
                             })
                           }
                         }
 
                         // Update activeChat with operator messages
+                        // Track which messages are new (unread) based on timestamp comparison
+                        // When "View RFQs" or "Update RFQs" is clicked, merge new messages with existing ones
+                        // This ensures we don't lose previously retrieved messages while adding new ones
                         if (Object.keys(operatorMessagesMap).length > 0) {
                           console.log('[TripID] Storing operator messages for', Object.keys(operatorMessagesMap).length, 'quotes/RFQs')
+                          
+                          // Merge new messages with existing ones
+                          // For each quote ID, combine messages from both sources (avoid duplicates by message ID)
+                          const updatedOperatorMessages: Record<string, Array<{
+                            id: string
+                            type: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
+                            content: string
+                            timestamp: string
+                            sender?: string
+                          }>> = { ...activeChat.operatorMessages }
+                          
+                          for (const [quoteId, newMessages] of Object.entries(operatorMessagesMap)) {
+                            const existingMessages = updatedOperatorMessages[quoteId] || []
+                            const existingMessageIds = new Set(existingMessages.map(m => m.id))
+                            
+                            // Add only new messages (not already in existing messages)
+                            const uniqueNewMessages = newMessages.filter(msg => !existingMessageIds.has(msg.id))
+                            
+                            if (uniqueNewMessages.length > 0) {
+                              updatedOperatorMessages[quoteId] = [...existingMessages, ...uniqueNewMessages]
+                              console.log('[TripID] Added', uniqueNewMessages.length, 'new messages for quote:', quoteId)
+                            } else {
+                              // Keep existing messages if no new ones
+                              updatedOperatorMessages[quoteId] = existingMessages
+                            }
+                          }
+                          
+                          // Update chat with merged messages
+                          // Don't update lastMessagesReadAt here - only update when user actually views messages
+                          // This ensures messages remain "new" until explicitly viewed
                           onUpdateChat(activeChat.id, {
-                            operatorMessages: {
-                              ...activeChat.operatorMessages,
-                              ...operatorMessagesMap,
-                            },
+                            operatorMessages: updatedOperatorMessages,
                           })
                         }
                       }
@@ -1986,15 +2279,58 @@ export function ChatInterface({
                 console.log('[TripID] Total RFQFlight items:', allFormattedQuotes.length)
                 console.log('[TripID] Sample flight:', allFormattedQuotes.length > 0 ? allFormattedQuotes[0] : null)
                 
+                // Log price information for debugging
+                if (preTransformedFlights.length > 0) {
+                  console.log('[TripID] Pre-transformed flights with prices:', preTransformedFlights.map(f => ({
+                    id: f.id,
+                    quoteId: f.quoteId,
+                    price: f.totalPrice,
+                    currency: f.currency,
+                    status: f.rfqStatus,
+                    operator: f.operatorName,
+                  })))
+                }
+                if (allFormattedQuotes.length > 0) {
+                  console.log('[TripID] Formatted quotes with prices:', allFormattedQuotes.map(f => ({
+                    id: f.id,
+                    quoteId: f.quoteId,
+                    price: f.totalPrice,
+                    currency: f.currency,
+                    status: f.rfqStatus,
+                    operator: f.operatorName,
+                  })))
+                }
+                
                 // Mark Trip ID as submitted successfully - update both local state and chat state
                 setTripIdSubmitted(true)
 
                 // PRIMARY: Save full RFQFlight[] data to rfqFlights field
                 // This preserves all fields (departureAirport, arrivalAirport, amenities, rfqStatus, etc.)
                 // needed by RFQFlightCard and RFQFlightsList components
-                const rfqFlightsForChatSession = allFormattedQuotes.length > 0 
-                  ? allFormattedQuotes 
-                  : activeChat.rfqFlights
+                // IMPORTANT: When "View RFQs" or "Update RFQs" is clicked, always replace existing flights with new data
+                // Priority: preTransformedFlights (from getRFQFlights MCP tool with prices) > allFormattedQuotes > empty array
+                // This ensures prices, status, and message indicators are refreshed correctly
+                const rfqFlightsForChatSession = preTransformedFlights.length > 0
+                  ? preTransformedFlights  // Use pre-transformed flights from MCP tool (has prices)
+                  : (allFormattedQuotes.length > 0 
+                      ? allFormattedQuotes  // Fallback to converted quotes
+                      : [])  // Clear flights if no data (allows UI to show "no RFQs" state)
+                
+                // CRITICAL: Log the final flights array BEFORE updating chat state
+                console.log('[TripID] 🔄 FINAL rfqFlightsForChatSession BEFORE onUpdateChat:', {
+                  count: rfqFlightsForChatSession.length,
+                  source: preTransformedFlights.length > 0 ? 'preTransformedFlights' : 'allFormattedQuotes',
+                  flights: rfqFlightsForChatSession.map(f => ({
+                    id: f.id,
+                    quoteId: f.quoteId,
+                    totalPrice: f.totalPrice,
+                    currency: f.currency,
+                    rfqStatus: f.rfqStatus,
+                    operatorName: f.operatorName,
+                    priceIsZero: f.totalPrice === 0,
+                    statusIsUnanswered: f.rfqStatus === 'unanswered',
+                  })),
+                })
 
                 // SECONDARY: Also save simplified format to quotes for backward compatibility
                 // Components that use the simplified Quote format can still access this
@@ -2010,19 +2346,105 @@ export function ChatInterface({
                   isRecommended: index === 0,
                 }))
 
+                // Log what we're updating
+                console.log('[TripID] Updating chat with RFQ flights:', {
+                  flightsCount: rfqFlightsForChatSession.length,
+                  hasPreTransformed: preTransformedFlights.length > 0,
+                  hasFormattedQuotes: allFormattedQuotes.length > 0,
+                  sampleFlight: rfqFlightsForChatSession.length > 0 ? {
+                    id: rfqFlightsForChatSession[0].id,
+                    quoteId: rfqFlightsForChatSession[0].quoteId,
+                    price: rfqFlightsForChatSession[0].totalPrice,
+                    currency: rfqFlightsForChatSession[0].currency,
+                    status: rfqFlightsForChatSession[0].rfqStatus,
+                    operator: rfqFlightsForChatSession[0].operatorName,
+                    hasSellerMessage: !!(rfqFlightsForChatSession[0] as any).sellerMessage,
+                    status: rfqFlightsForChatSession[0].rfqStatus,
+                    operator: rfqFlightsForChatSession[0].operatorName,
+                  } : null,
+                  // Log all flights with prices to verify extraction
+                  allFlightsWithPrices: rfqFlightsForChatSession.map(f => ({
+                    id: f.id,
+                    quoteId: f.quoteId,
+                    price: f.totalPrice,
+                    currency: f.currency,
+                    status: f.rfqStatus,
+                    operator: f.operatorName,
+                  })),
+                })
+                
+                // IMPORTANT: Always update rfqFlights, even if quotes already exist
+                // This ensures prices, status, and messages are refreshed when "View RFQs" or "Update RFQs" is clicked
+                // The "Quotes already exist, skipping text parsing" message is from a different useEffect
+                // that only handles text parsing - it does NOT prevent tool results from updating here
+                console.log('[TripID] Updating chat state - replacing existing RFQ flights with fresh data')
+                console.log('[TripID] Previous flights count:', activeChat.rfqFlights?.length || 0)
+                console.log('[TripID] New flights count:', rfqFlightsForChatSession.length)
+                
+                // Log sample flight details to verify price extraction
+                if (rfqFlightsForChatSession.length > 0) {
+                  const sampleFlight = rfqFlightsForChatSession[0]
+                  console.log('[TripID] Sample flight details BEFORE updating chat:', {
+                    id: sampleFlight.id,
+                    quoteId: sampleFlight.quoteId,
+                    totalPrice: sampleFlight.totalPrice,
+                    currency: sampleFlight.currency,
+                    status: sampleFlight.rfqStatus,
+                    operator: sampleFlight.operatorName,
+                    hasSellerMessage: !!(sampleFlight as any).sellerMessage,
+                    previousPrice: activeChat.rfqFlights?.[0]?.totalPrice || 0,
+                    priceChanged: sampleFlight.totalPrice !== (activeChat.rfqFlights?.[0]?.totalPrice || 0),
+                    // CRITICAL: Verify price is not 0
+                    priceIsZero: sampleFlight.totalPrice === 0,
+                    priceIsUndefined: sampleFlight.totalPrice === undefined,
+                    priceIsNull: sampleFlight.totalPrice === null,
+                  })
+                  
+                  // Log ALL flights to verify prices
+                  console.log('[TripID] ALL flights with prices:', rfqFlightsForChatSession.map(f => ({
+                    id: f.id,
+                    quoteId: f.quoteId,
+                    totalPrice: f.totalPrice,
+                    currency: f.currency,
+                    priceIsZero: f.totalPrice === 0,
+                  })))
+                }
+                
+                // CRITICAL: Log what we're about to update
+                console.log('[TripID] 📝 Calling onUpdateChat with:', {
+                  chatId: activeChat.id,
+                  rfqFlightsCount: rfqFlightsForChatSession.length,
+                  rfqFlights: rfqFlightsForChatSession.map(f => ({
+                    id: f.id,
+                    quoteId: f.quoteId,
+                    totalPrice: f.totalPrice,
+                    currency: f.currency,
+                    rfqStatus: f.rfqStatus,
+                    priceIsZero: f.totalPrice === 0,
+                    statusIsUnanswered: f.rfqStatus === 'unanswered',
+                  })),
+                  previousRfqFlightsCount: activeChat.rfqFlights?.length || 0,
+                  previousPrices: activeChat.rfqFlights?.map(f => ({ id: f.id, price: f.totalPrice, status: f.rfqStatus })) || [],
+                })
+                
                 onUpdateChat(activeChat.id, {
                   messages: updatedMessages,
                   status: newStatus as typeof activeChat.status,
                   currentStep: 4,
                   tripId: tripId,
                   tripIdSubmitted: true, // Persist tripIdSubmitted to chat state
-                  // Save full RFQ flight data (PRIMARY - preserves all fields)
+                  // Save full RFQ flight data (PRIMARY - preserves all fields including prices)
+                  // IMPORTANT: This ALWAYS replaces existing rfqFlights to ensure prices and status are updated
+                  // Even if quotes already exist, we replace them with fresh data from the API
                   rfqFlights: rfqFlightsForChatSession,
                   // Save simplified format for backward compatibility (SECONDARY)
-                  quotes: quotesForChatSession.length > 0 ? quotesForChatSession : activeChat.quotes,
-                  // Track when RFQs were last fetched
+                  // Also replace quotes array to ensure prices are updated
+                  quotes: quotesForChatSession.length > 0 ? quotesForChatSession : (rfqFlightsForChatSession.length > 0 ? [] : activeChat.quotes),
+                  // Track when RFQs were last fetched (used to show "Last updated" timestamp)
                   rfqsLastFetchedAt: new Date().toISOString(),
                 })
+                
+                console.log('[TripID] ✅ onUpdateChat called - state should update now')
 
                 setIsTripIdLoading(false)
                 return
@@ -2206,21 +2628,62 @@ export function ChatInterface({
                   // Show quotes whenever we have them, regardless of tripIdSubmitted status
                   // This allows quotes parsed from agent messages to be displayed immediately
                   // Ensure rfqFlights is always an array, never null/undefined
-                  rfqFlights={Array.isArray(rfqFlights) && rfqFlights.length > 0 ? rfqFlights.map(flight => ({
-                    ...flight,
+                  rfqFlights={Array.isArray(rfqFlights) && rfqFlights.length > 0 ? rfqFlights.map(flight => {
                     // Determine if messages exist for this flight
-                    // When status is 'quoted', check if operatorMessages exist for this quoteId
-                    // If operatorMessages exist, hasMessages is true; otherwise assume messages may exist if quoted
-                    hasMessages: flight.rfqStatus === 'quoted' && (
-                      (activeChat.operatorMessages && flight.quoteId && activeChat.operatorMessages[flight.quoteId]?.length > 0) ||
+                    // CRITICAL: Check operatorMessages[quoteId] for seller messages from quotes
+                    // Seller messages are extracted from quote.sellerMessage and stored in operatorMessages
+                    const messages = activeChat.operatorMessages && flight.quoteId 
+                      ? activeChat.operatorMessages[flight.quoteId] 
+                      : []
+                    
+                    // Log message detection for debugging
+                    if (flight.quoteId && messages.length > 0) {
+                      console.log('[ChatInterface] Found messages for quote', flight.quoteId, ':', messages.length, 'messages', {
+                        messageTypes: messages.map(m => m.type),
+                        hasSellerMessage: !!(flight as any).sellerMessage,
+                      })
+                    }
+                    
+                    const hasMessages = flight.rfqStatus === 'quoted' && (
+                      messages.length > 0 ||
+                      !!(flight as any).sellerMessage || // Also check if flight has sellerMessage directly
                       flight.rfqStatus === 'quoted' // If quoted, assume messages may exist (will be verified when user clicks Messages)
-                    ),
-                    // Extract messageId from operatorMessages if available
-                    // This is used by get_message tool (GET /tripmsgs/{messageId}) to retrieve specific messages
-                    messageId: activeChat.operatorMessages && flight.quoteId && activeChat.operatorMessages[flight.quoteId]?.length > 0
-                      ? activeChat.operatorMessages[flight.quoteId][0]?.id
-                      : flight.messageId, // Use messageId from flight data if available (from webhook events)
-                  })) : []}
+                    )
+                    
+                    // Determine if there are new/unread messages
+                    // Messages are "new" if their timestamp is after the last read timestamp for this quote
+                    const lastReadAt = activeChat.lastMessagesReadAt?.[flight.quoteId || '']
+                    const hasNewMessages = hasMessages && messages.length > 0 && (
+                      !lastReadAt || // No read timestamp = all messages are new
+                      messages.some(msg => {
+                        const msgTime = new Date(msg.timestamp).getTime()
+                        const readTime = new Date(lastReadAt).getTime()
+                        return msgTime > readTime // Message is newer than last read time
+                      })
+                    )
+                    
+                    // Log message indicator calculation for debugging
+                    if (flight.quoteId) {
+                      console.log('[ChatInterface] Message indicator for quote', flight.quoteId, ':', {
+                        hasMessages,
+                        messagesCount: messages.length,
+                        hasNewMessages,
+                        lastReadAt,
+                        rfqStatus: flight.rfqStatus,
+                      })
+                    }
+                    
+                    return {
+                      ...flight,
+                      hasMessages,
+                      hasNewMessages: hasNewMessages || false,
+                      // Extract messageId from operatorMessages if available
+                      // This is used by get_message tool (GET /tripmsgs/{messageId}) to retrieve specific messages
+                      messageId: messages.length > 0
+                        ? messages[0]?.id
+                        : flight.messageId, // Use messageId from flight data if available (from webhook events)
+                    }
+                  }) : []}
                   selectedRfqFlightIds={selectedRfqFlightIds}
                   rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
                   onRfqFlightSelectionChange={setSelectedRfqFlightIds}

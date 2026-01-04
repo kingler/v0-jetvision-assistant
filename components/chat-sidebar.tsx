@@ -81,6 +81,8 @@ export interface ChatSession {
   rfqFlights?: Array<import('./avinode/rfq-flight-card').RFQFlight>
   /** Timestamp when RFQs were last fetched from Avinode */
   rfqsLastFetchedAt?: string
+  /** Timestamp when messages were last read/viewed, keyed by quote ID */
+  lastMessagesReadAt?: Record<string, string>
   customer?: {
     name: string
     isReturning: boolean

@@ -1,7 +1,7 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * Valid user roles that can be assigned via Clerk public metadata.
@@ -101,8 +101,8 @@ export async function POST(req: Request) {
           console.warn(`[WEBHOOK] Invalid role "${proposedRole}" from Clerk for user ${id}, defaulting to sales_rep`);
         }
 
-        // Create user in Supabase iso_agents table
-        const { data, error } = await supabase
+        // Create user in Supabase iso_agents table using admin client to bypass RLS
+        const { data, error } = await supabaseAdmin
           .from('iso_agents')
           .insert({
             clerk_user_id: id,
@@ -152,8 +152,8 @@ export async function POST(req: Request) {
           }
         }
 
-        // Update user in Supabase
-        const { data, error } = await supabase
+        // Update user in Supabase using admin client to bypass RLS
+        const { data, error } = await supabaseAdmin
           .from('iso_agents')
           .update(updateData)
           .eq('clerk_user_id', id)
@@ -179,8 +179,8 @@ export async function POST(req: Request) {
           return new Response('Error: Missing user ID', { status: 400 });
         }
 
-        // Soft delete: mark user as inactive instead of deleting
-        const { data, error } = await supabase
+        // Soft delete: mark user as inactive instead of deleting (using admin client to bypass RLS)
+        const { data, error } = await supabaseAdmin
           .from('iso_agents')
           .update({
             is_active: false,
