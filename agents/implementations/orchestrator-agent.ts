@@ -393,7 +393,7 @@ export class OrchestratorAgent extends BaseAgent {
           updated_at,
           avinode_rfp_id,
           avinode_deep_link,
-          user_id,
+          iso_agent_id,
           client_profiles (
             id,
             contact_name,
@@ -415,9 +415,9 @@ export class OrchestratorAgent extends BaseAgent {
         `)
         .eq('avinode_trip_id', tripId);
 
-      // Filter by user_id if provided in context (security: users should only see their own RFQs)
+      // Filter by iso_agent_id if provided in context (security: users should only see their own RFQs)
       if (context.userId) {
-        query = query.eq('user_id', context.userId);
+        query = query.eq('iso_agent_id', context.userId);
       }
 
       // Order by creation date (most recent first)

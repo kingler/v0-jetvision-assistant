@@ -39,6 +39,23 @@ export const supabase = createClient<Database>(
 );
 
 /**
+ * Factory function to create a new Supabase client instance
+ * Useful for React components that need fresh client instances
+ */
+export function createSupabaseClient() {
+  return createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    }
+  );
+}
+
+/**
  * Type-safe helper for fetching user profile
  */
 export async function getUserProfile(clerkUserId: string) {

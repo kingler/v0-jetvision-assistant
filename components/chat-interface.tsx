@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Send, Loader2, Plane, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ChatSession } from "./chat-sidebar"
+import { createSupabaseClient } from '@/lib/supabase/client'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 // New components for conversational chat interface
 import { AgentMessage } from "./chat/agent-message"
@@ -1445,7 +1447,124 @@ export function ChatInterface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChat.id]) // Only run when the chat changes (not on every render)
 
+  /**
+   * Real-time subscription to quotes table
+   * When a new quote is stored (via webhook), automatically refresh RFQ data
+   * This ensures prices and status update in real-time when operators respond
+   */
+  useEffect(() => {
+    // Only subscribe if we have a trip ID
+    if (!activeChat.tripId) {
+      return
+    }
 
+    const supabase = createSupabaseClient()
+    let channel: RealtimeChannel | null = null
+
+    const setupRealtimeSubscription = async () => {
+      // Find the request ID from the chat session or from the database using trip ID
+      let requestId = activeChat.requestId
+      
+      // If no requestId in chat session, try to find it from database using tripId
+      if (!requestId || requestId.startsWith('temp-')) {
+        try {
+          const { data: requests, error } = await supabase
+            .from('requests')
+            .select('id')
+            .eq('avinode_trip_id', activeChat.tripId!)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          
+          if (error) {
+            console.error('[ChatInterface] Error finding request by trip ID:', error)
+            return
+          }
+          
+          if (requests) {
+            requestId = requests.id
+            // Update chat session with requestId for future use
+            onUpdateChat(activeChat.id, { requestId })
+          } else {
+            // No request found yet, skip subscription
+            return
+          }
+        } catch (error) {
+          console.error('[ChatInterface] Error setting up realtime subscription:', error)
+          return
+        }
+      }
+      
+      if (!requestId || requestId.startsWith('temp-')) {
+        // No valid request ID yet, skip subscription
+        return
+      }
+
+      // Create channel for this trip/request
+      channel = supabase.channel(`quotes-${activeChat.tripId}-${requestId}`)
+
+      // Subscribe to quotes table changes for this request
+      if (!channel) return;
+      
+      channel
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'quotes',
+            filter: `request_id=eq.${requestId}`,
+          },
+          async (payload) => {
+            console.log('[ChatInterface] New quote received via Realtime:', payload.new)
+            
+            // When a new quote is stored, refresh RFQ data by calling get_rfq again
+            // This ensures prices and status are updated from the latest Avinode API data
+            if (activeChat.tripId) {
+              console.log('[ChatInterface] Refreshing RFQ data due to new quote...')
+              // Trigger a refresh by calling handleTripIdSubmit
+              // This will fetch the latest RFQ data from Avinode API with updated prices and status
+              await handleTripIdSubmit(activeChat.tripId)
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'quotes',
+            filter: `request_id=eq.${requestId}`,
+          },
+          async (payload) => {
+            console.log('[ChatInterface] Quote updated via Realtime:', payload.new)
+            
+            // Refresh RFQ data when quote is updated
+            if (activeChat.tripId) {
+              console.log('[ChatInterface] Refreshing RFQ data due to quote update...')
+              await handleTripIdSubmit(activeChat.tripId)
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[ChatInterface] Realtime subscription active for quotes')
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.warn('[ChatInterface] Realtime subscription error:', status)
+          }
+        })
+    }
+
+    setupRealtimeSubscription()
+
+    // Cleanup subscription on unmount or when tripId/requestId changes
+    return () => {
+      if (channel) {
+        channel.unsubscribe()
+        console.log('[ChatInterface] Realtime subscription cleaned up')
+      }
+    }
+  }, [activeChat.tripId, activeChat.requestId, activeChat.id, onUpdateChat]) // Re-subscribe when tripId or requestId changes
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return
@@ -1724,11 +1843,28 @@ export function ChatInterface({
       const isUpdate = !!activeChat.rfqsLastFetchedAt
       const actionText = isUpdate ? 'Update' : 'View'
       console.log('[Chat] Sending Trip ID to API:', tripId, isUpdate ? '(Update RFQs)' : '(View RFQs - initial)');
+      
+      // For updates, also request get_quote for each existing quote ID to get latest prices and status
+      let message = `${actionText} RFQs for Trip ID: ${tripId}. Please retrieve the latest RFQ status, quotes with prices and operator information, and all message activities from operators. Use both get_rfq (for RFQ status, quotes, prices, and operator details) and get_trip_messages (for operator messages and responses) tools to get complete information.`
+      
+      // If updating and we have existing RFQ flights with quote IDs, request get_quote for each
+      if (isUpdate && activeChat.rfqFlights && activeChat.rfqFlights.length > 0) {
+        const quoteIds = activeChat.rfqFlights
+          .map(f => f.quoteId)
+          .filter((id): id is string => !!id && id !== undefined && id !== null && id !== '') // Filter out invalid quote IDs
+          .filter((id, index, arr) => arr.indexOf(id) === index) // Remove duplicates
+        
+        if (quoteIds.length > 0) {
+          console.log('[Chat] Requesting get_quote for', quoteIds.length, 'quote IDs:', quoteIds)
+          message += ` Additionally, for each quote ID found in the RFQs, please call get_quote tool to retrieve the latest detailed quote information including updated prices and status. Quote IDs to fetch: ${quoteIds.join(', ')}.`
+        }
+      }
+      
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `${actionText} RFQs for Trip ID: ${tripId}. Please retrieve the latest RFQ status, quotes with prices and operator information, and all message activities from operators. Use both get_rfq (for RFQ status, quotes, prices, and operator details) and get_trip_messages (for operator messages and responses) tools to get complete information.`,
+          message,
           conversationHistory,
           context: {
             flightRequestId: activeChat.id,
@@ -1806,9 +1942,31 @@ export function ChatInterface({
                 // Also check tool_calls for get_rfq results (handles both RFQ IDs and Trip IDs)
                 // Track pre-transformed flights from getRFQFlights
                 let preTransformedFlights: RFQFlight[] = []
+                // Track get_quote results to update prices and status
+                const quoteDetailsMap: Record<string, any> = {}
 
                 if (data.tool_calls) {
                   for (const toolCall of data.tool_calls) {
+                    // Handle get_quote results first - these contain latest prices and status
+                    if (toolCall.name === "get_quote" && toolCall.result) {
+                      console.log('[TripID] get_quote result received:', {
+                        quote_id: toolCall.result.quote_id,
+                        pricing: toolCall.result.pricing,
+                        status: toolCall.result.status,
+                        resultKeys: Object.keys(toolCall.result),
+                      })
+                      
+                      // Store quote details by quote_id for later merging
+                      if (toolCall.result.quote_id) {
+                        quoteDetailsMap[toolCall.result.quote_id] = toolCall.result
+                        console.log('[TripID] Stored quote details for quote_id:', toolCall.result.quote_id, {
+                          hasPricing: !!toolCall.result.pricing,
+                          pricing: toolCall.result.pricing,
+                          status: toolCall.result.status,
+                        })
+                      }
+                    }
+                    
                     if (toolCall.name === "get_rfq" && toolCall.result) {
                       console.log('[TripID] get_rfq result structure:', {
                         hasFlights: !!toolCall.result.flights,
@@ -2311,11 +2469,69 @@ export function ChatInterface({
                 // IMPORTANT: When "View RFQs" or "Update RFQs" is clicked, always replace existing flights with new data
                 // Priority: preTransformedFlights (from getRFQFlights MCP tool with prices) > allFormattedQuotes > empty array
                 // This ensures prices, status, and message indicators are refreshed correctly
-                const rfqFlightsForChatSession = preTransformedFlights.length > 0
+                let rfqFlightsForChatSession = preTransformedFlights.length > 0
                   ? preTransformedFlights  // Use pre-transformed flights from MCP tool (has prices)
                   : (allFormattedQuotes.length > 0 
                       ? allFormattedQuotes  // Fallback to converted quotes
                       : [])  // Clear flights if no data (allows UI to show "no RFQs" state)
+                
+                // CRITICAL: Merge get_quote results to update prices and status
+                // When get_quote is called for each quote ID, it returns the latest prices and status
+                // We need to merge this data into the RFQ flights
+                if (Object.keys(quoteDetailsMap).length > 0) {
+                  console.log('[TripID] Merging get_quote results into RFQ flights:', Object.keys(quoteDetailsMap).length, 'quotes')
+                  
+                  rfqFlightsForChatSession = rfqFlightsForChatSession.map(flight => {
+                    const quoteDetails = quoteDetailsMap[flight.quoteId]
+                    if (quoteDetails) {
+                      console.log('[TripID] Updating flight with get_quote data:', {
+                        quoteId: flight.quoteId,
+                        oldPrice: flight.totalPrice,
+                        oldStatus: flight.rfqStatus,
+                        newPricing: quoteDetails.pricing,
+                        newStatus: quoteDetails.status,
+                      })
+                      
+                      // Extract price from get_quote result
+                      // get_quote returns pricing object with sellerPrice.price and sellerPrice.currency
+                      const pricing = quoteDetails.pricing || quoteDetails.sellerPrice
+                      const newPrice = pricing?.price || pricing?.total || pricing?.amount || flight.totalPrice
+                      const newCurrency = pricing?.currency || flight.currency || 'USD'
+                      
+                      // Determine status from get_quote result
+                      // Status can be 'quoted', 'declined', 'pending', etc.
+                      let newStatus: RFQFlight['rfqStatus'] = flight.rfqStatus
+                      if (quoteDetails.status === 'quoted' || quoteDetails.status === 'accepted') {
+                        newStatus = 'quoted'
+                      } else if (quoteDetails.status === 'declined') {
+                        newStatus = 'declined'
+                      } else if (quoteDetails.status === 'expired') {
+                        newStatus = 'expired'
+                      } else if (quoteDetails.status === 'pending' || quoteDetails.status === 'sent') {
+                        newStatus = 'sent'
+                      }
+                      
+                      // Update flight with new data
+                      return {
+                        ...flight,
+                        totalPrice: newPrice,
+                        currency: newCurrency,
+                        rfqStatus: newStatus,
+                        // Update price breakdown if available
+                        priceBreakdown: pricing ? {
+                          basePrice: pricing.base || pricing.basePrice || pricing.base_price || 0,
+                          fuelSurcharge: pricing.fuel || pricing.fuelSurcharge || pricing.fuel_surcharge,
+                          taxes: pricing.taxes || 0,
+                          fees: pricing.fees || 0,
+                        } : flight.priceBreakdown,
+                        validUntil: quoteDetails.valid_until || quoteDetails.validUntil || flight.validUntil,
+                      }
+                    }
+                    return flight
+                  })
+                  
+                  console.log('[TripID] ✅ Merged get_quote results - updated', rfqFlightsForChatSession.filter(f => quoteDetailsMap[f.quoteId]).length, 'flights')
+                }
                 
                 // CRITICAL: Log the final flights array BEFORE updating chat state
                 console.log('[TripID] 🔄 FINAL rfqFlightsForChatSession BEFORE onUpdateChat:', {

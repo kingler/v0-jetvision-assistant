@@ -5,6 +5,8 @@ import type {
   TripRequestSellerResponseData,
   TripChatData,
 } from '@/lib/types/avinode-webhooks';
+import { supabaseAdmin, findRequestByTripId } from '@/lib/supabase';
+import { storeOperatorQuote } from './webhook-utils';
 
 /**
  * Avinode Webhook Handler
@@ -62,8 +64,13 @@ function verifySignature(payload: string, signature: string | null): boolean {
 
 /**
  * Handle TripRequestSellerResponse - Operator Quote
+ * 
+ * Stores quote in database and updates RFQ status when operators respond
  */
-async function handleSellerResponse(data: TripRequestSellerResponseData): Promise<void> {
+async function handleSellerResponse(
+  data: TripRequestSellerResponseData,
+  payload: AvinodeWebhookPayload
+): Promise<void> {
   const { trip, request, seller, quote, declineReason } = data;
 
   console.log('[Avinode Webhook] Seller Response:', {
@@ -73,26 +80,120 @@ async function handleSellerResponse(data: TripRequestSellerResponseData): Promis
     seller: seller.name,
   });
 
-  if (request.status === 'quoted' && quote) {
-    console.log('[Avinode Webhook] Quote received:', {
-      quoteId: quote.id,
-      price: `${quote.totalPrice.currency} ${quote.totalPrice.amount}`,
-      validUntil: quote.validUntil,
-      aircraft: quote.aircraft?.model,
-    });
+  try {
+    // Store webhook event in database for audit trail
+    // Map webhook event name to our enum value
+    const eventType = request.status === 'quoted' ? 'quote_received' : 'quote_rejected';
+    const { error: webhookError } = await supabaseAdmin
+      .from('avinode_webhook_events')
+      .insert({
+        event_type: eventType,
+        avinode_event_id: `trip_${trip.id}_req_${request.id}_${Date.now()}`,
+        avinode_trip_id: trip.id,
+        raw_payload: payload as any,
+        processing_status: 'pending',
+        received_at: new Date().toISOString(),
+      });
 
-    // TODO: Store quote in database
-    // TODO: Notify ProposalAnalysisAgent to score this quote
-    // TODO: Update workflow state machine
+    if (webhookError) {
+      console.error('[Avinode Webhook] Error storing webhook event:', webhookError);
+    }
 
-  } else if (request.status === 'declined') {
-    console.log('[Avinode Webhook] Quote declined:', {
-      seller: seller.name,
-      reason: declineReason,
-    });
+    // Find the request by trip ID
+    // Note: We need to find all requests with this trip ID since we don't have user context in webhook
+    const { data: requests, error: requestError } = await supabaseAdmin
+      .from('requests')
+      .select('id, iso_agent_id')
+      .eq('avinode_trip_id', trip.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    // TODO: Store decline in database
-    // TODO: Notify if all operators declined
+    if (requestError || !requests || requests.length === 0) {
+      console.warn('[Avinode Webhook] No request found for trip ID:', trip.id);
+      // Still mark webhook as processed even if we can't find the request
+      const eventType = request.status === 'quoted' ? 'quote_received' : 'quote_rejected';
+      await supabaseAdmin
+        .from('avinode_webhook_events')
+        .update({ processing_status: 'skipped', processed_at: new Date().toISOString() })
+        .eq('avinode_trip_id', trip.id)
+        .eq('event_type', eventType)
+        .order('received_at', { ascending: false })
+        .limit(1);
+      return;
+    }
+
+    const requestRecord = requests[0];
+
+    if (request.status === 'quoted' && quote) {
+      console.log('[Avinode Webhook] Quote received:', {
+        quoteId: quote.id,
+        price: `${quote.totalPrice.currency} ${quote.totalPrice.amount}`,
+        validUntil: quote.validUntil,
+        aircraft: quote.aircraft?.model,
+      });
+
+      try {
+        // Store quote in database
+        const quoteId = await storeOperatorQuote({
+          webhookPayload: payload,
+          messageDetails: null, // We can fetch this later if needed
+          requestId: requestRecord.id,
+        });
+
+        console.log('[Avinode Webhook] Quote stored successfully:', quoteId);
+
+        // Mark webhook as processed
+        await supabaseAdmin
+          .from('avinode_webhook_events')
+          .update({ processing_status: 'completed', processed_at: new Date().toISOString() })
+          .eq('avinode_trip_id', trip.id)
+          .eq('event_type', 'quote_received')
+          .order('received_at', { ascending: false })
+          .limit(1);
+
+        // TODO: Notify ProposalAnalysisAgent to score this quote
+        // TODO: Update workflow state machine
+
+      } catch (error) {
+        console.error('[Avinode Webhook] Error storing quote:', error);
+        throw error;
+      }
+
+    } else if (request.status === 'declined') {
+      console.log('[Avinode Webhook] Quote declined:', {
+        seller: seller.name,
+        reason: declineReason,
+      });
+
+      try {
+        // Store declined quote in database
+        const quoteId = await storeOperatorQuote({
+          webhookPayload: payload,
+          messageDetails: null,
+          requestId: requestRecord.id,
+        });
+
+        console.log('[Avinode Webhook] Decline stored successfully:', quoteId);
+
+        // Mark webhook as processed
+        await supabaseAdmin
+          .from('avinode_webhook_events')
+          .update({ processing_status: 'completed', processed_at: new Date().toISOString() })
+          .eq('avinode_trip_id', trip.id)
+          .eq('event_type', 'quote_rejected')
+          .order('received_at', { ascending: false })
+          .limit(1);
+
+        // TODO: Notify if all operators declined
+
+      } catch (error) {
+        console.error('[Avinode Webhook] Error storing decline:', error);
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('[Avinode Webhook] Error processing seller response:', error);
+    // Don't throw - we've already acknowledged the webhook
   }
 }
 
@@ -163,7 +264,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Process based on event type
     switch (payload.event) {
       case 'TripRequestSellerResponse':
-        await handleSellerResponse(payload.data as TripRequestSellerResponseData);
+        await handleSellerResponse(payload.data as TripRequestSellerResponseData, payload);
         break;
 
       case 'TripChatSeller':

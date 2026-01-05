@@ -333,9 +333,17 @@ export async function storeOperatorQuote(
   const senderData = messageDetails?.data?.relationships?.sender?.data?.attributes;
 
   // Determine quote status
+  // Map webhook request.status to database quote status
+  // 'quoted' from webhook means operator provided a quote → 'received' in database
+  // 'declined' from webhook means operator declined → 'declined' in database
+  // 'pending' from webhook means no response yet → 'pending' in database
   let status: string = 'received';
   if (webhookData.request?.status === 'declined') {
     status = 'declined';
+  } else if (webhookData.request?.status === 'quoted') {
+    status = 'received'; // Quote was received (operator provided quote)
+  } else if (webhookData.request?.status === 'pending') {
+    status = 'pending';
   }
 
   // Build quote record
@@ -360,11 +368,12 @@ export async function storeOperatorQuote(
       webhookData.quote?.aircraft?.tailNumber ||
       null,
     aircraft_details: quoteData?.aircraft || webhookData.quote?.aircraft || {},
-    base_price: quoteData?.pricing?.basePrice || 0,
+    base_price: quoteData?.pricing?.basePrice || webhookData.quote?.totalPrice?.amount || 0,
     total_price:
       quoteData?.pricing?.total ||
       webhookData.quote?.totalPrice?.amount ||
       0,
+    currency: quoteData?.pricing?.currency || webhookData.quote?.totalPrice?.currency || 'USD',
     status,
     schedule: quoteData?.schedule || webhookData.quote?.schedule || {},
     availability: quoteData?.availability || {},
