@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const tripId = searchParams.get('trip_id');
     const status = searchParams.get('status');
+    const id = searchParams.get('id'); // Support filtering by chat_session ID
 
     // Get user's ISO agent ID using admin client (bypasses RLS)
     const { data: agent, error: agentError } = await supabaseAdmin
@@ -108,6 +109,11 @@ export async function GET(request: NextRequest) {
       query = query.eq('avinode_trip_id', tripId);
     }
 
+    // Filter by chat_session ID if provided
+    if (id) {
+      query = query.eq('id', id);
+    }
+
     // Filter by status if provided
     if (status) {
       // Validate status is a valid chat session status
@@ -115,8 +121,9 @@ export async function GET(request: NextRequest) {
       if (validStatuses.includes(status)) {
         query = query.eq('status', status as 'active' | 'paused' | 'completed' | 'archived');
       }
-    } else {
-      // Default to active sessions only if no status filter
+    } else if (!id) {
+      // Default to active sessions only if no status filter and no ID filter
+      // (If filtering by ID, we want to return it regardless of status)
       query = query.in('status', ['active', 'paused']);
     }
 
