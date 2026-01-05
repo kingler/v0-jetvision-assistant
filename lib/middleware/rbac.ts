@@ -150,6 +150,9 @@ export function hasPermission(
 /**
  * Fetch user role from database by Clerk user ID
  *
+ * Uses admin client to bypass RLS since we already have Clerk authentication.
+ * This allows us to look up the user role even if RLS policies would normally block it.
+ *
  * @param clerkUserId - Clerk user ID
  * @returns User role or null if not found
  *
@@ -163,6 +166,7 @@ export function hasPermission(
  */
 export async function getUserRole(clerkUserId: string): Promise<UserRole | null> {
   try {
+    // Use admin client to bypass RLS since we already have Clerk authentication
     const { data, error } = await supabaseAdmin
       .from('iso_agents')
       .select('role')
@@ -170,6 +174,7 @@ export async function getUserRole(clerkUserId: string): Promise<UserRole | null>
       .single();
 
     if (error || !data) {
+      console.error('Error fetching user role:', error?.message || 'User not found');
       return null;
     }
 

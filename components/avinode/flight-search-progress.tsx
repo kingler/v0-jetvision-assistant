@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  Pause,
   ExternalLink,
   Copy,
   Check,
@@ -38,6 +39,7 @@ import { SendProposalStep } from './send-proposal-step';
 import { convertToAvinodeRFQFlight } from './utils';
 import type { RFQFlight } from './rfq-flight-card';
 import type { RFQFlight as AvinodeRFQFlight } from '@/lib/mcp/clients/avinode-client';
+import { getAirportByIcao } from '@/lib/airports/airport-database';
 
 // =============================================================================
 // TYPES
@@ -48,11 +50,13 @@ export interface FlightRequestDetails {
     icao: string;
     name?: string;
     city?: string;
+    state?: string;
   };
   arrivalAirport: {
     icao: string;
     name?: string;
     city?: string;
+    state?: string;
   };
   departureDate: string;
   passengers: number;
@@ -197,14 +201,14 @@ function StepIndicator({ stepNumber, title, status, isLast, hideWhenComplete }: 
             'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-all',
             // Use gray for completed (per design), blue for active, light gray for pending
             status === 'completed' && 'bg-gray-400 text-white dark:bg-gray-500',
-            status === 'active' && 'bg-primary text-primary-foreground animate-pulse',
+            status === 'active' && 'bg-primary text-primary-foreground',
             status === 'pending' && 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
           )}
         >
           {status === 'completed' ? (
             <CheckCircle2 className="h-4 w-4" />
           ) : status === 'active' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Pause className="h-4 w-4" />
           ) : (
             stepNumber
           )}
@@ -523,7 +527,7 @@ export function FlightSearchProgress({
                 ) : (
                   <ClipboardCheck className="h-5 w-5 text-primary" />
                 )}
-                <h4 className="font-semibold text-sm">
+                <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
                   Step 1: Trip Request {currentStep > 1 ? 'Created' : 'Creating'}
                 </h4>
               </div>
@@ -539,16 +543,22 @@ export function FlightSearchProgress({
                         {flightRequest.departureAirport?.icao?.toUpperCase() || ''}
                       </span>
                     </div>
-                    {flightRequest.departureAirport.name && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {flightRequest.departureAirport.name}
-                      </p>
-                    )}
-                    {flightRequest.departureAirport.city && (
-                      <p className="text-xs text-muted-foreground">
-                        {flightRequest.departureAirport.city}
-                      </p>
-                    )}
+                    {(() => {
+                      // Get city and state from airport data or lookup from database
+                      const departureIcao = flightRequest.departureAirport?.icao?.toUpperCase();
+                      const airportData = departureIcao ? getAirportByIcao(departureIcao) : null;
+                      const city = flightRequest.departureAirport?.city || airportData?.city || '';
+                      const state = flightRequest.departureAirport?.state || airportData?.state || '';
+                      
+                      if (city || state) {
+                        return (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {city}{state ? `, ${state}` : ''}
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   <div className="flex items-center gap-2 px-3">
@@ -565,16 +575,22 @@ export function FlightSearchProgress({
                       </span>
                       <MapPin className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    {flightRequest.arrivalAirport.name && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {flightRequest.arrivalAirport.name}
-                      </p>
-                    )}
-                    {flightRequest.arrivalAirport.city && (
-                      <p className="text-xs text-muted-foreground">
-                        {flightRequest.arrivalAirport.city}
-                      </p>
-                    )}
+                    {(() => {
+                      // Get city and state from airport data or lookup from database
+                      const arrivalIcao = flightRequest.arrivalAirport?.icao?.toUpperCase();
+                      const airportData = arrivalIcao ? getAirportByIcao(arrivalIcao) : null;
+                      const city = flightRequest.arrivalAirport?.city || airportData?.city || '';
+                      const state = flightRequest.arrivalAirport?.state || airportData?.state || '';
+                      
+                      if (city || state) {
+                        return (
+                          <p className="text-xs text-muted-foreground mt-0.5 text-right">
+                            {city}{state ? `, ${state}` : ''}
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
 
@@ -640,7 +656,7 @@ export function FlightSearchProgress({
                 ) : (
                   <ExternalLink className="h-5 w-5 text-primary" />
                 )}
-                <h4 className="font-semibold text-sm">
+                <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
                   Step 2: {currentStep > 2 ? 'Flight & RFQ Selected' : 'Select Flight & RFQ'}
                 </h4>
               </div>
@@ -705,7 +721,7 @@ export function FlightSearchProgress({
                   ) : (
                     <Search className="h-5 w-5 text-primary" />
                   )}
-                  <h4 className="font-semibold text-sm">
+                  <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
                     Step 3: View RFQ Flights
                   </h4>
                 </div>

@@ -4,7 +4,7 @@
  * This script tests that the create_trip MCP tool correctly generates a deep link.
  */
 
-import { AvinodeMCPServer } from '../lib/mcp/avinode-server';
+import { AvinodeMCPServer } from '../../lib/mcp/avinode-server';
 
 async function testCreateTrip() {
   console.log('\n=== Testing create_trip Tool ===\n');

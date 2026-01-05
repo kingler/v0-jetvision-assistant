@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { Database, User, ClientProfile } from '@/lib/types/database';
 
 // Force dynamic rendering - API routes should not be statically generated
@@ -17,7 +18,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
 
-    const { data: user, error: userError } = await supabase
+    // Use admin client for user lookup (bypasses RLS since we have Clerk auth)
+    const { data: user, error: userError } = await supabaseAdmin
       .from('iso_agents')
       .select('id, role')
       .eq('clerk_user_id', userId)
@@ -25,10 +27,11 @@ export async function GET(request: NextRequest) {
 
     if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+    // Use correct column name: iso_agent_id (not user_id)
     let query = supabase
       .from('client_profiles')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('iso_agent_id', user.id);
 
     if (search) {
       query = query.or(`company_name.ilike.%${search}%,contact_name.ilike.%${search}%`);
@@ -54,7 +57,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const { data: user, error: userError } = await supabase
+    // Use admin client for user lookup (bypasses RLS since we have Clerk auth)
+    const { data: user, error: userError } = await supabaseAdmin
       .from('iso_agents')
       .select('id, role')
       .eq('clerk_user_id', userId)
@@ -62,10 +66,11 @@ export async function POST(request: NextRequest) {
 
     if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+    // Use correct column name: iso_agent_id (not user_id)
     const { data: newClient, error } = await supabase
       .from('client_profiles')
       .insert({
-        user_id: user.id,
+        iso_agent_id: user.id,
         company_name,
         contact_name,
         email,
@@ -94,7 +99,8 @@ export async function PATCH(request: NextRequest) {
     const { client_id, company_name, contact_name, email, phone, preferences, notes, is_active } = body;
     if (!client_id) return NextResponse.json({ error: 'Missing client_id' }, { status: 400 });
 
-    const { data: user, error: userError } = await supabase
+    // Use admin client for user lookup (bypasses RLS since we have Clerk auth)
+    const { data: user, error: userError } = await supabaseAdmin
       .from('iso_agents')
       .select('id, role')
       .eq('clerk_user_id', userId)

@@ -18,14 +18,14 @@
 import { config } from 'dotenv';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getAvinodeClient } from '../mcp-servers/avinode-mcp-server/src/client.js';
+import { getAvinodeClient } from '../../mcp-servers/avinode-mcp-server/src/client';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load environment variables from multiple locations
-config({ path: resolve(__dirname, '../mcp-servers/avinode-mcp-server/.env.local') });
-config({ path: resolve(__dirname, '../.env.local') });
+config({ path: resolve(__dirname, '../../mcp-servers/avinode-mcp-server/.env.local') });
+config({ path: resolve(__dirname, '../../.env.local') });
 
 // ANSI color codes for output
 const colors = {
@@ -243,4 +243,3 @@ testCreateTrip()
     console.error(error);
     process.exit(1);
   });
-

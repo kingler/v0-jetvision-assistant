@@ -175,9 +175,43 @@ export default function JetvisionAgent() {
     setSidebarOpen(true)
   }
 
-  const handleNewChat = () => {
-    setCurrentView("landing")
-    setActiveChatId(null)
+  const handleNewChat = async () => {
+    try {
+      const response = await fetch("/api/chat/init", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Request failed" }))
+        throw new Error(errorData.message || `Request failed with status ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      const newChat: ChatSession = {
+        id: data.chatSessionId,
+        conversationId: data.conversationId,
+        route: "Select route",
+        passengers: 1,
+        date: "Select date",
+        status: "understanding_request",
+        currentStep: 1,
+        totalSteps: 5,
+        messages: [],
+      }
+
+      setChatSessions((prevSessions) => [newChat, ...prevSessions])
+      setActiveChatId(newChat.id)
+      setCurrentView("chat")
+      setSidebarOpen(true)
+    } catch (error) {
+      console.error("[Chat UI] Failed to initialize chat session:", error)
+      setCurrentView("landing")
+      setActiveChatId(null)
+    }
   }
 
   const handleUpdateChat = (chatId: string, updates: Partial<ChatSession>) => {

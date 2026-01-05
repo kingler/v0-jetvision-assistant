@@ -313,7 +313,7 @@ describe('RBAC Middleware - Permission Matrix', () => {
       expect(PERMISSIONS.admin!.clients).toEqual(['create', 'read', 'update', 'delete']);
       expect(PERMISSIONS.admin!.requests).toEqual(['create', 'read', 'update', 'delete']);
       expect(PERMISSIONS.admin!.quotes).toEqual(['create', 'read', 'update', 'delete']);
-      expect(PERMISSIONS.admin!.users).toEqual(['create', 'read', 'update', 'delete']);
+      expect(PERMISSIONS.admin!.users).toEqual(['create', 'read', 'update', 'delete', 'read_own', 'update_own']);
       expect(PERMISSIONS.admin!.analytics).toEqual(['read_all']);
     });
 

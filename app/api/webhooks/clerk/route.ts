@@ -18,6 +18,10 @@ const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
  * - user.updated: Updates existing user record in Supabase
  * - user.deleted: Soft deletes user record in Supabase
  *
+ * Note: Chat sessions (for conversations, trip requests, RFQs, proposals) are tracked
+ * separately in the chat_sessions table and are created by the application code,
+ * not via Clerk webhooks.
+ *
  * Role Assignment:
  * - Default role is 'sales_rep'
  * - Role can be set via Clerk user public metadata: { role: 'admin' | 'sales_rep' | 'customer' | 'operator' }

@@ -15,7 +15,7 @@ describe('Environment Configuration', () => {
     it('should have Supabase configuration', () => {
       expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBeDefined();
       expect(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY).toBeDefined();
-      expect(process.env.SUPABASE_SERVICE_KEY).toBeDefined();
+      expect(process.env.SUPABASE_SERVICE_ROLE_KEY).toBeDefined();
     });
 
     it('should have OpenAI API key', () => {

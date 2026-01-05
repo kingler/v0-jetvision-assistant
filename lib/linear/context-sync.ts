@@ -35,10 +35,10 @@ export async function parseContextDirectory(contextPath: string): Promise<Contex
   const linearIdPattern = /(ONEK|DES)-\d+/gi;
   const completionPattern = /(\d+)%/g;
   const statusPatterns = {
-    complete: /✅|complete|done|finished|merged/gi,
-    in_progress: /🟡|in progress|working|started|partial/gi,
-    pending: /❌|pending|not started|todo/gi,
-    blocked: /⛔|blocked|blocker/gi,
+    complete: /✅|complete|done|finished|merged/i,
+    in_progress: /🟡|in progress|working|started|partial/i,
+    pending: /❌|pending|not started|todo/i,
+    blocked: /⛔|blocked|blocker/i,
   };
 
   try {
@@ -61,15 +61,19 @@ export async function parseContextDirectory(contextPath: string): Promise<Contex
             let status: ContextTaskStatus['status'] = 'pending';
             if (statusPatterns.complete.test(contextLines)) {
               status = 'complete';
-            } else if (statusPatterns.in_progress.test(contextLines)) {
-              status = 'in_progress';
             } else if (statusPatterns.blocked.test(contextLines)) {
               status = 'blocked';
+            } else if (statusPatterns.pending.test(contextLines)) {
+              status = 'pending';
+            } else if (statusPatterns.in_progress.test(contextLines)) {
+              status = 'in_progress';
             }
             
             // Extract completion percentage if present
-            const percentMatch = contextLines.match(completionPattern);
-            const completionPercentage = percentMatch ? parseInt(percentMatch[0]) : undefined;
+            const percentMatches = Array.from(contextLines.matchAll(completionPattern));
+            const completionPercentage = percentMatches.length > 0
+              ? parseInt(percentMatches[percentMatches.length - 1][1], 10)
+              : undefined;
             
             tasks.push({
               identifier: identifier.toUpperCase(),
@@ -85,9 +89,16 @@ export async function parseContextDirectory(contextPath: string): Promise<Contex
     
     // Deduplicate tasks (keep most recent status)
     const taskMap = new Map<string, ContextTaskStatus>();
+    const statusPriority: Record<ContextTaskStatus['status'], number> = {
+      complete: 3,
+      in_progress: 2,
+      blocked: 1,
+      pending: 0,
+    };
+
     for (const task of tasks) {
       const existing = taskMap.get(task.identifier);
-      if (!existing || task.status === 'complete' || task.status === 'in_progress') {
+      if (!existing || statusPriority[task.status] > statusPriority[existing.status]) {
         taskMap.set(task.identifier, task);
       }
     }
@@ -266,4 +277,3 @@ export function generateSyncReport(result: SyncResult): string {
 
   return lines.join('\n');
 }
-

@@ -11,7 +11,7 @@
  * Usage: npx tsx scripts/test-avinode-complete-workflow.ts
  */
 
-import { AvinodeMCPServer } from '../lib/mcp/avinode-server';
+import { AvinodeMCPServer } from '../../lib/mcp/avinode-server';
 
 // Test configuration
 const TEST_CONFIG = {

@@ -31,19 +31,26 @@ const userIds = [
   'user_34R2SvVkcfq5fWJkdQT0AFluLRr',
 ];
 
-console.log('Querying database...');
-for (const userId of userIds) {
-  const { data, error } = await supabase
-    .from('iso_agents')
-    .select('clerk_user_id, email, full_name, role, is_active')
-    .eq('clerk_user_id', userId)
-    .single();
-  
-  if (error) {
-    console.log(`${userId}: NOT FOUND (${error.code})`);
-  } else {
-    console.log(`${userId}: FOUND - ${data.email} (${data.role})`);
+async function run(): Promise<void> {
+  console.log('Querying database...');
+  for (const userId of userIds) {
+    const { data, error } = await supabase
+      .from('iso_agents')
+      .select('clerk_user_id, email, full_name, role, is_active')
+      .eq('clerk_user_id', userId)
+      .single();
+    
+    if (error) {
+      console.log(`${userId}: NOT FOUND (${error.code})`);
+    } else {
+      console.log(`${userId}: FOUND - ${data.email} (${data.role})`);
+    }
   }
+
+  console.log('Done!');
 }
 
-console.log('Done!');
+run().catch((error) => {
+  console.error('Failed to verify users:', error);
+  process.exit(1);
+});

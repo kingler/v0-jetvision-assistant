@@ -753,7 +753,8 @@ export function ChatInterface({
           message: userMessage,
           conversationHistory,
           context: {
-            flightRequestId: activeChat.id,
+            flightRequestId: activeChat.requestId ?? (activeChat.conversationId ? undefined : activeChat.id),
+            conversationId: activeChat.conversationId,
             route: activeChat.route,
             passengers: activeChat.passengers,
             date: activeChat.date,
@@ -2359,8 +2360,6 @@ export function ChatInterface({
                     status: rfqFlightsForChatSession[0].rfqStatus,
                     operator: rfqFlightsForChatSession[0].operatorName,
                     hasSellerMessage: !!(rfqFlightsForChatSession[0] as any).sellerMessage,
-                    status: rfqFlightsForChatSession[0].rfqStatus,
-                    operator: rfqFlightsForChatSession[0].operatorName,
                   } : null,
                   // Log all flights with prices to verify extraction
                   allFlightsWithPrices: rfqFlightsForChatSession.map(f => ({

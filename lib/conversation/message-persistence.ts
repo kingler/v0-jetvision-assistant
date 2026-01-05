@@ -5,12 +5,11 @@
  * Ensures all chat conversations are persisted and recoverable across page refreshes.
  */
 
-import { createClient } from '@/lib/supabase/server';
-import type { Database } from '@/lib/types/database';
-
-type MessageSenderType = Database['public']['Enums']['message_sender_type'];
-type MessageContentType = Database['public']['Enums']['message_content_type'];
-type MessageStatus = Database['public']['Enums']['message_status'];
+import { supabaseAdmin } from '@/lib/supabase/admin';
+type MessageSenderType = string;
+type MessageContentType = string;
+type MessageStatus = string;
+type ConversationType = string;
 
 /**
  * Interface for creating a conversation
@@ -19,7 +18,7 @@ export interface CreateConversationParams {
   requestId?: string; // Optional - can create conversation before request exists
   userId: string;
   subject?: string;
-  type?: Database['public']['Enums']['conversation_type'];
+  type?: ConversationType;
 }
 
 /**
@@ -49,8 +48,6 @@ export interface SaveMessageParams {
 export async function getOrCreateConversation(
   params: CreateConversationParams
 ): Promise<string> {
-  const supabase = await createClient();
-
   // If requestId is provided, check for existing conversation
   if (params.requestId) {
     // Validate that requestId is a valid UUID (not a temp ID)
@@ -58,7 +55,7 @@ export async function getOrCreateConversation(
     const isValidRequestId = uuidRegex.test(params.requestId);
 
     if (isValidRequestId) {
-      const { data: existing, error: findError } = await supabase
+      const { data: existing, error: findError } = await supabaseAdmin
         .from('conversations')
         .select('id')
         .eq('request_id', params.requestId)
@@ -80,7 +77,7 @@ export async function getOrCreateConversation(
   }
 
   // Create new conversation (with or without request_id)
-  const { data: newConversation, error: createError } = await supabase
+  const { data: newConversation, error: createError } = await supabaseAdmin
     .from('conversations')
     .insert({
       request_id: params.requestId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.requestId)
@@ -99,9 +96,49 @@ export async function getOrCreateConversation(
     throw new Error(`Failed to create conversation: ${createError.message}`);
   }
 
+  // Create participant record to link user to conversation
+  // This is required so the user can see and access the conversation
+  // Use supabaseAdmin to bypass RLS (service role has full access per policy)
+  const { error: participantError } = await supabaseAdmin
+    .from('conversation_participants')
+    .insert({
+      conversation_id: newConversation.id,
+      iso_agent_id: params.userId,
+      role: 'iso_agent',
+      is_active: true,
+      can_reply: true,
+      can_invite: false,
+      notifications_enabled: true,
+    });
+
+  if (participantError) {
+    console.error('[Message Persistence] Error creating conversation participant:', participantError);
+    // Don't throw - conversation was created, participant creation failure is non-fatal
+    // But log it so we know something went wrong
+  } else {
+    console.log('[Message Persistence] ✅ Created conversation participant for user:', params.userId);
+  }
+
+  // Also add AI assistant as a participant (for system messages)
+  const { error: aiParticipantError } = await supabaseAdmin
+    .from('conversation_participants')
+    .insert({
+      conversation_id: newConversation.id,
+      role: 'ai_assistant',
+      is_active: true,
+      can_reply: true,
+      can_invite: false,
+      notifications_enabled: false,
+    });
+
+  if (aiParticipantError) {
+    // Non-fatal - log but don't throw
+    console.warn('[Message Persistence] Warning: Could not create AI assistant participant:', aiParticipantError);
+  }
+
   // Update request with primary_conversation_id if requestId was provided and is valid
   if (params.requestId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.requestId)) {
-    await supabase
+    await supabaseAdmin
       .from('requests')
       .update({ primary_conversation_id: newConversation.id })
       .eq('id', params.requestId)
@@ -120,9 +157,7 @@ export async function getOrCreateConversation(
 export async function getConversationForRequest(
   requestId: string
 ): Promise<string | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('conversations')
     .select('id')
     .eq('request_id', requestId)
@@ -152,9 +187,7 @@ export async function linkConversationToRequest(
   conversationId: string,
   requestId: string
 ): Promise<void> {
-  const supabase = await createClient();
-
-  const { error: updateError } = await supabase
+  const { error: updateError } = await supabaseAdmin
     .from('conversations')
     .update({ request_id: requestId })
     .eq('id', conversationId)
@@ -166,7 +199,7 @@ export async function linkConversationToRequest(
   }
 
   // Also update request with primary_conversation_id if not set
-  await supabase
+  await supabaseAdmin
     .from('requests')
     .update({ primary_conversation_id: conversationId })
     .eq('id', requestId)
@@ -187,8 +220,6 @@ export async function linkConversationToRequest(
 export async function saveMessage(
   params: SaveMessageParams
 ): Promise<string> {
-  const supabase = await createClient();
-
   // Validate sender based on sender type
   if (params.senderType === 'iso_agent' && !params.senderIsoAgentId) {
     throw new Error('senderIsoAgentId is required for iso_agent sender type');
@@ -197,7 +228,7 @@ export async function saveMessage(
     throw new Error('senderOperatorId is required for operator sender type');
   }
 
-  const { data: message, error } = await supabase
+  const { data: message, error } = await supabaseAdmin
     .from('messages')
     .insert({
       conversation_id: params.conversationId,
@@ -242,9 +273,7 @@ export async function loadMessages(
   createdAt: string;
   metadata: Record<string, unknown> | null;
 }>> {
-  const supabase = await createClient();
-
-  const { data: messages, error } = await supabase
+  const { data: messages, error } = await supabaseAdmin
     .from('messages')
     .select('id, sender_type, sender_name, content, content_type, rich_content, created_at, metadata')
     .eq('conversation_id', conversationId)
@@ -278,9 +307,7 @@ export async function loadMessages(
 export async function getIsoAgentIdFromClerkUserId(
   clerkUserId: string
 ): Promise<string | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('iso_agents')
     .select('id')
     .eq('clerk_user_id', clerkUserId)

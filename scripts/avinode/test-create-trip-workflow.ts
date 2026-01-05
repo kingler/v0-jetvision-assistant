@@ -5,7 +5,7 @@
  * why the deep link is not being returned.
  */
 
-import { AvinodeMCPServer } from '../lib/mcp/avinode-server';
+import { AvinodeMCPServer } from '../../lib/mcp/avinode-server';
 
 async function testCreateTripWorkflow() {
   console.log('=== Testing create_trip Workflow ===\n');

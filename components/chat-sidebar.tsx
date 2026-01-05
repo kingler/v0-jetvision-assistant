@@ -33,6 +33,8 @@ export interface QuoteRequestInfo {
 
 export interface ChatSession {
   id: string
+  conversationId?: string
+  requestId?: string
   route: string
   passengers: number
   date: string
@@ -180,7 +182,6 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
     } else if (session.status === "requesting_quotes") {
       return (
         <Badge variant="default" className="bg-cyan-500 text-xs">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
           Quotes {session.quotesReceived || 0}/{session.quotesTotal || 5}
         </Badge>
       )
@@ -231,14 +232,14 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
             <Card
               key={session.id}
               className={cn(
-                "cursor-pointer transition-all duration-200 hover:shadow-md",
+                "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden min-w-0",
                 activeChatId === session.id
                   ? "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-950"
                   : "hover:bg-gray-50 dark:hover:bg-gray-800",
               )}
               onClick={() => onSelectChat(session.id)}
             >
-              <CardContent className="p-2 sm:p-3">
+              <CardContent className="p-2 sm:p-3 min-w-0">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center space-x-2 min-w-0 flex-1">
                     <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
@@ -272,7 +273,6 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
                 {/* Workflow Status */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1">
-                    {getWorkflowIcon(session.currentStep, session.status)}
                     <span className="text-xs text-gray-600 dark:text-gray-300 truncate">
                       {workflowSteps[session.currentStep as keyof typeof workflowSteps]?.title}
                     </span>

@@ -13,11 +13,11 @@
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
-config({ path: resolve(__dirname, '../.env.local') });
+config({ path: resolve(__dirname, '../../.env.local') });
 
 async function testSupabaseConnection() {
   // Dynamic import after env vars are loaded
-  const { supabase, supabaseAdmin } = await import('../lib/supabase');
+  const { supabase, supabaseAdmin } = await import('../../lib/supabase');
   console.log('\n🔍 Testing Supabase Connection...\n');
 
   // Test 1: Environment Variables
@@ -73,12 +73,12 @@ async function testSupabaseConnection() {
   console.log('\n4️⃣ Testing table accessibility...');
   const tables = [
     'iso_agents',
-    'clients',
+    'client_profiles',
     'requests',
     'quotes',
     'workflow_states',
     'agent_executions',
-  ];
+  ] as const;
 
   for (const table of tables) {
     try {

@@ -36,6 +36,7 @@
     "clerk:test-webhook": "tsx scripts/clerk/test-webhook.ts",
     "clerk:sync-users": "tsx scripts/clerk/sync-users.ts",
     "clerk:sync-users:dry-run": "tsx scripts/clerk/sync-users.ts --dry-run",
+    "diagnostics:auth": "tsx scripts/diagnostics/check-auth-errors.ts",
     "redis:start": "bash scripts/redis-start.sh",
     "redis:stop": "bash scripts/redis-stop.sh",
     "redis:status": "bash scripts/redis-status.sh",

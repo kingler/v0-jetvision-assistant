@@ -25,8 +25,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
-// Valid roles
-const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
+// Valid roles (must match database enum: user_role = 'iso_agent' | 'admin' | 'operator')
+const VALID_ROLES = ['iso_agent', 'admin', 'operator'] as const;
 type UserRole = (typeof VALID_ROLES)[number];
 
 interface SyncStats {
@@ -108,11 +108,11 @@ async function main() {
         const email = primaryEmail.emailAddress;
         const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || email;
 
-        // Get role from public metadata or default to sales_rep
+        // Get role from public metadata or default to iso_agent
         const metadata = user.publicMetadata as Record<string, unknown>;
         const proposedRole = metadata?.role;
 
-        let role: UserRole = 'sales_rep';
+        let role: UserRole = 'iso_agent';
         if (typeof proposedRole === 'string' && VALID_ROLES.includes(proposedRole as UserRole)) {
           role = proposedRole as UserRole;
         }

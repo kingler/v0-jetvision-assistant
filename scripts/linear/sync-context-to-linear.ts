@@ -10,7 +10,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { syncContextToLinear, generateSyncReport } from '../lib/linear/context-sync';
+import { syncContextToLinear, generateSyncReport } from '../../lib/linear/context-sync';
 
 interface CLIOptions {
   dryRun: boolean;
@@ -148,4 +148,3 @@ main().catch((error) => {
   console.error('❌ Fatal error:', error);
   process.exit(1);
 });
-

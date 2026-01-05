@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { Database } from '@/lib/types/database';
 
 // Force dynamic rendering - API routes should not be statically generated
@@ -19,13 +20,15 @@ export async function GET(request: NextRequest) {
     const agentType = searchParams.get('agent_type');
     const status = searchParams.get('status');
 
-    const { data: user } = await supabase.from('iso_agents').select('id, role').eq('clerk_user_id', userId).single();
+    // Use admin client for user lookup (bypasses RLS since we have Clerk auth)
+    const { data: user } = await supabaseAdmin.from('iso_agents').select('id, role').eq('clerk_user_id', userId).single();
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+    // Note: requests table uses iso_agent_id (not user_id)
     let query = supabase
       .from('agent_executions')
-      .select('*, request:requests!inner(id, user_id)')
-      .eq('request.user_id', user.id)
+      .select('*, request:requests!inner(id, iso_agent_id)')
+      .eq('request.iso_agent_id', user.id)
       .order('created_at', { ascending: false });
 
     if (requestId) query = query.eq('request_id', requestId);

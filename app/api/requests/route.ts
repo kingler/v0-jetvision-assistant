@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { AgentFactory } from '@agents/core';
 import { AgentType } from '@agents/core/types';
 import type { Database, User, Request } from '@/lib/types/database';
@@ -42,7 +43,8 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Look up user in iso_agents table using Clerk user ID
-    const { data: user, error: userError } = await supabase
+    // Use admin client to bypass RLS since we already have Clerk authentication
+    const { data: user, error: userError } = await supabaseAdmin
       .from('iso_agents')
       .select('id, role')
       .eq('clerk_user_id', userId)
@@ -62,10 +64,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Build query for user's requests
+    // Note: Using iso_agent_id (not user_id) to match database schema
     let query = supabase
       .from('requests')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('iso_agent_id', user.id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -204,7 +207,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Look up user in iso_agents table using Clerk user ID
-    const { data: user, error: userError } = await supabase
+    // Use admin client to bypass RLS since we already have Clerk authentication
+    const { data: user, error: userError } = await supabaseAdmin
       .from('iso_agents')
       .select('id, role')
       .eq('clerk_user_id', userId)
@@ -224,10 +228,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new request in database
+    // Note: Using iso_agent_id (not user_id) to match database schema
     const { data: newRequest, error } = await supabase
       .from('requests')
       .insert({
-        user_id: user.id,
+        iso_agent_id: user.id,
         client_profile_id: client_profile_id || null,
         departure_airport,
         arrival_airport,

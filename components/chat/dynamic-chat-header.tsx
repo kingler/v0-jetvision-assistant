@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Copy, Check, Loader2, FileText } from "lucide-react"
+import { Copy, Check, FileText } from "lucide-react"
 import { QuoteRequestList } from "./quote-request-list"
 import type { QuoteRequest } from "./quote-request-item"
 import type { ChatSession } from "../chat-sidebar"
@@ -13,7 +13,7 @@ export interface DynamicChatHeaderProps {
   activeChat: ChatSession | null
   /** AI-generated descriptive name for the flight request */
   flightRequestName?: string
-  /** Whether to show the Trip ID section (only after Avinode trip creation) */
+  /** Whether to show quote requests (only after Avinode trip creation) */
   showTripId: boolean
   /** Quote requests to display */
   quoteRequests?: QuoteRequest[]
@@ -69,28 +69,24 @@ function getStatusBadge(status: ChatSession['status']) {
     case 'requesting_quotes':
       return (
         <Badge className="bg-cyan-500 text-white">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
           Requesting Quotes
         </Badge>
       )
     case 'understanding_request':
       return (
         <Badge className="bg-blue-500 text-white">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
           Understanding Request
         </Badge>
       )
     case 'searching_aircraft':
       return (
         <Badge className="bg-purple-500 text-white">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
           Searching Aircraft
         </Badge>
       )
     case 'analyzing_options':
       return (
         <Badge className="bg-orange-500 text-white">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
           Analyzing Options
         </Badge>
       )
@@ -171,37 +167,39 @@ export function DynamicChatHeader({
         </div>
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          {/* Flight ID Badge */}
-          <Badge variant="outline" className="font-mono text-xs">
-            FR-{activeChat.id}
-          </Badge>
+          {/* Trip ID Badge with Copy (when tripId exists) or Flight ID Badge (fallback) */}
+          {activeChat.tripId ? (
+            <Badge
+              variant="secondary"
+              className="font-mono text-xs font-semibold text-black dark:text-black cursor-pointer hover:bg-secondary/80 transition-colors"
+              onClick={handleCopyTripId}
+              role="button"
+              tabIndex={0}
+              aria-label={`Copy Trip ID ${activeChat.tripId}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleCopyTripId()
+                }
+              }}
+            >
+              {activeChat.tripId}
+              {copied ? (
+                <Check className="w-3 h-3 text-green-500" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="font-mono text-xs">
+              FR-{activeChat.id}
+            </Badge>
+          )}
 
           {/* Status Badge */}
           {getStatusBadge(activeChat.status)}
         </div>
       </div>
-
-      {/* Trip ID Row - only when tripId exists */}
-      {showTripId && activeChat.tripId && (
-        <div className="flex items-center gap-2 py-2 border-t border-gray-200 dark:border-gray-700 mt-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Trip ID:</span>
-          <Badge variant="secondary" className="font-mono text-xs">
-            {activeChat.tripId}
-          </Badge>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCopyTripId}
-            className="h-6 px-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            {copied ? (
-              <Check className="w-3 h-3 text-green-500" />
-            ) : (
-              <Copy className="w-3 h-3" />
-            )}
-          </Button>
-        </div>
-      )}
 
       {/* Quote Requests List - only when tripId exists and quotes available */}
       {showTripId && activeChat.tripId && quoteRequests.length > 0 && (

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST } from '@/app/api/webhooks/clerk/route';
 
 // Mock dependencies
-vi.mock('@/lib/supabase/client', () => ({
-  supabase: {
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
     from: vi.fn(() => ({
       insert: vi.fn(() => ({
         select: vi.fn(() => ({

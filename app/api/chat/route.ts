@@ -18,6 +18,12 @@ import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
 import { supabaseAdmin, findRequestByTripId, listUserTrips, upsertRequestWithTripId } from '@/lib/supabase'
 import type { PipelineData, PipelineStats, PipelineRequest } from '@/lib/types/chat-agent'
 import { detectTripId, normalizeTripId } from '@/lib/avinode/trip-id'
+import {
+  createOrUpdateChatSession,
+  getActiveChatSession,
+  updateChatSessionWithTripInfo,
+  type ChatSessionInsert,
+} from '@/lib/sessions/track-chat-session'
 
 // Agent integration imports
 import {
@@ -69,6 +75,7 @@ const ChatRequestSchema = z.object({
   })).optional().default([]),
   context: z.object({
     flightRequestId: z.string().optional(),
+    conversationId: z.string().optional(),
     route: z.string().optional(),
     passengers: z.number().optional(),
     date: z.string().optional(),
@@ -76,6 +83,9 @@ const ChatRequestSchema = z.object({
     rfpId: z.string().optional(),
   }).optional(),
 })
+
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const isValidUuid = (value?: string | null) => Boolean(value && uuidRegex.test(value))
 
 // System prompt for JetVision assistant with Avinode integration
 const SYSTEM_PROMPT = `You are the JetVision AI Assistant, a professional private jet charter concierge.
@@ -469,11 +479,13 @@ export async function POST(req: NextRequest) {
     const { userId } = await auth()
 
     if (!userId) {
+      console.warn('[Chat API] Missing Clerk userId; skipping persistence')
       return new Response(
         JSON.stringify({ error: 'Unauthorized', message: 'Please sign in to use the chat' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       )
     }
+    console.log('[Chat API] Clerk userId:', userId)
 
     // Validate environment
     if (!process.env.OPENAI_API_KEY) {
@@ -510,8 +522,13 @@ export async function POST(req: NextRequest) {
     // Get ISO agent ID for message persistence
     try {
       isoAgentId = await getIsoAgentIdFromClerkUserId(userId)
+      if (isoAgentId) {
+        console.log('[Chat API] ✅ ISO agent ID retrieved successfully:', isoAgentId)
+      } else {
+        console.warn('[Chat API] ⚠️  ISO agent ID is null - user may not exist in iso_agents table for Clerk user:', userId)
+      }
     } catch (error) {
-      console.error('[Chat API] Error getting ISO agent ID:', error)
+      console.error('[Chat API] ❌ Error getting ISO agent ID:', error)
       // Continue without message persistence if this fails
     }
 
@@ -519,13 +536,19 @@ export async function POST(req: NextRequest) {
     // Note: requestId may be a temp ID for new chats - we'll handle that in getOrCreateConversation
     if (isoAgentId) {
       try {
-        conversationId = await getOrCreateConversation({
-          requestId: context?.flightRequestId, // May be undefined or temp ID
-          userId: isoAgentId,
-          subject: context?.route 
-            ? `Flight Request: ${context.route}`
-            : 'New Flight Request',
-        })
+        if (context?.conversationId) {
+          conversationId = context.conversationId
+          console.log('[Chat API] Using existing conversation ID from context:', conversationId)
+        } else {
+          conversationId = await getOrCreateConversation({
+            requestId: context?.flightRequestId, // May be undefined or temp ID
+            userId: isoAgentId,
+            subject: context?.route 
+              ? `Flight Request: ${context.route}`
+              : 'New Flight Request',
+          })
+        }
+        console.log('[Chat API] Conversation ID:', conversationId)
 
         userMessageId = await saveMessage({
           conversationId,
@@ -534,11 +557,32 @@ export async function POST(req: NextRequest) {
           content: message,
           contentType: 'text',
         })
+        console.log('[Chat API] Message saved:', userMessageId)
 
         console.log('[Chat API] Saved user message:', {
           conversationId,
           messageId: userMessageId,
         })
+
+        if (conversationId) {
+          const chatSessionSeed: ChatSessionInsert = {
+            conversation_id: conversationId,
+            iso_agent_id: isoAgentId,
+            status: 'active',
+            ...(isValidUuid(context?.flightRequestId)
+              ? { request_id: context?.flightRequestId }
+              : {}),
+            ...(context?.tripId ? { avinode_trip_id: context.tripId } : {}),
+            ...(context?.rfpId ? { avinode_rfp_id: context.rfpId } : {}),
+          }
+
+          try {
+            const session = await createOrUpdateChatSession(chatSessionSeed)
+            console.log('[Chat API] Chat session upserted:', session?.id)
+          } catch (error) {
+            console.error('[Chat API] Error creating/updating chat session:', error)
+          }
+        }
       } catch (error) {
         console.error('[Chat API] Error saving user message:', error)
         // Continue processing even if message save fails
@@ -783,6 +827,28 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         console.error(`[Chat API] Error looking up Trip ID:`, error)
         // Continue without existing request - will create new one after API call
+      }
+    }
+
+    if (detectedTripId && isoAgentId && conversationId) {
+      try {
+        const existingSession = await getActiveChatSession(conversationId)
+        if (existingSession) {
+          await updateChatSessionWithTripInfo(existingSession.id, {
+            avinode_trip_id: detectedTripId,
+            request_id: existingRequest?.id,
+          })
+        } else {
+          await createOrUpdateChatSession({
+            conversation_id: conversationId,
+            iso_agent_id: isoAgentId,
+            status: 'active',
+            ...(existingRequest?.id ? { request_id: existingRequest.id } : {}),
+            avinode_trip_id: detectedTripId,
+          })
+        }
+      } catch (error) {
+        console.error('[Chat API] Error updating chat session with detected Trip ID:', error)
       }
     }
 
@@ -1218,6 +1284,28 @@ export async function POST(req: NextRequest) {
                   requestId: request.id,
                   tripId: tripData.trip_id,
                 })
+
+                try {
+                  const existingSession = await getActiveChatSession(conversationId)
+                  if (existingSession) {
+                    await updateChatSessionWithTripInfo(existingSession.id, {
+                      request_id: request.id,
+                      avinode_trip_id: tripData.trip_id,
+                      avinode_rfp_id: tripData.rfp_id,
+                    })
+                  } else {
+                    await createOrUpdateChatSession({
+                      conversation_id: conversationId,
+                      iso_agent_id: isoAgentId,
+                      status: 'active',
+                      request_id: request.id,
+                      avinode_trip_id: tripData.trip_id,
+                      avinode_rfp_id: tripData.rfp_id,
+                    })
+                  }
+                } catch (error) {
+                  console.error('[Chat API] Error updating chat session after request link:', error)
+                }
               }
             }
           } catch (error) {
