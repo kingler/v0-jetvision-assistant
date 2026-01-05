@@ -191,7 +191,7 @@ export async function listUserTrips(
   let query = supabaseAdmin
     .from('requests')
     .select('*, quotes(count)', { count: 'exact' })
-    .eq('user_id', userId)
+    .eq('iso_agent_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -269,7 +269,7 @@ export async function upsertRequestWithTripId(
   const { data, error } = await supabaseAdmin
     .from('requests')
     .insert({
-      user_id: userId,
+      iso_agent_id: userId,
       avinode_trip_id: tripId,
       avinode_deep_link: flightData.deep_link,
       departure_airport: flightData.departure_airport,

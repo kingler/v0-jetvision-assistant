@@ -380,7 +380,7 @@ Return ONLY valid JSON with these fields. If information is missing, include it 
     const { data, error } = await this.supabase
       .from('requests')
       .insert({
-        user_id: requestData.user_id || requestData.userId,
+        iso_agent_id: requestData.iso_agent_id || requestData.user_id || requestData.userId,
         client_profile_id: requestData.client_profile_id || null,
         departure_airport: requestData.departure_airport,
         arrival_airport: requestData.arrival_airport,

@@ -83,8 +83,8 @@ export async function getOrCreateConversation(
       request_id: params.requestId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.requestId)
         ? params.requestId
         : null,
-      type: params.type || 'rfp_negotiation',
-      status: 'active',
+      type: (params.type || 'rfp_negotiation') as 'rfp_negotiation' | 'quote_discussion' | 'general_inquiry' | 'booking_confirmation' | 'support',
+      status: 'active' as 'active' | 'awaiting_response' | 'resolved' | 'archived',
       subject: params.subject || null,
       metadata: {},
     })
@@ -232,15 +232,15 @@ export async function saveMessage(
     .from('messages')
     .insert({
       conversation_id: params.conversationId,
-      sender_type: params.senderType,
+      sender_type: params.senderType as any,
       sender_iso_agent_id: params.senderIsoAgentId || null,
       sender_operator_id: params.senderOperatorId || null,
       sender_name: params.senderName || null,
       content: params.content,
-      content_type: params.contentType || 'text',
-      rich_content: params.richContent || null,
-      status: 'sent',
-      metadata: params.metadata || {},
+      content_type: (params.contentType || 'text') as any,
+      rich_content: params.richContent as any || null,
+      status: 'sent' as any,
+      metadata: params.metadata as any || {},
     })
     .select('id')
     .single();

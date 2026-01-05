@@ -1200,7 +1200,19 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
              statusIsQuoted: rfqStatus === 'quoted',
            })
     
-    const hasQuote = rfqStatus === 'quoted';
+    // CRITICAL: Check if we have a price from merged quote details
+    // If sellerPrice exists, it means we fetched quote details and have a price
+    // This should override the status determination - if there's a price, it's a quote
+    const hasSellerPrice = !!(quote.sellerPrice?.price || quote.sellerPriceWithoutCommission?.price);
+    
+    // Update status if we have a price but status is still unanswered
+    // This handles the case where operator responded but sourcingDisplayStatus hasn't updated yet
+    if (hasSellerPrice && rfqStatus === 'unanswered') {
+      console.log('[transformToRFQFlights] ⚠️ Found sellerPrice but status is unanswered - updating to quoted');
+      rfqStatus = 'quoted';
+    }
+    
+    const hasQuote = rfqStatus === 'quoted' || hasSellerPrice;
 
     // Extract aircraft data
     const aircraftType = quote.aircraft?.type || 'Unknown';
@@ -1223,6 +1235,7 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     // - quote.price (fallback - direct price if available)
     // CRITICAL: After merging quote details into sellerLift, sellerPrice is at the top level
     // Check sellerPrice first (from merged quote details), then fallbacks
+    // IMPORTANT: Extract price if sellerPrice exists OR if status is quoted
     const totalPrice = hasQuote ? (
       quote.sellerPrice?.price || // PRIMARY: From fetched quote details (merged at top level)
       quote.sellerPriceWithoutCommission?.price || // Fallback: Price without commission
@@ -1698,11 +1711,37 @@ async function getRFQ(params: GetRFQParams) {
           
           // Fetch quote details to get prices
           // This ensures we have complete price information when transforming to RFQFlight
+          // Pattern from test script: GET /quotes/{quoteId} returns quote details with sellerPrice
           const quoteDetails = await Promise.all(
             quoteIds.map(async (quoteId: string) => {
               try {
-                const quoteResponse = await avinodeClient.get(`/quotes/${quoteId}`);
-                return quoteResponse.data?.data || quoteResponse.data;
+                const quoteResponse = await avinodeClient.get(`/quotes/${quoteId}`, {
+                  params: {
+                    taildetails: true,
+                    typedetails: true,
+                    tailphotos: true,
+                    typephotos: true,
+                    quotebreakdown: true,
+                    latestquote: true,
+                  },
+                });
+                
+                // Extract quote data from response (handle nested data structures)
+                // avinodeClient.get() already returns response.data, so we check for nested data.data
+                // Response structure from API: { data: { data: { ...quote... } } } or { data: { ...quote... } }
+                const quoteData = (quoteResponse as any)?.data || quoteResponse;
+                
+                console.log('[getRFQ] Fetched quote detail for', quoteId, ':', {
+                  hasData: !!(quoteResponse as any)?.data,
+                  hasNestedData: !!(quoteResponse as any)?.data?.data,
+                  quoteId: quoteData?.id || quoteData?.quote_id,
+                  hasSellerPrice: !!quoteData?.sellerPrice,
+                  sellerPrice: quoteData?.sellerPrice,
+                  status: quoteData?.status,
+                  keys: Object.keys(quoteData || {}),
+                });
+                
+                return quoteData;
               } catch (error: any) {
                 console.warn('[getRFQ] Failed to fetch quote details for', quoteId, ':', error?.message || 'Unknown error');
                 return null;
@@ -1720,8 +1759,20 @@ async function getRFQ(params: GetRFQParams) {
               if (lift.links?.quotes && Array.isArray(lift.links.quotes)) {
                 for (let j = 0; j < lift.links.quotes.length; j++) {
                   const quoteLink = lift.links.quotes[j];
-                  const quoteDetail = validQuoteDetails.find((qd: any) => qd.id === quoteLink.id || qd.quote_id === quoteLink.id);
+                  // Match quote detail by ID - check multiple possible ID fields
+                  const quoteDetail = validQuoteDetails.find((qd: any) => {
+                    const qdId = qd.id || qd.quote_id || qd.quoteId;
+                    const linkId = quoteLink.id || quoteLink.quote_id;
+                    return qdId === linkId;
+                  });
                   if (quoteDetail) {
+                    console.log('[getRFQ] Matching quote detail to lift:', {
+                      quoteLinkId: quoteLink.id,
+                      quoteDetailId: quoteDetail.id || quoteDetail.quote_id,
+                      hasSellerPrice: !!quoteDetail.sellerPrice,
+                      sellerPricePrice: quoteDetail.sellerPrice?.price,
+                      sellerPriceCurrency: quoteDetail.sellerPrice?.currency,
+                    });
                     // Merge quote details into lift object for transformToRFQFlights
                     // IMPORTANT: sellerMessage contains the operator's message text
                     // This is the PRIMARY source for operator messages when quotes are fetched
@@ -1745,7 +1796,15 @@ async function getRFQ(params: GetRFQParams) {
                     
                     // Log price and message extraction for debugging
                     if (quoteDetail.sellerPrice?.price) {
-                      console.log('[getRFQ] Merged quote details for', quoteLink.id, '- Price:', quoteDetail.sellerPrice.price, quoteDetail.sellerPrice.currency);
+                      console.log('[getRFQ] ✅ Merged quote details for', quoteLink.id, '- Price:', quoteDetail.sellerPrice.price, quoteDetail.sellerPrice.currency);
+                    } else {
+                      console.warn('[getRFQ] ⚠️ Quote detail for', quoteLink.id, 'has no sellerPrice:', {
+                        hasSellerPrice: !!quoteDetail.sellerPrice,
+                        sellerPrice: quoteDetail.sellerPrice,
+                        hasPricing: !!quoteDetail.pricing,
+                        pricing: quoteDetail.pricing,
+                        keys: Object.keys(quoteDetail),
+                      });
                     }
                     if (quoteDetail.sellerMessage) {
                       console.log('[getRFQ] Found seller message for quote', quoteLink.id, ':', quoteDetail.sellerMessage.substring(0, 100));

@@ -110,7 +110,11 @@ export async function GET(request: NextRequest) {
 
     // Filter by status if provided
     if (status) {
-      query = query.eq('status', status);
+      // Validate status is a valid chat session status
+      const validStatuses = ['active', 'paused', 'completed', 'archived'];
+      if (validStatuses.includes(status)) {
+        query = query.eq('status', status as 'active' | 'paused' | 'completed' | 'archived');
+      }
     } else {
       // Default to active sessions only if no status filter
       query = query.in('status', ['active', 'paused']);

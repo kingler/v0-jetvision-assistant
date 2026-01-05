@@ -368,7 +368,7 @@ describe('Supabase MCP Tools - Integration', () => {
       const { data: client, error: clientError } = await supabase
         .from('client_profiles')
         .insert({
-          user_id: agent.id,
+          iso_agent_id: agent.id,
           company_name: 'E2E Test Company',
           contact_name: 'E2E Contact',
           email: 'e2e@test.com',
@@ -386,7 +386,7 @@ describe('Supabase MCP Tools - Integration', () => {
       const { data: request, error: requestError } = await supabase
         .from('requests')
         .insert({
-          user_id: agent.id,
+          iso_agent_id: agent.id,
           client_profile_id: client.id,
           departure_airport: 'KLAX',
           arrival_airport: 'KJFK',

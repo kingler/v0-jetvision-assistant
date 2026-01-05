@@ -217,7 +217,12 @@ export async function updateChatSessionWithTripInfo(
     const { data: session, error } = await supabaseAdmin
       .from('chat_sessions')
       .update({
-        ...updates,
+        avinode_trip_id: updates.avinode_trip_id,
+        avinode_rfp_id: updates.avinode_rfp_id,
+        avinode_rfq_id: updates.avinode_rfq_id,
+        request_id: updates.request_id,
+        current_step: updates.current_step,
+        workflow_state: updates.workflow_state as any,
         last_activity_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
