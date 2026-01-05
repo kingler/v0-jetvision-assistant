@@ -201,7 +201,7 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
   const chatSession: ChatSession = {
     // Use chat_session ID (or request ID if available)
     id: chatSessionRow.request_id || chatSessionRow.id,
-    conversationId: chatSessionRow.conversation?.id || chatSessionRow.conversation_id ?? undefined,
+    conversationId: (chatSessionRow.conversation?.id || chatSessionRow.conversation_id) ?? undefined,
     requestId: chatSessionRow.request_id || chatSessionRow.request?.id || undefined,
 
     // Basic flight information from request
