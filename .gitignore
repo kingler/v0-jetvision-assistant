@@ -61,3 +61,6 @@ build-output.log
 
 # Auto Claude data directory
 .auto-claude/
+
+# Vercel project settings (local only)
+.vercel/
