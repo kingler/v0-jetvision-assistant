@@ -2,7 +2,7 @@
   "name": "jetvision-multi-agent",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@9.15.0",
   "workspaces": [
     "mcp-servers/*"
   ],
@@ -56,6 +56,7 @@
     "review:tdd": "tsx scripts/code-review/tdd-workflow.ts",
     "review:fix": "npm run lint -- --fix",
     "review:automated": "./scripts/pr-review-automation.sh",
+    "verify:avinode-env": "bash scripts/verify-avinode-env.sh",
     "prepare": "husky install || true"
   },
   "dependencies": {
