@@ -170,6 +170,13 @@ The test script validates the exact pattern we implemented:
 ✅ **Message Content**: Messages contain readable content, sender info, and timestamps  
 ✅ **Message-Quote Linking**: Messages are linked to quotes when quote information is present
 
+## UI Display Alignment
+
+To match the test output, the UI layer must:
+- Map prices from `sellerPrice.price` + `sellerPrice.currency` when converting quotes to `RFQFlight` objects.
+- Derive RFQ status from `sourcingDisplayStatus` (Accepted/Declined) and fall back to quote `status`.
+- Surface operator messages from `sellerMessage` (quote details) and `/tripmsgs` (chat history) when rendering RFQ cards and the quote details drawer.
+
 ## Troubleshooting
 
 If the test fails:

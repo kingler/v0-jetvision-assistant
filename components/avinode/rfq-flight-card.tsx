@@ -130,6 +130,8 @@ export interface RFQFlight {
   avinodeDeepLink?: string;
   /** Message ID for retrieving specific operator messages (from webhook events) */
   messageId?: string;
+  /** Operator message text from sellerMessage or trip messages */
+  sellerMessage?: string;
 }
 
 export interface RFQFlightCardProps {
@@ -402,6 +404,43 @@ export function RFQFlightCard({
   // Track expanded/collapsed state for compact view with "show more" functionality
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // CRITICAL: Log flight data when component renders to debug price/status issues
+  useEffect(() => {
+    console.log('[RFQFlightCard] 🎴 Component rendered with flight data:', {
+      flightId: flight.id,
+      quoteId: flight.quoteId,
+      totalPrice: flight.totalPrice,
+      currency: flight.currency,
+      rfqStatus: flight.rfqStatus,
+      priceIsZero: flight.totalPrice === 0,
+      statusIsUnanswered: flight.rfqStatus === 'unanswered',
+      hasSellerMessage: !!flight.sellerMessage,
+      sellerMessagePreview: flight.sellerMessage?.substring(0, 100),
+      componentKey: `${flight.id}-${flight.totalPrice}-${flight.rfqStatus}`, // Key that should change when price/status changes
+    })
+    
+    // WARNING: If price is 0, this is a problem
+    if (flight.totalPrice === 0) {
+      console.warn('[RFQFlightCard] ⚠️ WARNING: Flight has $0 price!', {
+        flightId: flight.id,
+        quoteId: flight.quoteId,
+        status: flight.rfqStatus,
+        message: 'This flight should have a price from the quote. Check if get_quote tool was called or if price extraction failed.',
+      })
+    }
+    
+    // WARNING: If status is unanswered but price is not 0, status should be 'quoted'
+    if (flight.rfqStatus === 'unanswered' && flight.totalPrice > 0) {
+      console.warn('[RFQFlightCard] ⚠️ WARNING: Flight has price but status is "unanswered"!', {
+        flightId: flight.id,
+        quoteId: flight.quoteId,
+        price: flight.totalPrice,
+        status: flight.rfqStatus,
+        message: 'Status should be "quoted" when price exists. This indicates a bug in status determination logic.',
+      })
+    }
+  }, [flight.id, flight.totalPrice, flight.rfqStatus, flight.currency]) // Re-run when these change
+
   /**
    * Reset image error state when the aircraft image URL changes.
    * This ensures that if a new flight is loaded with a valid image URL,
@@ -500,6 +539,11 @@ export function RFQFlightCard({
   };
 
   const isBookingEnabled = flight.rfqStatus === 'quoted';
+  const operatorMessage = flight.sellerMessage?.trim();
+  const operatorMessagePreview =
+    operatorMessage && operatorMessage.length > 140
+      ? `${operatorMessage.slice(0, 140)}…`
+      : operatorMessage;
 
   /**
    * Toggle expanded/collapsed state for compact view
@@ -533,11 +577,26 @@ export function RFQFlightCard({
       {showCompactView && (
         <div
           data-testid="price-section-compact"
-          className="absolute top-4 right-4 z-10"
+          className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1"
         >
-          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            {formatPrice(flight.totalPrice, flight.currency)}
+          {/* Price with status indicator */}
+          <p className={cn(
+            "text-lg font-bold",
+            flight.totalPrice === 0 
+              ? "text-amber-600 dark:text-amber-400" 
+              : "text-gray-900 dark:text-gray-100"
+          )}>
+            {flight.totalPrice === 0 
+              ? "Price Pending" 
+              : formatPrice(flight.totalPrice, flight.currency)}
           </p>
+          {/* Status badge in compact view */}
+          <span
+            data-testid="status-badge-compact"
+            className={cn('inline-block px-2 py-1 rounded-md text-xs font-medium', getStatusBadgeClasses(flight.rfqStatus))}
+          >
+            {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
+          </span>
         </div>
       )}
 
@@ -584,11 +643,32 @@ export function RFQFlightCard({
                   )}
                 </div>
               </div>
+              {operatorMessagePreview && (
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Operator message:</span>{' '}
+                  {operatorMessagePreview}
+                </div>
+              )}
             </div>
 
-            {/* Bottom Row: Status Badge, Messages Button, Action Buttons (when quoted + messages), and Show More */}
+            {/* Bottom Row: Price (if not shown at top), Status Badge, Messages Button, Action Buttons (when quoted + messages), and Show More */}
             <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Price display in compact view bottom row (if not at top) */}
+                {!showCompactView && (
+                  <div className="flex flex-col">
+                    <p className={cn(
+                      "text-sm font-semibold",
+                      flight.totalPrice === 0 
+                        ? "text-amber-600 dark:text-amber-400" 
+                        : "text-gray-900 dark:text-gray-100"
+                    )}>
+                      {flight.totalPrice === 0 
+                        ? "Price Pending" 
+                        : formatPrice(flight.totalPrice, flight.currency)}
+                    </p>
+                  </div>
+                )}
                 {/* Status Badge - Positioned before Messages button */}
                 <span
                   data-testid="status-badge"
@@ -736,10 +816,33 @@ export function RFQFlightCard({
                 {/* Price Label and Amount on same row */}
                 <div className="flex items-center justify-between gap-2">
                   <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Price</h5>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {formatPrice(flight.totalPrice, flight.currency)}
+                  <p className={cn(
+                    "text-2xl font-bold",
+                    flight.totalPrice === 0 
+                      ? "text-amber-600 dark:text-amber-400" 
+                      : "text-gray-900 dark:text-gray-100"
+                  )}>
+                    {flight.totalPrice === 0 
+                      ? "Pending" 
+                      : formatPrice(flight.totalPrice, flight.currency)}
                   </p>
                 </div>
+                {/* Status Badge - Show prominently next to price */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Status:</span>
+                  <span
+                    data-testid="rfq-status-badge-full"
+                    className={cn('inline-block px-3 py-1.5 rounded-md text-xs font-medium', getStatusBadgeClasses(flight.rfqStatus))}
+                  >
+                    {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
+                  </span>
+                </div>
+                {/* Price warning if zero */}
+                {flight.totalPrice === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 italic">
+                    Quote price not yet available
+                  </p>
+                )}
                 {showPriceBreakdown && flight.priceBreakdown && (
                   <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
                     <p>Base: {formatPrice(flight.priceBreakdown.basePrice, flight.currency)}</p>
@@ -768,6 +871,12 @@ export function RFQFlightCard({
                   )}
                 </div>
               </div>
+              {operatorMessagePreview && (
+                <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <p className="font-medium text-gray-700 dark:text-gray-300">Operator message</p>
+                  <p className="leading-relaxed">{operatorMessagePreview}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -794,9 +903,22 @@ export function RFQFlightCard({
             </div>
           </div>
 
-          {/* Bottom Action Area: Status Badge, View Messages, Book Flight, Generate Proposal buttons */}
+          {/* Bottom Action Area: Price (if not in column 3), Status Badge, View Messages, Book Flight, Generate Proposal buttons */}
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 pb-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Price display in full view bottom row (if not in column 3) - for better visibility */}
+              <div className="flex flex-col">
+                <p className={cn(
+                  "text-sm font-semibold",
+                  flight.totalPrice === 0 
+                    ? "text-amber-600 dark:text-amber-400" 
+                    : "text-gray-900 dark:text-gray-100"
+                )}>
+                  {flight.totalPrice === 0 
+                    ? "Price: Pending" 
+                    : `Price: ${formatPrice(flight.totalPrice, flight.currency)}`}
+                </p>
+              </div>
               {/* RFQ Status Badge - Positioned before View Messages button */}
               <span
                 data-testid="rfq-status-badge"

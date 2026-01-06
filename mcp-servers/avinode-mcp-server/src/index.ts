@@ -1200,28 +1200,8 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
              statusIsQuoted: rfqStatus === 'quoted',
            })
     
-    // CRITICAL: Check if we have a price from merged quote details
-    // If sellerPrice exists, it means we fetched quote details and have a price
-    // This should override the status determination - if there's a price, it's a quote
-    const hasSellerPrice = !!(quote.sellerPrice?.price || quote.sellerPriceWithoutCommission?.price);
-    
-    // Update status if we have a price but status is still unanswered
-    // This handles the case where operator responded but sourcingDisplayStatus hasn't updated yet
-    if (hasSellerPrice && rfqStatus === 'unanswered') {
-      console.log('[transformToRFQFlights] ⚠️ Found sellerPrice but status is unanswered - updating to quoted');
-      rfqStatus = 'quoted';
-    }
-    
-    const hasQuote = rfqStatus === 'quoted' || hasSellerPrice;
-
-    // Extract aircraft data
-    const aircraftType = quote.aircraft?.type || 'Unknown';
-    const aircraftModel = quote.aircraft?.model || quote.aircraft?.type || 'Unknown';
-    const tailNumber = quote.aircraft?.tailNumber || quote.aircraft?.registration;
-    const yearOfManufacture = quote.aircraft?.yearOfManufacture || quote.aircraft?.year_built;
-    const passengerCapacity = quote.aircraft?.capacity || rfqData.passengers || 0;
-
-    // Extract pricing data
+    // Extract pricing data FIRST (before status determination)
+    // This ensures we always try to extract price, even if status determination fails
     // IMPORTANT: Based on API testing, prices are in sellerPrice object when fetching quote details
     // When you fetch /quotes/{id}, the response contains:
     // - sellerPrice.price (PRIMARY - the actual quote price)
@@ -1235,8 +1215,8 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     // - quote.price (fallback - direct price if available)
     // CRITICAL: After merging quote details into sellerLift, sellerPrice is at the top level
     // Check sellerPrice first (from merged quote details), then fallbacks
-    // IMPORTANT: Extract price if sellerPrice exists OR if status is quoted
-    const totalPrice = hasQuote ? (
+    // IMPORTANT: ALWAYS try to extract price (don't gate on hasQuote) - if price exists, it's a quote
+    let totalPrice = 
       quote.sellerPrice?.price || // PRIMARY: From fetched quote details (merged at top level)
       quote.sellerPriceWithoutCommission?.price || // Fallback: Price without commission
       quote.totalPrice?.amount || // Fallback: Structured price object (if available)
@@ -1244,9 +1224,9 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
       quote.quote?.totalPrice?.amount || // Fallback: Nested quote object
       quote.price || // Fallback: Direct price from sellerLift (if available)
       quote.pricing?.total || // Fallback: Pricing breakdown total
-      0
-    ) : 0;
-    const currency = hasQuote ? (
+      0;
+    
+    let currency = 
       quote.sellerPrice?.currency || // PRIMARY: From fetched quote details (merged at top level)
       quote.sellerPriceWithoutCommission?.currency || // Fallback: Currency without commission
       quote.totalPrice?.currency || // Fallback: Structured price object (if available)
@@ -1254,8 +1234,28 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
       quote.quote?.totalPrice?.currency || // Fallback: Nested quote object
       quote.currency || // Fallback: Direct currency from sellerLift (if available)
       quote.pricing?.currency || // Fallback: Pricing breakdown currency
-      'USD'
-    ) : 'USD';
+      'USD';
+    
+    // CRITICAL: Check if we have a price from merged quote details
+    // If sellerPrice exists, it means we fetched quote details and have a price
+    // This should override the status determination - if there's a price, it's a quote
+    const hasSellerPrice = !!(quote.sellerPrice?.price || quote.sellerPriceWithoutCommission?.price || totalPrice > 0);
+    
+    // Update status if we have a price but status is still unanswered
+    // This handles the case where operator responded but sourcingDisplayStatus hasn't updated yet
+    if (hasSellerPrice && (rfqStatus === 'unanswered' || rfqStatus === 'sent')) {
+      console.log('[transformToRFQFlights] ⚠️ Found price but status is unanswered/sent - updating to quoted');
+      rfqStatus = 'quoted';
+    }
+    
+    const hasQuote = rfqStatus === 'quoted' || hasSellerPrice;
+
+    // Extract aircraft data
+    const aircraftType = quote.aircraft?.type || 'Unknown';
+    const aircraftModel = quote.aircraft?.model || quote.aircraft?.type || 'Unknown';
+    const tailNumber = quote.aircraft?.tailNumber || quote.aircraft?.registration;
+    const yearOfManufacture = quote.aircraft?.yearOfManufacture || quote.aircraft?.year_built;
+    const passengerCapacity = quote.aircraft?.capacity || rfqData.passengers || 0;
     
            // Log price extraction for debugging
            if (hasQuote && totalPrice > 0) {

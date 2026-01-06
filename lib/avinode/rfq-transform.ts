@@ -118,23 +118,43 @@ function normalizeQuoteToFlight(
     quote.rfq_id ||
     `quote-${Date.now()}-${index}`;
 
-  const rfqStatusRaw =
+  const sourcingDisplayStatus = quote.sourcingDisplayStatus || quote.sourcing_display_status;
+  const sourcingStatus = quote.sourcingStatus ?? quote.sourcing_status;
+  const statusRaw =
     quote.rfqStatus ||
     quote.status ||
     quote.quote_status ||
     quote.rfq_status ||
     'quoted';
-  const rfqStatus = RFQ_STATUS_VALUES.has(String(rfqStatusRaw))
-    ? (rfqStatusRaw as RFQFlight['rfqStatus'])
-    : 'quoted';
+  const statusNormalized = String(statusRaw).toLowerCase();
+  const sourcingDisplayNormalized = String(sourcingDisplayStatus || '').toLowerCase();
+  let rfqStatus: RFQFlight['rfqStatus'] =
+    sourcingDisplayNormalized === 'accepted'
+      ? 'quoted'
+      : sourcingDisplayNormalized === 'declined'
+        ? 'declined'
+        : sourcingDisplayNormalized === 'expired'
+          ? 'expired'
+          : sourcingStatus === 2
+            ? 'quoted'
+            : sourcingStatus === 3
+              ? 'declined'
+              : statusNormalized === 'pending' || statusNormalized === 'open'
+                ? 'unanswered'
+                : RFQ_STATUS_VALUES.has(statusNormalized)
+                  ? (statusNormalized as RFQFlight['rfqStatus'])
+                : 'quoted';
 
+  const sellerPrice = quote.sellerPrice || quote.seller_price || quote.sellerPriceWithoutCommission;
   const pricingTotal =
+    sellerPrice?.price ||
     pricing.total ||
     quote.total_price ||
     quote.totalPrice?.amount ||
     quote.price ||
     0;
   const pricingCurrency =
+    sellerPrice?.currency ||
     pricing.currency ||
     quote.currency ||
     quote.totalPrice?.currency ||
@@ -166,6 +186,18 @@ function normalizeQuoteToFlight(
     Number(rfqData?.passengers) ||
     Number(passengers) ||
     0;
+
+  const sellerMessage =
+    typeof quote.sellerMessage === 'string'
+      ? quote.sellerMessage
+      : typeof quote.seller_message === 'string'
+        ? quote.seller_message
+        : typeof quote.notes === 'string'
+          ? quote.notes
+          : quote.sellerMessage?.content || quote.sellerMessage?.text;
+  if ((pricingTotal && rfqStatus === 'unanswered') || (pricingTotal && rfqStatus === 'sent')) {
+    rfqStatus = 'quoted';
+  }
 
   return {
     id: quoteId,
@@ -241,6 +273,7 @@ function normalizeQuoteToFlight(
     hasMedical: amenities.medical,
     hasPackage: Boolean(quote.hasPackage),
     avinodeDeepLink: rfqData?.deep_link || rfqData?.deepLink || deepLink,
+    sellerMessage,
   };
 }
 

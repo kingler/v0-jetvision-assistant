@@ -245,9 +245,41 @@ export default function JetvisionAgent() {
   }
 
   const handleUpdateChat = (chatId: string, updates: Partial<ChatSession>) => {
-    setChatSessions((prevSessions) =>
-      prevSessions.map((session) => (session.id === chatId ? { ...session, ...updates } : session)),
-    )
+    setChatSessions((prevSessions) => {
+      const updatedSessions = prevSessions.map((session) => {
+        if (session.id === chatId) {
+          // Create a completely new object to ensure React detects the change
+          // This is especially important for nested arrays like rfqFlights
+          const updatedSession = { ...session, ...updates }
+          
+          // CRITICAL: If rfqFlights is being updated, ensure it's a new array reference
+          // This forces React to detect the change and trigger re-renders
+          if (updates.rfqFlights) {
+            updatedSession.rfqFlights = Array.isArray(updates.rfqFlights)
+              ? [...updates.rfqFlights] // Create new array reference
+              : updates.rfqFlights
+          }
+          
+          // Also ensure operatorMessages is a new object reference if updated
+          if (updates.operatorMessages) {
+            updatedSession.operatorMessages = { ...updates.operatorMessages }
+          }
+          
+          console.log('[handleUpdateChat] ✅ Updated session:', {
+            chatId,
+            hasRfqFlights: !!updatedSession.rfqFlights,
+            rfqFlightsCount: updatedSession.rfqFlights?.length || 0,
+            samplePrice: updatedSession.rfqFlights?.[0]?.totalPrice,
+            sampleStatus: updatedSession.rfqFlights?.[0]?.rfqStatus,
+          })
+          
+          return updatedSession
+        }
+        return session
+      })
+      
+      return updatedSessions
+    })
   }
 
   /**

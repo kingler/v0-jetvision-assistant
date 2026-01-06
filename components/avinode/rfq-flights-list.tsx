@@ -269,29 +269,48 @@ export function RFQFlightsList({
         aria-label="Available flights"
         className={cn('space-y-6', compact && 'space-y-4')}
       >
-        {processedFlights.map((flight) => (
-          <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-6 last:pb-0">
-            <RFQFlightCard
-              flight={{ ...flight, isSelected: selectedIds.has(flight.id) }}
-              selectable={selectable && !showBookButton}
-              onSelect={handleFlightSelect}
-              showPriceBreakdown={showPriceBreakdown}
-              compact={compact}
-              showBookButton={showBookButton}
-              onReviewAndBook={onReviewAndBook}
-              onViewChat={onViewChat}
-              onBookFlight={onBookFlight}
-              onGenerateProposal={onGenerateProposal}
-              hasMessages={(flight as any).hasMessages ?? (flight.rfqStatus === 'quoted')}
-              hasNewMessages={(flight as any).hasNewMessages ?? false}
-              quoteId={flight.quoteId}
-              messageId={(flight as any).messageId}
-              aircraftCategory={(flight as any).aircraftCategory}
-              hasMedical={(flight as any).hasMedical}
-              hasPackage={(flight as any).hasPackage}
-            />
-          </li>
-        ))}
+        {processedFlights.map((flight) => {
+          // CRITICAL: Create a key that includes price and status to force re-render when they change
+          // This ensures React re-renders the card when price/status updates
+          const cardKey = `${flight.id}-${flight.totalPrice}-${flight.rfqStatus}-${flight.lastUpdated || Date.now()}`
+          
+          // Log what we're passing to the card
+          console.log('[RFQFlightsList] 📋 Rendering flight card:', {
+            key: cardKey,
+            flightId: flight.id,
+            quoteId: flight.quoteId,
+            totalPrice: flight.totalPrice,
+            currency: flight.currency,
+            rfqStatus: flight.rfqStatus,
+            priceIsZero: flight.totalPrice === 0,
+            statusIsUnanswered: flight.rfqStatus === 'unanswered',
+          })
+          
+          return (
+            <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-6 last:pb-0">
+              <RFQFlightCard
+                key={cardKey} // CRITICAL: Force re-render when price/status changes
+                flight={{ ...flight, isSelected: selectedIds.has(flight.id) }}
+                selectable={selectable && !showBookButton}
+                onSelect={handleFlightSelect}
+                showPriceBreakdown={showPriceBreakdown}
+                compact={compact}
+                showBookButton={showBookButton}
+                onReviewAndBook={onReviewAndBook}
+                onViewChat={onViewChat}
+                onBookFlight={onBookFlight}
+                onGenerateProposal={onGenerateProposal}
+                hasMessages={(flight as any).hasMessages ?? (flight.rfqStatus === 'quoted')}
+                hasNewMessages={(flight as any).hasNewMessages ?? false}
+                quoteId={flight.quoteId}
+                messageId={(flight as any).messageId}
+                aircraftCategory={(flight as any).aircraftCategory}
+                hasMedical={(flight as any).hasMedical}
+                hasPackage={(flight as any).hasPackage}
+              />
+            </li>
+          )
+        })}
       </ul>
 
       {/* Selection Status - Screen Reader Announcement */}

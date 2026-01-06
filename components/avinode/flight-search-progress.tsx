@@ -844,6 +844,7 @@ export function FlightSearchProgress({
                       {/* RFQ Flights List - Render when Trip ID is submitted OR when we have flights to display */}
                       {(tripIdSubmitted || (rfqFlights && rfqFlights.length > 0)) && (
                         <RFQFlightsList
+                          key={`rfq-flights-${rfqsLastFetchedAt || 'initial'}-${rfqFlights.length}`}
                           flights={(rfqFlights || [])
                             .filter(f => f != null && f.id != null) // Filter out null/undefined flights
                             .map(f => ({

@@ -391,13 +391,20 @@ export function ChatInterface({
   const rfqFlights: RFQFlight[] = useMemo(() => {
     // PRIMARY: Use rfqFlights from ChatSession if available (preserves all RFQFlight data)
     // This avoids data loss from converting between formats
+    // CRITICAL: Always create a new array reference to ensure React detects changes
+    // This is important because React uses reference equality for dependency checking
     if (activeChat.rfqFlights && activeChat.rfqFlights.length > 0) {
-      const filtered = activeChat.rfqFlights.filter((f): f is RFQFlight => f != null && f.id != null)
+      // Create a new array with new object references to force React to detect the change
+      const filtered = activeChat.rfqFlights
+        .filter((f): f is RFQFlight => f != null && f.id != null)
+        .map((f) => ({ ...f })) // Create new object reference for each flight
       
       // CRITICAL: Log prices to verify they're being passed correctly
       if (filtered.length > 0) {
         console.log('[ChatInterface] 🔍 rfqFlights useMemo - retrieving from activeChat:', {
           count: filtered.length,
+          rfqFlightsArrayRef: activeChat.rfqFlights,
+          rfqFlightsLastFetchedAt: activeChat.rfqsLastFetchedAt,
           sample: {
             id: filtered[0].id,
             quoteId: filtered[0].quoteId,
@@ -543,7 +550,16 @@ export function ChatInterface({
     }
 
     return allRfqFlights.filter((f): f is RFQFlight => f != null && f.id != null)
-  }, [activeChat.rfqFlights, activeChat.quotes, activeChat.messages, activeChat.date, routeParts])
+  }, [
+    // CRITICAL: Include rfqsLastFetchedAt to force recalculation when RFQs are updated
+    // This ensures the useMemo recalculates even if the array reference appears the same
+    activeChat.rfqFlights, 
+    activeChat.rfqsLastFetchedAt, // Add this to detect when RFQs are refreshed
+    activeChat.quotes, 
+    activeChat.messages, 
+    activeChat.date, 
+    routeParts
+  ])
 
   /**
    * Ref to track the messages container for scroll position detection
@@ -1119,7 +1135,9 @@ export function ChatInterface({
                     // Include additional fields that might be useful for RFQ flight display
                     tailNumber: q.tail_number || q.tailNumber || q.aircraft?.registration || q.aircraft?.tail_number,
                     passengerCapacity: q.passenger_capacity || q.passengerCapacity || q.aircraft?.capacity || q.capacity,
-                    rfqStatus: q.status || q.rfq_status || q.quote_status || 'quoted',
+                    rfqStatus: q.sourcingDisplayStatus === 'Accepted' ? 'quoted' :
+                              q.sourcingDisplayStatus === 'Declined' ? 'declined' :
+                              q.status || q.rfq_status || q.quote_status || 'quoted',
                   }
                 }) : undefined
 
@@ -1506,6 +1524,18 @@ export function ChatInterface({
       // Subscribe to quotes table changes for this request
       if (!channel) return;
       
+      // Helper function to refresh RFQ data
+      const refreshRFQData = async (reason: string) => {
+        if (!activeChat.tripId) return
+        
+        console.log(`[ChatInterface] Refreshing RFQ data - ${reason}...`)
+        try {
+          await handleTripIdSubmit(activeChat.tripId)
+        } catch (error) {
+          console.error('[ChatInterface] Error refreshing RFQ data:', error)
+        }
+      }
+      
       channel
         .on(
           'postgres_changes',
@@ -1516,16 +1546,17 @@ export function ChatInterface({
             filter: `request_id=eq.${requestId}`,
           },
           async (payload) => {
-            console.log('[ChatInterface] New quote received via Realtime:', payload.new)
+            console.log('[ChatInterface] ✅ New quote received via Realtime:', {
+              quoteId: payload.new.id,
+              avinodeQuoteId: payload.new.avinode_quote_id,
+              operator: payload.new.operator_name,
+              price: payload.new.total_price,
+              status: payload.new.status,
+            })
             
             // When a new quote is stored, refresh RFQ data by calling get_rfq again
             // This ensures prices and status are updated from the latest Avinode API data
-            if (activeChat.tripId) {
-              console.log('[ChatInterface] Refreshing RFQ data due to new quote...')
-              // Trigger a refresh by calling handleTripIdSubmit
-              // This will fetch the latest RFQ data from Avinode API with updated prices and status
-              await handleTripIdSubmit(activeChat.tripId)
-            }
+            await refreshRFQData(`new quote received (ID: ${payload.new.avinode_quote_id})`)
           }
         )
         .on(
@@ -1537,20 +1568,50 @@ export function ChatInterface({
             filter: `request_id=eq.${requestId}`,
           },
           async (payload) => {
-            console.log('[ChatInterface] Quote updated via Realtime:', payload.new)
+            console.log('[ChatInterface] ✅ Quote updated via Realtime:', {
+              quoteId: payload.new.id,
+              avinodeQuoteId: payload.new.avinode_quote_id,
+              operator: payload.new.operator_name,
+              price: payload.new.total_price,
+              status: payload.new.status,
+            })
             
             // Refresh RFQ data when quote is updated
-            if (activeChat.tripId) {
-              console.log('[ChatInterface] Refreshing RFQ data due to quote update...')
-              await handleTripIdSubmit(activeChat.tripId)
+            await refreshRFQData(`quote updated (ID: ${payload.new.avinode_quote_id})`)
+          }
+        )
+        // ALSO subscribe to webhook events as a fallback
+        // This ensures we catch webhook events even if quotes table isn't updated immediately
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'avinode_webhook_events',
+            filter: `avinode_trip_id=eq.${activeChat.tripId}`,
+          },
+          async (payload) => {
+            const eventType = payload.new.event_type
+            console.log('[ChatInterface] ✅ Webhook event received via Realtime:', {
+              eventId: payload.new.id,
+              eventType,
+              tripId: payload.new.avinode_trip_id,
+              processingStatus: payload.new.processing_status,
+            })
+            
+            // Only refresh for quote-related events
+            if (eventType === 'quote_received' || eventType === 'quote_updated') {
+              await refreshRFQData(`webhook event: ${eventType}`)
             }
           }
         )
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
-            console.log('[ChatInterface] Realtime subscription active for quotes')
+            console.log('[ChatInterface] ✅ Realtime subscription active for quotes and webhook events')
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            console.warn('[ChatInterface] Realtime subscription error:', status)
+            console.warn('[ChatInterface] ⚠️ Realtime subscription error:', status)
+          } else {
+            console.log('[ChatInterface] Realtime subscription status:', status)
           }
         })
     }
@@ -1565,6 +1626,135 @@ export function ChatInterface({
       }
     }
   }, [activeChat.tripId, activeChat.requestId, activeChat.id, onUpdateChat]) // Re-subscribe when tripId or requestId changes
+
+  /**
+   * Automatic polling to refresh RFQ flights data when operators respond
+   * 
+   * This is a fallback mechanism that works alongside the real-time subscription.
+   * Polls every 60 seconds to check for updated quotes, prices, and status.
+   * 
+   * API Rate Limit Considerations:
+   * - Avinode API limit: ~1 call/second (3600/hour) for general endpoints
+   * - get_* endpoints: 60 requests/minute
+   * - Polling every 60 seconds = 1 request/minute per active trip
+   * - This allows up to 60 concurrent active trips without exceeding limits
+   * - Includes exponential backoff on rate limit errors (429)
+   * 
+   * Only polls when:
+   * - A Trip ID exists (activeChat.tripId)
+   * - RFQs were previously fetched (activeChat.rfqsLastFetchedAt exists)
+   * - Chat is not currently processing (to avoid interrupting user actions)
+   * - Trip ID was submitted (tripIdSubmitted === true)
+   * 
+   * This ensures that when operators respond with quotes, the UI automatically
+   * updates with the latest prices and status even if real-time subscriptions fail.
+   */
+  useEffect(() => {
+    // Only poll if we have a Trip ID and RFQs were previously fetched
+    if (
+      !activeChat.tripId ||
+      !activeChat.rfqsLastFetchedAt ||
+      !tripIdSubmitted ||
+      isProcessing ||
+      isTripIdLoading
+    ) {
+      return
+    }
+
+    // Calculate time since last fetch
+    const lastFetched = new Date(activeChat.rfqsLastFetchedAt).getTime()
+    const now = Date.now()
+    const timeSinceLastFetch = now - lastFetched
+
+    // Don't poll if we just fetched (within last 10 seconds) to avoid duplicate requests
+    if (timeSinceLastFetch < 10000) {
+      return
+    }
+
+    // Set up polling interval (60 seconds to respect API rate limits)
+    // 60 seconds = 1 request/minute per trip, well within 60 requests/minute limit for get_* endpoints
+    const pollInterval = 60000 // 60 seconds
+
+    console.log('[ChatInterface] Starting automatic RFQ polling for Trip ID:', activeChat.tripId, '- interval:', pollInterval / 1000, 'seconds')
+
+    // Track consecutive rate limit errors for exponential backoff
+    let consecutiveRateLimitErrors = 0
+    const MAX_RATE_LIMIT_BACKOFF = 5 * 60000 // 5 minutes max backoff
+
+    const intervalId = setInterval(async () => {
+      // Double-check conditions before each poll
+      if (
+        !activeChat.tripId ||
+        !activeChat.rfqsLastFetchedAt ||
+        !tripIdSubmitted ||
+        isProcessing ||
+        isTripIdLoading
+      ) {
+        console.log('[ChatInterface] Skipping RFQ poll - conditions not met')
+        consecutiveRateLimitErrors = 0 // Reset on skip
+        return
+      }
+
+      // Check if enough time has passed since last fetch (avoid rapid polling)
+      const lastFetchedCheck = new Date(activeChat.rfqsLastFetchedAt).getTime()
+      const timeSinceLastFetchCheck = Date.now() - lastFetchedCheck
+
+      // Only poll if at least 30 seconds have passed since last fetch
+      // This provides additional safety margin for API rate limits
+      if (timeSinceLastFetchCheck < 30000) {
+        console.log('[ChatInterface] Skipping RFQ poll - too soon since last fetch (', Math.round(timeSinceLastFetchCheck / 1000), 'seconds ago)')
+        return
+      }
+
+      console.log('[ChatInterface] Auto-refreshing RFQs for Trip ID:', activeChat.tripId)
+
+      try {
+        // Call handleTripIdSubmit to refresh RFQ data
+        // This will update prices, status, and operator messages automatically
+        await handleTripIdSubmit(activeChat.tripId)
+        
+        // Reset rate limit error counter on successful request
+        consecutiveRateLimitErrors = 0
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        
+        // Handle rate limiting (429 status) with exponential backoff
+        if (errorMessage.includes('Rate limited') || errorMessage.includes('429')) {
+          consecutiveRateLimitErrors++
+          const backoffMs = Math.min(
+            Math.pow(2, consecutiveRateLimitErrors) * 1000, // Exponential: 2s, 4s, 8s, 16s, 32s...
+            MAX_RATE_LIMIT_BACKOFF // Cap at 5 minutes
+          )
+          
+          console.warn(
+            `[ChatInterface] Rate limited (${consecutiveRateLimitErrors} consecutive). ` +
+            `Skipping next ${Math.round(backoffMs / 1000)} poll(s) to respect API limits.`
+          )
+          
+          // Skip the next few polls by temporarily increasing interval
+          // This is handled by the consecutiveRateLimitErrors counter
+          return
+        }
+        
+        // Log other errors but don't show to user - polling failures should be silent
+        console.error('[ChatInterface] Auto-refresh RFQ failed:', error)
+        consecutiveRateLimitErrors = 0 // Reset on non-rate-limit errors
+      }
+    }, pollInterval)
+
+    // Cleanup interval on unmount or when conditions change
+    return () => {
+      console.log('[ChatInterface] Stopping automatic RFQ polling')
+      clearInterval(intervalId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeChat.tripId,
+    activeChat.rfqsLastFetchedAt,
+    tripIdSubmitted,
+    isProcessing,
+    isTripIdLoading,
+  ])
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return
@@ -1839,15 +2029,31 @@ export function ChatInterface({
 
       // Send Trip ID to the chat API - will trigger get_rfq and get_trip_messages tools
       // Explicitly request both RFQ status and message activities
+      // CRITICAL: Always fetch quote details (get_quote) to get prices, messages, and status - never use hardcoded values
       // Use the same message format for both initial viewing and updates to ensure consistency
       const isUpdate = !!activeChat.rfqsLastFetchedAt
       const actionText = isUpdate ? 'Update' : 'View'
       console.log('[Chat] Sending Trip ID to API:', tripId, isUpdate ? '(Update RFQs)' : '(View RFQs - initial)');
       
-      // For updates, also request get_quote for each existing quote ID to get latest prices and status
-      let message = `${actionText} RFQs for Trip ID: ${tripId}. Please retrieve the latest RFQ status, quotes with prices and operator information, and all message activities from operators. Use both get_rfq (for RFQ status, quotes, prices, and operator details) and get_trip_messages (for operator messages and responses) tools to get complete information.`
+      // Build base message that explicitly requests quote details to be fetched
+      // IMPORTANT: get_rfq tool automatically fetches quote details when it finds quote IDs in sellerLift
+      // But we explicitly request it here to ensure the agent understands we need full quote details
+      let message = `${actionText} RFQs for Trip ID: ${tripId}. Please retrieve the latest RFQ status, quotes with prices and operator information, and all message activities from operators. 
+
+CRITICAL REQUIREMENTS:
+1. Use get_rfq tool to fetch RFQ status and extract quote IDs from sellerLift[].links.quotes[]
+2. For EACH quote ID found, automatically call get_quote tool to retrieve:
+   - Latest prices (from sellerPrice.price and sellerPrice.currency) - DO NOT use hardcoded values
+   - Quote status (quoted, declined, expired, etc.) - derive from API response, not hardcoded
+   - Operator messages (from sellerMessage field) - fetch from API, not hardcoded
+   - All quote details including aircraft, schedule, and pricing breakdown
+3. Use get_trip_messages tool to retrieve all message activities from operators
+4. If no RFQs are found for this Trip ID, indicate that the user should follow Step 2 to create RFQs
+
+DO NOT use any hardcoded values - all prices, status, and messages must come from the Avinode API responses.`
       
-      // If updating and we have existing RFQ flights with quote IDs, request get_quote for each
+      // For updates, also explicitly request get_quote for each existing quote ID as a fallback
+      // This ensures we get the latest data even if get_rfq doesn't extract quote IDs properly
       if (isUpdate && activeChat.rfqFlights && activeChat.rfqFlights.length > 0) {
         const quoteIds = activeChat.rfqFlights
           .map(f => f.quoteId)
@@ -1855,8 +2061,8 @@ export function ChatInterface({
           .filter((id, index, arr) => arr.indexOf(id) === index) // Remove duplicates
         
         if (quoteIds.length > 0) {
-          console.log('[Chat] Requesting get_quote for', quoteIds.length, 'quote IDs:', quoteIds)
-          message += ` Additionally, for each quote ID found in the RFQs, please call get_quote tool to retrieve the latest detailed quote information including updated prices and status. Quote IDs to fetch: ${quoteIds.join(', ')}.`
+          console.log('[Chat] Requesting explicit get_quote for', quoteIds.length, 'existing quote IDs:', quoteIds)
+          message += `\n\nAdditionally, as a fallback, please also call get_quote tool directly for these existing quote IDs to ensure we have the latest prices and status: ${quoteIds.join(', ')}.`
         }
       }
       
@@ -1987,7 +2193,7 @@ export function ChatInterface({
                         
                         // CRITICAL: Log prices and status for each flight to verify extraction
                         preTransformedFlights.forEach((flight, idx) => {
-                          console.log(`[TripID] Flight ${idx + 1} details:`, {
+                          console.log(`[TripID] Flight ${idx + 1} details FROM get_rfq tool result:`, {
                             id: flight.id,
                             quoteId: flight.quoteId,
                             totalPrice: flight.totalPrice,
@@ -1998,8 +2204,35 @@ export function ChatInterface({
                             priceIsUndefined: flight.totalPrice === undefined,
                             priceIsNull: flight.totalPrice === null,
                             statusIsUnanswered: flight.rfqStatus === 'unanswered',
+                            hasSellerMessage: !!(flight as any).sellerMessage,
+                            sellerMessage: (flight as any).sellerMessage?.substring(0, 100),
                           })
+                          
+                          // CRITICAL WARNING: If price is 0, this means the MCP tool didn't extract price correctly
+                          // OR quote details weren't fetched. We need to ensure get_quote is called for this quote ID
+                          if (flight.totalPrice === 0 && flight.quoteId) {
+                            console.error(`[TripID] ❌ CRITICAL: Flight ${idx + 1} (quoteId: ${flight.quoteId}) has $0 price! This means:`, {
+                              message: 'Either get_rfq tool did not fetch quote details, OR price extraction failed in transformToRFQFlights',
+                              solution: 'We should call get_quote tool for this quoteId to get the latest price',
+                              quoteId: flight.quoteId,
+                              flightId: flight.id,
+                            })
+                          }
                         })
+                        
+                        // CRITICAL: If we have flights with $0 prices, we need to call get_quote for each quote ID
+                        // The get_rfq tool might return flights without fetching individual quote details
+                        const flightsNeedingQuoteDetails = preTransformedFlights.filter(
+                          f => (f.totalPrice === 0 || f.rfqStatus === 'unanswered') && f.quoteId
+                        )
+                        
+                        if (flightsNeedingQuoteDetails.length > 0 && Object.keys(quoteDetailsMap).length === 0) {
+                          console.warn('[TripID] ⚠️ WARNING: Flights have $0 prices but no get_quote results found!', {
+                            flightsNeedingDetails: flightsNeedingQuoteDetails.length,
+                            quoteIds: flightsNeedingQuoteDetails.map(f => f.quoteId),
+                            message: 'The agent should have called get_quote tool for each quote ID, but no results were found. This is a problem with the agent\'s tool calling strategy.',
+                          })
+                        }
 
                         // IMPORTANT: Extract seller messages from quotes and add to operatorMessages
                         // sellerMessage is a string field in quote responses containing operator messages
@@ -2292,31 +2525,49 @@ export function ChatInterface({
                 // Also check for empty RFQ response (total_rfqs === 0)
                 // Do this BEFORE processing quotes so we can use it in message generation
                 let noRfqsMessage: string | null = null;
+                
+                // Check tool_calls for get_rfq results first
                 if (data.tool_calls) {
                   for (const toolCall of data.tool_calls) {
                     if (toolCall.name === "get_rfq" && toolCall.result) {
-                      // Check for explicit message from getRFQ tool
-                      if (toolCall.result.message) {
+                      // Check for explicit message from getRFQ tool (includes Step 2 instruction)
+                      if (toolCall.result.message && typeof toolCall.result.message === 'string') {
                         noRfqsMessage = toolCall.result.message;
+                        console.log('[TripID] No RFQs message from get_rfq tool:', noRfqsMessage);
                         break;
                       }
                       // Check for empty RFQ response (no RFQs found)
-                      if (toolCall.result.total_rfqs === 0 && 
-                          (!toolCall.result.rfqs || toolCall.result.rfqs.length === 0)) {
+                      // If total_rfqs is 0 or undefined and no RFQs/flights arrays exist
+                      if ((toolCall.result.total_rfqs === 0 || toolCall.result.total_rfqs === undefined) && 
+                          (!toolCall.result.rfqs || toolCall.result.rfqs.length === 0) &&
+                          (!toolCall.result.flights || toolCall.result.flights.length === 0)) {
                         noRfqsMessage = "No RFQs have been submitted yet for this Trip ID. Please follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.";
+                        console.log('[TripID] Detected empty RFQ response - no RFQs found');
                         break;
                       }
                     }
                   }
                 }
-                // Also check rfq_data directly
+                // Also check rfq_data directly (alternative response format)
                 if (!noRfqsMessage && data.rfq_data) {
-                  if (data.rfq_data.message) {
+                  if (data.rfq_data.message && typeof data.rfq_data.message === 'string') {
                     noRfqsMessage = data.rfq_data.message;
-                  } else if (data.rfq_data.total_rfqs === 0 && 
-                            (!data.rfq_data.rfqs || data.rfq_data.rfqs.length === 0)) {
+                    console.log('[TripID] No RFQs message from rfq_data:', noRfqsMessage);
+                  } else if ((data.rfq_data.total_rfqs === 0 || data.rfq_data.total_rfqs === undefined) && 
+                            (!data.rfq_data.rfqs || data.rfq_data.rfqs.length === 0) &&
+                            (!data.rfq_data.flights || data.rfq_data.flights.length === 0)) {
                     noRfqsMessage = "No RFQs have been submitted yet for this Trip ID. Please follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.";
+                    console.log('[TripID] Detected empty RFQ response in rfq_data - no RFQs found');
                   }
+                }
+                
+                // Final fallback: If no RFQs/flights/quotes found anywhere, show Step 2 message
+                if (!noRfqsMessage && 
+                    (!quotes || quotes.length === 0) && 
+                    (!rfqs || rfqs.length === 0) &&
+                    (!preTransformedFlights || preTransformedFlights.length === 0)) {
+                  noRfqsMessage = "No RFQs have been submitted yet for this Trip ID. Please follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.";
+                  console.log('[TripID] Final fallback: No RFQs found in any data source - showing Step 2 message');
                 }
 
                 // Determine final RFQFlight array based on data source
@@ -2363,8 +2614,8 @@ export function ChatInterface({
                     operatorName: q.operator_name || q.operatorName || q.operator?.name || "Unknown Operator",
                     aircraftType: q.aircraft_type || q.aircraftType || q.aircraft?.type || q.aircraft?.model || "Unknown Aircraft",
                     aircraftModel: q.aircraft_model || q.aircraftModel || q.aircraft?.model || q.aircraft_type || q.aircraftType,
-                    price: q.total_price || q.price || q.totalPrice?.amount || q.pricing?.total || q.basePrice || 0,
-                    currency: q.currency || q.totalPrice?.currency || q.pricing?.currency || 'USD',
+                    price: q.sellerPrice?.price || q.total_price || q.price || q.totalPrice?.amount || q.pricing?.total || q.basePrice || 0,
+                    currency: q.sellerPrice?.currency || q.currency || q.totalPrice?.currency || q.pricing?.currency || 'USD',
                     score: q.score,
                     ranking: index + 1,
                     operatorRating: q.operator_rating || q.operatorRating || q.operator?.rating,
@@ -2375,7 +2626,9 @@ export function ChatInterface({
                     passengerCapacity: q.passenger_capacity || q.passengerCapacity || q.aircraft?.capacity || q.capacity || activeChat.passengers || 0,
                     tailNumber: q.tail_number || q.tailNumber || q.aircraft?.registration || q.aircraft?.tail_number,
                     amenities: q.amenities || q.features || q.aircraft?.amenities || [],
-                    rfqStatus: q.status || q.rfq_status || q.quote_status || 'quoted',
+                    rfqStatus: q.sourcingDisplayStatus === 'Accepted' ? 'quoted' :
+                              q.sourcingDisplayStatus === 'Declined' ? 'declined' :
+                              q.status || q.rfq_status || q.quote_status || 'quoted',
                     isRecommended: index === 0,
                   }))
 
@@ -2478,30 +2731,69 @@ export function ChatInterface({
                 // CRITICAL: Merge get_quote results to update prices and status
                 // When get_quote is called for each quote ID, it returns the latest prices and status
                 // We need to merge this data into the RFQ flights
+                // IMPORTANT: get_quote results take PRIORITY over get_rfq results because they contain the most up-to-date data
                 if (Object.keys(quoteDetailsMap).length > 0) {
-                  console.log('[TripID] Merging get_quote results into RFQ flights:', Object.keys(quoteDetailsMap).length, 'quotes')
+                  console.log('[TripID] 🔄 Merging get_quote results into RFQ flights:', Object.keys(quoteDetailsMap).length, 'quotes')
+                  console.log('[TripID] Available quote IDs in map:', Object.keys(quoteDetailsMap))
                   
                   rfqFlightsForChatSession = rfqFlightsForChatSession.map(flight => {
                     const quoteDetails = quoteDetailsMap[flight.quoteId]
                     if (quoteDetails) {
-                      console.log('[TripID] Updating flight with get_quote data:', {
-                        quoteId: flight.quoteId,
-                        oldPrice: flight.totalPrice,
-                        oldStatus: flight.rfqStatus,
-                        newPricing: quoteDetails.pricing,
-                        newStatus: quoteDetails.status,
-                      })
+                      const quoteMessage = quoteDetails.notes || quoteDetails.sellerMessage || (flight as any).sellerMessage
                       
-                      // Extract price from get_quote result
-                      // get_quote returns pricing object with sellerPrice.price and sellerPrice.currency
-                      const pricing = quoteDetails.pricing || quoteDetails.sellerPrice
-                      const newPrice = pricing?.price || pricing?.total || pricing?.amount || flight.totalPrice
-                      const newCurrency = pricing?.currency || flight.currency || 'USD'
+                      // CRITICAL: Extract price from get_quote result - this is the AUTHORITATIVE source
+                      // get_quote returns: { pricing: quote?.sellerPrice || quote?.pricing, ... }
+                      // where sellerPrice is { price: number, currency: string }
+                      // So pricing can be either sellerPrice directly OR a pricing object
+                      const pricing = quoteDetails.pricing || 
+                                    quoteDetails.sellerPrice || 
+                                    null
+                      
+                      // Extract price value - check multiple possible structures
+                      // PRIORITY: pricing.price (from sellerPrice object) > pricing.total > pricing.amount > direct price field
+                      let newPrice: number | null = null
+                      
+                      if (pricing) {
+                        // pricing can be sellerPrice { price, currency } or pricing object { total, currency }
+                        newPrice = pricing.price || pricing.total || pricing.amount || null
+                      }
+                      
+                      // Fallback: Check for direct price fields
+                      if (!newPrice || newPrice === 0) {
+                        newPrice = (quoteDetails as any).totalPrice || 
+                                  (quoteDetails as any).price || 
+                                  null
+                      }
+                      
+                      // Final fallback: Use existing flight price if we couldn't extract a valid price
+                      if (!newPrice || newPrice === 0) {
+                        newPrice = flight.totalPrice > 0 ? flight.totalPrice : null
+                      }
+                      
+                      // Extract currency - prioritize pricing currency
+                      const newCurrency = pricing?.currency || 
+                                        quoteDetails.currency ||
+                                        flight.currency || 
+                                        'USD'
+                      
+                      console.log('[TripID] 💰 Price extraction from get_quote:', {
+                        quoteId: flight.quoteId,
+                        pricingStructure: pricing ? Object.keys(pricing) : null,
+                        pricingValue: pricing,
+                        extractedPrice: newPrice,
+                        finalPrice: newPrice || flight.totalPrice,
+                        currency: newCurrency,
+                      })
                       
                       // Determine status from get_quote result
                       // Status can be 'quoted', 'declined', 'pending', etc.
+                      // CRITICAL: If we have a price, the status should be 'quoted'
                       let newStatus: RFQFlight['rfqStatus'] = flight.rfqStatus
-                      if (quoteDetails.status === 'quoted' || quoteDetails.status === 'accepted') {
+                      
+                      if (newPrice && newPrice > 0) {
+                        // If we have a price, status must be 'quoted' (operator responded with quote)
+                        newStatus = 'quoted'
+                      } else if (quoteDetails.status === 'quoted' || quoteDetails.status === 'accepted') {
                         newStatus = 'quoted'
                       } else if (quoteDetails.status === 'declined') {
                         newStatus = 'declined'
@@ -2511,14 +2803,28 @@ export function ChatInterface({
                         newStatus = 'sent'
                       }
                       
-                      // Update flight with new data
-                      return {
+                      console.log('[TripID] ✅ Updating flight with get_quote data:', {
+                        quoteId: flight.quoteId,
+                        oldPrice: flight.totalPrice,
+                        oldStatus: flight.rfqStatus,
+                        newPrice,
+                        newCurrency,
+                        newStatus,
+                        hasPricing: !!pricing,
+                        pricingStructure: pricing ? Object.keys(pricing) : null,
+                        quoteDetailsKeys: Object.keys(quoteDetails),
+                      })
+                      
+                      // Update flight with new data - CRITICAL: Use newPrice only if it's valid (> 0)
+                      // Otherwise keep existing price (which might already be correct)
+                      const updatedFlight = {
                         ...flight,
-                        totalPrice: newPrice,
+                        totalPrice: (newPrice && newPrice > 0) ? newPrice : flight.totalPrice,
                         currency: newCurrency,
                         rfqStatus: newStatus,
+                        sellerMessage: quoteMessage,
                         // Update price breakdown if available
-                        priceBreakdown: pricing ? {
+                        priceBreakdown: pricing && (pricing.price || pricing.total || pricing.amount) ? {
                           basePrice: pricing.base || pricing.basePrice || pricing.base_price || 0,
                           fuelSurcharge: pricing.fuel || pricing.fuelSurcharge || pricing.fuel_surcharge,
                           taxes: pricing.taxes || 0,
@@ -2526,11 +2832,44 @@ export function ChatInterface({
                         } : flight.priceBreakdown,
                         validUntil: quoteDetails.valid_until || quoteDetails.validUntil || flight.validUntil,
                       }
+                      
+                      // Log if price didn't update
+                      if (updatedFlight.totalPrice === 0 && newPrice && newPrice > 0) {
+                        console.error('[TripID] ❌ ERROR: Price should have updated but is still 0!', {
+                          quoteId: flight.quoteId,
+                          newPrice,
+                          updatedPrice: updatedFlight.totalPrice,
+                        })
+                      }
+                      
+                      return updatedFlight
+                    } else {
+                      // No quote details found for this flight's quoteId
+                      // This might mean get_quote wasn't called for this quote, or quoteId doesn't match
+                      if (flight.quoteId) {
+                        console.warn('[TripID] ⚠️ No get_quote result found for quoteId:', flight.quoteId, {
+                          availableQuoteIds: Object.keys(quoteDetailsMap),
+                          flightQuoteId: flight.quoteId,
+                        })
+                      }
                     }
                     return flight
                   })
                   
-                  console.log('[TripID] ✅ Merged get_quote results - updated', rfqFlightsForChatSession.filter(f => quoteDetailsMap[f.quoteId]).length, 'flights')
+                  const updatedFlights = rfqFlightsForChatSession.filter(f => quoteDetailsMap[f.quoteId])
+                  console.log('[TripID] ✅ Merged get_quote results - updated', updatedFlights.length, 'flights', {
+                    flights: updatedFlights.map(f => ({
+                      quoteId: f.quoteId,
+                      price: f.totalPrice,
+                      status: f.rfqStatus,
+                    })),
+                  })
+                } else {
+                  console.warn('[TripID] ⚠️ No get_quote results found to merge!', {
+                    preTransformedFlightsCount: preTransformedFlights.length,
+                    quoteIdsInFlights: preTransformedFlights.map(f => f.quoteId),
+                    message: 'This means the agent did not call get_quote tool, or the results were not included in the response. Prices may be $0.',
+                  })
                 }
                 
                 // CRITICAL: Log the final flights array BEFORE updating chat state
@@ -2596,9 +2935,26 @@ export function ChatInterface({
                 console.log('[TripID] Previous flights count:', activeChat.rfqFlights?.length || 0)
                 console.log('[TripID] New flights count:', rfqFlightsForChatSession.length)
                 
+                // CRITICAL: Create a completely new array reference to ensure React detects the change
+                // This is essential for React to re-render components that depend on rfqFlights
+                // Map each flight to a new object to ensure deep immutability
+                // IMPORTANT: Explicitly spread all properties to create a completely new object
+                const newRfqFlightsArray = rfqFlightsForChatSession.map(flight => {
+                  // Create a completely new object with all properties
+                  return {
+                    ...flight, // Spread all flight properties
+                    // Explicitly ensure critical fields are included (defensive programming)
+                    totalPrice: flight.totalPrice ?? 0,
+                    currency: flight.currency ?? 'USD',
+                    rfqStatus: flight.rfqStatus ?? 'unanswered',
+                    id: flight.id,
+                    quoteId: flight.quoteId,
+                  } as RFQFlight
+                })
+                
                 // Log sample flight details to verify price extraction
-                if (rfqFlightsForChatSession.length > 0) {
-                  const sampleFlight = rfqFlightsForChatSession[0]
+                if (newRfqFlightsArray.length > 0) {
+                  const sampleFlight = newRfqFlightsArray[0]
                   console.log('[TripID] Sample flight details BEFORE updating chat:', {
                     id: sampleFlight.id,
                     quoteId: sampleFlight.quoteId,
@@ -2616,7 +2972,7 @@ export function ChatInterface({
                   })
                   
                   // Log ALL flights to verify prices
-                  console.log('[TripID] ALL flights with prices:', rfqFlightsForChatSession.map(f => ({
+                  console.log('[TripID] ALL flights with prices:', newRfqFlightsArray.map(f => ({
                     id: f.id,
                     quoteId: f.quoteId,
                     totalPrice: f.totalPrice,
@@ -2628,8 +2984,8 @@ export function ChatInterface({
                 // CRITICAL: Log what we're about to update
                 console.log('[TripID] 📝 Calling onUpdateChat with:', {
                   chatId: activeChat.id,
-                  rfqFlightsCount: rfqFlightsForChatSession.length,
-                  rfqFlights: rfqFlightsForChatSession.map(f => ({
+                  rfqFlightsCount: newRfqFlightsArray.length,
+                  rfqFlights: newRfqFlightsArray.map(f => ({
                     id: f.id,
                     quoteId: f.quoteId,
                     totalPrice: f.totalPrice,
@@ -2640,7 +2996,39 @@ export function ChatInterface({
                   })),
                   previousRfqFlightsCount: activeChat.rfqFlights?.length || 0,
                   previousPrices: activeChat.rfqFlights?.map(f => ({ id: f.id, price: f.totalPrice, status: f.rfqStatus })) || [],
+                  isNewArray: newRfqFlightsArray !== rfqFlightsForChatSession,
+                  arrayReferencesMatch: newRfqFlightsArray === activeChat.rfqFlights,
                 })
+                
+                // CRITICAL: If prices are still 0, log detailed debugging info
+                const flightsWithZeroPrice = newRfqFlightsArray.filter(f => f.totalPrice === 0)
+                if (flightsWithZeroPrice.length > 0) {
+                  console.error('[TripID] ❌ ERROR: Updating with flights that still have $0 price!', {
+                    count: flightsWithZeroPrice.length,
+                    flights: flightsWithZeroPrice.map(f => ({
+                      id: f.id,
+                      quoteId: f.quoteId,
+                      status: f.rfqStatus,
+                      operatorName: f.operatorName,
+                    })),
+                    message: 'This means the API did not return prices, or price extraction failed. Check get_rfq and get_quote tool results above.',
+                  })
+                }
+                
+                // CRITICAL: If status is still "unanswered", log detailed debugging info
+                const flightsWithUnansweredStatus = newRfqFlightsArray.filter(f => f.rfqStatus === 'unanswered')
+                if (flightsWithUnansweredStatus.length > 0) {
+                  console.error('[TripID] ❌ ERROR: Updating with flights that still have "unanswered" status!', {
+                    count: flightsWithUnansweredStatus.length,
+                    flights: flightsWithUnansweredStatus.map(f => ({
+                      id: f.id,
+                      quoteId: f.quoteId,
+                      price: f.totalPrice,
+                      operatorName: f.operatorName,
+                    })),
+                    message: 'This means the API status extraction failed, or operators have not responded yet.',
+                  })
+                }
                 
                 onUpdateChat(activeChat.id, {
                   messages: updatedMessages,
@@ -2650,16 +3038,16 @@ export function ChatInterface({
                   tripIdSubmitted: true, // Persist tripIdSubmitted to chat state
                   // Save full RFQ flight data (PRIMARY - preserves all fields including prices)
                   // IMPORTANT: This ALWAYS replaces existing rfqFlights to ensure prices and status are updated
-                  // Even if quotes already exist, we replace them with fresh data from the API
-                  rfqFlights: rfqFlightsForChatSession,
+                  // CRITICAL: Use new array reference to ensure React detects the change
+                  rfqFlights: newRfqFlightsArray,
                   // Save simplified format for backward compatibility (SECONDARY)
                   // Also replace quotes array to ensure prices are updated
-                  quotes: quotesForChatSession.length > 0 ? quotesForChatSession : (rfqFlightsForChatSession.length > 0 ? [] : activeChat.quotes),
+                  quotes: quotesForChatSession.length > 0 ? quotesForChatSession : (newRfqFlightsArray.length > 0 ? [] : activeChat.quotes),
                   // Track when RFQs were last fetched (used to show "Last updated" timestamp)
                   rfqsLastFetchedAt: new Date().toISOString(),
                 })
                 
-                console.log('[TripID] ✅ onUpdateChat called - state should update now')
+                console.log('[TripID] ✅ onUpdateChat called with new array reference - state should update now')
 
                 setIsTripIdLoading(false)
                 return
@@ -2771,8 +3159,23 @@ export function ChatInterface({
    * Get operator messages for the selected quote
    */
   const getOperatorMessages = (): OperatorMessage[] => {
-    if (!selectedQuoteId || !activeChat.operatorMessages) return []
-    return activeChat.operatorMessages[selectedQuoteId] || []
+    if (!selectedQuoteId) return []
+    const messages = activeChat.operatorMessages?.[selectedQuoteId] || []
+    if (messages.length > 0) return messages
+
+    const fallbackFlight = rfqFlights.find((flight) => (
+      flight.quoteId === selectedQuoteId || flight.id === selectedQuoteId
+    ))
+    const fallbackMessage = fallbackFlight?.sellerMessage?.trim()
+    if (!fallbackMessage) return []
+
+    return [{
+      id: `seller-message-${selectedQuoteId}`,
+      type: 'RESPONSE',
+      content: fallbackMessage,
+      timestamp: fallbackFlight?.lastUpdated || new Date().toISOString(),
+      sender: fallbackFlight?.operatorName,
+    }]
   }
 
   return (
@@ -2843,7 +3246,7 @@ export function ChatInterface({
                   // Show quotes whenever we have them, regardless of tripIdSubmitted status
                   // This allows quotes parsed from agent messages to be displayed immediately
                   // Ensure rfqFlights is always an array, never null/undefined
-                  rfqFlights={Array.isArray(rfqFlights) && rfqFlights.length > 0 ? rfqFlights.map(flight => {
+                  rfqFlights={Array.isArray(rfqFlights) && rfqFlights.length > 0 ? rfqFlights.map((flight, index) => {
                     // Determine if messages exist for this flight
                     // CRITICAL: Check operatorMessages[quoteId] for seller messages from quotes
                     // Seller messages are extracted from quote.sellerMessage and stored in operatorMessages
@@ -2864,6 +3267,15 @@ export function ChatInterface({
                       !!(flight as any).sellerMessage || // Also check if flight has sellerMessage directly
                       flight.rfqStatus === 'quoted' // If quoted, assume messages may exist (will be verified when user clicks Messages)
                     )
+
+                    const latestMessage = messages.reduce<OperatorMessage | null>((latest, msg) => {
+                      if (!latest) return msg
+                      const latestTime = new Date(latest.timestamp).getTime()
+                      const msgTime = new Date(msg.timestamp).getTime()
+                      return msgTime > latestTime ? msg : latest
+                    }, null)
+                    const operatorMessagePreview =
+                      latestMessage?.content?.trim() || (flight as any).sellerMessage
                     
                     // Determine if there are new/unread messages
                     // Messages are "new" if their timestamp is after the last read timestamp for this quote
@@ -2892,6 +3304,7 @@ export function ChatInterface({
                       ...flight,
                       hasMessages,
                       hasNewMessages: hasNewMessages || false,
+                      sellerMessage: operatorMessagePreview,
                       // Extract messageId from operatorMessages if available
                       // This is used by get_message tool (GET /tripmsgs/{messageId}) to retrieve specific messages
                       messageId: messages.length > 0
