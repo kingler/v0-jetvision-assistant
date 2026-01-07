@@ -13,7 +13,7 @@ import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
 
 // Type definitions for tool calls
 interface ToolCallRequest {
-  tool: 'search_flights' | 'create_rfp' | 'get_quote_status' | 'get_quotes' | 'search_airports'
+  tool: 'search_flights' | 'create_rfp' | 'get_quote_status' | 'get_quotes' | 'search_airports' | 'send_trip_message' | 'get_trip_messages'
   params: Record<string, unknown>
 }
 
@@ -150,6 +150,51 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'send_trip_message': {
+        const params = body.params as {
+          trip_id: string
+          message: string
+          recipient_type?: 'all_operators' | 'specific_operator'
+          operator_id?: string
+        }
+
+        if (!params.trip_id || !params.message) {
+          return NextResponse.json(
+            { error: 'Bad Request', message: 'trip_id and message are required for send_trip_message' },
+            { status: 400 }
+          )
+        }
+
+        if (params.recipient_type === 'specific_operator' && !params.operator_id) {
+          return NextResponse.json(
+            { error: 'Bad Request', message: 'operator_id is required when recipient_type is specific_operator' },
+            { status: 400 }
+          )
+        }
+
+        result = await server.callTool('send_trip_message', params)
+        break
+      }
+
+      case 'get_trip_messages': {
+        const params = body.params as {
+          trip_id?: string
+          request_id?: string
+          limit?: number
+          since?: string
+        }
+
+        if (!params.trip_id && !params.request_id) {
+          return NextResponse.json(
+            { error: 'Bad Request', message: 'Either trip_id or request_id is required for get_trip_messages' },
+            { status: 400 }
+          )
+        }
+
+        result = await server.callTool('get_trip_messages', params)
+        break
+      }
+
       default:
         return NextResponse.json(
           { error: 'Bad Request', message: `Unknown tool: ${body.tool}` },
@@ -194,6 +239,8 @@ export async function GET() {
         'get_quote_status',
         'get_quotes',
         'search_airports',
+        'send_trip_message',
+        'get_trip_messages',
       ],
     })
   } catch (error) {

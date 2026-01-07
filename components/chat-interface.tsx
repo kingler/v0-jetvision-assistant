@@ -15,6 +15,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { AgentMessage } from "./chat/agent-message"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
+import { OperatorMessageThread } from "./avinode/operator-message-thread"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
 import type { PipelineData } from "@/lib/types/chat-agent"
@@ -74,6 +75,14 @@ export function ChatInterface({
   // Drawer state for viewing quote details
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
+
+  // Message thread popup state
+  const [isMessageThreadOpen, setIsMessageThreadOpen] = useState(false)
+  const [messageThreadTripId, setMessageThreadTripId] = useState<string | undefined>(undefined)
+  const [messageThreadRequestId, setMessageThreadRequestId] = useState<string | undefined>(undefined)
+  const [messageThreadQuoteId, setMessageThreadQuoteId] = useState<string | undefined>(undefined)
+  const [messageThreadFlightId, setMessageThreadFlightId] = useState<string | undefined>(undefined)
+  const [messageThreadOperatorName, setMessageThreadOperatorName] = useState<string | undefined>(undefined)
 
   // Trip ID input state for human-in-the-loop workflow
   const [isTripIdLoading, setIsTripIdLoading] = useState(false)
@@ -1851,37 +1860,16 @@ export function ChatInterface({
         console.log('[Chat] Marked messages as read for quote:', quoteId, 'at:', now)
       }
       
-      // Try to open quote details drawer if we have quote data
-      if (quoteId && activeChat.operatorMessages?.[quoteId]) {
-        setSelectedQuoteId(quoteId)
-        setIsDrawerOpen(true)
-        return
-      }
+      // Find the flight to get operator name and trip ID
+      const flight = activeChat.rfqFlights?.find(f => f.id === flightId || f.quoteId === quoteId)
       
-      // Build message retrieval request for the agent
-      // The agent will call the appropriate MCP tool based on the request
-      let messageText = ''
-      
-      if (messageId) {
-        // Retrieve specific message using messageId via get_message tool
-        // Uses GET /tripmsgs/{messageId} endpoint
-        messageText = `Retrieve the operator message with ID ${messageId} for quote ${quoteId || flightId} using the get_message tool. Show me the message content and any relevant details.`
-      } else if (quoteId) {
-        // Retrieve all messages for this quote/request via get_trip_messages tool
-        // Uses GET /tripmsgs/{requestId}/chat endpoint when request_id is provided
-        messageText = `Retrieve all operator messages for quote ${quoteId} (request ID: ${quoteId}) using the get_trip_messages tool with request_id parameter. Show me all messages from the operator.`
-      } else {
-        // Fallback: request messages for this flight
-        messageText = `Show me the messages from the operator for flight ${flightId}. Retrieve messages using the get_trip_messages tool.`
-      }
-
-      // Insert message into chat input
-      setInputValue(messageText)
-      
-      // Auto-send the message after a brief delay to allow state update
-      setTimeout(() => {
-        handleSendMessage()
-      }, 100)
+      // Open the message thread popup
+      setMessageThreadTripId(activeChat.tripId || undefined)
+      setMessageThreadRequestId(quoteId || undefined) // Use quoteId as requestId for get_trip_messages
+      setMessageThreadQuoteId(quoteId)
+      setMessageThreadFlightId(flightId)
+      setMessageThreadOperatorName(flight?.operatorName)
+      setIsMessageThreadOpen(true)
     } catch (error) {
       console.error('[Chat] Error handling view chat:', error)
       // Fallback: just open the drawer
@@ -2267,6 +2255,29 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                           }
                         }
                         
+                        // CRITICAL: Also extract seller messages from get_quote results
+                        // get_quote returns notes/sellerMessage field that should be added to operatorMessages
+                        for (const [quoteId, quoteDetails] of Object.entries(quoteDetailsMap)) {
+                          const sellerMessage = (quoteDetails as any).notes || (quoteDetails as any).sellerMessage
+                          if (sellerMessage && typeof sellerMessage === 'string' && sellerMessage.trim()) {
+                            if (!sellerMessagesFromQuotes[quoteId]) {
+                              sellerMessagesFromQuotes[quoteId] = []
+                            }
+                            // Check if this message already exists (avoid duplicates)
+                            const existingContent = sellerMessagesFromQuotes[quoteId].some(msg => msg.content === sellerMessage)
+                            if (!existingContent) {
+                              sellerMessagesFromQuotes[quoteId].push({
+                                id: `get-quote-msg-${quoteId}-${Date.now()}`,
+                                type: 'RESPONSE' as const,
+                                content: sellerMessage,
+                                timestamp: (quoteDetails as any).created_at || new Date().toISOString(),
+                                sender: (quoteDetails as any).operator?.name || (quoteDetails as any).operator?.displayName,
+                              })
+                              console.log('[TripID] Found seller message from get_quote for quote', quoteId, ':', sellerMessage.substring(0, 100))
+                            }
+                          }
+                        }
+                        
                         // Merge seller messages from quotes into operatorMessages
                         if (Object.keys(sellerMessagesFromQuotes).length > 0) {
                           console.log('[TripID] Extracted seller messages from', Object.keys(sellerMessagesFromQuotes).length, 'quotes')
@@ -2281,9 +2292,12 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                           for (const [quoteId, messages] of Object.entries(sellerMessagesFromQuotes)) {
                             const existingMessages = updatedOperatorMessages[quoteId] || []
                             const existingMessageIds = new Set(existingMessages.map(m => m.id))
+                            const existingContent = new Set(existingMessages.map(m => m.content))
                             
-                            // Add seller messages if not already present
-                            const uniqueSellerMessages = messages.filter(msg => !existingMessageIds.has(msg.id))
+                            // Add seller messages if not already present (check both ID and content to avoid duplicates)
+                            const uniqueSellerMessages = messages.filter(msg => 
+                              !existingMessageIds.has(msg.id) && !existingContent.has(msg.content)
+                            )
                             if (uniqueSellerMessages.length > 0) {
                               updatedOperatorMessages[quoteId] = [...existingMessages, ...uniqueSellerMessages]
                               console.log('[TripID] ✅ Added', uniqueSellerMessages.length, 'seller messages for quote:', quoteId, {
@@ -2310,7 +2324,7 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                             operatorMessages: updatedOperatorMessages,
                           })
                         } else {
-                          console.log('[TripID] No seller messages found in pre-transformed flights')
+                          console.log('[TripID] No seller messages found in pre-transformed flights or get_quote results')
                         }
 
                         // Also populate quotes for backward compatibility with conversion logic
@@ -2735,15 +2749,31 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                 if (Object.keys(quoteDetailsMap).length > 0) {
                   console.log('[TripID] 🔄 Merging get_quote results into RFQ flights:', Object.keys(quoteDetailsMap).length, 'quotes')
                   console.log('[TripID] Available quote IDs in map:', Object.keys(quoteDetailsMap))
+                  console.log('[TripID] Flight quote IDs:', rfqFlightsForChatSession.map(f => f.quoteId))
                   
                   rfqFlightsForChatSession = rfqFlightsForChatSession.map(flight => {
-                    const quoteDetails = quoteDetailsMap[flight.quoteId]
+                    // Try multiple ways to match quote details
+                    // 1. Direct match by quoteId
+                    let quoteDetails = quoteDetailsMap[flight.quoteId]
+                    
+                    // 2. Try matching by quote_id field in the map
+                    if (!quoteDetails) {
+                      for (const [key, details] of Object.entries(quoteDetailsMap)) {
+                        if ((details as any).quote_id === flight.quoteId || key === flight.quoteId) {
+                          quoteDetails = details as any
+                          console.log('[TripID] ✅ Matched quote details using alternative key:', key, 'for flight quoteId:', flight.quoteId)
+                          break
+                        }
+                      }
+                    }
+                    
                     if (quoteDetails) {
                       const quoteMessage = quoteDetails.notes || quoteDetails.sellerMessage || (flight as any).sellerMessage
                       
                       // CRITICAL: Extract price from get_quote result - this is the AUTHORITATIVE source
                       // get_quote returns: { pricing: quote?.sellerPrice || quote?.pricing, ... }
                       // where sellerPrice is { price: number, currency: string }
+                      // and pricing is { total: number, currency: string, base_price: number, ... }
                       // So pricing can be either sellerPrice directly OR a pricing object
                       const pricing = quoteDetails.pricing || 
                                     quoteDetails.sellerPrice || 
@@ -2755,19 +2785,40 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                       
                       if (pricing) {
                         // pricing can be sellerPrice { price, currency } or pricing object { total, currency }
-                        newPrice = pricing.price || pricing.total || pricing.amount || null
+                        // Check both structures explicitly
+                        if (typeof pricing.price === 'number' && pricing.price > 0) {
+                          newPrice = pricing.price
+                          console.log('[TripID] ✅ Extracted price from pricing.price:', newPrice)
+                        } else if (typeof pricing.total === 'number' && pricing.total > 0) {
+                          newPrice = pricing.total
+                          console.log('[TripID] ✅ Extracted price from pricing.total:', newPrice)
+                        } else if (typeof pricing.amount === 'number' && pricing.amount > 0) {
+                          newPrice = pricing.amount
+                          console.log('[TripID] ✅ Extracted price from pricing.amount:', newPrice)
+                        } else {
+                          console.warn('[TripID] ⚠️ Pricing object exists but no valid price field found:', {
+                            pricingKeys: Object.keys(pricing),
+                            pricingValue: pricing,
+                          })
+                        }
                       }
                       
-                      // Fallback: Check for direct price fields
+                      // Fallback: Check for direct price fields in quoteDetails
                       if (!newPrice || newPrice === 0) {
-                        newPrice = (quoteDetails as any).totalPrice || 
-                                  (quoteDetails as any).price || 
-                                  null
+                        if (typeof (quoteDetails as any).totalPrice === 'number' && (quoteDetails as any).totalPrice > 0) {
+                          newPrice = (quoteDetails as any).totalPrice
+                          console.log('[TripID] ✅ Extracted price from quoteDetails.totalPrice:', newPrice)
+                        } else if (typeof (quoteDetails as any).price === 'number' && (quoteDetails as any).price > 0) {
+                          newPrice = (quoteDetails as any).price
+                          console.log('[TripID] ✅ Extracted price from quoteDetails.price:', newPrice)
+                        }
                       }
                       
-                      // Final fallback: Use existing flight price if we couldn't extract a valid price
-                      if (!newPrice || newPrice === 0) {
-                        newPrice = flight.totalPrice > 0 ? flight.totalPrice : null
+                      // CRITICAL: If we still don't have a price from get_quote, but the flight already has a price from get_rfq,
+                      // keep that price (don't overwrite with 0)
+                      if ((!newPrice || newPrice === 0) && flight.totalPrice > 0) {
+                        console.log('[TripID] ℹ️ No price from get_quote, keeping existing price from get_rfq:', flight.totalPrice)
+                        newPrice = flight.totalPrice
                       }
                       
                       // Extract currency - prioritize pricing currency
@@ -2780,20 +2831,45 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                         quoteId: flight.quoteId,
                         pricingStructure: pricing ? Object.keys(pricing) : null,
                         pricingValue: pricing,
+                        pricingPrice: pricing?.price,
+                        pricingTotal: pricing?.total,
+                        pricingAmount: pricing?.amount,
                         extractedPrice: newPrice,
                         finalPrice: newPrice || flight.totalPrice,
                         currency: newCurrency,
+                        quoteDetailsKeys: Object.keys(quoteDetails),
+                        quoteDetailsFull: JSON.stringify(quoteDetails, null, 2).substring(0, 500), // First 500 chars for debugging
                       })
+                      
+                      // CRITICAL: If we still don't have a price, log the full structure for debugging
+                      if (!newPrice || newPrice === 0) {
+                        console.error('[TripID] ❌ FAILED to extract price from get_quote result!', {
+                          quoteId: flight.quoteId,
+                          quoteDetailsFull: quoteDetails,
+                          pricingObject: pricing,
+                          availableFields: Object.keys(quoteDetails),
+                        })
+                      }
                       
                       // Determine status from get_quote result
                       // Status can be 'quoted', 'declined', 'pending', etc.
                       // CRITICAL: If we have a price, the status should be 'quoted'
                       let newStatus: RFQFlight['rfqStatus'] = flight.rfqStatus
                       
-                      if (newPrice && newPrice > 0) {
-                        // If we have a price, status must be 'quoted' (operator responded with quote)
+                      // PRIORITY 1: If we have a valid price (from get_quote OR from pre-transformed flights), status must be 'quoted'
+                      // CRITICAL: This check must happen BEFORE checking quoteDetails.status
+                      const hasValidPrice = (newPrice && newPrice > 0) || flight.totalPrice > 0
+                      if (hasValidPrice) {
                         newStatus = 'quoted'
-                      } else if (quoteDetails.status === 'quoted' || quoteDetails.status === 'accepted') {
+                        console.log('[TripID] ✅ Setting status to "quoted" because price exists:', {
+                          newPrice,
+                          existingPrice: flight.totalPrice,
+                          finalPrice: newPrice || flight.totalPrice,
+                          willOverrideStatus: quoteDetails.status && quoteDetails.status !== 'quoted',
+                        })
+                      }
+                      // PRIORITY 2: Check explicit status from quoteDetails
+                      else if (quoteDetails.status === 'quoted' || quoteDetails.status === 'accepted') {
                         newStatus = 'quoted'
                       } else if (quoteDetails.status === 'declined') {
                         newStatus = 'declined'
@@ -2813,19 +2889,69 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                         hasPricing: !!pricing,
                         pricingStructure: pricing ? Object.keys(pricing) : null,
                         quoteDetailsKeys: Object.keys(quoteDetails),
+                        statusUpdated: newStatus !== flight.rfqStatus,
+                        priceUpdated: (newPrice && newPrice > 0) && newPrice !== flight.totalPrice,
                       })
                       
-                      // Update flight with new data - CRITICAL: Use newPrice only if it's valid (> 0)
-                      // Otherwise keep existing price (which might already be correct)
+                      // Update flight with new data - CRITICAL: Use newPrice if it's valid (> 0)
+                      // If newPrice is 0 or null, keep existing price only if it's also > 0
+                      // This ensures we don't overwrite a valid price with 0
+                      // ALSO: If flight already has a price > 0, use that as fallback
+                      const finalPrice = (newPrice && newPrice > 0) 
+                        ? newPrice 
+                        : (flight.totalPrice > 0 ? flight.totalPrice : 0)
+                      
+                      // CRITICAL: If we extracted a price but it's 0, log a warning
+                      if (newPrice === 0 && flight.totalPrice === 0) {
+                        console.warn('[TripID] ⚠️ Both extracted price and existing price are 0!', {
+                          quoteId: flight.quoteId,
+                          extractedPrice: newPrice,
+                          existingPrice: flight.totalPrice,
+                          pricingObject: pricing,
+                        })
+                      }
+                      
+                      // CRITICAL: If we're about to set price to 0 but flight already has a price, don't overwrite
+                      if (finalPrice === 0 && flight.totalPrice > 0) {
+                        console.error('[TripID] ❌ CRITICAL: Attempting to overwrite valid price with 0! Keeping existing price.', {
+                          quoteId: flight.quoteId,
+                          existingPrice: flight.totalPrice,
+                          extractedPrice: newPrice,
+                          finalPrice,
+                        })
+                        // Keep the existing price
+                        const updatedFlightWithPrice = {
+                          ...flight,
+                          totalPrice: flight.totalPrice, // Keep existing price
+                          currency: newCurrency || flight.currency,
+                          rfqStatus: newStatus,
+                          sellerMessage: quoteMessage,
+                          priceBreakdown: pricing && (pricing.price || pricing.total || pricing.amount) ? {
+                            basePrice: pricing.base || pricing.basePrice || pricing.base_price || pricing.base_price || 0,
+                            fuelSurcharge: pricing.fuel || pricing.fuelSurcharge || pricing.fuel_surcharge,
+                            taxes: pricing.taxes || 0,
+                            fees: pricing.fees || 0,
+                          } : flight.priceBreakdown,
+                          validUntil: quoteDetails.valid_until || quoteDetails.validUntil || flight.validUntil,
+                        }
+                        
+                        // Ensure status is 'quoted' if we have a price
+                        if (updatedFlightWithPrice.totalPrice > 0 && updatedFlightWithPrice.rfqStatus === 'unanswered') {
+                          updatedFlightWithPrice.rfqStatus = 'quoted'
+                        }
+                        
+                        return updatedFlightWithPrice
+                      }
+                      
                       const updatedFlight = {
                         ...flight,
-                        totalPrice: (newPrice && newPrice > 0) ? newPrice : flight.totalPrice,
+                        totalPrice: finalPrice,
                         currency: newCurrency,
                         rfqStatus: newStatus,
                         sellerMessage: quoteMessage,
                         // Update price breakdown if available
                         priceBreakdown: pricing && (pricing.price || pricing.total || pricing.amount) ? {
-                          basePrice: pricing.base || pricing.basePrice || pricing.base_price || 0,
+                          basePrice: pricing.base || pricing.basePrice || pricing.base_price || pricing.base_price || 0,
                           fuelSurcharge: pricing.fuel || pricing.fuelSurcharge || pricing.fuel_surcharge,
                           taxes: pricing.taxes || 0,
                           fees: pricing.fees || 0,
@@ -2833,13 +2959,25 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                         validUntil: quoteDetails.valid_until || quoteDetails.validUntil || flight.validUntil,
                       }
                       
-                      // Log if price didn't update
+                      // Log if price didn't update when it should have
                       if (updatedFlight.totalPrice === 0 && newPrice && newPrice > 0) {
                         console.error('[TripID] ❌ ERROR: Price should have updated but is still 0!', {
                           quoteId: flight.quoteId,
                           newPrice,
                           updatedPrice: updatedFlight.totalPrice,
+                          pricing,
                         })
+                      }
+                      
+                      // Log if status didn't update when price exists
+                      if (updatedFlight.totalPrice > 0 && updatedFlight.rfqStatus === 'unanswered') {
+                        console.error('[TripID] ❌ ERROR: Status should be "quoted" when price exists!', {
+                          quoteId: flight.quoteId,
+                          price: updatedFlight.totalPrice,
+                          status: updatedFlight.rfqStatus,
+                        })
+                        // Force status to 'quoted' if we have a price
+                        updatedFlight.rfqStatus = 'quoted'
                       }
                       
                       return updatedFlight
@@ -2850,18 +2988,40 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                         console.warn('[TripID] ⚠️ No get_quote result found for quoteId:', flight.quoteId, {
                           availableQuoteIds: Object.keys(quoteDetailsMap),
                           flightQuoteId: flight.quoteId,
+                          flightPrice: flight.totalPrice,
+                          flightStatus: flight.rfqStatus,
                         })
+                      }
+                      
+                      // CRITICAL: Even without get_quote results, if flight has a price, ensure status is 'quoted'
+                      // This handles the case where get_rfq returns flights with prices but get_quote wasn't called
+                      if (flight.totalPrice > 0) {
+                        if (flight.rfqStatus === 'unanswered' || flight.rfqStatus === 'sent') {
+                          console.log('[TripID] ✅ Flight has price but status is unanswered/sent - updating to quoted:', {
+                            quoteId: flight.quoteId,
+                            price: flight.totalPrice,
+                            oldStatus: flight.rfqStatus,
+                            newStatus: 'quoted',
+                          })
+                          return {
+                            ...flight,
+                            rfqStatus: 'quoted' as const,
+                          }
+                        }
                       }
                     }
                     return flight
                   })
                   
-                  const updatedFlights = rfqFlightsForChatSession.filter(f => quoteDetailsMap[f.quoteId])
-                  console.log('[TripID] ✅ Merged get_quote results - updated', updatedFlights.length, 'flights', {
-                    flights: updatedFlights.map(f => ({
+                  // Log all flights, not just those with get_quote results
+                  console.log('[TripID] ✅ Merged get_quote results - total flights:', rfqFlightsForChatSession.length, {
+                    flightsWithGetQuote: rfqFlightsForChatSession.filter(f => quoteDetailsMap[f.quoteId]).length,
+                    flightsWithoutGetQuote: rfqFlightsForChatSession.filter(f => !quoteDetailsMap[f.quoteId]).length,
+                    allFlights: rfqFlightsForChatSession.map(f => ({
                       quoteId: f.quoteId,
                       price: f.totalPrice,
                       status: f.rfqStatus,
+                      hasGetQuoteResult: !!quoteDetailsMap[f.quoteId],
                     })),
                   })
                 } else {
@@ -3486,6 +3646,17 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
         messages={getOperatorMessages()}
         onSendMessage={handleSendOperatorMessage}
         onAcceptQuote={handleAcceptQuote}
+      />
+
+      {/* Operator Message Thread Popup */}
+      <OperatorMessageThread
+        isOpen={isMessageThreadOpen}
+        onClose={() => setIsMessageThreadOpen(false)}
+        tripId={messageThreadTripId}
+        requestId={messageThreadRequestId}
+        quoteId={messageThreadQuoteId}
+        flightId={messageThreadFlightId}
+        operatorName={messageThreadOperatorName}
       />
     </div>
   )

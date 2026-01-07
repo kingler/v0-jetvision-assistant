@@ -130,12 +130,10 @@ export default function JetvisionAgent() {
         // Update state with loaded sessions
         setChatSessions(sessionsWithMessages as any)
 
-        // Auto-select the first session if available and no chat is currently active
-        // This only happens on initial load - user can manually select chats later
-        if (sessionsWithMessages.length > 0 && !activeChatId) {
-          setActiveChatId(sessionsWithMessages[0].id)
-          setCurrentView('chat')
-        }
+        // Always show landing page on initial load, even if sessions exist
+        // User can manually select chats from the sidebar
+        setCurrentView('landing')
+        setActiveChatId(null)
 
         console.log('[JetvisionAgent] Loaded chat sessions:', {
           count: sessionsWithMessages.length,
@@ -206,42 +204,11 @@ export default function JetvisionAgent() {
   }
 
   const handleNewChat = async () => {
-    try {
-      const response = await fetch("/api/chat/init", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Request failed" }))
-        throw new Error(errorData.message || `Request failed with status ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      const newChat: ChatSession = {
-        id: data.chatSessionId,
-        conversationId: data.conversationId,
-        route: "Select route",
-        passengers: 1,
-        date: "Select date",
-        status: "understanding_request",
-        currentStep: 1,
-        totalSteps: 5,
-        messages: [],
-      }
-
-      setChatSessions((prevSessions) => [newChat, ...prevSessions])
-      setActiveChatId(newChat.id)
-      setCurrentView("chat")
-      setSidebarOpen(true)
-    } catch (error) {
-      console.error("[Chat UI] Failed to initialize chat session:", error)
-      setCurrentView("landing")
-      setActiveChatId(null)
-    }
+    // When starting a new chat, always show the landing page
+    // User can start a conversation from the landing page
+    setCurrentView("landing")
+    setActiveChatId(null)
+    setSidebarOpen(true)
   }
 
   const handleUpdateChat = (chatId: string, updates: Partial<ChatSession>) => {
