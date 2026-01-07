@@ -1293,10 +1293,12 @@ export class AvinodeClient {
   }
 
   /**
-   * Send a message to operators for a trip
+   * Send a chat message for an RFQ/request
+   * Uses Avinode API: POST /tripmsgs/{requestId}/chat
    *
-   * @param params - Message parameters including trip_id, message content, and recipient type
+   * @param params - Message parameters including trip_id (used to find RFQ) or request_id, and message content
    * @returns Message delivery confirmation
+   * @see https://developer.avinodegroup.com/docs/download-respond-rfq
    */
   async sendTripMessage(params: {
     trip_id: string;
@@ -1310,10 +1312,31 @@ export class AvinodeClient {
     sent_at: string;
   }> {
     try {
-      const response = await this.client.post(`/trips/${params.trip_id}/messages`, {
+      // Avinode uses POST /tripmsgs/{requestId}/chat for sending messages
+      // First, we need to get the RFQ ID from the trip
+      // The trip_id might be the trip identifier or an RFQ ID directly
+
+      let requestId = params.trip_id;
+
+      // If trip_id doesn't look like an RFQ ID, try to get RFQs for the trip
+      if (!params.trip_id.startsWith('arfq-')) {
+        try {
+          const tripData = await this.getRFQ(params.trip_id);
+          const rfqs = Array.isArray(tripData) ? tripData : [tripData];
+          if (rfqs.length > 0 && rfqs[0]?.id) {
+            requestId = rfqs[0].id;
+          }
+        } catch (e) {
+          // Use trip_id as-is if we can't get RFQs
+          this.logger.warn('Could not get RFQ for trip, using trip_id directly', {
+            trip_id: params.trip_id,
+          });
+        }
+      }
+
+      // Send chat message using the correct Avinode endpoint
+      const response = await this.client.post(`/tripmsgs/${requestId}/chat`, {
         message: params.message,
-        recipientType: params.recipient_type || 'all_operators',
-        ...(params.operator_id && { operatorId: params.operator_id }),
       });
 
       return {
@@ -1328,14 +1351,21 @@ export class AvinodeClient {
   }
 
   /**
-   * Get messages for a trip or request
+   * Get a specific trip message by ID
+   * Uses Avinode API: GET /tripmsgs/{messageId}
    *
-   * @param params - Query parameters including trip_id or request_id
-   * @returns Array of messages with sender info and timestamps
+   * Note: Avinode doesn't have a "list all messages" endpoint.
+   * Messages are received via webhooks (TripChatSeller, TripChatBuyer events)
+   * and stored in the local database. This method fetches individual message details.
+   *
+   * @param params - Query parameters including message_id, trip_id, or request_id
+   * @returns Message details or empty array if fetching from trip/request
+   * @see https://developer.avinodegroup.com/docs/avinode-webhooks
    */
   async getTripMessages(params: {
     trip_id?: string;
     request_id?: string;
+    message_id?: string;
     limit?: number;
     since?: string;
   }): Promise<{
@@ -1354,33 +1384,94 @@ export class AvinodeClient {
     request_id?: string;
   }> {
     try {
-      const endpoint = params.trip_id
-        ? `/trips/${params.trip_id}/messages`
-        : `/rfqs/${params.request_id}/messages`;
+      // If a specific message_id is provided, fetch that message
+      if (params.message_id) {
+        const response = await this.client.get(`/tripmsgs/${params.message_id}`);
+        const msg = response.data?.data || response.data;
 
-      const response = await this.client.get(endpoint, {
-        params: {
-          limit: params.limit || 100,
-          ...(params.since && { since: params.since }),
-        },
-      });
+        if (msg) {
+          return {
+            messages: [{
+              id: msg.id || params.message_id,
+              content: msg.message || msg.content || msg.text || '',
+              sender_type: msg.senderType ||
+                (msg.type?.includes('Seller') ? 'operator' : 'iso_agent'),
+              sender_name: msg.senderName || msg.sender?.name || 'Unknown',
+              sender_operator_id: msg.senderOperatorId,
+              sender_iso_agent_id: msg.senderIsoAgentId,
+              created_at: msg.createdAt || msg.created_at || new Date().toISOString(),
+              status: 'delivered',
+            }],
+            total: 1,
+            trip_id: params.trip_id,
+            request_id: params.request_id,
+          };
+        }
+      }
 
-      const messagesData = response.data?.data || response.data?.messages || response.data || [];
-      const messages = Array.isArray(messagesData) ? messagesData : [];
+      // For trip_id or request_id, try to get trip details which may include chat info
+      // Note: Avinode doesn't provide a direct "list messages" endpoint
+      // Messages should be stored locally via webhooks
+      const tripOrRequestId = params.trip_id || params.request_id;
 
+      if (tripOrRequestId) {
+        // Try to get trip/RFQ details which might include linked messages
+        try {
+          const tripData = await this.getRFQ(tripOrRequestId);
+          const rfqs = Array.isArray(tripData) ? tripData : [tripData];
+
+          // Extract any chat/message info from the RFQ data
+          const messages: Array<{
+            id: string;
+            content: string;
+            sender_type: 'operator' | 'iso_agent' | 'system';
+            sender_name?: string;
+            sender_operator_id?: string;
+            sender_iso_agent_id?: string;
+            created_at: string;
+            status?: 'sent' | 'delivered' | 'read' | 'failed';
+          }> = [];
+
+          for (const rfq of rfqs) {
+            // Check for chat/messages in the RFQ response
+            const rfqMessages = rfq?.chat || rfq?.messages || rfq?.tripMessages || [];
+            if (Array.isArray(rfqMessages)) {
+              for (const msg of rfqMessages) {
+                messages.push({
+                  id: msg.id || `msg-${messages.length}`,
+                  content: msg.message || msg.content || msg.text || '',
+                  sender_type: msg.senderType ||
+                    (msg.type?.includes('Seller') ? 'operator' : 'iso_agent'),
+                  sender_name: msg.senderName || msg.sender?.name || 'Unknown',
+                  sender_operator_id: msg.senderOperatorId,
+                  sender_iso_agent_id: msg.senderIsoAgentId,
+                  created_at: msg.createdAt || msg.created_at || new Date().toISOString(),
+                  status: msg.status || 'delivered',
+                });
+              }
+            }
+          }
+
+          return {
+            messages,
+            total: messages.length,
+            trip_id: params.trip_id,
+            request_id: params.request_id,
+          };
+        } catch (e) {
+          // If we can't get trip data, return empty messages
+          this.logger.warn('Could not get messages for trip/request', {
+            trip_id: params.trip_id,
+            request_id: params.request_id,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+
+      // Return empty messages array - messages should come from webhooks/local DB
       return {
-        messages: messages.map((msg: any) => ({
-          id: msg.id || msg.message_id || `msg-${Date.now()}`,
-          content: msg.content || msg.message || msg.text || '',
-          sender_type: msg.senderType || msg.sender_type ||
-            (msg.senderOperatorId ? 'operator' : msg.senderIsoAgentId ? 'iso_agent' : 'system'),
-          sender_name: msg.senderName || msg.sender_name || msg.sender?.name || 'Unknown',
-          sender_operator_id: msg.senderOperatorId || msg.sender_operator_id,
-          sender_iso_agent_id: msg.senderIsoAgentId || msg.sender_iso_agent_id,
-          created_at: msg.createdAt || msg.created_at || msg.timestamp || new Date().toISOString(),
-          status: msg.status,
-        })),
-        total: messages.length,
+        messages: [],
+        total: 0,
         trip_id: params.trip_id,
         request_id: params.request_id,
       };
