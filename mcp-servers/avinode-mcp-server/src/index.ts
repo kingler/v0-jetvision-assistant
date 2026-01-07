@@ -892,7 +892,7 @@ async function createTrip(params: CreateTripParams) {
   try {
     // Log request for debugging production issues
     console.error('[createTrip] Making API request to /trips with:', {
-      segments: requestBody.segments?.length || 0,
+      segments: Array.isArray(requestBody.segments) ? requestBody.segments.length : 0,
       hasSourcing: !!requestBody.sourcing,
       hasCriteria: !!requestBody.criteria,
       hasExternalTripId: !!requestBody.externalTripId,
@@ -1147,7 +1147,7 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
   const rfqArrivalAirport = rfqData.route?.arrival?.airport;
   const rfqDepartureDate = rfqData.route?.departure?.date;
 
-  return quotes.map((quote: any, index: number) => {
+  return quotes.map((quote: any, index: number): RFQFlight | null => {
     // Derive RFQ status from quote response
     // When operator responds with a quote, status should be 'quoted'
     // When operator declines, status should be 'declined'
@@ -1368,9 +1368,12 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     }
 
     // CRITICAL: Log final RFQFlight object before returning
+    // Extract quoteId consistently - check all possible field names (must match line 1122 logic)
+    // Use the same extraction logic as the deduplication step to ensure consistency
+    const extractedQuoteId = quote.quote_id || quote.quote?.id || quote.id || `quote-${index + 1}`
     const finalRFQFlight = {
-      id: `flight-${quote.quote?.id || quote.id || index + 1}`,
-      quoteId: quote.quote?.id || quote.id || `quote-${index + 1}`,
+      id: `flight-${extractedQuoteId}`,
+      quoteId: extractedQuoteId, // Use consistent quoteId extraction
       // Include messageId if available (for retrieving specific messages)
       messageId: messageId,
       // Include seller message text if available (from quote.sellerMessage field)
@@ -2019,6 +2022,12 @@ async function getQuote(params: GetQuoteParams) {
   const payload = (response as any)?.data ?? response;
   const quote = payload?.data ?? payload;
 
+  // CRITICAL: Avinode API returns sellerPrice { price, currency } as the PRIMARY pricing structure
+  // Per test script: GET /quotes/{quoteId} returns sellerPrice.price and sellerPrice.currency
+  // We preserve both sellerPrice and pricing for compatibility, but sellerPrice is PRIMARY
+  const sellerPrice = quote?.sellerPrice;
+  const pricing = quote?.pricing;
+  
   return {
     quote_id: quote?.id || quote?.quote_id || params.quote_id,
     rfq_id: quote?.rfq_id,
@@ -2027,11 +2036,18 @@ async function getQuote(params: GetQuoteParams) {
     operator: quote?.sellerCompany || quote?.operator,
     aircraft: quote?.lift,
     segments: quote?.segments,
-    pricing: quote?.sellerPrice || quote?.pricing,
+    // PRIMARY: sellerPrice is the authoritative source (API returns sellerPrice.price, sellerPrice.currency)
+    sellerPrice: sellerPrice,
+    // FALLBACK: pricing object (may contain total, base_price, etc.)
+    pricing: pricing,
+    // For backward compatibility, also include as 'pricing' field (sellerPrice takes priority)
+    // This allows code to check pricing.price (from sellerPrice) or pricing.total (from pricing object)
+    // But sellerPrice is the PRIMARY source per Avinode API documentation
     availability: quote?.availability,
     valid_until: quote?.valid_until,
     created_at: quote?.createdOn || quote?.created_at,
     notes: quote?.sellerMessage || quote?.notes,
+    sellerMessage: quote?.sellerMessage, // PRIMARY: operator message text
     photos: quote?.tailPhotos || quote?.typePhotos || quote?.photos,
   };
 }

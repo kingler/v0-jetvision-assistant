@@ -76,11 +76,22 @@ export interface RFQFlight {
   operatorName: string;
   operatorRating?: number;
   operatorEmail?: string;
-  /** Total price - maps to pricing.total in Avinode API */
+  /** 
+   * Total price - PRIMARY source: sellerPrice.price from Avinode API
+   * FALLBACK: pricing.total from pricing object
+   * Per Avinode API: GET /quotes/{quoteId} returns sellerPrice { price, currency }
+   * @see https://developer.avinodegroup.com/reference/readmessage
+   */
   totalPrice: number;
-  /** Currency code (ISO 4217) - maps to pricing.currency in API */
+  /** 
+   * Currency code (ISO 4217) - PRIMARY source: sellerPrice.currency from Avinode API
+   * FALLBACK: pricing.currency from pricing object
+   */
   currency: string;
-  /** Price breakdown - maps to pricing.breakdown in API */
+  /** 
+   * Price breakdown - maps to pricing object in Avinode API
+   * Note: sellerPrice doesn't include breakdown, so this comes from pricing object
+   */
   priceBreakdown?: {
     /** Base charter price - maps to pricing.base_price */
     basePrice: number;
@@ -130,7 +141,12 @@ export interface RFQFlight {
   avinodeDeepLink?: string;
   /** Message ID for retrieving specific operator messages (from webhook events) */
   messageId?: string;
-  /** Operator message text from sellerMessage or trip messages */
+  /** 
+   * Operator message text - PRIMARY source: sellerMessage field from Avinode API
+   * Per Avinode API: GET /quotes/{quoteId} returns sellerMessage (string) containing operator's message
+   * FALLBACK: notes field or trip messages
+   * @see https://developer.avinodegroup.com/reference/readmessage
+   */
   sellerMessage?: string;
 }
 

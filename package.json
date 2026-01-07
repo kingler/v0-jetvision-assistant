@@ -2,10 +2,6 @@
   "name": "jetvision-multi-agent",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.0.0",
-  "workspaces": [
-    "mcp-servers/*"
-  ],
   "scripts": {
     "build": "next build",
     "dev": "concurrently \"npm:dev:app\" \"npm:dev:mcp\"",

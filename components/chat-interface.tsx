@@ -2151,12 +2151,31 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                       })
                       
                       // Store quote details by quote_id for later merging
-                      if (toolCall.result.quote_id) {
-                        quoteDetailsMap[toolCall.result.quote_id] = toolCall.result
-                        console.log('[TripID] Stored quote details for quote_id:', toolCall.result.quote_id, {
+                      // CRITICAL: Avinode API returns quote_id (snake_case) - use this consistently
+                      // RFQFlight uses quoteId (camelCase) but we store by quote_id to match API
+                      // The flight.quoteId should match the stored quote_id key
+                      const apiQuoteId = toolCall.result.quote_id || toolCall.result.quoteId
+                      if (apiQuoteId) {
+                        quoteDetailsMap[apiQuoteId] = toolCall.result
+                        console.log('[TripID] Stored quote details for quote_id:', apiQuoteId, {
+                          // PRIMARY: sellerPrice from API
+                          hasSellerPrice: !!toolCall.result.sellerPrice,
+                          sellerPrice: toolCall.result.sellerPrice,
+                          sellerPricePrice: toolCall.result.sellerPrice?.price,
+                          sellerPriceCurrency: toolCall.result.sellerPrice?.currency,
+                          // FALLBACK: pricing object
                           hasPricing: !!toolCall.result.pricing,
                           pricing: toolCall.result.pricing,
+                          // Status
                           status: toolCall.result.status,
+                          // Message
+                          hasSellerMessage: !!toolCall.result.sellerMessage,
+                          storedKey: apiQuoteId,
+                        })
+                      } else {
+                        console.warn('[TripID] ⚠️ get_quote result missing quote_id!', {
+                          resultKeys: Object.keys(toolCall.result),
+                          result: toolCall.result,
                         })
                       }
                     }
@@ -2752,66 +2771,97 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                   console.log('[TripID] Flight quote IDs:', rfqFlightsForChatSession.map(f => f.quoteId))
                   
                   rfqFlightsForChatSession = rfqFlightsForChatSession.map(flight => {
-                    // Try multiple ways to match quote details
-                    // 1. Direct match by quoteId
+                    // CRITICAL: Match quote details using consistent naming
+                    // Avinode API returns quote_id (snake_case)
+                    // transformToRFQFlights extracts quoteId as: quote.quote_id || quote.quote?.id || quote.id
+                    // get_quote returns quote_id (snake_case) and we store it as the map key
+                    // So flight.quoteId should match the map key (which is quote_id from API)
                     let quoteDetails = quoteDetailsMap[flight.quoteId]
                     
-                    // 2. Try matching by quote_id field in the map
+                    // If no direct match, try matching by quote_id field in the stored details
+                    // This handles edge cases where quoteId extraction might differ
                     if (!quoteDetails) {
                       for (const [key, details] of Object.entries(quoteDetailsMap)) {
-                        if ((details as any).quote_id === flight.quoteId || key === flight.quoteId) {
+                        // Check both the map key and the quote_id field inside the stored details
+                        const storedQuoteId = (details as any).quote_id || key
+                        // Match if: key matches quoteId, or quote_id field matches quoteId
+                        if (storedQuoteId === flight.quoteId || key === flight.quoteId) {
                           quoteDetails = details as any
-                          console.log('[TripID] ✅ Matched quote details using alternative key:', key, 'for flight quoteId:', flight.quoteId)
+                          console.log('[TripID] ✅ Matched quote details using alternative key:', {
+                            mapKey: key,
+                            storedQuoteId,
+                            flightQuoteId: flight.quoteId,
+                            matchType: storedQuoteId === flight.quoteId ? 'quote_id field' : 'map key',
+                          })
                           break
                         }
                       }
                     }
                     
+                    // Log if still no match found - this indicates a naming mismatch
+                    if (!quoteDetails && flight.quoteId) {
+                      console.warn('[TripID] ⚠️ No quote details match found for flight - NAMING MISMATCH:', {
+                        flightQuoteId: flight.quoteId,
+                        flightQuoteIdType: typeof flight.quoteId,
+                        availableKeys: Object.keys(quoteDetailsMap),
+                        availableQuoteIds: Object.values(quoteDetailsMap).map((d: any) => {
+                          const qid = d.quote_id || 'missing'
+                          return `${qid} (type: ${typeof qid})`
+                        }),
+                        // Check if any quote_id values match when converted
+                        potentialMatches: Object.entries(quoteDetailsMap)
+                          .filter(([key, d]: [string, any]) => {
+                            const storedId = d.quote_id || key
+                            return String(storedId) === String(flight.quoteId) || String(key) === String(flight.quoteId)
+                          })
+                          .map(([key, d]: [string, any]) => ({ key, quote_id: d.quote_id })),
+                      })
+                    }
+                    
                     if (quoteDetails) {
-                      const quoteMessage = quoteDetails.notes || quoteDetails.sellerMessage || (flight as any).sellerMessage
-                      
                       // CRITICAL: Extract price from get_quote result - this is the AUTHORITATIVE source
-                      // get_quote returns: { pricing: quote?.sellerPrice || quote?.pricing, ... }
-                      // where sellerPrice is { price: number, currency: string }
-                      // and pricing is { total: number, currency: string, base_price: number, ... }
-                      // So pricing can be either sellerPrice directly OR a pricing object
-                      const pricing = quoteDetails.pricing || 
-                                    quoteDetails.sellerPrice || 
-                                    null
+                      // Avinode API returns sellerPrice { price: number, currency: string } as PRIMARY
+                      // Per test script: GET /quotes/{quoteId} returns sellerPrice.price and sellerPrice.currency
+                      // get_quote now returns both sellerPrice (PRIMARY) and pricing (fallback) for compatibility
+                      const sellerPrice = quoteDetails.sellerPrice; // PRIMARY: { price, currency }
+                      const pricing = quoteDetails.pricing; // FALLBACK: { total, currency, base_price, ... }
                       
-                      // Extract price value - check multiple possible structures
-                      // PRIORITY: pricing.price (from sellerPrice object) > pricing.total > pricing.amount > direct price field
+                      // Extract price value - PRIORITY: sellerPrice.price (PRIMARY) > pricing.total > pricing.amount
                       let newPrice: number | null = null
                       
-                      if (pricing) {
-                        // pricing can be sellerPrice { price, currency } or pricing object { total, currency }
-                        // Check both structures explicitly
-                        if (typeof pricing.price === 'number' && pricing.price > 0) {
-                          newPrice = pricing.price
-                          console.log('[TripID] ✅ Extracted price from pricing.price:', newPrice)
-                        } else if (typeof pricing.total === 'number' && pricing.total > 0) {
-                          newPrice = pricing.total
-                          console.log('[TripID] ✅ Extracted price from pricing.total:', newPrice)
-                        } else if (typeof pricing.amount === 'number' && pricing.amount > 0) {
-                          newPrice = pricing.amount
-                          console.log('[TripID] ✅ Extracted price from pricing.amount:', newPrice)
-                        } else {
-                          console.warn('[TripID] ⚠️ Pricing object exists but no valid price field found:', {
-                            pricingKeys: Object.keys(pricing),
-                            pricingValue: pricing,
-                          })
-                        }
+                      // PRIMARY: Check sellerPrice.price (from Avinode API)
+                      if (sellerPrice && typeof sellerPrice.price === 'number' && sellerPrice.price > 0) {
+                        newPrice = sellerPrice.price
+                        console.log('[TripID] ✅ Extracted price from sellerPrice.price (PRIMARY):', newPrice)
+                      }
+                      // FALLBACK: Check pricing.total (from pricing object)
+                      else if (pricing && typeof pricing.total === 'number' && pricing.total > 0) {
+                        newPrice = pricing.total
+                        console.log('[TripID] ✅ Extracted price from pricing.total (fallback):', newPrice)
+                      }
+                      // FALLBACK: Check pricing.amount
+                      else if (pricing && typeof pricing.amount === 'number' && pricing.amount > 0) {
+                        newPrice = pricing.amount
+                        console.log('[TripID] ✅ Extracted price from pricing.amount (fallback):', newPrice)
+                      }
+                      // FALLBACK: Check direct price fields in quoteDetails
+                      else if (typeof (quoteDetails as any).totalPrice === 'number' && (quoteDetails as any).totalPrice > 0) {
+                        newPrice = (quoteDetails as any).totalPrice
+                        console.log('[TripID] ✅ Extracted price from quoteDetails.totalPrice (fallback):', newPrice)
+                      }
+                      else if (typeof (quoteDetails as any).price === 'number' && (quoteDetails as any).price > 0) {
+                        newPrice = (quoteDetails as any).price
+                        console.log('[TripID] ✅ Extracted price from quoteDetails.price (fallback):', newPrice)
                       }
                       
-                      // Fallback: Check for direct price fields in quoteDetails
                       if (!newPrice || newPrice === 0) {
-                        if (typeof (quoteDetails as any).totalPrice === 'number' && (quoteDetails as any).totalPrice > 0) {
-                          newPrice = (quoteDetails as any).totalPrice
-                          console.log('[TripID] ✅ Extracted price from quoteDetails.totalPrice:', newPrice)
-                        } else if (typeof (quoteDetails as any).price === 'number' && (quoteDetails as any).price > 0) {
-                          newPrice = (quoteDetails as any).price
-                          console.log('[TripID] ✅ Extracted price from quoteDetails.price:', newPrice)
-                        }
+                        console.warn('[TripID] ⚠️ No valid price found in get_quote result:', {
+                          hasSellerPrice: !!sellerPrice,
+                          sellerPriceValue: sellerPrice,
+                          hasPricing: !!pricing,
+                          pricingValue: pricing,
+                          quoteDetailsKeys: Object.keys(quoteDetails),
+                        })
                       }
                       
                       // CRITICAL: If we still don't have a price from get_quote, but the flight already has a price from get_rfq,
@@ -2821,32 +2871,44 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                         newPrice = flight.totalPrice
                       }
                       
-                      // Extract currency - prioritize pricing currency
-                      const newCurrency = pricing?.currency || 
+                      // Extract currency - PRIORITY: sellerPrice.currency (PRIMARY) > pricing.currency > direct field
+                      const newCurrency = sellerPrice?.currency || 
+                                        pricing?.currency || 
                                         quoteDetails.currency ||
                                         flight.currency || 
                                         'USD'
                       
+                      // Extract operator message - PRIORITY: sellerMessage (PRIMARY) > notes
+                      const quoteMessage = quoteDetails.sellerMessage || 
+                                         quoteDetails.notes || 
+                                         (flight as any).sellerMessage
+                      
                       console.log('[TripID] 💰 Price extraction from get_quote:', {
                         quoteId: flight.quoteId,
+                        // PRIMARY: sellerPrice structure
+                        hasSellerPrice: !!sellerPrice,
+                        sellerPriceValue: sellerPrice,
+                        sellerPricePrice: sellerPrice?.price,
+                        sellerPriceCurrency: sellerPrice?.currency,
+                        // FALLBACK: pricing structure
+                        hasPricing: !!pricing,
                         pricingStructure: pricing ? Object.keys(pricing) : null,
-                        pricingValue: pricing,
-                        pricingPrice: pricing?.price,
                         pricingTotal: pricing?.total,
                         pricingAmount: pricing?.amount,
+                        // RESULT
                         extractedPrice: newPrice,
                         finalPrice: newPrice || flight.totalPrice,
                         currency: newCurrency,
                         quoteDetailsKeys: Object.keys(quoteDetails),
-                        quoteDetailsFull: JSON.stringify(quoteDetails, null, 2).substring(0, 500), // First 500 chars for debugging
                       })
                       
                       // CRITICAL: If we still don't have a price, log the full structure for debugging
                       if (!newPrice || newPrice === 0) {
                         console.error('[TripID] ❌ FAILED to extract price from get_quote result!', {
                           quoteId: flight.quoteId,
+                          sellerPrice: sellerPrice,
+                          pricing: pricing,
                           quoteDetailsFull: quoteDetails,
-                          pricingObject: pricing,
                           availableFields: Object.keys(quoteDetails),
                         })
                       }
@@ -2943,19 +3005,22 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                         return updatedFlightWithPrice
                       }
                       
+                      // Extract price breakdown - check both sellerPrice and pricing structures
+                      // sellerPrice doesn't have breakdown, so use pricing object if available
+                      const priceBreakdown = (pricing && (pricing.total || pricing.amount)) ? {
+                        basePrice: pricing.base || pricing.basePrice || pricing.base_price || pricing.base_price || 0,
+                        fuelSurcharge: pricing.fuel || pricing.fuelSurcharge || pricing.fuel_surcharge,
+                        taxes: pricing.taxes || 0,
+                        fees: pricing.fees || 0,
+                      } : flight.priceBreakdown
+                      
                       const updatedFlight = {
                         ...flight,
                         totalPrice: finalPrice,
                         currency: newCurrency,
                         rfqStatus: newStatus,
-                        sellerMessage: quoteMessage,
-                        // Update price breakdown if available
-                        priceBreakdown: pricing && (pricing.price || pricing.total || pricing.amount) ? {
-                          basePrice: pricing.base || pricing.basePrice || pricing.base_price || pricing.base_price || 0,
-                          fuelSurcharge: pricing.fuel || pricing.fuelSurcharge || pricing.fuel_surcharge,
-                          taxes: pricing.taxes || 0,
-                          fees: pricing.fees || 0,
-                        } : flight.priceBreakdown,
+                        sellerMessage: quoteMessage, // PRIMARY: operator message from sellerMessage field
+                        priceBreakdown: priceBreakdown,
                         validUntil: quoteDetails.valid_until || quoteDetails.validUntil || flight.validUntil,
                       }
                       
