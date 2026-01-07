@@ -1293,6 +1293,103 @@ export class AvinodeClient {
   }
 
   /**
+   * Send a message to operators for a trip
+   *
+   * @param params - Message parameters including trip_id, message content, and recipient type
+   * @returns Message delivery confirmation
+   */
+  async sendTripMessage(params: {
+    trip_id: string;
+    message: string;
+    recipient_type?: 'all_operators' | 'specific_operator';
+    operator_id?: string;
+  }): Promise<{
+    success: boolean;
+    message_id: string;
+    trip_id: string;
+    sent_at: string;
+  }> {
+    try {
+      const response = await this.client.post(`/trips/${params.trip_id}/messages`, {
+        message: params.message,
+        recipientType: params.recipient_type || 'all_operators',
+        ...(params.operator_id && { operatorId: params.operator_id }),
+      });
+
+      return {
+        success: true,
+        message_id: response.data?.data?.id || response.data?.id || `msg-${Date.now()}`,
+        trip_id: params.trip_id,
+        sent_at: new Date().toISOString(),
+      };
+    } catch (error) {
+      throw this.sanitizeError(error);
+    }
+  }
+
+  /**
+   * Get messages for a trip or request
+   *
+   * @param params - Query parameters including trip_id or request_id
+   * @returns Array of messages with sender info and timestamps
+   */
+  async getTripMessages(params: {
+    trip_id?: string;
+    request_id?: string;
+    limit?: number;
+    since?: string;
+  }): Promise<{
+    messages: Array<{
+      id: string;
+      content: string;
+      sender_type: 'operator' | 'iso_agent' | 'system';
+      sender_name?: string;
+      sender_operator_id?: string;
+      sender_iso_agent_id?: string;
+      created_at: string;
+      status?: 'sent' | 'delivered' | 'read' | 'failed';
+    }>;
+    total: number;
+    trip_id?: string;
+    request_id?: string;
+  }> {
+    try {
+      const endpoint = params.trip_id
+        ? `/trips/${params.trip_id}/messages`
+        : `/rfqs/${params.request_id}/messages`;
+
+      const response = await this.client.get(endpoint, {
+        params: {
+          limit: params.limit || 100,
+          ...(params.since && { since: params.since }),
+        },
+      });
+
+      const messagesData = response.data?.data || response.data?.messages || response.data || [];
+      const messages = Array.isArray(messagesData) ? messagesData : [];
+
+      return {
+        messages: messages.map((msg: any) => ({
+          id: msg.id || msg.message_id || `msg-${Date.now()}`,
+          content: msg.content || msg.message || msg.text || '',
+          sender_type: msg.senderType || msg.sender_type ||
+            (msg.senderOperatorId ? 'operator' : msg.senderIsoAgentId ? 'iso_agent' : 'system'),
+          sender_name: msg.senderName || msg.sender_name || msg.sender?.name || 'Unknown',
+          sender_operator_id: msg.senderOperatorId || msg.sender_operator_id,
+          sender_iso_agent_id: msg.senderIsoAgentId || msg.sender_iso_agent_id,
+          created_at: msg.createdAt || msg.created_at || msg.timestamp || new Date().toISOString(),
+          status: msg.status,
+        })),
+        total: messages.length,
+        trip_id: params.trip_id,
+        request_id: params.request_id,
+      };
+    } catch (error) {
+      throw this.sanitizeError(error);
+    }
+  }
+
+  /**
    * Format flight duration from minutes to "Xh Ym" format
    */
   private formatDuration(minutes?: number): string {

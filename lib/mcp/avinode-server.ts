@@ -195,6 +195,14 @@ export class AvinodeMCPServer extends BaseMCPServer {
         // Called when user provides a Trip ID after completing Avinode selection
         return await this.client!.getRFQFlights(params.rfq_id);
 
+      case 'send_trip_message':
+        // Send a message to operators for a trip
+        return await this.client!.sendTripMessage(params);
+
+      case 'get_trip_messages':
+        // Get messages for a trip or request
+        return await this.client!.getTripMessages(params);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
