@@ -42,7 +42,6 @@ playwright-report/
 
 # MCP servers - ignore generated files
 **/node_modules/
-**/pnpm-lock.yaml
 **/coverage/
 
 # IDE
