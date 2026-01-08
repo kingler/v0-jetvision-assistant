@@ -13,7 +13,7 @@ import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
 
 // Type definitions for tool calls
 interface ToolCallRequest {
-  tool: 'search_flights' | 'create_rfp' | 'get_quote_status' | 'get_quotes' | 'search_airports' | 'send_trip_message' | 'get_trip_messages'
+  tool: 'search_flights' | 'create_rfp' | 'get_quote_status' | 'get_quotes' | 'search_airports' | 'send_trip_message' | 'get_trip_messages' | 'create_trip' | 'get_rfq' | 'list_trips'
   params: Record<string, unknown>
 }
 
@@ -195,6 +195,55 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'create_trip': {
+        const params = body.params as {
+          departure_airport: string
+          arrival_airport: string
+          departure_date: string
+          passengers: number
+          departure_time?: string
+          return_date?: string
+          return_time?: string
+          aircraft_category?: string
+          special_requirements?: string
+          client_reference?: string
+        }
+
+        if (!params.departure_airport || !params.arrival_airport || !params.departure_date || !params.passengers) {
+          return NextResponse.json(
+            { error: 'Bad Request', message: 'departure_airport, arrival_airport, departure_date, and passengers are required for create_trip' },
+            { status: 400 }
+          )
+        }
+
+        result = await server.callTool('create_trip', params)
+        break
+      }
+
+      case 'get_rfq': {
+        const params = body.params as { rfq_id: string }
+
+        if (!params.rfq_id) {
+          return NextResponse.json(
+            { error: 'Bad Request', message: 'rfq_id is required for get_rfq' },
+            { status: 400 }
+          )
+        }
+
+        result = await server.callTool('get_rfq', params)
+        break
+      }
+
+      case 'list_trips': {
+        const params = body.params as {
+          limit?: number
+          status?: 'all' | 'active' | 'completed'
+        }
+
+        result = await server.callTool('list_trips', params)
+        break
+      }
+
       default:
         return NextResponse.json(
           { error: 'Bad Request', message: `Unknown tool: ${body.tool}` },
@@ -241,6 +290,9 @@ export async function GET() {
         'search_airports',
         'send_trip_message',
         'get_trip_messages',
+        'create_trip',
+        'get_rfq',
+        'list_trips',
       ],
     })
   } catch (error) {
