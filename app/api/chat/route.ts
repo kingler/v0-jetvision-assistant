@@ -22,6 +22,7 @@ import {
   createOrUpdateChatSession,
   getActiveChatSession,
   updateChatSessionWithTripInfo,
+  updateChatSessionType,
   type ChatSessionInsert,
 } from '@/lib/sessions/track-chat-session'
 
@@ -86,6 +87,81 @@ const ChatRequestSchema = z.object({
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const isValidUuid = (value?: string | null) => Boolean(value && uuidRegex.test(value))
+
+// Temp session ID detection - format: temp-{timestamp}-{random}
+const isTempSessionId = (id?: string | null) => Boolean(id && id.startsWith('temp-'))
+
+/**
+ * Classify conversation type based on message content
+ * Determines whether this is a flight request or general inquiry
+ *
+ * @param message - User message to classify
+ * @param hasFlightDetails - Whether message contains complete flight details
+ * @param wantsRFP - Whether user wants to create an RFP
+ * @returns 'flight_request' or 'general'
+ */
+function classifyConversationType(
+  message: string,
+  hasFlightDetails: boolean,
+  wantsRFP: boolean
+): 'flight_request' | 'general' {
+  const messageText = message.toLowerCase()
+
+  // Clear flight request indicators - has full details
+  if (hasFlightDetails) return 'flight_request'
+  if (wantsRFP) return 'flight_request'
+
+  // Check for airport codes or flight-specific details
+  const hasAirportCode = /\b[a-z]{4}\b/i.test(message) ||
+    messageText.includes('teterboro') ||
+    messageText.includes('van nuys') ||
+    messageText.includes('los angeles') ||
+    messageText.includes('new york')
+
+  const hasPassengers = messageText.includes('passenger') ||
+    /\d+\s*(pax|people|person|guests?)/i.test(message)
+
+  const hasDate = messageText.includes('202') ||
+    /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(message) ||
+    /\d{1,2}[\/\-]\d{1,2}/.test(message)
+
+  // Flight request if has partial details (will ask follow-up questions)
+  if ((hasAirportCode || hasPassengers || hasDate) &&
+      (messageText.includes('flight') || messageText.includes('book') ||
+       messageText.includes('charter') || messageText.includes('jet'))) {
+    return 'flight_request'
+  }
+
+  // General chat patterns - pipeline/deals overview
+  const generalPatterns = [
+    /\b(pipeline|deals|overview)\b/i,
+    /\bhow (many|much)\b.*\b(request|quote|booking)/i,
+    /\bwhat.*status\b/i,
+    /\b(show|list|summarize)\s+(me\s+)?(my\s+)?(requests?|trips?|bookings?)/i,
+    /\b(help|question|explain)\b/i,
+  ]
+
+  if (generalPatterns.some(p => p.test(messageText))) return 'general'
+
+  // Default: if message mentions flight-related terms, it's likely starting a flight request
+  if (/\b(flight|book|travel|charter|jet|fly)\b/i.test(messageText)) {
+    return 'flight_request'
+  }
+
+  // Default to general for anything else
+  return 'general'
+}
+
+/**
+ * Generate a subject line from the message content
+ */
+function getSubjectFromMessage(message: string, conversationType: 'flight_request' | 'general'): string {
+  if (conversationType === 'general') {
+    const preview = message.substring(0, 50).trim()
+    return preview.length < message.length ? `${preview}...` : preview
+  }
+  return 'New Flight Request'
+}
 
 // System prompt for JetVision assistant with Avinode integration
 const SYSTEM_PROMPT = `You are the JetVision AI Assistant, a professional private jet charter concierge.
@@ -537,10 +613,19 @@ export async function POST(req: NextRequest) {
 
     // =========================================================================
     // MESSAGE PERSISTENCE: Save user message and get/create conversation
+    // Supports lazy creation: temp sessions get real DB records on first message
     // =========================================================================
     let conversationId: string | null = null
     let userMessageId: string | null = null
     let isoAgentId: string | null = null
+    let conversationType: 'flight_request' | 'general' = 'general'
+    let chatSessionId: string | null = null
+
+    // Detect if this is a first message from a temp session (lazy creation)
+    const isFirstMessageFromTempSession = isTempSessionId(context?.conversationId)
+    if (isFirstMessageFromTempSession) {
+      console.log('[Chat API] First message from temp session - will create real DB records')
+    }
 
     // Get ISO agent ID for message persistence
     try {
@@ -556,23 +641,52 @@ export async function POST(req: NextRequest) {
     }
 
     // Save user message if we have ISO agent ID
-    // Note: requestId may be a temp ID for new chats - we'll handle that in getOrCreateConversation
     if (isoAgentId) {
       try {
-        if (context?.conversationId) {
+        // For temp sessions or new sessions, we need to classify and create records
+        if (isFirstMessageFromTempSession || !context?.conversationId) {
+          // Early classification based on message content
+          // Note: hasFlightDetails and wantsRFP will be calculated properly later,
+          // but we do a preliminary classification here for record creation
+          const messageText = message.toLowerCase()
+          const hasAirportCodeEarly = /\b[a-z]{4}\b/i.test(message)
+          const hasPassengersEarly = messageText.includes('passenger') || /\d+\s*(pax|people|person)/i.test(message)
+          const hasDateEarly = messageText.includes('202') || /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(message)
+          const hasFlightDetailsEarly = hasAirportCodeEarly && hasPassengersEarly && hasDateEarly
+          const wantsRFPEarly = (messageText.includes('rfp') || messageText.includes('book')) && hasFlightDetailsEarly
+
+          // Classify conversation type
+          conversationType = classifyConversationType(message, hasFlightDetailsEarly, wantsRFPEarly)
+          console.log('[Chat API] Classified conversation type:', conversationType)
+
+          // Generate appropriate subject
+          const subject = getSubjectFromMessage(message, conversationType)
+
+          // Create real conversation record
+          conversationId = await getOrCreateConversation({
+            userId: isoAgentId,
+            subject,
+            type: conversationType === 'flight_request' ? 'rfp_negotiation' : 'general_inquiry',
+          })
+          console.log('[Chat API] Created new conversation:', conversationId)
+
+        } else if (context?.conversationId && !isTempSessionId(context.conversationId)) {
+          // Use existing conversation ID
           conversationId = context.conversationId
           console.log('[Chat API] Using existing conversation ID from context:', conversationId)
         } else {
+          // Fallback: create new conversation
           conversationId = await getOrCreateConversation({
-            requestId: context?.flightRequestId, // May be undefined or temp ID
+            requestId: context?.flightRequestId,
             userId: isoAgentId,
-            subject: context?.route 
+            subject: context?.route
               ? `Flight Request: ${context.route}`
               : 'New Flight Request',
           })
         }
         console.log('[Chat API] Conversation ID:', conversationId)
 
+        // Save the user message
         userMessageId = await saveMessage({
           conversationId,
           senderType: 'iso_agent',
@@ -585,13 +699,17 @@ export async function POST(req: NextRequest) {
         console.log('[Chat API] Saved user message:', {
           conversationId,
           messageId: userMessageId,
+          isFirstMessage: isFirstMessageFromTempSession,
+          conversationType,
         })
 
+        // Create/update chat session
         if (conversationId) {
           const chatSessionSeed: ChatSessionInsert = {
             conversation_id: conversationId,
             iso_agent_id: isoAgentId,
             status: 'active',
+            conversation_type: conversationType,
             ...(isValidUuid(context?.flightRequestId)
               ? { request_id: context?.flightRequestId }
               : {}),
@@ -601,7 +719,8 @@ export async function POST(req: NextRequest) {
 
           try {
             const session = await createOrUpdateChatSession(chatSessionSeed)
-            console.log('[Chat API] Chat session upserted:', session?.id)
+            chatSessionId = session?.id || null
+            console.log('[Chat API] Chat session upserted:', chatSessionId, 'type:', conversationType)
           } catch (error) {
             console.error('[Chat API] Error creating/updating chat session:', error)
           }
@@ -1227,6 +1346,10 @@ export async function POST(req: NextRequest) {
           status: string
           deep_link: string | null
         }
+        // Session info for frontend state sync (lazy creation)
+        conversation_id?: string
+        chat_session_id?: string
+        conversation_type?: 'flight_request' | 'general'
       } = {
         content: finalContent,
         done: true,
@@ -1239,6 +1362,10 @@ export async function POST(req: NextRequest) {
           ) : null,
         })),
         mock_mode: isMockModeValue,
+        // Include session info for frontend state sync
+        ...(conversationId ? { conversation_id: conversationId } : {}),
+        ...(chatSessionId ? { chat_session_id: chatSessionId } : {}),
+        conversation_type: conversationType,
       }
 
       // Add diagnostic data to help debug prod vs dev differences
@@ -1322,6 +1449,16 @@ export async function POST(req: NextRequest) {
                       avinode_trip_id: tripData.trip_id,
                       avinode_rfp_id: tripData.rfp_id,
                     })
+
+                    // TRANSITION: If session was 'general', transition to 'flight_request'
+                    // This happens when user provides flight details in a general chat
+                    if (conversationType === 'general') {
+                      console.log('[Chat API] Transitioning session from general to flight_request')
+                      await updateChatSessionType(existingSession.id, 'flight_request')
+                      conversationType = 'flight_request'
+                      // Update the response data with new type
+                      responseData.conversation_type = 'flight_request'
+                    }
                   } else {
                     await createOrUpdateChatSession({
                       conversation_id: conversationId,
@@ -1330,7 +1467,10 @@ export async function POST(req: NextRequest) {
                       request_id: request.id,
                       avinode_trip_id: tripData.trip_id,
                       avinode_rfp_id: tripData.rfp_id,
+                      conversation_type: 'flight_request', // Always flight_request when trip is created
                     })
+                    conversationType = 'flight_request'
+                    responseData.conversation_type = 'flight_request'
                   }
                 } catch (error) {
                   console.error('[Chat API] Error updating chat session after request link:', error)

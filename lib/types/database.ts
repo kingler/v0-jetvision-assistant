@@ -217,6 +217,7 @@ export type Database = {
           avinode_rfq_id: string | null
           avinode_trip_id: string | null
           conversation_id: string
+          conversation_type: string | null
           created_at: string
           current_step: string | null
           id: string
@@ -241,6 +242,7 @@ export type Database = {
           avinode_rfq_id?: string | null
           avinode_trip_id?: string | null
           conversation_id: string
+          conversation_type?: string | null
           created_at?: string
           current_step?: string | null
           id?: string
@@ -265,6 +267,7 @@ export type Database = {
           avinode_rfq_id?: string | null
           avinode_trip_id?: string | null
           conversation_id?: string
+          conversation_type?: string | null
           created_at?: string
           current_step?: string | null
           id?: string

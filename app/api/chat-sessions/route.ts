@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         request_id,
         iso_agent_id,
         status,
+        conversation_type,
         avinode_trip_id,
         avinode_rfp_id,
         avinode_rfq_id,

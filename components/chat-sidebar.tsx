@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus } from "lucide-react"
 import { FlightRequestCard } from "@/components/chat/flight-request-card"
+import { GeneralChatCard } from "@/components/chat/general-chat-card"
 import type { PipelineData } from "@/lib/types/chat-agent"
 
 /**
@@ -39,6 +40,10 @@ export interface ChatSession {
   id: string
   conversationId?: string
   requestId?: string
+  /** Conversation type determines which card component to render */
+  conversationType?: 'flight_request' | 'general'
+  /** Flag indicating if this is a temporary session (not yet persisted to database) */
+  isTemporary?: boolean
   route: string
   passengers: number
   date: string
@@ -160,15 +165,27 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
         <ScrollArea className="h-full w-full overflow-x-hidden">
           <div className="p-1 sm:p-2 space-y-2 flex flex-col items-center">
             {chatSessions.map((session) => (
-              <FlightRequestCard
-                key={session.id}
-                session={session}
-                isActive={activeChatId === session.id}
-                onClick={() => onSelectChat(session.id)}
-                onDelete={onDeleteChat}
-                onCancel={onCancelChat}
-                onArchive={onArchiveChat}
-              />
+              // Render GeneralChatCard for general conversations, FlightRequestCard for flight requests
+              session.conversationType === 'general' ? (
+                <GeneralChatCard
+                  key={session.id}
+                  session={session}
+                  isActive={activeChatId === session.id}
+                  onClick={() => onSelectChat(session.id)}
+                  onDelete={onDeleteChat}
+                  onArchive={onArchiveChat}
+                />
+              ) : (
+                <FlightRequestCard
+                  key={session.id}
+                  session={session}
+                  isActive={activeChatId === session.id}
+                  onClick={() => onSelectChat(session.id)}
+                  onDelete={onDeleteChat}
+                  onCancel={onCancelChat}
+                  onArchive={onArchiveChat}
+                />
+              )
             ))}
           </div>
         </ScrollArea>

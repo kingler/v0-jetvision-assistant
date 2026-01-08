@@ -364,8 +364,48 @@ export async function completeChatSession(sessionId: string): Promise<boolean> {
 }
 
 /**
+ * Update chat session conversation type
+ * Used when transitioning from general chat to flight request
+ *
+ * @param sessionId - Session ID
+ * @param conversationType - New conversation type ('flight_request' | 'general')
+ * @returns Updated session or null
+ */
+export async function updateChatSessionType(
+  sessionId: string,
+  conversationType: 'flight_request' | 'general'
+): Promise<ChatSession | null> {
+  try {
+    const { data: session, error } = await supabaseAdmin
+      .from('chat_sessions')
+      .update({
+        conversation_type: conversationType,
+        last_activity_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', sessionId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Chat Session] Error updating conversation type:', error);
+      return null;
+    }
+
+    console.log('[Chat Session] Conversation type updated:', {
+      sessionId,
+      conversationType,
+    });
+    return session;
+  } catch (error) {
+    console.error('[Chat Session] Error updating conversation type:', error);
+    return null;
+  }
+}
+
+/**
  * Get active chat sessions for a user
- * 
+ *
  * @param isoAgentId - ISO agent ID
  * @returns Array of active sessions
  */
