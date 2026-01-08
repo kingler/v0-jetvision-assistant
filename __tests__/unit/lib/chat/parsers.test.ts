@@ -236,15 +236,16 @@ describe('determineWorkflowStatus', () => {
 describe('hasQuoteIndicators', () => {
   it('should detect quote indicators', () => {
     expect(hasQuoteIndicators('Here are the quotes for your trip')).toBe(true);
-    expect(hasQuoteIndicators('I found 3 available options')).toBe(true);
-    expect(hasQuoteIndicators('Based on the quote details')).toBe(true);
-    expect(hasQuoteIndicators('Operator: XYZ Jets')).toBe(true);
-    expect(hasQuoteIndicators('Aircraft Type: Citation')).toBe(true);
+    expect(hasQuoteIndicators('I found 3 available options for you')).toBe(true);
+    expect(hasQuoteIndicators('Based on the quote details we received')).toBe(true);
+    expect(hasQuoteIndicators('Here are the flight options')).toBe(true);
+    expect(hasQuoteIndicators('Available quotes from operators')).toBe(true);
   });
 
   it('should return false for non-quote content', () => {
     expect(hasQuoteIndicators('Hello, how can I help you?')).toBe(false);
     expect(hasQuoteIndicators('The weather is nice today')).toBe(false);
+    expect(hasQuoteIndicators('Operator: XYZ Jets')).toBe(false); // Not a quote indicator by itself
   });
 });
 

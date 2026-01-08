@@ -1,5 +1,6 @@
 /**
  * Unit tests for useChatState reducer hook
+ * @vitest-environment jsdom
  */
 
 import { describe, it, expect } from 'vitest';

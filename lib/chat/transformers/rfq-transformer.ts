@@ -351,10 +351,6 @@ export function mergeQuoteDetailsIntoFlights(
   flights: RFQFlight[],
   quoteDetailsMap: QuoteDetailsMap
 ): RFQFlight[] {
-  if (Object.keys(quoteDetailsMap).length === 0) {
-    return flights;
-  }
-
   return flights.map((flight) => {
     // Try to find quote details by quoteId
     let quoteDetails = quoteDetailsMap[flight.quoteId];
