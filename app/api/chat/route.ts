@@ -90,13 +90,36 @@ const isValidUuid = (value?: string | null) => Boolean(value && uuidRegex.test(v
 // System prompt for JetVision assistant with Avinode integration
 const SYSTEM_PROMPT = `You are the JetVision AI Assistant, a professional private jet charter concierge.
 
-CRITICAL WORKFLOW: When a user provides flight details (airports, dates, passengers), you MUST:
+IMPORTANT - GATHERING TRIP DETAILS:
+When a user expresses intent to book a flight but has NOT provided all required details, you MUST ask follow-up questions. DO NOT call create_trip until you have ALL of:
+1. Departure airport (city name or ICAO code)
+2. Arrival airport (city name or ICAO code)
+3. Travel date
+4. Number of passengers
+
+Example conversation flow:
+- User: "I want to book a flight for a new client"
+- Assistant: "I'd be happy to help you book a private jet! To get started, I'll need a few details:
+  • Where will you be departing from? (city or airport code)
+  • What is your destination?
+  • When would you like to travel?
+  • How many passengers will be flying?"
+
+- User: "Flying from New York to LA"
+- Assistant: "Great! New York to Los Angeles. I just need a couple more details:
+  • What date would you like to depart?
+  • How many passengers?"
+
+Continue asking until you have departure airport, arrival airport, date, AND passengers.
+
+CRITICAL WORKFLOW: ONLY when you have ALL required flight details (airports, dates, passengers), you MUST:
 1. Call create_trip to create a trip container and get the deep link
 2. Present the deep link prominently so the user can access Avinode marketplace
 3. The deep link is ESSENTIAL - it's how users select flights and get quotes
 
 Tool Usage Rules:
-- Flight request with airports + date + passengers → Call create_trip (returns deep_link)
+- Flight request with ALL details (airports + date + passengers) → Call create_trip (returns deep_link)
+- INCOMPLETE details → Ask follow-up questions, DO NOT call any tools
 - User provides a Trip ID → Call get_rfq with the Trip ID to retrieve all RFQs and quotes for that trip
 - When user clicks "View RFQs" (first time) or "Update RFQs" (subsequent refreshes) → Call BOTH get_rfq AND get_trip_messages to retrieve RFQ status, quotes, and message activities
 - User asks about quote status → Call get_quote_status or get_quotes
@@ -751,8 +774,13 @@ export async function POST(req: NextRequest) {
 
     const hasFlightDetails = hasAirportCode && hasPassengers && (hasDate || hasFlightKeywords)
 
-    const wantsRFP = messageText.includes('rfp') || messageText.includes('quote') ||
-                     messageText.includes('book') || messageText.includes('proceed')
+    // wantsRFP should only be true when user has explicit RFP/quote intent WITH flight details
+    // Just saying "book" without flight details should trigger follow-up questions, not tool calls
+    const hasRFPKeywords = messageText.includes('rfp') || messageText.includes('quote') ||
+                           messageText.includes('book') || messageText.includes('proceed')
+
+    // Only mark as wanting RFP if they have the keywords AND the actual flight details
+    const wantsRFP = hasRFPKeywords && hasFlightDetails
 
     // ONEK-139: Detect pipeline/deals view intent
     const wantsPipeline = messageText.includes('pipeline') ||
@@ -793,7 +821,8 @@ export async function POST(req: NextRequest) {
     console.log(`  - hasDate: ${hasDate}`)
     console.log(`  - hasFlightKeywords: ${hasFlightKeywords}`)
     console.log(`  - hasFlightDetails: ${hasFlightDetails}`)
-    console.log(`  - wantsRFP: ${wantsRFP}`)
+    console.log(`  - hasRFPKeywords: ${hasRFPKeywords}`)
+    console.log(`  - wantsRFP: ${wantsRFP} (requires both RFP keywords AND flight details)`)
     console.log(`  - wantsPipeline: ${wantsPipeline}`)
     console.log(`  - hasTripId: ${hasTripId}`)
     if (detectedTripId) {
