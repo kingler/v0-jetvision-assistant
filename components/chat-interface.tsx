@@ -785,6 +785,8 @@ export function ChatInterface({
             route: activeChat.route,
             passengers: activeChat.passengers,
             date: activeChat.date,
+            tripId: activeChat.tripId,
+            rfpId: activeChat.rfpId,
           },
         }),
         signal: abortControllerRef.current.signal,
