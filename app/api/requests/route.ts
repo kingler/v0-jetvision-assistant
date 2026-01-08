@@ -446,6 +446,20 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
+    // Delete related chat_sessions linked to this request
+    const { error: chatSessionsDeleteError } = await supabaseAdmin
+      .from('chat_sessions')
+      .delete()
+      .eq('request_id', requestId);
+
+    if (chatSessionsDeleteError) {
+      console.warn('[DELETE /api/requests] Failed to delete chat_sessions:', {
+        requestId,
+        error: chatSessionsDeleteError.message,
+      });
+      // Continue with request deletion even if chat_sessions deletion fails
+    }
+
     // Hard delete the request from the database
     // Use admin client to bypass RLS and ensure deletion works
     // Related records (quotes, proposals) will be cascade deleted automatically

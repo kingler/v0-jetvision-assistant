@@ -524,11 +524,31 @@ export default function JetvisionAgent() {
           console.error('[handleDeleteChat] Failed to look up chat_session:', error)
         }
         
-        // If lookup failed or didn't find request_id, check if this is a chat_session without a request
+        // If lookup failed or didn't find request_id, delete the chat_session directly
         if (!requestId) {
-          console.log('[handleDeleteChat] No request_id found - this might be a chat_session without an associated request')
-          // If it's a valid UUID, it might be a chat_session ID that we should delete directly
-          // But for now, we'll just remove it from the UI since there's no request to delete
+          console.log('[handleDeleteChat] No request_id found - deleting chat_session directly:', chatId)
+
+          // Call DELETE /api/chat-sessions to delete the orphaned session
+          const deleteResponse = await fetch(`/api/chat-sessions?id=${encodeURIComponent(chatId)}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (!deleteResponse.ok) {
+            const errorData = await deleteResponse.json().catch(() => ({ error: 'Unknown error' }))
+            console.error('[handleDeleteChat] Failed to delete chat_session:', {
+              chatId,
+              status: deleteResponse.status,
+              error: errorData.error || errorData.message,
+            })
+            // Still remove from UI even if API call fails (session might already be deleted)
+          } else {
+            console.log('[handleDeleteChat] Successfully deleted chat_session from database:', chatId)
+          }
+
+          // Remove from UI state
           setChatSessions((prevSessions) => prevSessions.filter((s) => s.id !== chatId))
           if (activeChatId === chatId) {
             const remainingSessions = chatSessions.filter((s) => s.id !== chatId)
@@ -540,7 +560,6 @@ export default function JetvisionAgent() {
               setCurrentView('landing')
             }
           }
-          console.log('[handleDeleteChat] Removed chat session from UI (no associated request)')
           return
         }
       }
