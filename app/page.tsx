@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
 import { WorkflowVisualization } from "@/components/workflow-visualization"
-import { ChatSidebar, type ChatSession } from "@/components/chat-sidebar"
+import { ChatSidebar, type ChatSession, type OperatorMessage } from "@/components/chat-sidebar"
 import { LandingPage } from "@/components/landing-page"
 import { AppHeader } from "@/components/app-header"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -202,6 +202,33 @@ export default function JetvisionAgent() {
     } catch (error) {
       console.error('[loadMessagesForSession] Error:', error);
       return [];
+    }
+  };
+
+  /**
+   * Load operator messages for a specific trip ID
+   * Fetches stored webhook messages from avinode_webhook_events
+   *
+   * @param tripId - The Avinode trip ID to load operator messages for
+   * @returns Record of operator messages keyed by quote ID
+   */
+  const loadOperatorMessagesForSession = async (tripId: string): Promise<Record<string, OperatorMessage[]>> => {
+    try {
+      const response = await fetch(`/api/avinode/messages?trip_id=${encodeURIComponent(tripId)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        console.warn('[loadOperatorMessagesForSession] Failed to load:', { tripId, status: response.status });
+        return {};
+      }
+
+      const data = await response.json();
+      return data.messages || {};
+    } catch (error) {
+      console.error('[loadOperatorMessagesForSession] Error:', error);
+      return {};
     }
   };
 
@@ -526,24 +553,28 @@ export default function JetvisionAgent() {
     // Track what needs to be loaded
     const needsMessages = !session.messages || session.messages.length === 0;
     const needsRFQFlights = session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0);
+    const needsOperatorMessages = session.tripId && (!session.operatorMessages || Object.keys(session.operatorMessages).length === 0);
 
     console.log('[handleSelectChat] Loading data for session:', {
       chatId,
       tripId: session.tripId,
       needsMessages,
       needsRFQFlights,
+      needsOperatorMessages,
       currentMessageCount: session.messages?.length || 0,
       currentRFQFlightCount: session.rfqFlights?.length || 0,
     });
 
-    // Load messages and RFQ flights in parallel
-    const [messages, rfqFlights] = await Promise.all([
+    // Load messages, RFQ flights, and operator messages in parallel
+    const [messages, rfqFlights, operatorMessages] = await Promise.all([
       needsMessages ? loadMessagesForSession(chatId) : Promise.resolve(session.messages || []),
       needsRFQFlights ? loadRFQFlightsForSession(session.tripId!) : Promise.resolve(session.rfqFlights || []),
+      needsOperatorMessages ? loadOperatorMessagesForSession(session.tripId!) : Promise.resolve(session.operatorMessages || {}),
     ]);
 
     // Update session with loaded data
-    if (messages.length > 0 || rfqFlights.length > 0) {
+    const hasNewData = messages.length > 0 || rfqFlights.length > 0 || Object.keys(operatorMessages).length > 0;
+    if (hasNewData) {
       setChatSessions((prevSessions) =>
         prevSessions.map((s) => {
           if (s.id !== chatId) return s;
@@ -562,6 +593,10 @@ export default function JetvisionAgent() {
             updates.quotesTotal = rfqFlights.length;
           }
 
+          if (needsOperatorMessages && Object.keys(operatorMessages).length > 0) {
+            updates.operatorMessages = operatorMessages;
+          }
+
           return { ...s, ...updates };
         })
       );
@@ -570,6 +605,7 @@ export default function JetvisionAgent() {
         chatId,
         messageCount: messages.length,
         rfqFlightCount: rfqFlights.length,
+        operatorMessageCount: Object.keys(operatorMessages).length,
         rfqFlightPrices: rfqFlights.map(f => ({ operator: f.operatorName, price: f.totalPrice, status: f.rfqStatus })),
       });
     }

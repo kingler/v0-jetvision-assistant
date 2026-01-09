@@ -214,7 +214,40 @@ async function handleChatMessage(data: TripChatData): Promise<void> {
   // Log first 200 chars of message content
   console.log('[Avinode Webhook] Message preview:', message.content.substring(0, 200));
 
-  // TODO: Store message in database
+  try {
+    // Store operator message in database
+    const eventType = data.type === 'TripChatSeller' ? 'operator_message' : 'internal_message';
+    const { error: webhookError } = await supabaseAdmin
+      .from('avinode_webhook_events')
+      .insert({
+        event_type: eventType,
+        avinode_event_id: `chat_${trip.id}_${message.id || Date.now()}`,
+        avinode_trip_id: trip.id,
+        raw_payload: {
+          type: data.type,
+          tripId: trip.id,
+          requestId: request?.id,
+          quoteId: request?.id, // Use request ID as quote reference
+          messageId: message.id,
+          content: message.content,
+          senderName: sender.name,
+          senderCompany: sender.companyName,
+          timestamp: message.createdAt || new Date().toISOString(),
+        } as any,
+        processing_status: 'completed',
+        received_at: new Date().toISOString(),
+        processed_at: new Date().toISOString(),
+      });
+
+    if (webhookError) {
+      console.error('[Avinode Webhook] Error storing chat message:', webhookError);
+    } else {
+      console.log('[Avinode Webhook] Chat message stored successfully');
+    }
+  } catch (error) {
+    console.error('[Avinode Webhook] Error storing chat message:', error);
+  }
+
   // TODO: If from operator, notify CommunicationAgent
   // TODO: If contains important info (pricing, schedule), extract and process
 }
