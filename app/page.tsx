@@ -9,6 +9,7 @@ import { LandingPage } from "@/components/landing-page"
 import { AppHeader } from "@/components/app-header"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { chatSessionsToUIFormat } from "@/lib/utils/chat-session-to-ui"
+import type { RFQFlight } from "@/components/avinode/rfq-flight-card"
 
 type View = "landing" | "chat" | "workflow"
 
@@ -155,9 +156,423 @@ export default function JetvisionAgent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, user?.id]) // Only depend on user authentication state
 
-  const handleSelectChat = (chatId: string) => {
+  /**
+   * Load messages for a specific chat session from the API
+   *
+   * @param sessionId - The chat session ID to load messages for
+   * @returns The loaded messages or empty array if failed
+   */
+  const loadMessagesForSession = async (sessionId: string): Promise<Array<{
+    id: string;
+    type: 'user' | 'agent';
+    content: string;
+    timestamp: Date;
+  }>> => {
+    // Skip loading for temporary sessions
+    if (sessionId.startsWith('temp-')) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(sessionId)}&limit=100`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn('[loadMessagesForSession] Failed to load messages:', {
+          sessionId,
+          status: response.status,
+        });
+        return [];
+      }
+
+      const data = await response.json();
+      const messages = data.messages || [];
+
+      // Convert timestamps to Date objects
+      return messages.map((msg: { id: string; type: 'user' | 'agent'; content: string; timestamp: string }) => ({
+        id: msg.id,
+        type: msg.type,
+        content: msg.content,
+        timestamp: new Date(msg.timestamp),
+      }));
+    } catch (error) {
+      console.error('[loadMessagesForSession] Error:', error);
+      return [];
+    }
+  };
+
+  /**
+   * Load RFQ flights data for a specific trip ID
+   * Calls the get_rfq MCP tool to fetch quote data from Avinode
+   *
+   * @param tripId - The Avinode trip ID to load RFQ flights for
+   * @returns The loaded RFQ flights or empty array if failed
+   */
+  const loadRFQFlightsForSession = async (tripId: string): Promise<RFQFlight[]> => {
+    try {
+      console.log('[loadRFQFlightsForSession] Fetching RFQ data for trip:', tripId);
+
+      // Call the chat API with get_rfq command to fetch RFQ data
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `get_rfq ${tripId}`,
+          tripId,
+          skipMessagePersistence: true, // Don't save this as a user message
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('[loadRFQFlightsForSession] Failed to fetch RFQ data:', {
+          tripId,
+          status: response.status,
+        });
+        return [];
+      }
+
+      // Parse SSE stream to extract RFQ data
+      const reader = response.body?.getReader();
+      if (!reader) return [];
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let rfqFlights: RFQFlight[] = [];
+      // Track get_quote results to merge prices/status
+      const quoteDetailsMap: Record<string, Record<string, unknown>> = {};
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+
+            // Handle get_quote results first - these contain latest prices
+            if (parsed.type === 'tool_result' && parsed.name === 'get_quote') {
+              const result = parsed.result;
+              const apiQuoteId = result?.quote_id || result?.quoteId;
+              if (apiQuoteId) {
+                quoteDetailsMap[apiQuoteId] = result;
+                console.log('[loadRFQFlightsForSession] Stored quote details:', {
+                  quoteId: apiQuoteId,
+                  hasSellerPrice: !!result.sellerPrice,
+                  price: result.sellerPrice?.price,
+                  currency: result.sellerPrice?.currency,
+                });
+              }
+            }
+
+            // Extract RFQ data from tool call results
+            if (parsed.type === 'tool_result' && parsed.name === 'get_rfq') {
+              const result = parsed.result;
+
+              // NEW FORMAT: Use pre-transformed flights array from MCP tool (preferred)
+              if (result?.flights && Array.isArray(result.flights)) {
+                rfqFlights = result.flights as RFQFlight[];
+                console.log('[loadRFQFlightsForSession] Using pre-transformed flights:', rfqFlights.length);
+                continue;
+              }
+
+              // LEGACY: Process RFQs array
+              if (result?.rfqs && Array.isArray(result.rfqs)) {
+                for (const rfq of result.rfqs) {
+                  if (rfq.quotes && Array.isArray(rfq.quotes)) {
+                    for (const quote of rfq.quotes) {
+                      const flight = transformQuoteToRFQFlight(quote, rfq);
+                      if (flight) rfqFlights.push(flight);
+                    }
+                  } else {
+                    const flight = transformRFQToFlight(rfq);
+                    if (flight) rfqFlights.push(flight);
+                  }
+                }
+              }
+
+              // Process direct quotes array
+              if (result?.quotes && Array.isArray(result.quotes)) {
+                for (const quote of result.quotes) {
+                  const flight = transformQuoteToRFQFlight(quote, null);
+                  if (flight) rfqFlights.push(flight);
+                }
+              }
+            }
+          } catch {
+            // Skip unparseable lines
+          }
+        }
+      }
+
+      // Merge get_quote results to update prices and status
+      if (Object.keys(quoteDetailsMap).length > 0 && rfqFlights.length > 0) {
+        console.log('[loadRFQFlightsForSession] Merging quote details into flights:', Object.keys(quoteDetailsMap).length);
+        rfqFlights = rfqFlights.map(flight => {
+          const quoteDetails = quoteDetailsMap[flight.quoteId];
+          if (!quoteDetails) return flight;
+
+          // Extract price from sellerPrice (PRIMARY) or pricing (fallback)
+          const sellerPrice = quoteDetails.sellerPrice as Record<string, unknown> | undefined;
+          const pricing = quoteDetails.pricing as Record<string, unknown> | undefined;
+
+          let newPrice = 0;
+          let newCurrency = 'USD';
+
+          if (sellerPrice && typeof sellerPrice.price === 'number' && sellerPrice.price > 0) {
+            newPrice = sellerPrice.price;
+            newCurrency = (sellerPrice.currency as string) || 'USD';
+          } else if (pricing && typeof pricing.total === 'number' && pricing.total > 0) {
+            newPrice = pricing.total;
+            newCurrency = (pricing.currency as string) || 'USD';
+          }
+
+          // Update status based on price
+          let newStatus: 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired' = flight.rfqStatus;
+          if (newPrice > 0 && (newStatus === 'unanswered' || newStatus === 'sent')) {
+            newStatus = 'quoted';
+          }
+
+          console.log('[loadRFQFlightsForSession] Merged price for flight:', {
+            quoteId: flight.quoteId,
+            oldPrice: flight.totalPrice,
+            newPrice,
+            oldStatus: flight.rfqStatus,
+            newStatus,
+          });
+
+          return {
+            ...flight,
+            totalPrice: newPrice > 0 ? newPrice : flight.totalPrice,
+            currency: newCurrency,
+            rfqStatus: newStatus,
+          };
+        });
+      }
+
+      console.log('[loadRFQFlightsForSession] Loaded RFQ flights:', {
+        tripId,
+        count: rfqFlights.length,
+        flights: rfqFlights.map(f => ({
+          id: f.id,
+          quoteId: f.quoteId,
+          price: f.totalPrice,
+          status: f.rfqStatus,
+          operator: f.operatorName,
+        })),
+      });
+
+      return rfqFlights;
+    } catch (error) {
+      console.error('[loadRFQFlightsForSession] Error:', error);
+      return [];
+    }
+  };
+
+  /**
+   * Transform a quote object to RFQFlight format
+   */
+  const transformQuoteToRFQFlight = (quote: Record<string, unknown>, rfq: Record<string, unknown> | null): RFQFlight | null => {
+    try {
+      const quoteId = (quote.quote_id || quote.quoteId || quote.id || `quote-${Date.now()}`) as string;
+
+      // Extract price - check multiple possible locations
+      let price = 0;
+      let currency = 'USD';
+
+      if (quote.sellerPrice && typeof quote.sellerPrice === 'object') {
+        const sellerPrice = quote.sellerPrice as Record<string, unknown>;
+        price = (sellerPrice.price as number) || 0;
+        currency = (sellerPrice.currency as string) || 'USD';
+      } else if (quote.pricing && typeof quote.pricing === 'object') {
+        const pricing = quote.pricing as Record<string, unknown>;
+        price = (pricing.total || pricing.amount) as number || 0;
+        currency = (pricing.currency as string) || 'USD';
+      } else if (quote.price) {
+        price = quote.price as number;
+      } else if (quote.total_price) {
+        price = quote.total_price as number;
+      }
+
+      // Determine status
+      let rfqStatus: 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired' = 'unanswered';
+      if (quote.sourcingDisplayStatus === 'Accepted' || price > 0) {
+        rfqStatus = 'quoted';
+      } else if (quote.sourcingDisplayStatus === 'Declined') {
+        rfqStatus = 'declined';
+      } else if (quote.status) {
+        const status = (quote.status as string).toLowerCase();
+        if (status === 'quoted' || status === 'accepted') rfqStatus = 'quoted';
+        else if (status === 'declined') rfqStatus = 'declined';
+        else if (status === 'expired') rfqStatus = 'expired';
+        else if (status === 'sent' || status === 'pending') rfqStatus = 'sent';
+      }
+
+      const flight: RFQFlight = {
+        id: quoteId,
+        quoteId,
+        departureAirport: { icao: 'N/A', name: 'N/A' },
+        arrivalAirport: { icao: 'N/A', name: 'N/A' },
+        departureDate: (quote.departure_date || rfq?.departure_date || new Date().toISOString().split('T')[0]) as string,
+        departureTime: quote.departure_time as string | undefined,
+        flightDuration: (quote.flight_duration || quote.flightDuration || 'TBD') as string,
+        aircraftType: (quote.aircraft_type || quote.aircraftType || (quote.aircraft as Record<string, unknown>)?.type || 'Unknown Aircraft') as string,
+        aircraftModel: (quote.aircraft_type || quote.aircraftType || 'Unknown Aircraft') as string,
+        tailNumber: quote.tail_number as string | undefined,
+        passengerCapacity: (quote.passenger_capacity || quote.passengerCapacity || 0) as number,
+        operatorName: (quote.operator_name || quote.operatorName || (quote.operator as Record<string, unknown>)?.name || 'Unknown Operator') as string,
+        operatorRating: quote.operator_rating as number | undefined,
+        operatorEmail: quote.operator_email as string | undefined,
+        totalPrice: price,
+        currency,
+        amenities: {
+          wifi: false,
+          pets: false,
+          smoking: false,
+          galley: false,
+          lavatory: false,
+          medical: false,
+        },
+        rfqStatus,
+        lastUpdated: new Date().toISOString(),
+        isSelected: false,
+        validUntil: quote.valid_until as string | undefined,
+        sellerMessage: quote.sellerMessage as string | undefined,
+      };
+
+      return flight;
+    } catch (error) {
+      console.error('[transformQuoteToRFQFlight] Error:', error);
+      return null;
+    }
+  };
+
+  /**
+   * Transform an RFQ (without quotes) to RFQFlight format as placeholder
+   */
+  const transformRFQToFlight = (rfq: Record<string, unknown>): RFQFlight | null => {
+    try {
+      const rfqId = (rfq.rfq_id || rfq.id || `rfq-${Date.now()}`) as string;
+
+      const flight: RFQFlight = {
+        id: rfqId,
+        quoteId: rfqId,
+        departureAirport: { icao: 'N/A', name: 'N/A' },
+        arrivalAirport: { icao: 'N/A', name: 'N/A' },
+        departureDate: (rfq.departure_date || new Date().toISOString().split('T')[0]) as string,
+        flightDuration: 'TBD',
+        aircraftType: 'Aircraft TBD',
+        aircraftModel: 'Aircraft TBD',
+        passengerCapacity: (rfq.passengers || 0) as number,
+        operatorName: 'Awaiting quotes',
+        totalPrice: 0,
+        currency: 'USD',
+        amenities: {
+          wifi: false,
+          pets: false,
+          smoking: false,
+          galley: false,
+          lavatory: false,
+          medical: false,
+        },
+        rfqStatus: 'unanswered',
+        lastUpdated: new Date().toISOString(),
+        isSelected: false,
+      };
+
+      return flight;
+    } catch (error) {
+      console.error('[transformRFQToFlight] Error:', error);
+      return null;
+    }
+  };
+
+  /**
+   * Handle chat selection from sidebar
+   * Loads full conversation messages and RFQ flights for the selected chat
+   *
+   * @param chatId - The ID of the chat to select
+   */
+  const handleSelectChat = async (chatId: string) => {
     setActiveChatId(chatId)
     setCurrentView("chat")
+
+    // Find the current session
+    const session = chatSessions.find((s) => s.id === chatId);
+    if (!session) {
+      console.warn('[handleSelectChat] Session not found:', chatId);
+      return;
+    }
+
+    // Skip loading for temporary sessions
+    if (chatId.startsWith('temp-')) {
+      console.log('[handleSelectChat] Skipping load - temp session:', chatId);
+      return;
+    }
+
+    // Track what needs to be loaded
+    const needsMessages = !session.messages || session.messages.length === 0;
+    const needsRFQFlights = session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0);
+
+    console.log('[handleSelectChat] Loading data for session:', {
+      chatId,
+      tripId: session.tripId,
+      needsMessages,
+      needsRFQFlights,
+      currentMessageCount: session.messages?.length || 0,
+      currentRFQFlightCount: session.rfqFlights?.length || 0,
+    });
+
+    // Load messages and RFQ flights in parallel
+    const [messages, rfqFlights] = await Promise.all([
+      needsMessages ? loadMessagesForSession(chatId) : Promise.resolve(session.messages || []),
+      needsRFQFlights ? loadRFQFlightsForSession(session.tripId!) : Promise.resolve(session.rfqFlights || []),
+    ]);
+
+    // Update session with loaded data
+    if (messages.length > 0 || rfqFlights.length > 0) {
+      setChatSessions((prevSessions) =>
+        prevSessions.map((s) => {
+          if (s.id !== chatId) return s;
+
+          const updates: Partial<ChatSession> = {};
+
+          if (needsMessages && messages.length > 0) {
+            updates.messages = messages;
+          }
+
+          if (needsRFQFlights && rfqFlights.length > 0) {
+            updates.rfqFlights = rfqFlights;
+            // Update quote counts
+            const quotedCount = rfqFlights.filter(f => f.rfqStatus === 'quoted').length;
+            updates.quotesReceived = quotedCount;
+            updates.quotesTotal = rfqFlights.length;
+          }
+
+          return { ...s, ...updates };
+        })
+      );
+
+      console.log('[handleSelectChat] Loaded data:', {
+        chatId,
+        messageCount: messages.length,
+        rfqFlightCount: rfqFlights.length,
+        rfqFlightPrices: rfqFlights.map(f => ({ operator: f.operatorName, price: f.totalPrice, status: f.rfqStatus })),
+      });
+    }
   }
 
   /**
@@ -481,7 +896,7 @@ export default function JetvisionAgent() {
             // API returns { sessions: [...] } format
             const sessions = chatSessionData.sessions || []
             const chatSession = Array.isArray(sessions) 
-              ? sessions.find((s: any) => s.id === chatId)
+              ? sessions.find((s: { id: string }) => s.id === chatId)
               : (sessions.length === 1 ? sessions[0] : null)
             
             console.log('[handleDeleteChat] Found chat session:', chatSession)
@@ -600,7 +1015,7 @@ export default function JetvisionAgent() {
         
         if (verifyResponse.ok) {
           const verifyData = await verifyResponse.json()
-          const requestExists = verifyData.requests?.some((r: any) => r.id === requestId)
+          const requestExists = verifyData.requests?.some((r: { id: string }) => r.id === requestId)
           
           if (!requestExists) {
             console.log('[handleDeleteChat] Request does not exist in user\'s requests - removing session from UI')
