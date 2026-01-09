@@ -192,13 +192,6 @@ export default function JetvisionAgent() {
       const data = await response.json();
       const messages = data.messages || [];
 
-      console.log('[loadMessagesForSession] API response:', {
-        sessionId,
-        messageCount: messages.length,
-        rawData: data,
-        firstMessage: messages[0] || null,
-      });
-
       // Convert timestamps to Date objects
       return messages.map((msg: { id: string; type: 'user' | 'agent'; content: string; timestamp: string }) => ({
         id: msg.id,

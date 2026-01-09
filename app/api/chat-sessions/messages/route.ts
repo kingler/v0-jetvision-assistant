@@ -113,21 +113,9 @@ export async function GET(request: NextRequest) {
       metadata?: Record<string, unknown> | null;
     }> = [];
 
-    console.log('[GET /api/chat-sessions/messages] Loading messages:', {
-      sessionId,
-      conversationId: session.conversation_id,
-      hasConversationId: !!session.conversation_id,
-    });
-
     if (session.conversation_id) {
       try {
         const dbMessages = await loadMessages(session.conversation_id, limit);
-
-        console.log('[GET /api/chat-sessions/messages] DB messages loaded:', {
-          conversationId: session.conversation_id,
-          count: dbMessages.length,
-          firstMessage: dbMessages[0] || null,
-        });
 
         // Transform to UI format
         messages = dbMessages.map((msg) => ({
@@ -144,8 +132,6 @@ export async function GET(request: NextRequest) {
         console.error('[GET /api/chat-sessions/messages] Error loading messages:', loadError);
         // Return empty messages array rather than failing
       }
-    } else {
-      console.log('[GET /api/chat-sessions/messages] No conversation_id - skipping message load');
     }
 
     // Return response with session info and messages
