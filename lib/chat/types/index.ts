@@ -177,6 +177,7 @@ export interface AirportInfo {
 
 /**
  * RFQ Flight - normalized format for UI display
+ * Note: This type should match components/avinode/rfq-flight-card.tsx RFQFlight
  */
 export interface RFQFlight {
   id: string;
@@ -187,9 +188,14 @@ export interface RFQFlight {
   departureTime?: string;
   flightDuration: string;
   aircraftType: string;
-  aircraftModel?: string;
+  /** Required for UI display - provide 'Unknown' as default if not available */
+  aircraftModel: string;
   tailNumber?: string;
+  /** Year aircraft was manufactured */
+  yearOfManufacture?: number;
   passengerCapacity: number;
+  /** Aircraft photo URL */
+  tailPhotoUrl?: string;
   operatorName: string;
   operatorRating?: number;
   operatorEmail?: string;
@@ -198,16 +204,23 @@ export interface RFQFlight {
   amenities: AircraftAmenities;
   rfqStatus: RFQStatusType;
   lastUpdated: string;
-  isSelected: boolean;
+  /** Selection state for multi-select UI */
+  isSelected?: boolean;
   validUntil?: string;
   aircraftCategory?: string;
-  hasMedical: boolean;
-  hasPackage: boolean;
+  /** Whether medical equipment is available */
+  hasMedical?: boolean;
+  /** Whether package/cargo transport is available */
+  hasPackage?: boolean;
   sellerMessage?: string;
   messageId?: string;
   hasMessages?: boolean;
   hasNewMessages?: boolean;
   priceBreakdown?: PriceBreakdown;
+  /** Deep link to view this flight in Avinode marketplace */
+  avinodeDeepLink?: string;
+  /** Response time in minutes */
+  responseTimeMinutes?: number;
 }
 
 /**
@@ -233,9 +246,39 @@ export interface PriceBreakdown {
 }
 
 /**
+ * Pipeline Stats for dashboard
+ */
+export interface PipelineStats {
+  totalRequests: number;
+  pendingRequests: number;
+  completedRequests: number;
+  totalQuotes: number;
+  activeWorkflows: number;
+}
+
+/**
+ * Pipeline Request Item
+ */
+export interface PipelineRequest {
+  id: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  departureDate: string;
+  passengers: number;
+  status: string;
+  createdAt: string;
+  clientName?: string;
+}
+
+/**
  * Pipeline data for deals view
+ * Matches lib/types/chat-agent.ts PipelineData
  */
 export interface PipelineData {
+  stats: PipelineStats;
+  recentRequests: PipelineRequest[];
+  lastUpdated: string;
+  // Legacy fields for backward compatibility with API responses
   deals?: unknown[];
   requests?: unknown[];
   total?: number;

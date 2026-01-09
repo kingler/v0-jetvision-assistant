@@ -7,7 +7,7 @@
  * - handleTripIdSubmit (chat-interface.tsx:2080-3285)
  */
 
-import { SSEConfig } from '../constants';
+import { SSEConfig, WorkflowStatus, type WorkflowStatusType } from '../constants';
 import type {
   SSEStreamData,
   SSEParseResult,
@@ -371,30 +371,30 @@ export function extractDeepLinkData(data: SSEStreamData): {
  */
 export function determineWorkflowStatus(
   data: SSEStreamData,
-  currentStatus: string = 'understanding_request'
-): { status: string; step: number } {
-  let status = currentStatus;
+  currentStatus: WorkflowStatusType = WorkflowStatus.UNDERSTANDING_REQUEST
+): { status: WorkflowStatusType; step: number } {
+  let status: WorkflowStatusType = currentStatus;
   let step = 1;
 
   // Check agent metadata first
   const phase = data.agent?.conversationState?.phase;
   if (phase === 'gathering_info') {
-    status = 'understanding_request';
+    status = WorkflowStatus.UNDERSTANDING_REQUEST;
     step = 1;
   } else if (phase === 'confirming') {
-    status = 'searching_aircraft';
+    status = WorkflowStatus.SEARCHING_AIRCRAFT;
     step = 2;
   } else if (phase === 'processing') {
-    status = 'requesting_quotes';
+    status = WorkflowStatus.REQUESTING_QUOTES;
     step = 3;
   } else if (phase === 'complete') {
-    status = 'proposal_ready';
+    status = WorkflowStatus.PROPOSAL_READY;
     step = 5;
   }
 
   // Check intent
   if (data.agent?.intent === 'RFP_CREATION') {
-    status = 'searching_aircraft';
+    status = WorkflowStatus.SEARCHING_AIRCRAFT;
     step = 2;
   }
 
@@ -403,18 +403,18 @@ export function determineWorkflowStatus(
     for (const toolCall of data.tool_calls) {
       switch (toolCall.name) {
         case 'search_flights':
-          status = 'searching_aircraft';
+          status = WorkflowStatus.SEARCHING_AIRCRAFT;
           step = 2;
           break;
         case 'create_trip':
         case 'create_rfp':
-          status = 'requesting_quotes';
+          status = WorkflowStatus.REQUESTING_QUOTES;
           step = 3;
           break;
         case 'get_quotes':
         case 'get_quote_status':
         case 'get_rfq':
-          status = 'analyzing_options';
+          status = WorkflowStatus.ANALYZING_OPTIONS;
           step = 4;
           break;
       }
@@ -423,7 +423,7 @@ export function determineWorkflowStatus(
 
   // Check for trip/rfp data
   if (data.trip_data || data.rfp_data) {
-    status = 'requesting_quotes';
+    status = WorkflowStatus.REQUESTING_QUOTES;
     step = 3;
   }
 

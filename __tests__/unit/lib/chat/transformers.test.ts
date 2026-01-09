@@ -233,6 +233,7 @@ describe('mergeQuoteDetailsIntoFlights', () => {
         departureDate: '2024-01-15',
         flightDuration: 'TBD',
         aircraftType: 'TBD',
+        aircraftModel: 'TBD',
         passengerCapacity: 0,
         operatorName: 'Operator 1',
         totalPrice: 0,
@@ -278,6 +279,7 @@ describe('mergeQuoteDetailsIntoFlights', () => {
         departureDate: '2024-01-15',
         flightDuration: 'TBD',
         aircraftType: 'TBD',
+        aircraftModel: 'TBD',
         passengerCapacity: 0,
         operatorName: 'Operator 1',
         totalPrice: 50000, // Has price
