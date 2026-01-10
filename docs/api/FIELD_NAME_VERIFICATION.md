@@ -57,6 +57,7 @@
   ```
 
 - **Transform Function** (`mcp-servers/avinode-mcp-server/src/index.ts`):
+
   ```typescript
   // transformToRFQFlights extracts:
   let totalPrice = 
@@ -74,12 +75,14 @@
 ### 3. Status Fields
 
 **API Documentation**: 
+
 - `status` field (direct)
 - `sourcingDisplayStatus` field (from sellerLift - "Accepted" = quoted, "Declined" = declined)
 
 **Codebase Usage**: ✅ **CORRECT**
 
 - **Transform Function** (`mcp-servers/avinode-mcp-server/src/index.ts`):
+
   ```typescript
   // Status determination:
   if (quote.sourcingDisplayStatus === 'Accepted') {
@@ -98,6 +101,7 @@
 ### 4. Message Fields
 
 **API Documentation**: 
+
 - PRIMARY: `sellerMessage` (string) - operator message text from quote details
 - FALLBACK: `notes` field
 - Trip messages: `/tripmsgs/{tripId}` endpoint
