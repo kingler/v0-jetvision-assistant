@@ -1,20 +1,50 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Plane, DollarSign, Calendar } from "lucide-react"
+import { Send } from "lucide-react"
+import {
+  ConversationStarterHub,
+  useSmartStarters,
+  type ConversationStarter,
+} from "@/components/conversation-starters"
 
 interface LandingPageProps {
   onStartChat: (message: string) => void
   userName?: string
+  /** Optional user context for smart starters */
+  userContext?: {
+    activeRequestCount?: number
+    pendingQuotesCount?: number
+    hotOpportunitiesCount?: number
+  }
 }
 
-export function LandingPage({ onStartChat, userName }: LandingPageProps) {
+/**
+ * Map starter actions to chat messages
+ */
+const ACTION_TO_MESSAGE: Record<string, string> = {
+  "new-flight-request": "I want to start a new flight request",
+  "show-active-requests": "Show me my active flight requests",
+  "show-deals": "Show me my current deals and quotes",
+  "show-hot-opportunities": "Show me hot opportunities that need attention",
+  "show-pipeline": "Show me my request pipeline summary",
+}
+
+/**
+ * LandingPage - Initial view with conversation starters
+ *
+ * Displays greeting, input field, and smart conversation starters
+ * that adapt based on user context.
+ */
+export function LandingPage({ onStartChat, userName, userContext }: LandingPageProps) {
   const [message, setMessage] = useState("")
   const [error, setError] = useState<string | null>(null)
+
+  // Get smart starters based on user context
+  const { starters, isLoading } = useSmartStarters(userContext)
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -53,27 +83,16 @@ export function LandingPage({ onStartChat, userName }: LandingPageProps) {
     }
   }
 
-  const handleSuggestedPrompt = (prompt: string) => {
-    onStartChat(prompt)
-  }
-
-  const suggestedPrompts = [
-    {
-      text: "I want to help book a flight for a new client",
-      icon: Plane,
-      description: "Start a new booking request",
+  /**
+   * Handle starter click - map action to chat message
+   */
+  const handleStarterClick = useCallback(
+    (action: string, _starter: ConversationStarter) => {
+      const chatMessage = ACTION_TO_MESSAGE[action] || `Start action: ${action}`
+      onStartChat(chatMessage)
     },
-    {
-      text: "Pull up flight preferences for [Client Name/Email]",
-      icon: DollarSign,
-      description: "View client preferences and history",
-    },
-    {
-      text: "What kind of planes are available next week?",
-      icon: Calendar,
-      description: "Check aircraft availability",
-    },
-  ]
+    [onStartChat]
+  )
 
   return (
     <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
@@ -112,29 +131,17 @@ export function LandingPage({ onStartChat, userName }: LandingPageProps) {
           </div>
         </form>
 
-        {/* Suggested Prompts */}
+        {/* Conversation Starters */}
         <div className="space-y-4">
-          <p className="text-center text-gray-500 dark:text-gray-400 font-medium">Or try one of these:</p>
-          <div className="grid gap-3">
-            {suggestedPrompts.map((prompt, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className="h-auto p-3 sm:p-4 justify-start text-left hover:bg-gray-50 dark:hover:bg-gray-800 border-2 hover:border-cyan-300 dark:hover:border-cyan-600 transition-all bg-transparent"
-                onClick={() => handleSuggestedPrompt(prompt.text)}
-              >
-                <div className="flex items-center space-x-3 w-full">
-                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-cyan-100 dark:bg-cyan-900 rounded-lg flex items-center justify-center">
-                    <prompt.icon className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 dark:text-cyan-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">{prompt.text}</p>
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prompt.description}</p>
-                  </div>
-                </div>
-              </Button>
-            ))}
-          </div>
+          <p className="text-center text-gray-500 dark:text-gray-400 font-medium">
+            Or try one of these:
+          </p>
+          <ConversationStarterHub
+            starters={starters}
+            onStarterClick={handleStarterClick}
+            loading={isLoading}
+            showCategoryHeaders={false}
+          />
         </div>
       </div>
     </div>
