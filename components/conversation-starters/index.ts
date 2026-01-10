@@ -24,6 +24,14 @@ export {
   type ConnectionStatus,
 } from "./active-requests-starter"
 
+export {
+  DealsStarter,
+  type DealsStarterProps,
+  type Deal,
+  type DealStatus,
+  type ConnectionStatus as DealConnectionStatus,
+} from "./deals-starter"
+
 // Types
 export type {
   ConversationStarter,

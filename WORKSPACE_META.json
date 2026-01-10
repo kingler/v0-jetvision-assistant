@@ -1,15 +1,15 @@
 {
-  "branch": "feature/onek-161-active-requests-starter",
-  "linearIssue": "ONEK-161",
+  "branch": "feature/onek-162-deals-starter",
+  "linearIssue": "ONEK-162",
   "phase": 3,
   "phaseName": "implementation",
   "agentRole": "Coding Agent",
   "agentType": "fullstack-developer",
-  "createdAt": "2026-01-10T22:30:00Z",
-  "lastAccessedAt": "2026-01-10T22:30:00Z",
+  "createdAt": "2026-01-10T22:22:00Z",
+  "lastAccessedAt": "2026-01-10T22:22:00Z",
   "status": "active",
-  "baseBranch": "feature/onek-160-flight-request-starter",
-  "parentPR": 74,
+  "baseBranch": "feature/onek-161-active-requests-starter",
+  "parentPR": 76,
   "workflowState": {
     "testsWritten": false,
     "implementationComplete": false,
@@ -22,6 +22,7 @@
     "ONEK-157",
     "ONEK-158",
     "ONEK-159",
-    "ONEK-160"
+    "ONEK-160",
+    "ONEK-161"
   ]
 }
