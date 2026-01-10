@@ -95,7 +95,7 @@ export async function createTestUser(
       clerk_user_id: clerkUserId,
       email,
       full_name: 'Test User',
-      role: 'broker',
+      role: 'iso_agent',
       margin_type: 'percentage',
       margin_value: 10,
       is_active: true,

@@ -115,15 +115,14 @@ describe('RLS Policies - requests Table', () => {
   it('should prevent user from accessing another users flight requests', async () => {
     // User 2 creates a flight request (via service role for test setup)
     const { data: request } = await serviceClient
-      .from('iso_flight_requests')
+      .from('requests')
       .insert({
-        agent_id: testUser2Id,
+        iso_agent_id: testUser2Id,
         departure_airport: 'TEB',
         arrival_airport: 'VNY',
-        departure_date: '2025-12-01',
+        departure_date: '2027-12-01',
         passengers: 4,
         status: 'pending',
-        workflow_state: 'analyzing',
       })
       .select()
       .single()
@@ -134,7 +133,7 @@ describe('RLS Policies - requests Table', () => {
     // Note: This requires auth context to be set, which in real app
     // would be via Clerk JWT. For now, we test with service vs anon.
     const { data, error } = await user1Client
-      .from('iso_flight_requests')
+      .from('requests')
       .select('*')
       .eq('id', request!.id)
 
@@ -145,15 +144,14 @@ describe('RLS Policies - requests Table', () => {
   it('should allow user to access their own flight requests', async () => {
     // User 1 creates a flight request
     const { data: request } = await serviceClient
-      .from('iso_flight_requests')
+      .from('requests')
       .insert({
-        agent_id: testUser1Id,
+        iso_agent_id: testUser1Id,
         departure_airport: 'LAX',
         arrival_airport: 'JFK',
-        departure_date: '2025-12-15',
+        departure_date: '2027-12-15',
         passengers: 6,
         status: 'pending',
-        workflow_state: 'analyzing',
       })
       .select()
       .single()
@@ -162,7 +160,7 @@ describe('RLS Policies - requests Table', () => {
 
     // Service role can always access (bypasses RLS)
     const { data, error } = await serviceClient
-      .from('iso_flight_requests')
+      .from('requests')
       .select('*')
       .eq('id', request!.id)
 
@@ -174,22 +172,21 @@ describe('RLS Policies - requests Table', () => {
   it('should prevent user from updating another users flight requests', async () => {
     // User 2 creates a flight request
     const { data: request } = await serviceClient
-      .from('iso_flight_requests')
+      .from('requests')
       .insert({
-        agent_id: testUser2Id,
+        iso_agent_id: testUser2Id,
         departure_airport: 'SFO',
         arrival_airport: 'SEA',
-        departure_date: '2025-12-20',
+        departure_date: '2027-12-20',
         passengers: 3,
         status: 'pending',
-        workflow_state: 'analyzing',
       })
       .select()
       .single()
 
     // User 1 tries to update User 2's request (via anon client, should fail)
     const { error } = await user1Client
-      .from('iso_flight_requests')
+      .from('requests')
       .update({ status: 'cancelled' })
       .eq('id', request!.id)
 
@@ -200,22 +197,21 @@ describe('RLS Policies - requests Table', () => {
   it('should prevent user from deleting another users flight requests', async () => {
     // User 2 creates a flight request
     const { data: request } = await serviceClient
-      .from('iso_flight_requests')
+      .from('requests')
       .insert({
-        agent_id: testUser2Id,
+        iso_agent_id: testUser2Id,
         departure_airport: 'ORD',
         arrival_airport: 'MIA',
-        departure_date: '2025-12-25',
+        departure_date: '2027-12-25',
         passengers: 5,
         status: 'pending',
-        workflow_state: 'analyzing',
       })
       .select()
       .single()
 
     // User 1 tries to delete User 2's request (via anon client)
     const { error } = await user1Client
-      .from('iso_flight_requests')
+      .from('requests')
       .delete()
       .eq('id', request!.id)
 
@@ -224,7 +220,7 @@ describe('RLS Policies - requests Table', () => {
 
     // Verify request still exists
     const { data: checkRequest } = await serviceClient
-      .from('iso_flight_requests')
+      .from('requests')
       .select('*')
       .eq('id', request!.id)
       .single()
@@ -255,15 +251,14 @@ describe('RLS Policies - Cascading Deletes', () => {
   it('should cascade delete related records when user is deleted', async () => {
     // Create a flight request for the user
     const { data: request } = await serviceClient
-      .from('iso_flight_requests')
+      .from('requests')
       .insert({
-        agent_id: testUserId,
+        iso_agent_id: testUserId,
         departure_airport: 'BOS',
         arrival_airport: 'DCA',
-        departure_date: '2025-12-30',
+        departure_date: '2027-12-30',
         passengers: 2,
         status: 'pending',
-        workflow_state: 'analyzing',
       })
       .select()
       .single()
@@ -272,13 +267,14 @@ describe('RLS Policies - Cascading Deletes', () => {
 
     // Create a quote for the flight request
     const { data: quote } = await serviceClient
-      .from('iso_quotes')
+      .from('quotes')
       .insert({
-        flight_request_id: request!.id,
+        request_id: request!.id,
         operator_name: 'Test Operator',
+        operator_id: 'test_operator_123',
         aircraft_type: 'Citation X',
-        price: 25000,
-        currency: 'USD',
+        base_price: 25000,
+        total_price: 27500,
         avinode_quote_id: 'test_quote_123',
       })
       .select()
@@ -296,7 +292,7 @@ describe('RLS Policies - Cascading Deletes', () => {
 
     // Verify flight request was deleted
     const { data: deletedRequest } = await serviceClient
-      .from('iso_flight_requests')
+      .from('requests')
       .select('*')
       .eq('id', request!.id)
 
@@ -304,7 +300,7 @@ describe('RLS Policies - Cascading Deletes', () => {
 
     // Verify quote was deleted
     const { data: deletedQuote } = await serviceClient
-      .from('iso_quotes')
+      .from('quotes')
       .select('*')
       .eq('id', quote!.id)
 
