@@ -450,17 +450,21 @@ const tools: Tool[] = [
   },
   {
     name: 'send_trip_message',
-    description: 'Send a message to operators in the trip conversation thread',
+    description: 'Send a chat message to operators. Uses POST /tripmsgs/{requestId}/chat endpoint per Avinode API. Messages can be up to 5KB and support \\n for line breaks.',
     inputSchema: {
       type: 'object',
       properties: {
+        request_id: {
+          type: 'string',
+          description: 'The RFQ/request identifier (e.g., arfq-12345678). Required for sending chat messages per Avinode API.',
+        },
         trip_id: {
           type: 'string',
-          description: 'The trip identifier',
+          description: 'The trip identifier (e.g., atrip-12345678). Used as fallback if request_id not provided.',
         },
         message: {
           type: 'string',
-          description: 'The message content to send',
+          description: 'The message content to send (max 5KB, use \\n for line breaks)',
         },
         recipient_type: {
           type: 'string',
@@ -472,7 +476,7 @@ const tools: Tool[] = [
           description: 'Specific operator ID (required if recipient_type is specific_operator)',
         },
       },
-      required: ['trip_id', 'message'],
+      required: ['message'],
     },
   },
   {
@@ -2087,41 +2091,64 @@ async function cancelTrip(params: CancelTripParams) {
 }
 
 /**
- * Send a message in the trip conversation thread
- * 
- * @see https://developer.avinodegroup.com/reference/readmessage
- * Endpoint: POST /api/tripmsgs/{tripId}
+ * Send a chat message to operators
+ *
+ * Per Avinode API documentation:
+ * - Use POST /tripmsgs/{requestId}/chat for sending chat messages
+ * - Messages can be up to 5KB of raw text
+ * - Use \n for line breaks
+ *
+ * @see https://developer.avinodegroup.com/reference/chat
+ * @see https://developer.avinodegroup.com/docs/download-respond-rfq
  */
-async function sendTripMessage(params: SendTripMessageParams) {
-  if (!params.trip_id) {
-    throw new Error('trip_id is required');
-  }
+async function sendTripMessage(params: SendTripMessageParams & { request_id?: string }) {
   if (!params.message) {
     throw new Error('message is required');
+  }
+  if (!params.request_id && !params.trip_id) {
+    throw new Error('Either request_id or trip_id is required');
   }
   if (params.recipient_type === 'specific_operator' && !params.operator_id) {
     throw new Error('operator_id is required when recipient_type is specific_operator');
   }
 
-  // Extract numeric ID if prefixed
-  // Uses robust extraction to handle IDs with additional hyphens (e.g., "atrip-123-456")
-  let numericId: string;
-  try {
-    numericId = extractNumericId(params.trip_id);
-  } catch (error) {
-    throw new Error(
-      `Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`
-    );
+  let endpoint: string;
+  let identifier: string;
+
+  // Prefer request_id for chat endpoint per Avinode API docs
+  if (params.request_id) {
+    try {
+      identifier = extractNumericId(params.request_id);
+      // Use /chat endpoint per Avinode API: POST /tripmsgs/{requestId}/chat
+      endpoint = `/tripmsgs/${identifier}/chat`;
+    } catch (error) {
+      throw new Error(
+        `Invalid request ID format: "${params.request_id}". ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  } else if (params.trip_id) {
+    // Fallback to trip_id if no request_id
+    try {
+      identifier = extractNumericId(params.trip_id);
+      endpoint = `/tripmsgs/${identifier}/chat`;
+    } catch (error) {
+      throw new Error(
+        `Invalid trip ID format: "${params.trip_id}". ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  } else {
+    throw new Error('Either request_id or trip_id must be provided');
   }
 
-  const response = await avinodeClient.post(`/tripmsgs/${numericId}`, {
+  const response = await avinodeClient.post(endpoint, {
     message: params.message,
     recipient_type: params.recipient_type || 'all_operators',
     operator_id: params.operator_id,
   });
 
   return {
-    message_id: response.message_id,
+    message_id: response.message_id || response.data?.message_id,
+    request_id: params.request_id,
     trip_id: params.trip_id,
     status: response.status || 'sent',
     sent_at: response.sent_at || new Date().toISOString(),
