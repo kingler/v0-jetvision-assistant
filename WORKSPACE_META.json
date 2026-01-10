@@ -1,47 +1,26 @@
 {
-  "branch": "refactor/ONEK-chat-interface-decomposition",
-  "linearIssue": null,
-  "phase": 5,
-  "phaseName": "refactoring",
-  "agentRole": "Code Refactoring Agent",
-  "agentType": "frontend-developer",
-  "createdAt": "2026-01-07T19:00:00Z",
-  "lastAccessedAt": "2026-01-07T20:00:00Z",
-  "status": "implementation-complete",
-  "description": "Refactoring chat-interface.tsx from 3700+ line monolith to modular architecture",
-  "tasks": [
-    "Extract shared SSE parser utility",
-    "Create workflow constants/enums",
-    "Extract quote/RFQ transformation logic",
-    "Create useChatState reducer hook",
-    "Create useStreamingChat hook",
-    "Create useTripIdSubmit hook",
-    "Create useRFQPolling hook",
-    "Refactor main component",
-    "Add unit tests"
-  ],
-  "completedModules": [
-    "lib/chat/constants/workflow.ts",
-    "lib/chat/types/index.ts",
-    "lib/chat/parsers/sse-parser.ts",
-    "lib/chat/parsers/quote-text-parser.ts",
-    "lib/chat/transformers/rfq-transformer.ts",
-    "lib/chat/hooks/use-chat-state.ts",
-    "lib/chat/hooks/use-streaming-chat.ts",
-    "lib/chat/hooks/use-trip-id-submit.ts",
-    "lib/chat/hooks/use-rfq-polling.ts",
-    "components/chat/ChatInterfaceRefactored.tsx"
-  ],
-  "cleanupConditions": {
-    "testsPass": true,
-    "prCreated": false,
-    "codeReviewCompleted": false,
-    "branchMerged": false
+  "branch": "feature/onek-159-integrate-starters",
+  "linearIssue": "ONEK-159",
+  "phase": 4,
+  "phaseName": "code-review",
+  "agentRole": "Coding Agent",
+  "agentType": "fullstack-developer",
+  "createdAt": "2026-01-10T21:28:00Z",
+  "lastAccessedAt": "2026-01-10T21:35:00Z",
+  "status": "in-review",
+  "baseBranch": "feature/onek-155-conversation-starters",
+  "parentPR": 67,
+  "workflowState": {
+    "testsWritten": true,
+    "implementationComplete": true,
+    "codeReviewPassed": true,
+    "prCreated": true,
+    "prNumber": 72,
+    "merged": false
   },
-  "summary": {
-    "originalLines": 3729,
-    "refactoredMainComponent": 520,
-    "totalModules": 10,
-    "linesReduction": "~86%"
-  }
+  "dependencies": [
+    "ONEK-156",
+    "ONEK-157",
+    "ONEK-158"
+  ]
 }
