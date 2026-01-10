@@ -134,6 +134,11 @@ export class AvinodeClient {
     const response = await this.client.put<T>(endpoint, data);
     return response.data;
   }
+
+  async patch<T = any>(endpoint: string, data: any): Promise<T> {
+    const response = await this.client.patch<T>(endpoint, data);
+    return response.data;
+  }
 }
 
 // Singleton instance

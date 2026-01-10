@@ -54,6 +54,13 @@ import type {
   SendTripMessageParams,
   GetTripMessagesParams,
   RFQFlight,
+  TripSegment,
+  TripType,
+  CreateEmptyLegWatchParams,
+  UpdateEmptyLegWatchParams,
+  MarkEmptyLegMatchParams,
+  EmptyLegWatchResponse,
+  EmptyLegMatch,
 } from './types.js';
 
 /**
@@ -353,21 +360,22 @@ const tools: Tool[] = [
   {
     name: 'create_trip',
     description:
-      'Create a trip container in Avinode and return a deep link for manual operator selection. This is the primary tool for initiating the flight search workflow.',
+      'Create a trip container in Avinode and return a deep link for manual operator selection. Supports single-leg, round-trip, and multi-city trips. Use legacy flat params for simple trips or segments[] array for multi-city.',
     inputSchema: {
       type: 'object',
       properties: {
+        // Legacy params (backward compatible)
         departure_airport: {
           type: 'string',
-          description: 'Departure airport ICAO code (e.g., KTEB, KJFK)',
+          description: 'Departure airport ICAO code (e.g., KTEB, KJFK) - required for legacy mode',
         },
         arrival_airport: {
           type: 'string',
-          description: 'Arrival airport ICAO code',
+          description: 'Arrival airport ICAO code - required for legacy mode',
         },
         departure_date: {
           type: 'string',
-          description: 'Departure date in YYYY-MM-DD format',
+          description: 'Departure date in YYYY-MM-DD format - required for legacy mode',
         },
         departure_time: {
           type: 'string',
@@ -383,8 +391,44 @@ const tools: Tool[] = [
         },
         passengers: {
           type: 'number',
-          description: 'Number of passengers',
+          description: 'Number of passengers - required for legacy mode',
         },
+        return_passengers: {
+          type: 'number',
+          description: 'Number of passengers on return leg (defaults to outbound passengers if not specified)',
+        },
+        // Multi-segment params (new)
+        segments: {
+          type: 'array',
+          description: 'Array of flight segments for multi-city trips. When provided, legacy params are ignored.',
+          items: {
+            type: 'object',
+            properties: {
+              departure_airport: {
+                type: 'string',
+                description: 'Departure airport ICAO code',
+              },
+              arrival_airport: {
+                type: 'string',
+                description: 'Arrival airport ICAO code',
+              },
+              departure_date: {
+                type: 'string',
+                description: 'Departure date in YYYY-MM-DD format',
+              },
+              departure_time: {
+                type: 'string',
+                description: 'Optional departure time in HH:MM format',
+              },
+              passengers: {
+                type: 'number',
+                description: 'Number of passengers for this segment',
+              },
+            },
+            required: ['departure_airport', 'arrival_airport', 'departure_date', 'passengers'],
+          },
+        },
+        // Common params
         aircraft_category: {
           type: 'string',
           description: 'Optional aircraft category preference',
@@ -399,7 +443,8 @@ const tools: Tool[] = [
           description: 'Optional internal reference ID for tracking',
         },
       },
-      required: ['departure_airport', 'arrival_airport', 'departure_date', 'passengers'],
+      // No required fields at top level - validation done in handler
+      // Either segments[] OR (departure_airport + arrival_airport + departure_date + passengers) required
     },
   },
   {
@@ -519,6 +564,158 @@ const tools: Tool[] = [
       required: ['message_id'],
     },
   },
+  // ============================================================================
+  // Empty Leg Watch Tools (ONEK-147, ONEK-148)
+  // ============================================================================
+  {
+    name: 'create_empty_leg_watch',
+    description: 'Create a watch to monitor empty leg flights on a specific route. Get notified when discounted flights become available.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        departure_airport: {
+          type: 'string',
+          description: 'Departure airport ICAO code (e.g., KJFK)',
+        },
+        arrival_airport: {
+          type: 'string',
+          description: 'Arrival airport ICAO code (e.g., KMIA)',
+        },
+        date_range_start: {
+          type: 'string',
+          description: 'Start date of watch period in YYYY-MM-DD format',
+        },
+        date_range_end: {
+          type: 'string',
+          description: 'End date of watch period in YYYY-MM-DD format (max 90 days from start)',
+        },
+        passengers: {
+          type: 'number',
+          description: 'Number of passengers',
+        },
+        max_price: {
+          type: 'number',
+          description: 'Optional maximum price threshold in USD',
+        },
+        aircraft_categories: {
+          type: 'array',
+          description: 'Optional filter by aircraft category',
+          items: {
+            type: 'string',
+            enum: ['light', 'midsize', 'heavy', 'ultra-long-range'],
+          },
+        },
+        notification_email: {
+          type: 'string',
+          description: 'Optional email for notifications',
+        },
+      },
+      required: ['departure_airport', 'arrival_airport', 'date_range_start', 'date_range_end', 'passengers'],
+    },
+  },
+  {
+    name: 'get_empty_leg_watches',
+    description: 'List all empty leg watches for the current user',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          description: 'Filter by watch status',
+          enum: ['active', 'paused', 'expired', 'cancelled'],
+        },
+      },
+    },
+  },
+  {
+    name: 'update_empty_leg_watch',
+    description: 'Update an existing empty leg watch (pause, resume, update settings)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        watch_id: {
+          type: 'string',
+          description: 'The watch identifier',
+        },
+        status: {
+          type: 'string',
+          description: 'New status for the watch',
+          enum: ['active', 'paused'],
+        },
+        max_price: {
+          type: 'number',
+          description: 'Updated maximum price threshold',
+        },
+        notification_email: {
+          type: 'string',
+          description: 'Updated notification email',
+        },
+      },
+      required: ['watch_id'],
+    },
+  },
+  {
+    name: 'delete_empty_leg_watch',
+    description: 'Cancel and delete an empty leg watch',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        watch_id: {
+          type: 'string',
+          description: 'The watch identifier to delete',
+        },
+      },
+      required: ['watch_id'],
+    },
+  },
+  {
+    name: 'get_watch_matches',
+    description: 'Get all empty leg flights matching a watch criteria',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        watch_id: {
+          type: 'string',
+          description: 'The watch identifier',
+        },
+        unviewed_only: {
+          type: 'boolean',
+          description: 'Only return unviewed matches',
+        },
+        interested_only: {
+          type: 'boolean',
+          description: 'Only return matches marked as interested',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of matches to return (default: 50)',
+        },
+      },
+      required: ['watch_id'],
+    },
+  },
+  {
+    name: 'mark_match',
+    description: 'Mark an empty leg match as viewed or interested',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        match_id: {
+          type: 'string',
+          description: 'The match identifier',
+        },
+        viewed: {
+          type: 'boolean',
+          description: 'Mark as viewed',
+        },
+        interested: {
+          type: 'boolean',
+          description: 'Mark as interested',
+        },
+      },
+      required: ['match_id'],
+    },
+  },
 ];
 
 // Initialize MCP server
@@ -623,6 +820,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_message': {
         const params = args as unknown as { message_id: string };
         result = await getMessage(params);
+        break;
+      }
+
+      // Empty Leg Watch Tools (ONEK-147, ONEK-148)
+      case 'create_empty_leg_watch': {
+        const params = args as unknown as CreateEmptyLegWatchParams;
+        result = await createEmptyLegWatch(params);
+        break;
+      }
+
+      case 'get_empty_leg_watches': {
+        const params = args as unknown as { status?: string };
+        result = await getEmptyLegWatches(params);
+        break;
+      }
+
+      case 'update_empty_leg_watch': {
+        const params = args as unknown as UpdateEmptyLegWatchParams;
+        result = await updateEmptyLegWatch(params);
+        break;
+      }
+
+      case 'delete_empty_leg_watch': {
+        const params = args as unknown as { watch_id: string };
+        result = await deleteEmptyLegWatch(params);
+        break;
+      }
+
+      case 'get_watch_matches': {
+        const params = args as unknown as {
+          watch_id: string;
+          unviewed_only?: boolean;
+          interested_only?: boolean;
+          limit?: number;
+        };
+        result = await getWatchMatches(params);
+        break;
+      }
+
+      case 'mark_match': {
+        const params = args as unknown as MarkEmptyLegMatchParams;
+        result = await markMatch(params);
         break;
       }
 
@@ -813,10 +1052,19 @@ async function searchAirports(params: SearchAirportsParams) {
  * - `sourcing: true` is REQUIRED for deep link prefill to work
  * - `criteria` object is for filters only (aircraft category, fuel stops, etc.)
  */
-async function createTrip(params: CreateTripParams) {
-  // Validate required parameters
+/**
+ * Normalize CreateTripParams to TripSegment array
+ * Handles both legacy flat params and new segments[] array
+ */
+function normalizeToSegments(params: CreateTripParams): TripSegment[] {
+  // If segments array is provided, use it directly
+  if (params.segments && params.segments.length > 0) {
+    return params.segments;
+  }
+
+  // Convert legacy flat params to segments array
   if (!params.departure_airport || !params.arrival_airport) {
-    throw new Error('departure_airport and arrival_airport are required');
+    throw new Error('Either segments[] array OR (departure_airport + arrival_airport) are required');
   }
   if (!params.departure_date) {
     throw new Error('departure_date is required');
@@ -824,6 +1072,121 @@ async function createTrip(params: CreateTripParams) {
   if (!params.passengers || params.passengers < 1) {
     throw new Error('passengers must be at least 1');
   }
+
+  const segments: TripSegment[] = [
+    {
+      departure_airport: params.departure_airport,
+      arrival_airport: params.arrival_airport,
+      departure_date: params.departure_date,
+      departure_time: params.departure_time,
+      passengers: params.passengers,
+    },
+  ];
+
+  // Add return segment if provided (round-trip)
+  if (params.return_date) {
+    segments.push({
+      departure_airport: params.arrival_airport,
+      arrival_airport: params.departure_airport,
+      departure_date: params.return_date,
+      departure_time: params.return_time,
+      // Use return_passengers if specified, otherwise use outbound passengers
+      passengers: params.return_passengers ?? params.passengers,
+    });
+  }
+
+  return segments;
+}
+
+/**
+ * Determine trip type based on segment count
+ */
+function determineTripType(segmentCount: number): TripType {
+  if (segmentCount === 1) return 'single_leg';
+  if (segmentCount === 2) return 'round_trip';
+  return 'multi_city';
+}
+
+/**
+ * Validate trip segments
+ */
+function validateSegments(segments: TripSegment[]): void {
+  if (!segments || segments.length === 0) {
+    throw new Error('At least one segment is required');
+  }
+
+  if (segments.length > 20) {
+    throw new Error('Maximum 20 segments allowed');
+  }
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const segNum = i + 1;
+
+    if (!seg.departure_airport) {
+      throw new Error(`Segment ${segNum}: departure_airport is required`);
+    }
+    if (!seg.arrival_airport) {
+      throw new Error(`Segment ${segNum}: arrival_airport is required`);
+    }
+    if (seg.departure_airport === seg.arrival_airport) {
+      throw new Error(`Segment ${segNum}: departure and arrival airports must be different`);
+    }
+    if (!seg.departure_date) {
+      throw new Error(`Segment ${segNum}: departure_date is required`);
+    }
+    if (!seg.passengers || seg.passengers < 1) {
+      throw new Error(`Segment ${segNum}: passengers must be at least 1`);
+    }
+    if (seg.passengers > 100) {
+      throw new Error(`Segment ${segNum}: passengers cannot exceed 100`);
+    }
+
+    // Validate airport code format (3-4 alphanumeric characters)
+    const airportRegex = /^[A-Z0-9]{3,4}$/;
+    if (!airportRegex.test(seg.departure_airport.toUpperCase())) {
+      throw new Error(`Segment ${segNum}: invalid departure_airport format (expected ICAO/IATA code)`);
+    }
+    if (!airportRegex.test(seg.arrival_airport.toUpperCase())) {
+      throw new Error(`Segment ${segNum}: invalid arrival_airport format (expected ICAO/IATA code)`);
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(seg.departure_date)) {
+      throw new Error(`Segment ${segNum}: invalid departure_date format (expected YYYY-MM-DD)`);
+    }
+
+    // Validate time format if provided (HH:MM)
+    if (seg.departure_time) {
+      const timeRegex = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(seg.departure_time)) {
+        throw new Error(`Segment ${segNum}: invalid departure_time format (expected HH:MM)`);
+      }
+    }
+  }
+}
+
+async function createTrip(params: CreateTripParams) {
+  // Normalize params to segments array
+  const tripSegments = normalizeToSegments(params);
+
+  // Validate all segments
+  validateSegments(tripSegments);
+
+  // Determine trip type
+  const tripType = determineTripType(tripSegments.length);
+
+  console.error('[createTrip] Processing trip:', {
+    tripType,
+    segmentCount: tripSegments.length,
+    segments: tripSegments.map((s, i) => ({
+      order: i,
+      route: `${s.departure_airport} → ${s.arrival_airport}`,
+      date: s.departure_date,
+      passengers: s.passengers,
+    })),
+  });
 
   // Build segments array using correct Avinode API format
   const segments: Array<{
@@ -835,32 +1198,16 @@ async function createTrip(params: CreateTripParams) {
     };
     paxCount: string;
     paxSegment: boolean;
-  }> = [
-    {
-      startAirport: { icao: params.departure_airport },
-      endAirport: { icao: params.arrival_airport },
-      dateTime: {
-        date: params.departure_date,
-        time: params.departure_time || '10:00',
-      },
-      paxCount: String(params.passengers),
-      paxSegment: true,
+  }> = tripSegments.map((seg) => ({
+    startAirport: { icao: seg.departure_airport.toUpperCase() },
+    endAirport: { icao: seg.arrival_airport.toUpperCase() },
+    dateTime: {
+      date: seg.departure_date,
+      time: seg.departure_time || '10:00',
     },
-  ];
-
-  // Add return segment if provided (round-trip)
-  if (params.return_date) {
-    segments.push({
-      startAirport: { icao: params.arrival_airport },
-      endAirport: { icao: params.departure_airport },
-      dateTime: {
-        date: params.return_date,
-        time: params.return_time || '10:00',
-      },
-      paxCount: String(params.passengers),
-      paxSegment: true,
-    });
-  }
+    paxCount: String(seg.passengers),
+    paxSegment: true,
+  }));
 
   // Build criteria object for optional filters (aircraft category, etc.)
   const criteria: Record<string, unknown> = {};
@@ -952,7 +1299,23 @@ async function createTrip(params: CreateTripParams) {
       throw new Error(errorMsg);
     }
 
-    // Return in the format expected by the UI
+    // Build legacy route format for backward compatibility (single-leg and round-trip)
+    const legacyRoute = tripType !== 'multi_city' ? {
+      departure: {
+        airport: tripSegments[0].departure_airport,
+        date: tripSegments[0].departure_date,
+        time: tripSegments[0].departure_time,
+      },
+      arrival: {
+        airport: tripSegments[0].arrival_airport,
+      },
+      return: tripSegments.length > 1 ? {
+        date: tripSegments[1].departure_date,
+        time: tripSegments[1].departure_time,
+      } : undefined,
+    } : undefined;
+
+    // Return in the format expected by the UI (enhanced for multi-segment)
     const result = {
       trip_id: tripId,
       deep_link: deepLink || undefined,
@@ -961,27 +1324,21 @@ async function createTrip(params: CreateTripParams) {
       cancel_link: actions.cancel?.href || undefined,
       status: 'created',
       created_at: new Date().toISOString(),
-      route: {
-        departure: {
-          airport: params.departure_airport,
-          date: params.departure_date,
-          time: params.departure_time,
-        },
-        arrival: {
-          airport: params.arrival_airport,
-        },
-        return: params.return_date
-          ? {
-              date: params.return_date,
-              time: params.return_time,
-            }
-          : undefined,
-      },
-      passengers: params.passengers,
+      // New fields for multi-segment support
+      trip_type: tripType,
+      segment_count: tripSegments.length,
+      // Legacy route format (for backward compatibility)
+      route: legacyRoute,
+      // New segments array (always included for all trip types)
+      segments: tripSegments,
+      // Passengers from first segment (for backward compatibility)
+      passengers: tripSegments[0].passengers,
     };
 
     console.error('[createTrip] Successfully created trip:', {
       trip_id: result.trip_id,
+      trip_type: result.trip_type,
+      segment_count: result.segment_count,
       has_deep_link: !!result.deep_link,
     });
 
@@ -990,15 +1347,20 @@ async function createTrip(params: CreateTripParams) {
     // Enhanced error logging for production debugging
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     console.error('[createTrip] ERROR creating trip:', {
       error: errorMessage,
       stack: errorStack,
       params: {
+        // Log whether segments or legacy params were used
+        mode: params.segments?.length ? 'segments' : 'legacy',
+        segment_count: params.segments?.length,
         departure_airport: params.departure_airport,
         arrival_airport: params.arrival_airport,
         departure_date: params.departure_date,
         passengers: params.passengers,
+        return_date: params.return_date,
+        return_passengers: params.return_passengers,
       },
     });
 
@@ -2262,6 +2624,349 @@ async function getTripMessages(params: GetTripMessagesParams & { request_id?: st
     total_count: response.total_count || response.data?.total_count || response.messages?.length || 0,
     has_more: response.has_more || response.data?.has_more || false,
   };
+}
+
+// ============================================================================
+// Empty Leg Watch Functions (ONEK-147, ONEK-148)
+// ============================================================================
+
+/**
+ * Create an empty leg watch
+ * Monitors a route for discounted empty leg flights
+ */
+async function createEmptyLegWatch(
+  params: CreateEmptyLegWatchParams
+): Promise<EmptyLegWatchResponse> {
+  // Validate required parameters
+  if (!params.departure_airport || !params.arrival_airport) {
+    throw new Error('departure_airport and arrival_airport are required');
+  }
+  if (!params.date_range_start || !params.date_range_end) {
+    throw new Error('date_range_start and date_range_end are required');
+  }
+  if (!params.passengers || params.passengers < 1) {
+    throw new Error('passengers must be at least 1');
+  }
+
+  // Validate airport format
+  const airportRegex = /^[A-Z0-9]{3,4}$/;
+  if (!airportRegex.test(params.departure_airport.toUpperCase())) {
+    throw new Error('Invalid departure_airport format (expected ICAO/IATA code)');
+  }
+  if (!airportRegex.test(params.arrival_airport.toUpperCase())) {
+    throw new Error('Invalid arrival_airport format (expected ICAO/IATA code)');
+  }
+
+  // Validate date range
+  const startDate = new Date(params.date_range_start);
+  const endDate = new Date(params.date_range_end);
+  if (endDate < startDate) {
+    throw new Error('date_range_end must be after date_range_start');
+  }
+  const daysDiff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysDiff > 90) {
+    throw new Error('Date range cannot exceed 90 days');
+  }
+
+  console.error('[createEmptyLegWatch] Creating watch:', {
+    route: `${params.departure_airport} → ${params.arrival_airport}`,
+    dateRange: `${params.date_range_start} to ${params.date_range_end}`,
+    passengers: params.passengers,
+    maxPrice: params.max_price,
+  });
+
+  try {
+    // Call Avinode API to create watch
+    const response = await avinodeClient.post('/emptylegs/watches', {
+      departureAirport: { icao: params.departure_airport.toUpperCase() },
+      arrivalAirport: { icao: params.arrival_airport.toUpperCase() },
+      dateRange: {
+        start: params.date_range_start,
+        end: params.date_range_end,
+      },
+      passengers: params.passengers,
+      maxPrice: params.max_price,
+      aircraftCategories: params.aircraft_categories,
+    });
+
+    const watchId = response.id || response.watchId || response.watch_id;
+
+    return {
+      watch_id: watchId,
+      status: 'active',
+      departure_airport: params.departure_airport.toUpperCase(),
+      arrival_airport: params.arrival_airport.toUpperCase(),
+      date_range: {
+        start: params.date_range_start,
+        end: params.date_range_end,
+      },
+      passengers: params.passengers,
+      max_price: params.max_price,
+      aircraft_categories: params.aircraft_categories,
+      created_at: new Date().toISOString(),
+      expires_at: params.date_range_end,
+      matches_count: 0,
+    };
+  } catch (error) {
+    console.error('[createEmptyLegWatch] Error:', error);
+    throw new Error(
+      `Failed to create empty leg watch: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Get all empty leg watches for the current user
+ */
+async function getEmptyLegWatches(params: { status?: string }): Promise<{
+  watches: EmptyLegWatchResponse[];
+  total_count: number;
+}> {
+  console.error('[getEmptyLegWatches] Fetching watches:', { status: params.status });
+
+  try {
+    const queryParams: Record<string, string> = {};
+    if (params.status) {
+      queryParams.status = params.status;
+    }
+
+    const response = await avinodeClient.get('/emptylegs/watches', {
+      params: queryParams,
+    });
+
+    const watches = (response.watches || response.data || []).map((w: Record<string, unknown>) => ({
+      watch_id: w.id || w.watchId,
+      status: w.status || 'active',
+      departure_airport: (w.departureAirport as Record<string, string>)?.icao || w.departure_airport,
+      arrival_airport: (w.arrivalAirport as Record<string, string>)?.icao || w.arrival_airport,
+      date_range: w.dateRange || w.date_range,
+      passengers: w.passengers,
+      max_price: w.maxPrice || w.max_price,
+      aircraft_categories: w.aircraftCategories || w.aircraft_categories,
+      created_at: w.createdAt || w.created_at,
+      expires_at: w.expiresAt || w.expires_at,
+      matches_count: w.matchesCount || w.matches_count || 0,
+    }));
+
+    return {
+      watches,
+      total_count: watches.length,
+    };
+  } catch (error) {
+    console.error('[getEmptyLegWatches] Error:', error);
+    throw new Error(
+      `Failed to get empty leg watches: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Update an empty leg watch
+ */
+async function updateEmptyLegWatch(
+  params: UpdateEmptyLegWatchParams
+): Promise<EmptyLegWatchResponse> {
+  if (!params.watch_id) {
+    throw new Error('watch_id is required');
+  }
+
+  console.error('[updateEmptyLegWatch] Updating watch:', {
+    watchId: params.watch_id,
+    status: params.status,
+    maxPrice: params.max_price,
+  });
+
+  try {
+    const updateData: Record<string, unknown> = {};
+    if (params.status) updateData.status = params.status;
+    if (params.max_price !== undefined) updateData.maxPrice = params.max_price;
+    if (params.notification_email) updateData.notificationEmail = params.notification_email;
+
+    const response = await avinodeClient.patch(`/emptylegs/watches/${params.watch_id}`, updateData);
+
+    return {
+      watch_id: response.id || params.watch_id,
+      status: response.status || params.status || 'active',
+      departure_airport: (response.departureAirport as Record<string, string>)?.icao,
+      arrival_airport: (response.arrivalAirport as Record<string, string>)?.icao,
+      date_range: response.dateRange,
+      passengers: response.passengers,
+      max_price: response.maxPrice || params.max_price,
+      aircraft_categories: response.aircraftCategories,
+      created_at: response.createdAt,
+      expires_at: response.expiresAt,
+      matches_count: response.matchesCount || 0,
+    };
+  } catch (error) {
+    console.error('[updateEmptyLegWatch] Error:', error);
+    throw new Error(
+      `Failed to update empty leg watch: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Delete an empty leg watch
+ */
+async function deleteEmptyLegWatch(params: { watch_id: string }): Promise<{
+  watch_id: string;
+  status: 'cancelled';
+  cancelled_at: string;
+}> {
+  if (!params.watch_id) {
+    throw new Error('watch_id is required');
+  }
+
+  console.error('[deleteEmptyLegWatch] Deleting watch:', params.watch_id);
+
+  try {
+    await avinodeClient.delete(`/emptylegs/watches/${params.watch_id}`);
+
+    return {
+      watch_id: params.watch_id,
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[deleteEmptyLegWatch] Error:', error);
+    throw new Error(
+      `Failed to delete empty leg watch: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Get matches for an empty leg watch
+ */
+async function getWatchMatches(params: {
+  watch_id: string;
+  unviewed_only?: boolean;
+  interested_only?: boolean;
+  limit?: number;
+}): Promise<{
+  watch_id: string;
+  matches: EmptyLegMatch[];
+  total_count: number;
+  unviewed_count: number;
+}> {
+  if (!params.watch_id) {
+    throw new Error('watch_id is required');
+  }
+
+  console.error('[getWatchMatches] Fetching matches:', {
+    watchId: params.watch_id,
+    unviewedOnly: params.unviewed_only,
+    interestedOnly: params.interested_only,
+  });
+
+  try {
+    const queryParams: Record<string, unknown> = {
+      limit: params.limit || 50,
+    };
+    if (params.unviewed_only) queryParams.unviewed = true;
+    if (params.interested_only) queryParams.interested = true;
+
+    const response = await avinodeClient.get(
+      `/emptylegs/watches/${params.watch_id}/matches`,
+      { params: queryParams }
+    );
+
+    const matches = (response.matches || response.data || []).map((m: Record<string, unknown>) => ({
+      match_id: m.id || m.matchId,
+      watch_id: params.watch_id,
+      empty_leg_id: m.emptyLegId || m.empty_leg_id,
+      departure: {
+        airport: (m.departure as Record<string, unknown>)?.airport || m.departure_airport,
+        name: (m.departure as Record<string, unknown>)?.name,
+        city: (m.departure as Record<string, unknown>)?.city,
+        date: (m.departure as Record<string, unknown>)?.date || m.departure_date,
+        time: (m.departure as Record<string, unknown>)?.time || m.departure_time,
+      },
+      arrival: {
+        airport: (m.arrival as Record<string, unknown>)?.airport || m.arrival_airport,
+        name: (m.arrival as Record<string, unknown>)?.name,
+        city: (m.arrival as Record<string, unknown>)?.city,
+      },
+      price: m.price,
+      currency: m.currency || 'USD',
+      discount_percentage: m.discountPercentage || m.discount_percentage,
+      regular_price: m.regularPrice || m.regular_price,
+      aircraft: {
+        type: (m.aircraft as Record<string, unknown>)?.type,
+        model: (m.aircraft as Record<string, unknown>)?.model,
+        category: (m.aircraft as Record<string, unknown>)?.category,
+        capacity: (m.aircraft as Record<string, unknown>)?.capacity,
+        registration: (m.aircraft as Record<string, unknown>)?.registration,
+      },
+      operator: {
+        id: (m.operator as Record<string, unknown>)?.id,
+        name: (m.operator as Record<string, unknown>)?.name,
+        rating: (m.operator as Record<string, unknown>)?.rating,
+      },
+      viewed: m.viewed || false,
+      interested: m.interested || false,
+      matched_at: m.matchedAt || m.matched_at,
+      valid_until: m.validUntil || m.valid_until,
+      deep_link: m.deepLink || m.deep_link,
+    }));
+
+    const unviewedCount = matches.filter((m: EmptyLegMatch) => !m.viewed).length;
+
+    return {
+      watch_id: params.watch_id,
+      matches,
+      total_count: matches.length,
+      unviewed_count: unviewedCount,
+    };
+  } catch (error) {
+    console.error('[getWatchMatches] Error:', error);
+    throw new Error(
+      `Failed to get watch matches: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Mark a match as viewed or interested
+ */
+async function markMatch(params: MarkEmptyLegMatchParams): Promise<{
+  match_id: string;
+  viewed: boolean;
+  interested: boolean;
+  updated_at: string;
+}> {
+  if (!params.match_id) {
+    throw new Error('match_id is required');
+  }
+
+  console.error('[markMatch] Marking match:', {
+    matchId: params.match_id,
+    viewed: params.viewed,
+    interested: params.interested,
+  });
+
+  try {
+    const updateData: Record<string, unknown> = {};
+    if (params.viewed !== undefined) updateData.viewed = params.viewed;
+    if (params.interested !== undefined) updateData.interested = params.interested;
+
+    const response = await avinodeClient.patch(
+      `/emptylegs/matches/${params.match_id}`,
+      updateData
+    );
+
+    return {
+      match_id: params.match_id,
+      viewed: response.viewed ?? params.viewed ?? false,
+      interested: response.interested ?? params.interested ?? false,
+      updated_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[markMatch] Error:', error);
+    throw new Error(
+      `Failed to mark match: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }
 
 // Start the server

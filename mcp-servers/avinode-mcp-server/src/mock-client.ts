@@ -170,6 +170,11 @@ export class MockAvinodeClient {
     return { ...data, updated: true } as T;
   }
 
+  async patch<T = any>(endpoint: string, data: any): Promise<T> {
+    await this.delay(200, 400);
+    return { ...data, updated: true, updatedAt: new Date().toISOString() } as T;
+  }
+
   /**
    * Mock flight search results with proper nested structure
    */
