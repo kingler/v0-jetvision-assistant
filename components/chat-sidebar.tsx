@@ -20,6 +20,35 @@ export interface OperatorMessage {
   content: string
   timestamp: string
   sender?: string
+  /** Operator ID this message belongs to */
+  operatorId?: string
+}
+
+/** Conversation thread state with a specific operator */
+export interface OperatorThread {
+  /** Avinode operator/seller ID */
+  operatorId: string
+  /** Operator company name */
+  operatorName: string
+  /** Quote ID if operator has quoted (null if pending/declined) */
+  quoteId?: string
+  /** Current state of this operator conversation */
+  status: 'rfq_sent' | 'awaiting_response' | 'quoted' | 'in_negotiation' | 'declined' | 'expired' | 'accepted'
+  /** Messages in this thread (both directions) */
+  messages: OperatorMessage[]
+  /** When RFQ was sent to this operator */
+  rfqSentAt?: string
+  /** When last message was received/sent */
+  lastMessageAt?: string
+  /** Whether there are unread messages from this operator */
+  hasUnreadMessages: boolean
+  /** Quote details if quoted */
+  quote?: {
+    price: number
+    currency: string
+    validUntil?: string
+    aircraftType?: string
+  }
 }
 
 /** Quote request displayed in header */
@@ -71,7 +100,9 @@ export interface ChatSession {
   generatedName?: string
   /** Quote requests displayed in header (when tripId exists) */
   quoteRequests?: QuoteRequestInfo[]
-  /** Operator conversation threads keyed by quote ID */
+  /** Operator conversation threads keyed by operator ID */
+  operatorThreads?: Record<string, OperatorThread>
+  /** @deprecated Use operatorThreads instead. Operator messages keyed by quote ID */
   operatorMessages?: Record<string, OperatorMessage[]>
   quotes?: Array<{
     id: string

@@ -6,6 +6,7 @@ import type {
   TripChatData,
 } from '@/lib/types/avinode-webhooks';
 import { supabaseAdmin, findRequestByTripId } from '@/lib/supabase';
+import type { Json } from '@/lib/types/database';
 import { storeOperatorQuote } from './webhook-utils';
 
 /**
@@ -215,8 +216,10 @@ async function handleChatMessage(data: TripChatData): Promise<void> {
   console.log('[Avinode Webhook] Message preview:', message.content.substring(0, 200));
 
   try {
-    // Store operator message in database
-    const eventType = data.type === 'TripChatSeller' ? 'operator_message' : 'internal_message';
+    // Store chat message in database
+    // Use 'message_received' for all chat webhooks - it's the valid enum value
+    // TripChatSeller = operator message, TripChatMine = confirmation of our sent message
+    const eventType = 'message_received' as const;
     const { error: webhookError } = await supabaseAdmin
       .from('avinode_webhook_events')
       .insert({
@@ -232,8 +235,8 @@ async function handleChatMessage(data: TripChatData): Promise<void> {
           content: message.content,
           senderName: sender.name,
           senderCompany: sender.companyName,
-          timestamp: message.createdAt || new Date().toISOString(),
-        } as any,
+          timestamp: message.sentAt || new Date().toISOString(),
+        } as Json,
         processing_status: 'completed',
         received_at: new Date().toISOString(),
         processed_at: new Date().toISOString(),

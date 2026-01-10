@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
 import { WorkflowVisualization } from "@/components/workflow-visualization"
-import { ChatSidebar, type ChatSession, type OperatorMessage } from "@/components/chat-sidebar"
+import { ChatSidebar, type ChatSession, type OperatorMessage, type OperatorThread } from "@/components/chat-sidebar"
+import { initializeOperatorThreads, mergeMessagesIntoThreads } from "@/lib/avinode/operator-threads"
 import { LandingPage } from "@/components/landing-page"
 import { AppHeader } from "@/components/app-header"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -206,11 +207,95 @@ export default function JetvisionAgent() {
   };
 
   /**
-   * Load operator messages for a specific trip ID
-   * Fetches stored webhook messages from avinode_webhook_events
+   * Load operator threads for a specific trip ID
+   * Fetches RFQ data to get operator list and messages to populate threads
    *
-   * @param tripId - The Avinode trip ID to load operator messages for
-   * @returns Record of operator messages keyed by quote ID
+   * @param tripId - The Avinode trip ID to load operator threads for
+   * @param existingRfqFlights - Optional existing RFQ flights to extract operator info
+   * @returns Record of operator threads keyed by operator ID
+   */
+  const loadOperatorThreadsForSession = async (
+    tripId: string,
+    existingRfqFlights?: RFQFlight[]
+  ): Promise<Record<string, OperatorThread>> => {
+    try {
+      // First, fetch messages from the API
+      const messagesResponse = await fetch(`/api/avinode/messages?trip_id=${encodeURIComponent(tripId)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      let rawMessages: Array<{
+        id: string;
+        content: string;
+        timestamp: string;
+        senderType?: string;
+        senderId?: string;
+        senderName?: string;
+        operatorId?: string;
+        requestId?: string;
+      }> = [];
+
+      if (messagesResponse.ok) {
+        const data = await messagesResponse.json();
+        // Flatten messages from all quote IDs into array for merging
+        const messagesByQuoteId = data.messages || {};
+        rawMessages = Object.entries(messagesByQuoteId).flatMap(([quoteId, msgs]) =>
+          (msgs as OperatorMessage[]).map(msg => ({
+            id: msg.id,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            senderType: msg.type === 'REQUEST' ? 'buyer' : 'seller',
+            senderName: msg.sender,
+            operatorId: msg.operatorId || quoteId,
+            requestId: quoteId,
+          }))
+        );
+      }
+
+      // Initialize threads from RFQ flights if available
+      let threads: Record<string, OperatorThread> = {};
+
+      if (existingRfqFlights && existingRfqFlights.length > 0) {
+        // Extract operator info from RFQ flights
+        const sellers = existingRfqFlights.map(flight => ({
+          id: flight.quoteId || flight.id,
+          name: flight.operatorName,
+          companyName: flight.operatorName,
+          status: flight.rfqStatus,
+          quoteId: flight.quoteId,
+          quote: {
+            price: flight.totalPrice,
+            currency: flight.currency,
+            validUntil: flight.validUntil,
+            aircraft: { type: flight.aircraftType },
+          },
+        }));
+
+        threads = initializeOperatorThreads({ sellers });
+      }
+
+      // Merge messages into threads
+      if (rawMessages.length > 0) {
+        threads = mergeMessagesIntoThreads(threads, rawMessages);
+      }
+
+      console.log('[loadOperatorThreadsForSession] Loaded threads:', {
+        tripId,
+        threadCount: Object.keys(threads).length,
+        messageCount: rawMessages.length,
+      });
+
+      return threads;
+    } catch (error) {
+      console.error('[loadOperatorThreadsForSession] Error:', error);
+      return {};
+    }
+  };
+
+  /**
+   * Load operator messages for a specific trip ID (legacy format)
+   * @deprecated Use loadOperatorThreadsForSession instead
    */
   const loadOperatorMessagesForSession = async (tripId: string): Promise<Record<string, OperatorMessage[]>> => {
     try {
@@ -529,7 +614,7 @@ export default function JetvisionAgent() {
 
   /**
    * Handle chat selection from sidebar
-   * Loads full conversation messages and RFQ flights for the selected chat
+   * Loads full conversation messages, RFQ flights, and operator threads for the selected chat
    *
    * @param chatId - The ID of the chat to select
    */
@@ -553,27 +638,34 @@ export default function JetvisionAgent() {
     // Track what needs to be loaded
     const needsMessages = !session.messages || session.messages.length === 0;
     const needsRFQFlights = session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0);
-    const needsOperatorMessages = session.tripId && (!session.operatorMessages || Object.keys(session.operatorMessages).length === 0);
+    const needsOperatorThreads = session.tripId && (!session.operatorThreads || Object.keys(session.operatorThreads).length === 0);
 
     console.log('[handleSelectChat] Loading data for session:', {
       chatId,
       tripId: session.tripId,
       needsMessages,
       needsRFQFlights,
-      needsOperatorMessages,
+      needsOperatorThreads,
       currentMessageCount: session.messages?.length || 0,
       currentRFQFlightCount: session.rfqFlights?.length || 0,
+      currentOperatorThreadCount: session.operatorThreads ? Object.keys(session.operatorThreads).length : 0,
     });
 
-    // Load messages, RFQ flights, and operator messages in parallel
-    const [messages, rfqFlights, operatorMessages] = await Promise.all([
+    // Phase 1: Load messages and RFQ flights in parallel
+    const [messages, rfqFlights] = await Promise.all([
       needsMessages ? loadMessagesForSession(chatId) : Promise.resolve(session.messages || []),
       needsRFQFlights ? loadRFQFlightsForSession(session.tripId!) : Promise.resolve(session.rfqFlights || []),
-      needsOperatorMessages ? loadOperatorMessagesForSession(session.tripId!) : Promise.resolve(session.operatorMessages || {}),
     ]);
 
+    // Phase 2: Load operator threads with RFQ flights data for initialization
+    // This needs RFQ flights to properly initialize operator info
+    const effectiveRfqFlights = needsRFQFlights ? rfqFlights : (session.rfqFlights || []);
+    const operatorThreads = needsOperatorThreads && session.tripId
+      ? await loadOperatorThreadsForSession(session.tripId, effectiveRfqFlights)
+      : (session.operatorThreads || {});
+
     // Update session with loaded data
-    const hasNewData = messages.length > 0 || rfqFlights.length > 0 || Object.keys(operatorMessages).length > 0;
+    const hasNewData = messages.length > 0 || rfqFlights.length > 0 || Object.keys(operatorThreads).length > 0;
     if (hasNewData) {
       setChatSessions((prevSessions) =>
         prevSessions.map((s) => {
@@ -593,8 +685,18 @@ export default function JetvisionAgent() {
             updates.quotesTotal = rfqFlights.length;
           }
 
-          if (needsOperatorMessages && Object.keys(operatorMessages).length > 0) {
-            updates.operatorMessages = operatorMessages;
+          if (needsOperatorThreads && Object.keys(operatorThreads).length > 0) {
+            updates.operatorThreads = operatorThreads;
+            // Also set legacy operatorMessages for backward compatibility
+            const legacyMessages: Record<string, OperatorMessage[]> = {};
+            for (const [opId, thread] of Object.entries(operatorThreads)) {
+              if (thread.messages.length > 0) {
+                legacyMessages[opId] = thread.messages;
+              }
+            }
+            if (Object.keys(legacyMessages).length > 0) {
+              updates.operatorMessages = legacyMessages;
+            }
           }
 
           return { ...s, ...updates };
@@ -605,7 +707,14 @@ export default function JetvisionAgent() {
         chatId,
         messageCount: messages.length,
         rfqFlightCount: rfqFlights.length,
-        operatorMessageCount: Object.keys(operatorMessages).length,
+        operatorThreadCount: Object.keys(operatorThreads).length,
+        operatorThreadDetails: Object.entries(operatorThreads).map(([id, t]) => ({
+          operatorId: id,
+          operatorName: t.operatorName,
+          status: t.status,
+          messageCount: t.messages.length,
+          hasQuote: !!t.quote,
+        })),
         rfqFlightPrices: rfqFlights.map(f => ({ operator: f.operatorName, price: f.totalPrice, status: f.rfqStatus })),
       });
     }

@@ -22,7 +22,9 @@ export type AvinodeWebhookEventType =
   | 'TripRequestBuyer'           // Buyer request update
   | 'EmptyLegCreatedMine'        // Empty leg created
   | 'EmptyLegUpdatedMine'        // Empty leg updated
-  | 'EmptyLegDeletedMine';       // Empty leg deleted
+  | 'EmptyLegDeletedMine'        // Empty leg deleted
+  | 'Quotes'                     // Quote list update
+  | 'QuotedTrips';               // Trip with quotes update
 
 // ============================================================================
 // Base Webhook Payload
