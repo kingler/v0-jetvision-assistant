@@ -16,6 +16,14 @@ export {
   type Airport,
 } from "./flight-request-starter"
 
+export {
+  ActiveRequestsStarter,
+  type ActiveRequestsStarterProps,
+  type ActiveRequest,
+  type RequestStatus,
+  type ConnectionStatus,
+} from "./active-requests-starter"
+
 // Types
 export type {
   ConversationStarter,
