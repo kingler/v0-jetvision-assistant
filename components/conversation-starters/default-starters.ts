@@ -68,6 +68,29 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
 
 /**
  * Get default starters with optional filtering
+ *
+ * @param options - Optional filtering configuration
+ * @param options.categories - Only return starters from these categories
+ * @param options.excludeIds - Exclude starters with these IDs
+ * @returns Filtered array of conversation starters
+ *
+ * @example
+ * ```tsx
+ * // Get all default starters
+ * const all = getDefaultStarters()
+ *
+ * // Get only flight starters
+ * const flights = getDefaultStarters({ categories: ['flight'] })
+ *
+ * // Exclude specific starters
+ * const filtered = getDefaultStarters({ excludeIds: ['new-flight-request'] })
+ *
+ * // Combine filters
+ * const combined = getDefaultStarters({
+ *   categories: ['flight', 'deals'],
+ *   excludeIds: ['hot-opportunities']
+ * })
+ * ```
  */
 export function getDefaultStarters(options?: {
   categories?: Array<"flight" | "deals" | "pipeline">

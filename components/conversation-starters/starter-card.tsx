@@ -4,6 +4,23 @@ import type { LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+/** Maximum badge count before showing "99+" */
+const MAX_BADGE_COUNT = 99
+
+/** Maximum length for title text */
+const MAX_TITLE_LENGTH = 100
+
+/** Maximum length for description text */
+const MAX_DESCRIPTION_LENGTH = 200
+
+/**
+ * Sanitize text by trimming and limiting length
+ */
+function sanitizeText(text: string, maxLength: number): string {
+  const trimmed = text.trim()
+  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength - 3)}...` : trimmed
+}
+
 /**
  * Color variant configuration for StarterCard
  * Each variant defines light/dark mode colors for icon background and icon
@@ -86,6 +103,10 @@ export function StarterCard({
 }: StarterCardProps) {
   const styles = variantStyles[variant]
 
+  // Sanitize inputs
+  const safeTitle = sanitizeText(title, MAX_TITLE_LENGTH)
+  const safeDescription = sanitizeText(description, MAX_DESCRIPTION_LENGTH)
+
   // Loading skeleton state
   if (loading) {
     return (
@@ -94,6 +115,9 @@ export function StarterCard({
           "h-auto p-3 sm:p-4 rounded-md border-2 border-gray-200 dark:border-gray-700 bg-transparent animate-pulse",
           className
         )}
+        role="status"
+        aria-busy="true"
+        aria-label="Loading conversation starter"
         data-testid="starter-card-skeleton"
       >
         <div className="flex items-center space-x-3 w-full">
@@ -109,11 +133,19 @@ export function StarterCard({
     )
   }
 
+  // Build ARIA label for screen readers
+  const badgeLabel = badge && badge > 0
+    ? ` (${badge > MAX_BADGE_COUNT ? 'over 99' : badge} ${badge === 1 ? 'item' : 'items'})`
+    : ''
+  const ariaLabel = `${safeTitle}: ${safeDescription}${badgeLabel}`
+
   return (
     <Button
       variant="outline"
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
+      aria-disabled={disabled}
       className={cn(
         "h-auto p-3 sm:p-4 justify-start text-left",
         "hover:bg-gray-50 dark:hover:bg-gray-800",
@@ -137,11 +169,11 @@ export function StarterCard({
 
         {/* Text content */}
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">
-            {title}
+          <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">
+            {safeTitle}
           </p>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            {description}
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+            {safeDescription}
           </p>
         </div>
 
@@ -154,14 +186,14 @@ export function StarterCard({
               "rounded-full text-xs font-medium",
               "bg-red-500 text-white"
             )}
+            role="status"
+            aria-label={`${badge > MAX_BADGE_COUNT ? 'Over 99' : badge} ${badge === 1 ? 'item' : 'items'}`}
             data-testid="starter-card-badge"
           >
-            {badge > 99 ? "99+" : badge}
+            {badge > MAX_BADGE_COUNT ? `${MAX_BADGE_COUNT}+` : badge}
           </div>
         )}
       </div>
     </Button>
   )
 }
-
-export default StarterCard

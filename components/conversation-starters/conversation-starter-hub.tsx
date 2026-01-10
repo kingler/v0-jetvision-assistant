@@ -179,4 +179,3 @@ export function ConversationStarterHub({
   )
 }
 
-export default ConversationStarterHub
