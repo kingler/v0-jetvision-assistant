@@ -26,6 +26,7 @@ import {
   AvinodeMessageCard,
 } from '@/components/avinode';
 import { PipelineDashboard } from './pipeline-dashboard';
+import { InlineDashboard } from './inline-dashboard';
 
 export interface MessageRendererProps {
   component: MessageComponent;
@@ -223,6 +224,27 @@ export function MessageRenderer({ component, onAction, className }: MessageRende
           requests={component.requests}
           onViewRequest={component.onViewRequest || ((requestId) => handleAction('view_request', { requestId }))}
           onRefresh={component.onRefresh || (() => handleAction('refresh_pipeline', {}))}
+          className={`${className || ''} ${component.className || ''}`}
+        />
+      );
+
+    case 'operator_chat_inline':
+      // Operator chat inline is rendered directly in AgentMessage, not through MessageRenderer
+      // This case is included for type exhaustiveness
+      return null;
+
+    case 'inline_dashboard':
+      return (
+        <InlineDashboard
+          pipeline={component.pipeline}
+          analytics={component.analytics}
+          metrics={component.metrics}
+          hotOpportunities={component.hotOpportunities}
+          dateRange={component.dateRange}
+          onViewRequest={component.onViewRequest || ((requestId) => handleAction('view_request', { requestId }))}
+          onRefresh={component.onRefresh || (() => handleAction('refresh_dashboard', {}))}
+          onPeriodChange={component.onPeriodChange || ((period) => handleAction('change_period', { period }))}
+          onViewAllOpportunities={component.onViewAllOpportunities || (() => handleAction('view_all_opportunities', {}))}
           className={`${className || ''} ${component.className || ''}`}
         />
       );
