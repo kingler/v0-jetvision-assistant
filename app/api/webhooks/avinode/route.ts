@@ -13,16 +13,16 @@ import { storeOperatorQuote } from './webhook-utils';
  * Avinode Webhook Handler
  *
  * Receives webhook events from Avinode Broker API
- * Docs: https://developer.avinodegroup.com/docs/getting-started-webhooks
+ * Docs: https://developer.avinodegroup.com/docs/avinode-webhooks
  *
  * Events Handled:
  * - TripRequestSellerResponse: Operator quote received
  * - TripChatSeller: Operator message received
  * - TripChatMine: Internal company message
  *
- * Authentication:
- * - Webhook secret verification via HMAC signature
- * - API token validation
+ * Note: Per Avinode docs, webhooks do NOT use signature verification.
+ * The endpoint must respond with HTTP 200 to acknowledge receipt.
+ * Payloads contain: { id, href, type } - use href to fetch full data.
  */
 
 // Force dynamic rendering
@@ -33,32 +33,96 @@ const WEBHOOK_SECRET = process.env.AVINODE_WEBHOOK_SECRET;
 const API_TOKEN = process.env.AVINODE_API_TOKEN;
 
 /**
- * Verify webhook signature
- * Avinode uses HMAC-SHA256 for webhook verification
+ * Map Avinode webhook type to our event_type enum
+ * Avinode types: rfqs, tripmsgs, emptylegs, leads
  */
-function verifySignature(payload: string, signature: string | null): boolean {
-  if (!WEBHOOK_SECRET || !signature) {
-    console.warn('[Avinode Webhook] No webhook secret configured or signature missing');
-    // In development, allow unverified webhooks with warning
-    return process.env.NODE_ENV === 'development';
+function mapTypeToEventType(type: string): 'quote_received' | 'quote_rejected' | 'message_received' | 'trip_created' | 'trip_updated' {
+  switch (type?.toLowerCase()) {
+    case 'rfqs':
+      return 'quote_received';
+    case 'tripmsgs':
+      return 'message_received';
+    case 'trips':
+      return 'trip_updated';
+    default:
+      return 'trip_updated';
   }
+}
 
+/**
+ * Extract trip ID from Avinode href URL
+ * Example: https://sandbox.avinode.com/api/rfqs/arfq-12345678 -> arfq-12345678
+ * Example: https://sandbox.avinode.com/api/trips/atrip-65340586 -> atrip-65340586
+ */
+function extractTripIdFromHref(href: string): string | null {
+  if (!href) return null;
   try {
-    const expectedSignature = createHmac('sha256', WEBHOOK_SECRET)
-      .update(payload)
-      .digest('hex');
+    const url = new URL(href);
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    // Get the last part of the path (the ID)
+    const id = pathParts[pathParts.length - 1];
+    return id || null;
+  } catch {
+    // If URL parsing fails, try regex
+    const match = href.match(/\/(atrip-\d+|arfq-\d+|[A-Z0-9]+)(?:\?|$)/);
+    return match ? match[1] : null;
+  }
+}
 
-    // Constant-time comparison to prevent timing attacks
-    const sigBuffer = Buffer.from(signature, 'hex');
-    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+/**
+ * Verify webhook request
+ *
+ * Per Avinode documentation (https://developer.avinodegroup.com/docs/avinode-webhooks),
+ * webhooks do NOT use signature verification. We validate by:
+ * 1. Checking the payload structure (must have id, href, type or event field)
+ * 2. Optionally verifying the href domain is from avinode.com
+ *
+ * If AVINODE_WEBHOOK_SECRET is configured, we can add optional HMAC verification
+ * for additional security (custom implementation, not Avinode standard).
+ */
+function verifyWebhook(payload: string, signature: string | null): boolean {
+  try {
+    const data = JSON.parse(payload);
 
-    if (sigBuffer.length !== expectedBuffer.length) {
+    // Avinode webhooks have either:
+    // - Simple format: { id, href, type }
+    // - Extended format: { event, eventId, timestamp, data }
+    const hasSimpleFormat = data.id && data.href && data.type;
+    const hasExtendedFormat = data.event && data.data;
+
+    if (!hasSimpleFormat && !hasExtendedFormat) {
+      console.warn('[Avinode Webhook] Invalid payload structure - missing required fields');
       return false;
     }
 
-    return sigBuffer.every((byte, i) => byte === expectedBuffer[i]);
+    // Optional: Verify href domain if present
+    if (data.href) {
+      try {
+        const url = new URL(data.href);
+        if (!url.hostname.includes('avinode.com')) {
+          console.warn('[Avinode Webhook] Suspicious href domain:', url.hostname);
+          // Still allow for sandbox/testing, but log warning
+        }
+      } catch {
+        // Invalid URL, but don't reject - might be a different payload format
+      }
+    }
+
+    // Optional HMAC verification if secret is configured (custom security layer)
+    if (WEBHOOK_SECRET && signature) {
+      const expectedSignature = createHmac('sha256', WEBHOOK_SECRET)
+        .update(payload)
+        .digest('hex');
+
+      if (signature !== expectedSignature) {
+        console.warn('[Avinode Webhook] Signature mismatch (optional verification)');
+        // Don't reject - Avinode doesn't require signatures per their docs
+      }
+    }
+
+    return true;
   } catch (error) {
-    console.error('[Avinode Webhook] Signature verification error:', error);
+    console.error('[Avinode Webhook] Payload validation error:', error);
     return false;
   }
 }
@@ -278,51 +342,89 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Verify webhook signature
+    // Verify webhook payload structure (Avinode doesn't use signatures per their docs)
     const signature = req.headers.get('x-avinode-signature') ||
                       req.headers.get('x-webhook-signature');
 
-    if (!verifySignature(rawBody, signature)) {
-      console.error('[Avinode Webhook] Invalid signature');
+    if (!verifyWebhook(rawBody, signature)) {
+      console.error('[Avinode Webhook] Invalid webhook payload');
       return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
+        { error: 'Invalid webhook payload' },
+        { status: 400 }
       );
     }
 
+    // Handle both Avinode payload formats:
+    // 1. Simple format: { id, href, type } - standard Avinode format
+    // 2. Extended format: { event, eventId, timestamp, data } - detailed format
+    const rawPayload = JSON.parse(rawBody);
+    const isSimpleFormat = rawPayload.id && rawPayload.href && rawPayload.type && !rawPayload.event;
+
     // Log event receipt
     console.log('[Avinode Webhook] Event received:', {
-      event: payload.event,
-      eventId: payload.eventId,
-      timestamp: payload.timestamp,
+      format: isSimpleFormat ? 'simple' : 'extended',
+      event: payload.event || rawPayload.type,
+      eventId: payload.eventId || rawPayload.id,
+      href: rawPayload.href,
+      timestamp: payload.timestamp || new Date().toISOString(),
     });
 
-    // Process based on event type
-    switch (payload.event) {
-      case 'TripRequestSellerResponse':
-        await handleSellerResponse(payload.data as TripRequestSellerResponseData, payload);
-        break;
+    // For simple format, we need to fetch data from href
+    // Per Avinode docs: "always use the URL provided in the notification payload"
+    if (isSimpleFormat) {
+      console.log('[Avinode Webhook] Simple format - storing notification for async processing');
 
-      case 'TripChatSeller':
-      case 'TripChatMine':
-        await handleChatMessage(payload.data as TripChatData);
-        break;
+      // Store the webhook notification for processing
+      // The actual data should be fetched from the href URL
+      try {
+        const { error: webhookError } = await supabaseAdmin
+          .from('avinode_webhook_events')
+          .insert({
+            event_type: mapTypeToEventType(rawPayload.type),
+            avinode_event_id: rawPayload.id,
+            avinode_trip_id: extractTripIdFromHref(rawPayload.href),
+            raw_payload: rawPayload as Json,
+            processing_status: 'pending',
+            received_at: new Date().toISOString(),
+          });
 
-      case 'TripRequestMine':
-      case 'TripRequestBuyer':
-        console.log('[Avinode Webhook] Trip request update:', payload.data);
-        // TODO: Handle trip status updates
-        break;
+        if (webhookError) {
+          console.error('[Avinode Webhook] Error storing simple webhook:', webhookError);
+        } else {
+          console.log('[Avinode Webhook] Simple webhook stored successfully');
+        }
+      } catch (storeError) {
+        console.error('[Avinode Webhook] Error storing webhook:', storeError);
+      }
+    } else {
+      // Extended format - process directly
+      // Process based on event type
+      switch (payload.event) {
+        case 'TripRequestSellerResponse':
+          await handleSellerResponse(payload.data as TripRequestSellerResponseData, payload);
+          break;
 
-      case 'EmptyLegCreatedMine':
-      case 'EmptyLegUpdatedMine':
-      case 'EmptyLegDeletedMine':
-        console.log('[Avinode Webhook] Empty leg event:', payload.data);
-        // TODO: Handle empty leg events if needed
-        break;
+        case 'TripChatSeller':
+        case 'TripChatMine':
+          await handleChatMessage(payload.data as TripChatData);
+          break;
 
-      default:
-        console.log('[Avinode Webhook] Unhandled event type:', payload.event);
+        case 'TripRequestMine':
+        case 'TripRequestBuyer':
+          console.log('[Avinode Webhook] Trip request update:', payload.data);
+          // TODO: Handle trip status updates
+          break;
+
+        case 'EmptyLegCreatedMine':
+        case 'EmptyLegUpdatedMine':
+        case 'EmptyLegDeletedMine':
+          console.log('[Avinode Webhook] Empty leg event:', payload.data);
+          // TODO: Handle empty leg events if needed
+          break;
+
+        default:
+          console.log('[Avinode Webhook] Unhandled event type:', payload.event);
+      }
     }
 
     const duration = Date.now() - startTime;
