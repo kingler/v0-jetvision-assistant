@@ -83,7 +83,17 @@ function MetricCard({
   );
 }
 
+/**
+ * Formats a currency value with compact notation (K, M) if above threshold
+ * @param value - The numeric value to format
+ * @returns Formatted currency string (e.g., "$45K", "$1.2M")
+ */
 function formatCurrency(value: number): string {
+  // Validate input
+  if (!Number.isFinite(value)) {
+    return '$0';
+  }
+
   if (value >= 1000000) {
     return `$${(value / 1000000).toFixed(1)}M`;
   }
@@ -93,7 +103,17 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(0)}`;
 }
 
+/**
+ * Formats a duration value in days with appropriate unit
+ * @param value - The duration in days
+ * @returns Formatted duration string (e.g., "4.2d", "12h")
+ */
 function formatDays(value: number): string {
+  // Validate input
+  if (!Number.isFinite(value)) {
+    return '0d';
+  }
+
   if (value < 1) {
     const hours = Math.round(value * 24);
     return `${hours}h`;
