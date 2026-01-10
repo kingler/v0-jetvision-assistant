@@ -6,15 +6,16 @@
   "agentRole": "Coding Agent",
   "agentType": "fullstack-developer",
   "createdAt": "2026-01-10T23:16:00Z",
-  "lastAccessedAt": "2026-01-10T23:16:00Z",
-  "status": "active",
+  "lastAccessedAt": "2026-01-10T23:37:30Z",
+  "status": "in-review",
   "baseBranch": "feature/onek-162-deals-starter",
   "parentPR": 77,
   "workflowState": {
-    "testsWritten": false,
-    "implementationComplete": false,
+    "testsWritten": true,
+    "implementationComplete": true,
     "codeReviewPassed": false,
-    "prCreated": false,
+    "prCreated": true,
+    "prNumber": 80,
     "merged": false
   },
   "dependencies": [
