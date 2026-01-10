@@ -27,15 +27,16 @@ import {
 } from '@/components/avinode';
 import { PipelineDashboard } from './pipeline-dashboard';
 import { InlineDashboard } from './inline-dashboard';
+import { OperatorChatInline } from './operator-chat-inline';
 
 export interface MessageRendererProps {
   component: MessageComponent;
-  onAction?: (action: string, data: any) => void;
+  onAction?: (action: string, data: Record<string, unknown>) => void;
   className?: string;
 }
 
 export function MessageRenderer({ component, onAction, className }: MessageRendererProps) {
-  const handleAction = (action: string, data: any) => {
+  const handleAction = (action: string, data: Record<string, unknown>) => {
     onAction?.(action, data);
   };
 
@@ -229,9 +230,16 @@ export function MessageRenderer({ component, onAction, className }: MessageRende
       );
 
     case 'operator_chat_inline':
-      // Operator chat inline is rendered directly in AgentMessage, not through MessageRenderer
-      // This case is included for type exhaustiveness
-      return null;
+      return (
+        <OperatorChatInline
+          flightContext={component.flightContext}
+          messages={component.messages}
+          hasNewMessages={component.hasNewMessages}
+          onViewFullThread={component.onViewFullThread || ((quoteId) => handleAction('view_full_thread', { quoteId }))}
+          onReply={component.onReply || ((quoteId) => handleAction('reply_to_operator', { quoteId }))}
+          className={`${className || ''} ${component.className || ''}`}
+        />
+      );
 
     case 'inline_dashboard':
       return (

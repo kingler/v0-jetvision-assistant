@@ -31,6 +31,20 @@ import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
 import type { PipelineData } from "@/lib/types/chat-agent"
 
+// Realtime webhook event type (from Supabase subscription)
+interface RealtimeWebhookEvent {
+  event_type: string
+  payload?: {
+    quoteId?: string
+    quote_id?: string
+    messageId?: string
+    message?: string
+    content?: string
+    timestamp?: string
+    senderName?: string
+  }
+}
+
 // Extracted utilities from lib/chat
 import {
   // Parsers
@@ -186,7 +200,7 @@ export function ChatInterface({
           },
           (payload) => {
             console.log('[ChatInterface] Webhook event received:', payload)
-            handleWebhookEvent(payload.new)
+            handleWebhookEvent(payload.new as RealtimeWebhookEvent)
           }
         )
         .subscribe()
@@ -204,7 +218,7 @@ export function ChatInterface({
   /**
    * Handle webhook events from Supabase realtime
    */
-  const handleWebhookEvent = useCallback((event: any) => {
+  const handleWebhookEvent = useCallback((event: RealtimeWebhookEvent) => {
     const eventType = event.event_type
     const payload = event.payload || {}
 
@@ -219,7 +233,7 @@ export function ChatInterface({
       const quoteId = payload.quoteId || payload.quote_id
       if (quoteId) {
         const currentMessages = activeChat.operatorMessages?.[quoteId] || []
-        const newMessage = {
+        const newMessage: OperatorMessage = {
           id: payload.messageId || `msg-${Date.now()}`,
           type: eventType === 'TripChatMine' ? 'REQUEST' : 'RESPONSE',
           content: payload.message || payload.content || '',
@@ -825,6 +839,38 @@ export function ChatInterface({
                       setTimeout(() => {
                         handleSendMessage()
                       }, 100)
+                    }}
+                    showOperatorMessages={!!activeChat.operatorMessages && Object.keys(activeChat.operatorMessages).length > 0}
+                    operatorMessages={activeChat.operatorMessages}
+                    operatorFlightContext={(() => {
+                      // Build flight context map from rfqFlights
+                      const contextMap: Record<string, { quoteId: string; operatorName: string; aircraftType?: string; departureAirport?: string; arrivalAirport?: string; price?: number; currency?: string }> = {}
+                      for (const flight of rfqFlights) {
+                        if (flight.quoteId) {
+                          contextMap[flight.quoteId] = {
+                            quoteId: flight.quoteId,
+                            operatorName: flight.operatorName,
+                            aircraftType: flight.aircraftType,
+                            departureAirport: flight.departureAirport.icao,
+                            arrivalAirport: flight.arrivalAirport.icao,
+                            price: flight.totalPrice,
+                            currency: flight.currency,
+                          }
+                        }
+                      }
+                      return contextMap
+                    })()}
+                    onViewOperatorThread={(quoteId) => {
+                      const flight = rfqFlights.find(f => f.quoteId === quoteId)
+                      if (flight) {
+                        handleViewChat(flight.id, quoteId)
+                      }
+                    }}
+                    onReplyToOperator={(quoteId) => {
+                      const flight = rfqFlights.find(f => f.quoteId === quoteId)
+                      if (flight) {
+                        handleViewChat(flight.id, quoteId)
+                      }
                     }}
                   />
                 )}

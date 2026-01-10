@@ -14,6 +14,11 @@ import type { RFQFlight as AvinodeRFQFlight } from "@/lib/mcp/clients/avinode-cl
 import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "../chat-sidebar"
 import { PipelineDashboard } from "../message-components/pipeline-dashboard"
+import {
+  OperatorChatsInline,
+  type FlightContext,
+  type OperatorMessageInline,
+} from "../message-components/operator-chat-inline"
 import type { PipelineData } from "@/lib/types/chat-agent"
 
 /**
@@ -176,6 +181,25 @@ export interface AgentMessageProps {
   onViewRequest?: (requestId: string) => void
   /** Callback when pipeline refresh is clicked */
   onRefreshPipeline?: () => void
+  /** Whether to show inline operator messages */
+  showOperatorMessages?: boolean
+  /** Operator messages grouped by quote ID */
+  operatorMessages?: Record<
+    string,
+    Array<{
+      id: string
+      content: string
+      timestamp: string
+      type: "REQUEST" | "RESPONSE" | "INFO" | "CONFIRMATION"
+      sender?: string
+    }>
+  >
+  /** Flight context for operator messages (maps quoteId to flight details) */
+  operatorFlightContext?: Record<string, FlightContext>
+  /** Callback when "View Full Thread" is clicked for operator messages */
+  onViewOperatorThread?: (quoteId: string) => void
+  /** Callback when "Reply" is clicked for operator messages */
+  onReplyToOperator?: (quoteId: string) => void
 }
 
 /**
@@ -223,6 +247,11 @@ export function AgentMessage({
   pipelineData,
   onViewRequest,
   onRefreshPipeline,
+  showOperatorMessages,
+  operatorMessages,
+  operatorFlightContext,
+  onViewOperatorThread,
+  onReplyToOperator,
 }: AgentMessageProps) {
   const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
 
@@ -455,6 +484,61 @@ export function AgentMessage({
           className="mt-2"
         />
       )}
+
+      {/* Operator Messages Inline - displays messages from operators grouped by quote */}
+      {showOperatorMessages &&
+        operatorMessages &&
+        Object.keys(operatorMessages).length > 0 &&
+        (() => {
+          // Build the chatsByQuote Map for OperatorChatsInline
+          const chatsByQuote = new Map<
+            string,
+            {
+              flightContext: FlightContext
+              messages: OperatorMessageInline[]
+              hasNewMessages?: boolean
+            }
+          >()
+
+          for (const [quoteId, messages] of Object.entries(operatorMessages)) {
+            if (messages.length === 0) continue
+
+            // Get flight context from provided map or create default
+            const flightContext = operatorFlightContext?.[quoteId] || {
+              quoteId,
+              operatorName:
+                messages.find((m) => m.type === "RESPONSE")?.sender ||
+                "Operator",
+            }
+
+            // Check for new messages (messages after the most recent REQUEST type)
+            const lastRequestIdx = messages.findLastIndex(
+              (m) => m.type === "REQUEST"
+            )
+            const hasNewMessages =
+              lastRequestIdx >= 0 &&
+              messages
+                .slice(lastRequestIdx + 1)
+                .some((m) => m.type === "RESPONSE")
+
+            chatsByQuote.set(quoteId, {
+              flightContext,
+              messages: messages as OperatorMessageInline[],
+              hasNewMessages,
+            })
+          }
+
+          if (chatsByQuote.size === 0) return null
+
+          return (
+            <OperatorChatsInline
+              chatsByQuote={chatsByQuote}
+              onViewFullThread={onViewOperatorThread}
+              onReply={onReplyToOperator}
+              className="mt-3"
+            />
+          )
+        })()}
 
       {/* Timestamp */}
       <span className="text-xs text-gray-500 dark:text-gray-400">
