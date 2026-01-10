@@ -71,7 +71,7 @@ CREATE POLICY "Users can view own trip segments"
       SELECT id FROM requests
       WHERE iso_agent_id IN (
         SELECT id FROM iso_agents
-        WHERE clerk_user_id = auth.uid()
+        WHERE clerk_user_id = auth.uid()::TEXT
       )
     )
   );
@@ -85,7 +85,7 @@ CREATE POLICY "Users can insert own trip segments"
       SELECT id FROM requests
       WHERE iso_agent_id IN (
         SELECT id FROM iso_agents
-        WHERE clerk_user_id = auth.uid()
+        WHERE clerk_user_id = auth.uid()::TEXT
       )
     )
   );
@@ -99,7 +99,7 @@ CREATE POLICY "Users can update own trip segments"
       SELECT id FROM requests
       WHERE iso_agent_id IN (
         SELECT id FROM iso_agents
-        WHERE clerk_user_id = auth.uid()
+        WHERE clerk_user_id = auth.uid()::TEXT
       )
     )
   )
@@ -108,7 +108,7 @@ CREATE POLICY "Users can update own trip segments"
       SELECT id FROM requests
       WHERE iso_agent_id IN (
         SELECT id FROM iso_agents
-        WHERE clerk_user_id = auth.uid()
+        WHERE clerk_user_id = auth.uid()::TEXT
       )
     )
   );
@@ -122,7 +122,7 @@ CREATE POLICY "Users can delete own trip segments"
       SELECT id FROM requests
       WHERE iso_agent_id IN (
         SELECT id FROM iso_agents
-        WHERE clerk_user_id = auth.uid()
+        WHERE clerk_user_id = auth.uid()::TEXT
       )
     )
   );

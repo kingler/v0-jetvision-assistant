@@ -141,9 +141,10 @@ CREATE INDEX idx_empty_leg_matches_interested
   WHERE interested = true;
 CREATE INDEX idx_empty_leg_matches_departure
   ON empty_leg_matches(departure_date);
+-- Index for filtering by valid_until (no partial index since NOW() is not immutable)
 CREATE INDEX idx_empty_leg_matches_valid
   ON empty_leg_matches(valid_until)
-  WHERE valid_until > NOW();
+  WHERE valid_until IS NOT NULL;
 
 -- ============================================================================
 -- Row Level Security (RLS)
@@ -160,7 +161,7 @@ CREATE POLICY "Users can view own watches"
   USING (
     iso_agent_id IN (
       SELECT id FROM iso_agents
-      WHERE clerk_user_id = auth.uid()
+      WHERE clerk_user_id = auth.uid()::TEXT
     )
   );
 
@@ -170,7 +171,7 @@ CREATE POLICY "Users can create own watches"
   WITH CHECK (
     iso_agent_id IN (
       SELECT id FROM iso_agents
-      WHERE clerk_user_id = auth.uid()
+      WHERE clerk_user_id = auth.uid()::TEXT
     )
   );
 
@@ -180,13 +181,13 @@ CREATE POLICY "Users can update own watches"
   USING (
     iso_agent_id IN (
       SELECT id FROM iso_agents
-      WHERE clerk_user_id = auth.uid()
+      WHERE clerk_user_id = auth.uid()::TEXT
     )
   )
   WITH CHECK (
     iso_agent_id IN (
       SELECT id FROM iso_agents
-      WHERE clerk_user_id = auth.uid()
+      WHERE clerk_user_id = auth.uid()::TEXT
     )
   );
 
@@ -196,7 +197,7 @@ CREATE POLICY "Users can delete own watches"
   USING (
     iso_agent_id IN (
       SELECT id FROM iso_agents
-      WHERE clerk_user_id = auth.uid()
+      WHERE clerk_user_id = auth.uid()::TEXT
     )
   );
 
@@ -210,7 +211,7 @@ CREATE POLICY "Users can view matches for own watches"
       SELECT id FROM empty_leg_watches
       WHERE iso_agent_id IN (
         SELECT id FROM iso_agents
-        WHERE clerk_user_id = auth.uid()
+        WHERE clerk_user_id = auth.uid()::TEXT
       )
     )
   );
@@ -223,7 +224,7 @@ CREATE POLICY "Users can update matches for own watches"
       SELECT id FROM empty_leg_watches
       WHERE iso_agent_id IN (
         SELECT id FROM iso_agents
-        WHERE clerk_user_id = auth.uid()
+        WHERE clerk_user_id = auth.uid()::TEXT
       )
     )
   )
@@ -232,7 +233,7 @@ CREATE POLICY "Users can update matches for own watches"
       SELECT id FROM empty_leg_watches
       WHERE iso_agent_id IN (
         SELECT id FROM iso_agents
-        WHERE clerk_user_id = auth.uid()
+        WHERE clerk_user_id = auth.uid()::TEXT
       )
     )
   );
