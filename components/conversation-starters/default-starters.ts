@@ -8,6 +8,18 @@ import type { ConversationStarter } from "./types"
  * The useSmartStarters hook can override badges and disabled state
  * based on user context.
  */
+/**
+ * Prompt templates for conversation starters
+ * These prompts are submitted to the chat when a starter is clicked
+ */
+export const STARTER_PROMPTS = {
+  "new-flight-request": "I'd like to create a new flight request. Please help me set up a charter flight.",
+  "show-active-requests": "Show me my active flight requests. I want to see the status of my pending RFQs and any quotes I've received.",
+  "show-deals": "Show me my deals. Display all active deals with their status, operators, and pricing information.",
+  "show-hot-opportunities": "Show me hot opportunities. I want to see high-priority deals that need immediate attention or are time-sensitive.",
+  "show-pipeline": "Show me my pipeline summary. I want an overview of my request pipeline, including metrics and conversion rates.",
+} as const
+
 export const DEFAULT_STARTERS: ConversationStarter[] = [
   // Flight Requests Category
   {
@@ -18,6 +30,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "flight",
     variant: "cyan",
     action: "new-flight-request",
+    prompt: STARTER_PROMPTS["new-flight-request"],
     priority: 1,
   },
   {
@@ -28,6 +41,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "flight",
     variant: "cyan",
     action: "show-active-requests",
+    prompt: STARTER_PROMPTS["show-active-requests"],
     priority: 2,
   },
 
@@ -40,6 +54,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "deals",
     variant: "green",
     action: "show-deals",
+    prompt: STARTER_PROMPTS["show-deals"],
     priority: 1,
   },
   {
@@ -50,6 +65,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "deals",
     variant: "amber",
     action: "show-hot-opportunities",
+    prompt: STARTER_PROMPTS["show-hot-opportunities"],
     priority: 2,
   },
 
@@ -62,6 +78,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "pipeline",
     variant: "blue",
     action: "show-pipeline",
+    prompt: STARTER_PROMPTS["show-pipeline"],
     priority: 1,
   },
 ]

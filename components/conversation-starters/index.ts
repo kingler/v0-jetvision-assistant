@@ -41,7 +41,7 @@ export type {
 } from "./types"
 
 // Default starters configuration
-export { DEFAULT_STARTERS, getDefaultStarters } from "./default-starters"
+export { DEFAULT_STARTERS, getDefaultStarters, STARTER_PROMPTS } from "./default-starters"
 
 // Hooks
 export {
