@@ -12,6 +12,7 @@ import type {
   AgentConfig,
 } from '../core/types';
 import { AgentType, AgentStatus } from '../core/types';
+import { getSystemPrompt } from '../config';
 
 interface ClientData {
   clientName: string;
@@ -58,6 +59,7 @@ export class CommunicationAgent extends BaseAgent {
     super({
       ...config,
       type: AgentType.COMMUNICATION,
+      systemPrompt: config.systemPrompt || getSystemPrompt(AgentType.COMMUNICATION),
     });
   }
 

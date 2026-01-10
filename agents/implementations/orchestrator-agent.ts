@@ -21,6 +21,7 @@ import type {
   AgentTask,
 } from '../core/types';
 import { AgentType, AgentStatus } from '../core/types';
+import { getSystemPrompt } from '../config';
 import {
   IntentParser,
   DataExtractor,
@@ -90,6 +91,7 @@ export class OrchestratorAgent extends BaseAgent {
     super({
       ...config,
       type: AgentType.ORCHESTRATOR,
+      systemPrompt: config.systemPrompt || getSystemPrompt(AgentType.ORCHESTRATOR),
     });
 
     // Initialize conversational tools

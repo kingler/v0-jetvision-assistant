@@ -12,6 +12,7 @@ import type {
   AgentConfig,
 } from '../core/types';
 import { AgentType, AgentStatus } from '../core/types';
+import { getSystemPrompt } from '../config';
 import { updateRequestWithAvinodeTrip } from '@/lib/supabase/admin';
 
 /**
@@ -129,23 +130,7 @@ export class FlightSearchAgent extends BaseAgent {
     super({
       ...config,
       type: AgentType.FLIGHT_SEARCH,
-      systemPrompt: config.systemPrompt || `You are a Flight Search Agent specialized in finding private jet flights via Avinode.
-
-Your capabilities:
-- Search for available flights using search_flights tool
-- Create trips in Avinode using create_trip tool (returns deep link for user)
-- Retrieve RFQ details using get_rfq tool
-- Get quotes using get_quotes tool
-- Cancel trips using cancel_trip tool
-- Send messages to operators using send_trip_message tool
-- Retrieve trip message history using get_trip_messages tool
-
-When a user requests a flight:
-1. Use create_trip to create a trip container and get the deep link
-2. Present the deep link prominently - it allows users to browse operators in Avinode
-3. After user selects operators and receives quotes, use get_rfq to retrieve all quotes
-
-Always use the available MCP tools rather than making assumptions.`,
+      systemPrompt: config.systemPrompt || getSystemPrompt(AgentType.FLIGHT_SEARCH),
     });
   }
 
