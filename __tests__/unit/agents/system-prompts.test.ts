@@ -163,6 +163,39 @@ describe('Agent System Prompts', () => {
       expect(prompt).toContain('Conversation State Management');
       expect(prompt).toContain('session continuity');
     });
+
+    it('should include conversation starters for landing page', () => {
+      const prompt = getSystemPrompt(AgentType.ORCHESTRATOR);
+      expect(prompt).toContain('Conversation Starters');
+      expect(prompt).toContain('Landing Page Quick Actions');
+    });
+
+    it('should include Flight Requests conversation starters', () => {
+      const prompt = getSystemPrompt(AgentType.ORCHESTRATOR);
+      expect(prompt).toContain('Flight Requests');
+      expect(prompt).toContain('New request');
+      expect(prompt).toContain('Active requests');
+      expect(prompt).toContain('Recent searches');
+      expect(prompt).toContain('Empty leg deals');
+    });
+
+    it('should include Deals Overview conversation starters', () => {
+      const prompt = getSystemPrompt(AgentType.ORCHESTRATOR);
+      expect(prompt).toContain('Deals Overview');
+      expect(prompt).toContain('My deals');
+      expect(prompt).toContain('Pending quotes');
+      expect(prompt).toContain("Today's proposals");
+      expect(prompt).toContain('Hot opportunities');
+    });
+
+    it('should include Pipeline Overview conversation starters', () => {
+      const prompt = getSystemPrompt(AgentType.ORCHESTRATOR);
+      expect(prompt).toContain('Pipeline Overview');
+      expect(prompt).toContain('Summary dashboard');
+      expect(prompt).toContain('Weekly metrics');
+      expect(prompt).toContain('Conversion funnel');
+      expect(prompt).toContain('Upcoming departures');
+    });
   });
 
   describe('ProposalAnalysisAgent', () => {
