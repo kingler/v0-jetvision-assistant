@@ -26,7 +26,18 @@ export interface HotOpportunitiesProps {
   className?: string;
 }
 
+/**
+ * Formats a numeric value as currency
+ * @param value - The numeric value to format
+ * @param currency - The currency code (default: 'USD')
+ * @returns Formatted currency string
+ */
 function formatCurrency(value: number, currency: string = 'USD'): string {
+  // Validate input
+  if (!Number.isFinite(value)) {
+    return '$0';
+  }
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
@@ -35,6 +46,11 @@ function formatCurrency(value: number, currency: string = 'USD'): string {
   }).format(value);
 }
 
+/**
+ * Calculates time remaining until expiration
+ * @param expiresAt - ISO date string for expiration time
+ * @returns Object with hours, minutes, isExpired flag, and display label
+ */
 function getTimeRemaining(expiresAt: string): {
   hours: number;
   minutes: number;
@@ -43,6 +59,12 @@ function getTimeRemaining(expiresAt: string): {
 } {
   const now = new Date();
   const expiry = new Date(expiresAt);
+
+  // Validate date parsing
+  if (isNaN(expiry.getTime())) {
+    return { hours: 0, minutes: 0, isExpired: true, label: 'Invalid Date' };
+  }
+
   const diffMs = expiry.getTime() - now.getTime();
 
   if (diffMs <= 0) {

@@ -17,7 +17,17 @@ export interface DealPipelineTrackerProps {
   className?: string;
 }
 
+/**
+ * Formats a currency value with compact notation (K, M) if above threshold
+ * @param value - The numeric value to format
+ * @returns Formatted currency string (e.g., "$45K", "$1.2M")
+ */
 function formatCurrency(value: number): string {
+  // Validate input
+  if (!Number.isFinite(value)) {
+    return '$0';
+  }
+
   if (value >= 1000000) {
     return `$${(value / 1000000).toFixed(1)}M`;
   }
