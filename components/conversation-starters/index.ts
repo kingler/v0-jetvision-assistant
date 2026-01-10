@@ -19,3 +19,10 @@ export type {
 
 // Default starters configuration
 export { DEFAULT_STARTERS, getDefaultStarters } from "./default-starters"
+
+// Hooks
+export {
+  useSmartStarters,
+  type UserContext,
+  type SmartStartersResult,
+} from "./hooks"
