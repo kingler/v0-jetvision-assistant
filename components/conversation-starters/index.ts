@@ -8,6 +8,13 @@
 // Components
 export { StarterCard, type StarterCardProps, type StarterCardVariant } from "./starter-card"
 export { ConversationStarterHub } from "./conversation-starter-hub"
+export {
+  FlightRequestStarter,
+  type FlightRequestStarterProps,
+  type FlightRequestData,
+  type FlightRequestDefaults,
+  type Airport,
+} from "./flight-request-starter"
 
 // Types
 export type {
