@@ -110,6 +110,12 @@ export function useAvinodeQuotes(tripId: string): UseAvinodeQuotesReturn {
    * Memoized to prevent unnecessary re-creation
    */
   const fetchQuotes = useCallback(async () => {
+    // Don't fetch if tripId is empty - preserve the error state set in useState
+    if (!tripId) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 

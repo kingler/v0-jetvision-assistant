@@ -144,7 +144,8 @@ describe('RFQFlightCard', () => {
 
       expect(screen.getByText('Citation XLS')).toBeInTheDocument();
       expect(screen.getByText('Sky Charter')).toBeInTheDocument();
-      expect(screen.getByText(/\$25,000/)).toBeInTheDocument();
+      // Price appears in multiple places (price section and bottom action area)
+      expect(screen.getAllByText(/\$25,000/).length).toBeGreaterThan(0);
     });
 
     it('renders aircraft image when provided', () => {
@@ -167,7 +168,8 @@ describe('RFQFlightCard', () => {
     it('displays quoted status badge', () => {
       render(<RFQFlightCard flight={mockFlight} />);
 
-      const badge = screen.getByTestId('status-badge');
+      // In full view, status badge has data-testid="rfq-status-badge"
+      const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toBeInTheDocument();
       expect(badge).toHaveTextContent(/quoted/i);
       expect(badge).toHaveClass('bg-green-100', 'text-green-700');
@@ -176,7 +178,7 @@ describe('RFQFlightCard', () => {
     it('displays unanswered status badge', () => {
       render(<RFQFlightCard flight={minimalFlight} />);
 
-      const badge = screen.getByTestId('status-badge');
+      const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toBeInTheDocument();
       expect(badge).toHaveTextContent(/unanswered/i);
       expect(badge).toHaveClass('bg-gray-200', 'text-gray-700');
@@ -186,7 +188,7 @@ describe('RFQFlightCard', () => {
       const flight = { ...mockFlight, rfqStatus: 'sent' as const };
       render(<RFQFlightCard flight={flight} />);
 
-      const badge = screen.getByTestId('status-badge');
+      const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toHaveTextContent(/sent/i);
       expect(badge).toHaveClass('bg-blue-100', 'text-blue-700');
     });
@@ -195,7 +197,7 @@ describe('RFQFlightCard', () => {
       const flight = { ...mockFlight, rfqStatus: 'declined' as const };
       render(<RFQFlightCard flight={flight} />);
 
-      const badge = screen.getByTestId('status-badge');
+      const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toHaveTextContent(/declined/i);
       expect(badge).toHaveClass('bg-red-100', 'text-red-700');
     });
@@ -204,7 +206,7 @@ describe('RFQFlightCard', () => {
       const flight = { ...mockFlight, rfqStatus: 'expired' as const };
       render(<RFQFlightCard flight={flight} />);
 
-      const badge = screen.getByTestId('status-badge');
+      const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toHaveTextContent(/expired/i);
       expect(badge).toHaveClass('bg-gray-100', 'text-gray-700');
     });
@@ -216,7 +218,8 @@ describe('RFQFlightCard', () => {
 
       const priceSection = screen.getByTestId('price-section');
       expect(priceSection).toBeInTheDocument();
-      expect(screen.getByText(/\$32,500/)).toBeInTheDocument();
+      // Price appears in multiple places (price section and bottom action area)
+      expect(screen.getAllByText(/\$32,500/).length).toBeGreaterThan(0);
     });
 
     it('shows price breakdown when enabled', () => {
@@ -334,12 +337,13 @@ describe('RFQFlightCard', () => {
 
     it('calls onViewChat when button is clicked', () => {
       const onViewChat = vi.fn();
-      render(<RFQFlightCard flight={mockFlight} onViewChat={onViewChat} />);
+      render(<RFQFlightCard flight={mockFlight} onViewChat={onViewChat} quoteId="test-quote-id" messageId="test-message-id" />);
 
       const button = screen.getByRole('button', { name: /view chat/i });
       fireEvent.click(button);
 
-      expect(onViewChat).toHaveBeenCalledWith(mockFlight.id);
+      // onViewChat is called with (flightId, quoteId, messageId)
+      expect(onViewChat).toHaveBeenCalledWith(mockFlight.id, 'test-quote-id', 'test-message-id');
     });
 
     it('hides view chat button when onViewChat is not provided', () => {
@@ -360,9 +364,9 @@ describe('RFQFlightCard', () => {
       expect(screen.getByTestId('transport-section')).toBeInTheDocument();
     });
 
-    it('has rfq status section', () => {
+    it('has rfq status badge', () => {
       render(<RFQFlightCard flight={mockFlight} />);
-      expect(screen.getByTestId('rfq-status-section')).toBeInTheDocument();
+      expect(screen.getByTestId('rfq-status-badge')).toBeInTheDocument();
     });
 
     it('has price section', () => {
@@ -422,39 +426,37 @@ describe('RFQFlightCard', () => {
     });
   });
 
-  describe('Review and Book CTA', () => {
-    it('renders enabled button for quoted flights and invokes callback', () => {
-      const onReviewAndBook = vi.fn();
+  describe('Book Flight CTA', () => {
+    it('renders Book Flight button for quoted flights and invokes callback', () => {
+      const onBookFlight = vi.fn();
       render(
         <RFQFlightCard
           flight={{ ...mockFlight, rfqStatus: 'quoted' }}
-          showBookButton
-          onReviewAndBook={onReviewAndBook}
+          onBookFlight={onBookFlight}
+          quoteId="test-quote-id"
         />
       );
 
-      const button = screen.getByTestId('review-and-book');
+      const button = screen.getByRole('button', { name: /book flight/i });
+      expect(button).toBeInTheDocument();
       expect(button).toBeEnabled();
 
       fireEvent.click(button);
-      expect(onReviewAndBook).toHaveBeenCalledWith(mockFlight.id);
+      // onBookFlight is called with (flightId, quoteId)
+      expect(onBookFlight).toHaveBeenCalledWith(mockFlight.id, 'test-quote-id');
     });
 
-    it('renders disabled button when RFQ not quoted', () => {
-      const onReviewAndBook = vi.fn();
+    it('does not render Book Flight button when RFQ not quoted', () => {
+      const onBookFlight = vi.fn();
       render(
         <RFQFlightCard
           flight={{ ...mockFlight, rfqStatus: 'sent' }}
-          showBookButton
-          onReviewAndBook={onReviewAndBook}
+          onBookFlight={onBookFlight}
         />
       );
 
-      const button = screen.getByTestId('review-and-book');
-      expect(button).toBeDisabled();
-
-      fireEvent.click(button);
-      expect(onReviewAndBook).not.toHaveBeenCalled();
+      // Book Flight button should not be present when status is not 'quoted'
+      expect(screen.queryByRole('button', { name: /book flight/i })).not.toBeInTheDocument();
     });
   });
 });

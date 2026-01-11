@@ -114,15 +114,17 @@ describe('useAvinodeQuotes', () => {
       expect(result.current.connectionStatus).toBe('connecting');
     });
 
-    it('should throw error if tripId is empty', () => {
-      // Suppress console.error for this test
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should set error state if tripId is empty', async () => {
+      // Hook sets error in state instead of throwing (for React 18 compatibility)
+      const { result } = renderHook(() => useAvinodeQuotes(''));
 
-      expect(() => {
-        renderHook(() => useAvinodeQuotes(''));
-      }).toThrow('tripId is required');
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
 
-      consoleError.mockRestore();
+      expect(result.current.error).toBeInstanceOf(Error);
+      expect(result.current.error?.message).toBe('tripId is required');
+      expect(result.current.quotes).toEqual([]);
     });
   });
 
