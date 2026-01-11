@@ -445,16 +445,9 @@ export function RFQFlightCard({
       })
     }
     
-    // WARNING: If status is unanswered but price is not 0, status should be 'quoted'
-    if (flight.rfqStatus === 'unanswered' && flight.totalPrice > 0) {
-      console.warn('[RFQFlightCard] ⚠️ WARNING: Flight has price but status is "unanswered"!', {
-        flightId: flight.id,
-        quoteId: flight.quoteId,
-        price: flight.totalPrice,
-        status: flight.rfqStatus,
-        message: 'Status should be "quoted" when price exists. This indicates a bug in status determination logic.',
-      })
-    }
+    // Note: Price is always present from the initial RFQ - this is expected.
+    // Status changes to 'quoted' only when the operator responds/accepts.
+    // So having a price with 'unanswered' status is the normal initial state.
   }, [flight.id, flight.totalPrice, flight.rfqStatus, flight.currency]) // Re-run when these change
 
   /**
@@ -500,17 +493,14 @@ export function RFQFlightCard({
 
   /**
    * Determine if action buttons should be shown
-   * Show when status is 'quoted' and messages exist (hasMessages flag)
-   * 
-   * The hasMessages flag is set when:
-   * - Operator messages exist in activeChat.operatorMessages[quoteId]
-   * - OR when status is 'quoted' (assumes messages may exist)
-   * 
-   * Messages are retrieved via:
-   * - get_message tool (GET /tripmsgs/{messageId}) when messageId is available
-   * - get_trip_messages tool (GET /tripmsgs/{requestId}/chat) when quoteId is available
+   * Show when status is 'quoted' - meaning the operator has responded/accepted
+   *
+   * When rfqStatus changes to 'quoted':
+   * - Operator has confirmed availability and pricing
+   * - Operator's response includes a message with details
+   * - "Generate Proposal" and "Book Flight" buttons become visible
    */
-  const showActionButtons = flight.rfqStatus === 'quoted' && hasMessages;
+  const showActionButtons = flight.rfqStatus === 'quoted';
 
   /**
    * Handles the "View in Avinode" button click

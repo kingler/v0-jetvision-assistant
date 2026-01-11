@@ -89,7 +89,8 @@ const mockFlights: RFQFlight[] = [
 describe('RFQFlightsList', () => {
   describe('Rendering', () => {
     it('renders all flights in the list', () => {
-      render(<RFQFlightsList flights={mockFlights} />);
+      // Use compact={false} to see operator names in expanded view
+      render(<RFQFlightsList flights={mockFlights} compact={false} />);
 
       expect(screen.getByText('Executive Jets LLC')).toBeInTheDocument();
       expect(screen.getByText('Sky Charter')).toBeInTheDocument();
@@ -117,7 +118,8 @@ describe('RFQFlightsList', () => {
 
   describe('Selection', () => {
     it('renders with selectable flights', () => {
-      render(<RFQFlightsList flights={mockFlights} selectable />);
+      // Use compact={false} to show selection checkboxes
+      render(<RFQFlightsList flights={mockFlights} selectable compact={false} />);
 
       const checkboxes = screen.getAllByRole('checkbox');
       expect(checkboxes).toHaveLength(3);
@@ -125,10 +127,12 @@ describe('RFQFlightsList', () => {
 
     it('tracks selected flights', () => {
       const onSelectionChange = vi.fn();
+      // Use compact={false} to show selection checkboxes
       render(
         <RFQFlightsList
           flights={mockFlights}
           selectable
+          compact={false}
           onSelectionChange={onSelectionChange}
         />
       );
@@ -141,10 +145,12 @@ describe('RFQFlightsList', () => {
 
     it('allows multiple selections', () => {
       const onSelectionChange = vi.fn();
+      // Use compact={false} to show selection checkboxes
       render(
         <RFQFlightsList
           flights={mockFlights}
           selectable
+          compact={false}
           onSelectionChange={onSelectionChange}
         />
       );
@@ -163,10 +169,12 @@ describe('RFQFlightsList', () => {
       }));
       const onSelectionChange = vi.fn();
 
+      // Use compact={false} to show selection checkboxes
       render(
         <RFQFlightsList
           flights={flightsWithSelected}
           selectable
+          compact={false}
           onSelectionChange={onSelectionChange}
         />
       );
@@ -234,7 +242,8 @@ describe('RFQFlightsList', () => {
 
   describe('Sorting', () => {
     it('sorts by price (low to high)', () => {
-      render(<RFQFlightsList flights={mockFlights} sortable initialSortBy="price-asc" />);
+      // Use compact={false} to see operator names in expanded view
+      render(<RFQFlightsList flights={mockFlights} sortable initialSortBy="price-asc" compact={false} />);
 
       const cards = screen.getAllByTestId('rfq-flight-card');
       expect(within(cards[0]).getByText('Quick Air')).toBeInTheDocument(); // $18,000
@@ -243,7 +252,8 @@ describe('RFQFlightsList', () => {
     });
 
     it('sorts by price (high to low)', () => {
-      render(<RFQFlightsList flights={mockFlights} sortable initialSortBy="price-desc" />);
+      // Use compact={false} to see operator names in expanded view
+      render(<RFQFlightsList flights={mockFlights} sortable initialSortBy="price-desc" compact={false} />);
 
       const cards = screen.getAllByTestId('rfq-flight-card');
       expect(within(cards[0]).getByText('Executive Jets LLC')).toBeInTheDocument(); // $32,500
@@ -252,7 +262,8 @@ describe('RFQFlightsList', () => {
     });
 
     it('sorts by operator rating', () => {
-      render(<RFQFlightsList flights={mockFlights} sortable initialSortBy="rating-desc" />);
+      // Use compact={false} to see operator names in expanded view
+      render(<RFQFlightsList flights={mockFlights} sortable initialSortBy="rating-desc" compact={false} />);
 
       const cards = screen.getAllByTestId('rfq-flight-card');
       expect(within(cards[0]).getByText('Executive Jets LLC')).toBeInTheDocument(); // 4.8
@@ -267,7 +278,8 @@ describe('RFQFlightsList', () => {
     });
 
     it('changes sort order when dropdown is changed', () => {
-      render(<RFQFlightsList flights={mockFlights} sortable initialSortBy="price-asc" />);
+      // Use compact={false} to see operator names in expanded view
+      render(<RFQFlightsList flights={mockFlights} sortable initialSortBy="price-asc" compact={false} />);
 
       const sortDropdown = screen.getByRole('combobox', { name: /sort by/i });
       fireEvent.change(sortDropdown, { target: { value: 'price-desc' } });
@@ -278,34 +290,37 @@ describe('RFQFlightsList', () => {
   });
 
   describe('Filtering by Status', () => {
-    it('filters by quoted status', () => {
-      render(
-        <RFQFlightsList
-          flights={mockFlights}
-          filterable
-          statusFilter="quoted"
-        />
-      );
+    /**
+     * Note: Filtering by status was removed from the component
+     * as it's not necessary with an average of 2-3 RFQs.
+     * These tests verify that all flights are shown regardless of filterable prop.
+     */
+    it('shows all flights when filterable prop is passed (filtering removed)', () => {
+      // Use compact={false} to see operator names
+      render(<RFQFlightsList flights={mockFlights} filterable compact={false} />);
 
-      // Only quoted flights should be shown
-      expect(screen.getByText('Executive Jets LLC')).toBeInTheDocument();
-      expect(screen.getByText('Sky Charter')).toBeInTheDocument();
-      expect(screen.queryByText('Quick Air')).not.toBeInTheDocument();
-    });
-
-    it('shows all flights when no filter', () => {
-      render(<RFQFlightsList flights={mockFlights} filterable />);
-
+      // All flights shown since filtering was removed
       expect(screen.getByText('Executive Jets LLC')).toBeInTheDocument();
       expect(screen.getByText('Sky Charter')).toBeInTheDocument();
       expect(screen.getByText('Quick Air')).toBeInTheDocument();
     });
 
-    it('displays filter buttons when filterable', () => {
-      render(<RFQFlightsList flights={mockFlights} filterable />);
+    it('shows all flights regardless of statusFilter prop (filtering removed)', () => {
+      // Use compact={false} to see operator names
+      render(
+        <RFQFlightsList
+          flights={mockFlights}
+          filterable
+          statusFilter="quoted"
+          compact={false}
+        />
+      );
 
-      expect(screen.getByRole('button', { name: /all/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /quoted/i })).toBeInTheDocument();
+      // All flights shown since filtering logic was removed
+      // The component accepts the prop but doesn't filter
+      expect(screen.getByText('Executive Jets LLC')).toBeInTheDocument();
+      expect(screen.getByText('Sky Charter')).toBeInTheDocument();
+      expect(screen.getByText('Quick Air')).toBeInTheDocument();
     });
   });
 
@@ -365,10 +380,19 @@ describe('RFQFlightsList', () => {
 
   describe('Price Breakdown', () => {
     it('passes showPriceBreakdown to flight cards', () => {
-      render(<RFQFlightsList flights={mockFlights} showPriceBreakdown />);
+      // Use compact={false} to see the full price-section testid
+      render(<RFQFlightsList flights={mockFlights} showPriceBreakdown compact={false} />);
 
       const priceSection = screen.getAllByTestId('price-section')[0];
       expect(priceSection).toBeInTheDocument();
+    });
+
+    it('shows price in compact view', () => {
+      // Default compact mode shows price-section-compact
+      render(<RFQFlightsList flights={mockFlights} showPriceBreakdown />);
+
+      const priceSectionCompact = screen.getAllByTestId('price-section-compact')[0];
+      expect(priceSectionCompact).toBeInTheDocument();
     });
   });
 
