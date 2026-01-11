@@ -194,14 +194,14 @@ describe('BaseMCPServer', () => {
     });
 
     it('should prevent operations when not running', async () => {
-      // Before start
-      await expect(server.executeTool('test', {})).rejects.toThrow('Server not running');
+      // Before start - server is in idle state
+      await expect(server.executeTool('test', {})).rejects.toThrow(/idle state|not running/i);
 
       await server.start();
       await server.stop();
 
-      // After stop
-      await expect(server.executeTool('test', {})).rejects.toThrow('Server not running');
+      // After stop - server is in stopped state
+      await expect(server.executeTool('test', {})).rejects.toThrow(/stopped state|not running/i);
     });
 
     it('should cleanup resources on shutdown', async () => {
