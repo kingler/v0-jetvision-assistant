@@ -8,6 +8,34 @@ import type { ConversationStarter } from "./types"
  * The useSmartStarters hook can override badges and disabled state
  * based on user context.
  */
+/**
+ * Prompt templates for conversation starters
+ * These prompts are submitted to the chat when a starter is clicked.
+ * Tool references help the agent understand which MCP tools to use.
+ *
+ * Available Avinode MCP tools:
+ * - create_trip: Create trip and get deep link for operator selection
+ * - get_rfq: Get RFQ details and received quotes (supports trip ID)
+ * - get_quote: Get detailed quote information from an operator
+ * - cancel_trip: Cancel an active trip
+ * - send_trip_message: Send message to operators
+ * - get_trip_messages: Get message history for a trip
+ * - search_airports: Search airports by code/name
+ * - search_empty_legs: Find empty leg flights
+ */
+export const STARTER_PROMPTS = {
+  "new-flight-request":
+    "I'd like to create a new flight request. Use the `create_trip` tool to set up a charter flight and generate a deep link for operator selection.",
+  "show-active-requests":
+    "Show me my active flight requests. Fetch my pending trips from the database and use the `get_rfq` tool to retrieve RFQ details and any quotes received for each trip.",
+  "show-deals":
+    "Show me my deals. Fetch active quotes from the database and use the `get_quote` tool to display detailed pricing, operator information, and deal status for each quote.",
+  "show-hot-opportunities":
+    "Show me hot opportunities. Fetch quotes that are expiring soon or have high priority. Use the `get_quote` tool to get details on time-sensitive deals that need immediate attention.",
+  "show-pipeline":
+    "Show me my pipeline summary. Aggregate data from my trips and quotes to provide metrics including total requests, quotes received, conversion rates, and pipeline value by status.",
+} as const
+
 export const DEFAULT_STARTERS: ConversationStarter[] = [
   // Flight Requests Category
   {
@@ -18,6 +46,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "flight",
     variant: "cyan",
     action: "new-flight-request",
+    prompt: STARTER_PROMPTS["new-flight-request"],
     priority: 1,
   },
   {
@@ -28,6 +57,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "flight",
     variant: "cyan",
     action: "show-active-requests",
+    prompt: STARTER_PROMPTS["show-active-requests"],
     priority: 2,
   },
 
@@ -40,6 +70,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "deals",
     variant: "green",
     action: "show-deals",
+    prompt: STARTER_PROMPTS["show-deals"],
     priority: 1,
   },
   {
@@ -50,6 +81,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "deals",
     variant: "amber",
     action: "show-hot-opportunities",
+    prompt: STARTER_PROMPTS["show-hot-opportunities"],
     priority: 2,
   },
 
@@ -62,6 +94,7 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     category: "pipeline",
     variant: "blue",
     action: "show-pipeline",
+    prompt: STARTER_PROMPTS["show-pipeline"],
     priority: 1,
   },
 ]

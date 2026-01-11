@@ -26,6 +26,8 @@ export interface ConversationStarter {
   badge?: number
   /** Action identifier for click handler */
   action: string
+  /** Prompt template to submit to chat when clicked */
+  prompt: string
   /** Whether this starter is currently disabled */
   disabled?: boolean
   /** Priority for ordering within category (lower = higher priority) */
