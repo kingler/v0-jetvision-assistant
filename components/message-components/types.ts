@@ -333,6 +333,107 @@ export interface PipelineDashboardComponent extends BaseMessageComponent {
 }
 
 /**
+ * Operator Chat Inline component - displays operator messages inline with flight context
+ */
+export interface OperatorChatInlineComponent extends BaseMessageComponent {
+  type: 'operator_chat_inline';
+  flightContext: {
+    quoteId: string;
+    operatorName: string;
+    aircraftType?: string;
+    departureAirport?: string;
+    arrivalAirport?: string;
+    price?: number;
+    currency?: string;
+  };
+  messages: Array<{
+    id: string;
+    content: string;
+    timestamp: string;
+    type: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION';
+    sender?: string;
+  }>;
+  hasNewMessages?: boolean;
+  onViewFullThread?: (quoteId: string) => void;
+  onReply?: (quoteId: string) => void;
+}
+
+/**
+ * Deal Pipeline Stage - represents a single stage in the deal pipeline
+ */
+export interface DealPipelineStage {
+  id: string;
+  name: string;
+  shortName: string;
+  count: number;
+  value: number;
+  status: 'completed' | 'active' | 'pending';
+  order: number;
+}
+
+/**
+ * Analytics Summary - key performance metrics with trend comparison
+ */
+export interface AnalyticsSummary {
+  successRate: number;
+  conversionRate: number;
+  avgDealValue: number;
+  avgTimeToClose: number;
+  totalDeals: number;
+  periodComparison: {
+    successRateDelta: number;
+    conversionDelta: number;
+    valueDelta: number;
+    timeToCloseDelta: number;
+  };
+}
+
+/**
+ * Performance Metrics - operational statistics
+ */
+export interface PerformanceMetricsData {
+  activeRequests: number;
+  pendingQuotes: number;
+  hotOpportunities: number;
+  closedDealsValue: number;
+  avgResponseTime: number;
+}
+
+/**
+ * Hot Opportunity - high-priority deal that needs attention
+ */
+export interface HotOpportunity {
+  id: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  expiresAt: string;
+  value: number;
+  currency: string;
+  clientName?: string;
+  urgencyLevel: 'critical' | 'high' | 'medium';
+}
+
+/**
+ * Inline Dashboard component - comprehensive deal pipeline with analytics
+ */
+export interface InlineDashboardComponent extends BaseMessageComponent {
+  type: 'inline_dashboard';
+  pipeline: DealPipelineStage[];
+  analytics: AnalyticsSummary;
+  metrics: PerformanceMetricsData;
+  hotOpportunities: HotOpportunity[];
+  dateRange?: {
+    start: string;
+    end: string;
+    label: string;
+  };
+  onViewRequest?: (requestId: string) => void;
+  onRefresh?: () => void;
+  onPeriodChange?: (period: '7d' | '30d' | '90d' | 'ytd') => void;
+  onViewAllOpportunities?: () => void;
+}
+
+/**
  * Union type of all message components
  */
 export type MessageComponent =
@@ -352,7 +453,9 @@ export type MessageComponent =
   | AvinodeRfqQuoteDetailsComponent
   | AvinodeTripDetailsComponent
   | AvinodeMessageComponent
-  | PipelineDashboardComponent;
+  | PipelineDashboardComponent
+  | OperatorChatInlineComponent
+  | InlineDashboardComponent;
 
 /**
  * Message component props

@@ -19,6 +19,13 @@ export type {
   FileAttachmentComponent,
   ProgressIndicatorComponent,
   PipelineDashboardComponent,
+  OperatorChatInlineComponent,
+  // Inline Dashboard types
+  InlineDashboardComponent,
+  DealPipelineStage,
+  AnalyticsSummary,
+  PerformanceMetricsData,
+  HotOpportunity,
 } from './types';
 
 export { isComponentType } from './types';
@@ -60,3 +67,24 @@ export type { ProgressIndicatorProps } from './progress-indicator';
 
 export { PipelineDashboard } from './pipeline-dashboard';
 export type { PipelineDashboardProps } from './pipeline-dashboard';
+
+export { OperatorChatInline, OperatorChatsInline } from './operator-chat-inline';
+export type {
+  OperatorChatInlineProps,
+  OperatorChatsInlineProps,
+  OperatorMessageInline,
+  FlightContext,
+} from './operator-chat-inline';
+
+// Inline Dashboard Components
+export { InlineDashboard } from './inline-dashboard';
+export type { InlineDashboardProps } from './inline-dashboard';
+
+export { DealPipelineTracker } from './deal-pipeline-tracker';
+export type { DealPipelineTrackerProps } from './deal-pipeline-tracker';
+
+export { AnalyticsSummaryCard } from './analytics-summary-card';
+export type { AnalyticsSummaryCardProps } from './analytics-summary-card';
+
+export { HotOpportunities } from './hot-opportunities';
+export type { HotOpportunitiesProps } from './hot-opportunities';
