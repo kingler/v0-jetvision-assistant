@@ -83,7 +83,8 @@ function createMockQueryBuilder(tableName: string) {
         }
 
         mockDataStore[tableName] = tableData.map(record => {
-          const updated = updatedRecords.find(u => u.id === record.id)
+          const recordId = (record as { id?: string }).id
+          const updated = updatedRecords.find(u => (u as { id?: string }).id === recordId)
           return updated || record
         })
 
