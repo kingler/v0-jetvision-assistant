@@ -1,26 +1,26 @@
 {
-  "branch": "feature/onek-159-integrate-starters",
-  "linearIssue": "ONEK-159",
-  "phase": 4,
-  "phaseName": "code-review",
+  "branch": "feature/onek-160-flight-request-starter",
+  "linearIssue": "ONEK-160",
+  "phase": 3,
+  "phaseName": "implementation",
   "agentRole": "Coding Agent",
   "agentType": "fullstack-developer",
-  "createdAt": "2026-01-10T21:28:00Z",
-  "lastAccessedAt": "2026-01-10T21:35:00Z",
-  "status": "in-review",
+  "createdAt": "2026-01-10T21:40:00Z",
+  "lastAccessedAt": "2026-01-10T21:40:00Z",
+  "status": "active",
   "baseBranch": "feature/onek-155-conversation-starters",
   "parentPR": 67,
   "workflowState": {
-    "testsWritten": true,
-    "implementationComplete": true,
-    "codeReviewPassed": true,
-    "prCreated": true,
-    "prNumber": 72,
+    "testsWritten": false,
+    "implementationComplete": false,
+    "codeReviewPassed": false,
+    "prCreated": false,
     "merged": false
   },
   "dependencies": [
     "ONEK-156",
     "ONEK-157",
-    "ONEK-158"
+    "ONEK-158",
+    "ONEK-159"
   ]
 }
