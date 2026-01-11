@@ -768,8 +768,72 @@ describe('HotOpportunitiesStarter', () => {
 
     it('should show average deal value', () => {
       render(<HotOpportunitiesStarter {...defaultProps} />)
-      
+
       expect(screen.getByTestId('avg-value')).toBeInTheDocument()
+    })
+
+    it('should show mixed currency warning when deals have different currencies', () => {
+      // Create hot deals with mixed currencies (value > 100000 makes them hot)
+      const mixedCurrencyDeals: HotDeal[] = [
+        createMockHotDeal({ id: 'deal-1', currency: 'USD', value: 150000, priorityScore: 30 }),
+        createMockHotDeal({ id: 'deal-2', currency: 'EUR', value: 120000, priorityScore: 30 }),
+      ]
+      render(<HotOpportunitiesStarter {...defaultProps} deals={mixedCurrencyDeals} />)
+
+      expect(screen.getByTestId('mixed-currency-warning')).toBeInTheDocument()
+      expect(screen.getByText(/mixed currencies detected/i)).toBeInTheDocument()
+    })
+
+    it('should not show mixed currency warning when all deals have same currency', () => {
+      // Create hot deals with same currency (value > 100000 makes them hot)
+      const sameCurrencyDeals: HotDeal[] = [
+        createMockHotDeal({ id: 'deal-1', currency: 'USD', value: 150000, priorityScore: 30 }),
+        createMockHotDeal({ id: 'deal-2', currency: 'USD', value: 120000, priorityScore: 30 }),
+      ]
+      render(<HotOpportunitiesStarter {...defaultProps} deals={sameCurrencyDeals} />)
+
+      expect(screen.queryByTestId('mixed-currency-warning')).not.toBeInTheDocument()
+    })
+  })
+
+  // ============================================================================
+  // View More Button Tests
+  // ============================================================================
+  describe('View More Button', () => {
+    it('should call onViewAllDeals when clicking View more button', () => {
+      const manyDeals: HotDeal[] = Array.from({ length: 10 }, (_, i) =>
+        createMockHotDeal({ id: `deal-${i}`, value: 150000 })
+      )
+      const onViewAllDeals = vi.fn()
+      render(
+        <HotOpportunitiesStarter
+          {...defaultProps}
+          deals={manyDeals}
+          maxDisplay={3}
+          onViewAllDeals={onViewAllDeals}
+        />
+      )
+
+      // Button has aria-label with total count
+      const viewMoreBtn = screen.getByRole('button', { name: /view all.*hot deals/i })
+      fireEvent.click(viewMoreBtn)
+
+      expect(onViewAllDeals).toHaveBeenCalledOnce()
+    })
+
+    it('should show correct total count in View more button', () => {
+      const manyDeals: HotDeal[] = Array.from({ length: 10 }, (_, i) =>
+        createMockHotDeal({ id: `deal-${i}`, value: 150000 })
+      )
+      render(
+        <HotOpportunitiesStarter
+          {...defaultProps}
+          deals={manyDeals}
+          maxDisplay={3}
+        />
+      )
+
+      expect(screen.getByText(/10 total/i)).toBeInTheDocument()
     })
   })
 })

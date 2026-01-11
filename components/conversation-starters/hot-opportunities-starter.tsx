@@ -255,8 +255,12 @@ function HotSummary({ deals, compact }: { deals: HotDeal[]; compact?: boolean })
     const totalValue = deals.reduce((sum, d) => sum + d.value, 0)
     const expiringCount = deals.filter(d => d.expiresWithin24Hours).length
     const avgValue = deals.length > 0 ? totalValue / deals.length : 0
+    // Detect mixed currencies
+    const currencies = [...new Set(deals.map(d => d.currency))]
+    const hasMixedCurrencies = currencies.length > 1
+    const primaryCurrency = currencies[0] || 'USD'
 
-    return { totalValue, expiringCount, avgValue }
+    return { totalValue, expiringCount, avgValue, hasMixedCurrencies, primaryCurrency }
   }, [deals])
 
   if (compact || deals.length === 0) {
@@ -264,23 +268,33 @@ function HotSummary({ deals, compact }: { deals: HotDeal[]; compact?: boolean })
   }
 
   return (
-    <div className="grid grid-cols-3 gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg mb-4">
-      <div className="text-center">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Hot Value</div>
-        <div data-testid="hot-value-summary" className="text-lg font-bold text-orange-600 dark:text-orange-400">
-          {formatCurrency(stats.totalValue, 'USD')}
+    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg mb-4">
+      {stats.hasMixedCurrencies && (
+        <div
+          data-testid="mixed-currency-warning"
+          className="text-xs text-orange-600 dark:text-orange-400 mb-2 text-center"
+        >
+          ⚠️ Values shown in {stats.primaryCurrency} (mixed currencies detected)
         </div>
-      </div>
-      <div className="text-center">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Expiring</div>
-        <div data-testid="expiring-count" className="text-lg font-bold text-red-600 dark:text-red-400">
-          {stats.expiringCount}
+      )}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="text-center">
+          <div className="text-xs text-gray-500 dark:text-gray-400">Hot Value</div>
+          <div data-testid="hot-value-summary" className="text-lg font-bold text-orange-600 dark:text-orange-400">
+            {formatCurrency(stats.totalValue, stats.primaryCurrency)}
+          </div>
         </div>
-      </div>
-      <div className="text-center">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Avg Value</div>
-        <div data-testid="avg-value" className="text-lg font-bold text-orange-600 dark:text-orange-400">
-          {formatCurrency(stats.avgValue, 'USD')}
+        <div className="text-center">
+          <div className="text-xs text-gray-500 dark:text-gray-400">Expiring</div>
+          <div data-testid="expiring-count" className="text-lg font-bold text-red-600 dark:text-red-400">
+            {stats.expiringCount}
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="text-xs text-gray-500 dark:text-gray-400">Avg Value</div>
+          <div data-testid="avg-value" className="text-lg font-bold text-orange-600 dark:text-orange-400">
+            {formatCurrency(stats.avgValue, stats.primaryCurrency)}
+          </div>
         </div>
       </div>
     </div>
@@ -496,8 +510,8 @@ export function HotOpportunitiesStarter({
    * Filter to only hot deals and apply additional filters
    */
   const processedDeals = useMemo(() => {
-    // First filter to only hot deals (priorityScore > 0)
-    let filtered = deals.filter(d => d.priorityScore > 0)
+    // First filter to only hot deals using the exported isHotOpportunity function
+    let filtered = deals.filter(d => isHotOpportunity(d))
 
     // Apply reason filter
     if (reasonFilter !== 'all') {
@@ -606,7 +620,12 @@ export function HotOpportunitiesStarter({
 
         {hasMoreDeals && (
           <div className="mt-4 text-center">
-            <Button variant="link" className="text-orange-600 dark:text-orange-400">
+            <Button
+              variant="link"
+              className="text-orange-600 dark:text-orange-400"
+              onClick={onViewAllDeals}
+              aria-label={`View all ${processedDeals.length} hot deals`}
+            >
               View more ({processedDeals.length} total)
             </Button>
           </div>
