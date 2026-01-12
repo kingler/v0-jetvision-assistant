@@ -515,11 +515,36 @@ async function executeAvinodeTool(
 async function fetchPipelineData(userId: string): Promise<PipelineData> {
   console.log(`[Chat API] Fetching pipeline data for user: ${userId}`)
 
-  // Fetch requests with stats
+  // First, look up the iso_agent for this clerk_user_id
+  const { data: agent, error: agentError } = await supabaseAdmin
+    .from('iso_agents')
+    .select('id')
+    .eq('clerk_user_id', userId)
+    .single()
+
+  if (agentError || !agent) {
+    console.log(`[Chat API] No iso_agent found for clerk_user_id: ${userId}`, agentError)
+    // Return empty data if no agent found
+    return {
+      stats: {
+        totalRequests: 0,
+        pendingRequests: 0,
+        completedRequests: 0,
+        totalQuotes: 0,
+        activeWorkflows: 0,
+      },
+      recentRequests: [],
+      lastUpdated: new Date().toISOString(),
+    }
+  }
+
+  console.log(`[Chat API] Found iso_agent: ${agent.id} for clerk_user_id: ${userId}`)
+
+  // Fetch requests using iso_agent_id
   const { data: requests, error } = await supabaseAdmin
     .from('requests')
     .select('id, departure_airport, arrival_airport, departure_date, passengers, status, created_at')
-    .eq('clerk_user_id', userId)
+    .eq('iso_agent_id', agent.id)
     .order('created_at', { ascending: false })
     .limit(10)
 
@@ -769,14 +794,16 @@ export async function POST(req: NextRequest) {
         const orchestrator = await getOrCreateOrchestrator(sessionId)
 
         // Execute with full conversation context
+        // Pass isoAgentId as the userId for the orchestrator since it needs the UUID for database operations
         const result = await orchestrator.execute({
           sessionId,
-          userId,
+          userId: isoAgentId || userId, // Prefer isoAgentId (UUID) for database operations
           requestId: `msg-${Date.now()}`,
           metadata: {
             userMessage: message,
             conversationHistory,
             context,
+            isoAgentId, // Also pass as metadata for explicit access
           },
         })
 
@@ -978,10 +1005,10 @@ export async function POST(req: NextRequest) {
     // This enables session continuity and avoids duplicate API calls
     let existingRequest: Awaited<ReturnType<typeof findRequestByTripId>> = null
 
-    if (detectedTripId && userId) {
+    if (detectedTripId && isoAgentId) {
       try {
-        console.log(`[Chat API] Looking up Trip ID ${detectedTripId} in database for user ${userId}`)
-        existingRequest = await findRequestByTripId(detectedTripId, userId)
+        console.log(`[Chat API] Looking up Trip ID ${detectedTripId} in database for iso_agent ${isoAgentId}`)
+        existingRequest = await findRequestByTripId(detectedTripId, isoAgentId)
 
         if (existingRequest) {
           console.log(`[Chat API] Found existing request:`, {
@@ -1024,10 +1051,10 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     // HANDLE "SHOW ME ALL MY TRIPS" REQUEST
     // =========================================================================
-    if (wantsAllTrips && userId) {
+    if (wantsAllTrips && isoAgentId) {
       console.log('[Chat API] All trips intent detected - fetching user trips')
       try {
-        const { trips, total } = await listUserTrips(userId, { limit: 20, status: 'all' })
+        const { trips, total } = await listUserTrips(isoAgentId, { limit: 20, status: 'all' })
 
         const tripsContent = total > 0
           ? `Found ${total} trip${total !== 1 ? 's' : ''} in your account. Here are your recent flights:`

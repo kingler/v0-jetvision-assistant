@@ -131,12 +131,12 @@ export async function syncUserFromClerk(
  * Used when user enters a Trip ID in chat to check if it already exists
  *
  * @param tripId - The Avinode trip ID (e.g., "B22E7Z" or "atrip-64956150")
- * @param userId - The user's ID (from iso_agents table)
+ * @param isoAgentId - The iso_agents.id (UUID) for the user
  * @returns The request row if found, null otherwise
  */
 export async function findRequestByTripId(
   tripId: string,
-  userId: string
+  isoAgentId: string
 ): Promise<Database['public']['Tables']['requests']['Row'] | null> {
   const parsedTripId = normalizeTripId(tripId);
   const normalizedTripId = parsedTripId?.normalized ?? tripId.trim();
@@ -151,7 +151,7 @@ export async function findRequestByTripId(
   const { data, error } = await supabaseAdmin
     .from('requests')
     .select('*')
-    .eq('user_id', userId)
+    .eq('iso_agent_id', isoAgentId)
     .or(orFilter)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -169,12 +169,12 @@ export async function findRequestByTripId(
  * List all trips/requests for a user
  * Used for "show me all my trips" command
  *
- * @param userId - The user's ID (from iso_agents table)
+ * @param isoAgentId - The iso_agents.id (UUID) for the user
  * @param options - Optional filters (limit, status)
  * @returns Array of requests with trip data and total count
  */
 export async function listUserTrips(
-  userId: string,
+  isoAgentId: string,
   options?: {
     limit?: number;
     status?: Database['public']['Enums']['request_status'] | 'all';
@@ -191,7 +191,7 @@ export async function listUserTrips(
   let query = supabaseAdmin
     .from('requests')
     .select('*, quotes(count)', { count: 'exact' })
-    .eq('iso_agent_id', userId)
+    .eq('iso_agent_id', isoAgentId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
