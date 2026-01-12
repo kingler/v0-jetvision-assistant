@@ -540,7 +540,6 @@ export function ChatInterface({
           has_flights: !!(result.rfqData?.flights),
           flights_count: result.rfqData?.flights?.length || 0,
           message: result.rfqData?.message,
-          _debug: result.rfqData?._debug,
         });
       }
 

@@ -9,10 +9,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ActiveRequestsStarter } from '@/components/conversation-starters/active-requests-starter'
+import { ActiveRequestsStarter, type ActiveRequest } from '@/components/conversation-starters/active-requests-starter'
 
 // Mock request data matching the database schema
-const mockRequests = [
+const mockRequests: ActiveRequest[] = [
   {
     id: 'req-001',
     status: 'pending',

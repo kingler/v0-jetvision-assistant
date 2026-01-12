@@ -23,6 +23,7 @@ describe('ConversationStarterHub', () => {
       icon: Plane,
       category: 'flight',
       action: 'new-flight',
+      prompt: 'I want to request a new flight',
       priority: 1,
     },
     {
@@ -32,6 +33,7 @@ describe('ConversationStarterHub', () => {
       icon: ListChecks,
       category: 'flight',
       action: 'active-requests',
+      prompt: 'Show me my active requests',
       priority: 2,
     },
     {
@@ -41,6 +43,7 @@ describe('ConversationStarterHub', () => {
       icon: DollarSign,
       category: 'deals',
       action: 'show-deals',
+      prompt: 'Show me my deals',
       priority: 1,
     },
     {
@@ -50,6 +53,7 @@ describe('ConversationStarterHub', () => {
       icon: BarChart3,
       category: 'pipeline',
       action: 'pipeline',
+      prompt: 'Show me my pipeline summary',
       priority: 1,
     },
   ]
@@ -264,6 +268,7 @@ describe('ConversationStarterHub', () => {
           icon: Plane,
           category: 'flight',
           action: 'low',
+          prompt: 'Low priority action',
           priority: 10,
         },
         {
@@ -273,6 +278,7 @@ describe('ConversationStarterHub', () => {
           icon: Plane,
           category: 'flight',
           action: 'high',
+          prompt: 'High priority action',
           priority: 1,
         },
       ]
@@ -297,6 +303,7 @@ describe('ConversationStarterHub', () => {
           icon: Plane,
           category: 'flight',
           action: 'badge',
+          prompt: 'Badge action',
           badge: 5,
         },
       ]
@@ -319,6 +326,7 @@ describe('ConversationStarterHub', () => {
           icon: Plane,
           category: 'flight',
           action: 'disabled',
+          prompt: 'Disabled action',
           disabled: true,
         },
       ]

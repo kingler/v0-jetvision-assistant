@@ -324,3 +324,205 @@ export async function updateRequestWithAvinodeTrip(
 
   return data;
 }
+
+// ============================================================================
+// USER/ISO_AGENT HELPERS
+// ============================================================================
+
+/**
+ * Get ISO Agent ID from Clerk User ID
+ * Central lookup function for converting Clerk auth ID to database UUID
+ *
+ * @param clerkUserId - The Clerk user ID (e.g., "user_123abc")
+ * @returns The iso_agents.id (UUID) or null if not found
+ */
+export async function getIsoAgentIdFromClerkUserId(
+  clerkUserId: string
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from('iso_agents')
+    .select('id')
+    .eq('clerk_user_id', clerkUserId)
+    .single();
+
+  if (error || !data) {
+    console.error('[Admin] Error getting ISO agent ID:', error);
+    return null;
+  }
+
+  return data.id;
+}
+
+/**
+ * Get full ISO Agent record from Clerk User ID
+ * Returns complete user profile including role and preferences
+ *
+ * @param clerkUserId - The Clerk user ID
+ * @returns The full iso_agents row or null if not found
+ */
+export async function getIsoAgentByClerkUserId(
+  clerkUserId: string
+): Promise<Database['public']['Tables']['iso_agents']['Row'] | null> {
+  const { data, error } = await supabaseAdmin
+    .from('iso_agents')
+    .select('*')
+    .eq('clerk_user_id', clerkUserId)
+    .single();
+
+  if (error || !data) {
+    console.error('[Admin] Error getting ISO agent:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// ============================================================================
+// PIPELINE/TRIP RETRIEVAL HELPERS
+// ============================================================================
+
+/**
+ * Pipeline data structure for user's trip/request overview
+ */
+export interface UserPipelineData {
+  user: {
+    id: string;
+    email: string;
+    full_name: string;
+    role: string;
+  };
+  stats: {
+    totalRequests: number;
+    pendingRequests: number;
+    completedRequests: number;
+    totalQuotes: number;
+    activeWorkflows: number;
+  };
+  trips: Array<{
+    id: string;
+    avinode_trip_id: string | null;
+    avinode_rfp_id: string | null;
+    avinode_deep_link: string | null;
+    departure_airport: string;
+    arrival_airport: string;
+    departure_date: string;
+    return_date: string | null;
+    passengers: number;
+    status: string;
+    quote_count: number;
+    created_at: string;
+    updated_at: string;
+  }>;
+}
+
+/**
+ * Get comprehensive pipeline data for a user
+ * Includes user profile, stats, and all trips with quote counts
+ *
+ * @param clerkUserId - The Clerk user ID
+ * @param options - Optional filters
+ * @returns Complete pipeline data or null if user not found
+ */
+export async function getUserPipeline(
+  clerkUserId: string,
+  options?: {
+    limit?: number;
+    status?: Database['public']['Enums']['request_status'] | 'all';
+    includeExpired?: boolean;
+  }
+): Promise<UserPipelineData | null> {
+  // First get the user
+  const user = await getIsoAgentByClerkUserId(clerkUserId);
+  if (!user) {
+    console.log(`[Admin] No user found for clerk_user_id: ${clerkUserId}`);
+    return null;
+  }
+
+  // Get trips with quote counts
+  const { trips, total } = await listUserTrips(user.id, {
+    limit: options?.limit ?? 50,
+    status: options?.status ?? 'all',
+  });
+
+  // Calculate stats
+  const stats = {
+    totalRequests: total,
+    pendingRequests: trips.filter(t =>
+      t.status === 'pending' || t.status === 'draft'
+    ).length,
+    completedRequests: trips.filter(t => t.status === 'completed').length,
+    totalQuotes: trips.reduce((sum, t) => sum + (t.quote_count ?? 0), 0),
+    activeWorkflows: trips.filter(t =>
+      ['analyzing', 'fetching_client_data', 'searching_flights',
+       'awaiting_quotes', 'analyzing_proposals', 'generating_email',
+       'sending_proposal', 'trip_created', 'awaiting_user_action',
+       'avinode_session_active', 'monitoring_for_quotes'].includes(t.status)
+    ).length,
+  };
+
+  // Transform trips to pipeline format
+  const pipelineTrips = trips.map(t => ({
+    id: t.id,
+    avinode_trip_id: t.avinode_trip_id,
+    avinode_rfp_id: t.avinode_rfp_id,
+    avinode_deep_link: t.avinode_deep_link,
+    departure_airport: t.departure_airport,
+    arrival_airport: t.arrival_airport,
+    departure_date: t.departure_date as string,
+    return_date: t.return_date as string | null,
+    passengers: t.passengers,
+    status: t.status,
+    quote_count: t.quote_count ?? 0,
+    created_at: t.created_at as string,
+    updated_at: t.updated_at as string,
+  }));
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+    },
+    stats,
+    trips: pipelineTrips,
+  };
+}
+
+/**
+ * Get trips by Trip ID pattern for a user
+ * Searches across avinode_trip_id and avinode_rfp_id
+ *
+ * @param clerkUserId - The Clerk user ID
+ * @param searchTerm - Trip ID search pattern (partial or full)
+ * @returns Matching trips
+ */
+export async function searchUserTripsByTripId(
+  clerkUserId: string,
+  searchTerm: string
+): Promise<Array<Database['public']['Tables']['requests']['Row']>> {
+  // Get user's iso_agent_id
+  const isoAgentId = await getIsoAgentIdFromClerkUserId(clerkUserId);
+  if (!isoAgentId) {
+    return [];
+  }
+
+  // Normalize search term
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const unprefixed = normalizedSearch.replace(/^(atrip-|arfq-)/i, '');
+
+  const { data, error } = await supabaseAdmin
+    .from('requests')
+    .select('*')
+    .eq('iso_agent_id', isoAgentId)
+    .or(`avinode_trip_id.ilike.%${unprefixed}%,avinode_rfp_id.ilike.%${unprefixed}%`)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error('[Admin] Error searching trips:', error);
+    return [];
+  }
+
+  return data ?? [];
+}
