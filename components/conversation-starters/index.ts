@@ -32,6 +32,30 @@ export {
   type ConnectionStatus as DealConnectionStatus,
 } from "./deals-starter"
 
+export {
+  HotOpportunitiesStarter,
+  isHotOpportunity,
+  calculatePriorityScore,
+  HOT_VALUE_THRESHOLD,
+  type HotOpportunitiesStarterProps,
+  type HotDeal,
+  type ConnectionStatus as HotConnectionStatus,
+} from "./hot-opportunities-starter"
+
+export {
+  PipelineSummaryStarter,
+  calculateConversionRate,
+  calculateAvgDealValue,
+  formatDuration,
+  type PipelineSummaryStarterProps,
+  type PipelineStage,
+  type PipelineMetrics,
+  type PeriodComparison,
+  type DateRange,
+  type PeriodOption,
+  type ExportFormat,
+} from "./pipeline-summary-starter"
+
 // Types
 export type {
   ConversationStarter,

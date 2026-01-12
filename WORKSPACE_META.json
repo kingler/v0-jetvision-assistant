@@ -1,20 +1,21 @@
 {
-  "branch": "feature/onek-162-deals-starter",
-  "linearIssue": "ONEK-162",
+  "branch": "feature/onek-163-hot-opportunities",
+  "linearIssue": "ONEK-163",
   "phase": 3,
   "phaseName": "implementation",
   "agentRole": "Coding Agent",
   "agentType": "fullstack-developer",
-  "createdAt": "2026-01-10T22:22:00Z",
-  "lastAccessedAt": "2026-01-10T22:22:00Z",
-  "status": "active",
-  "baseBranch": "feature/onek-161-active-requests-starter",
-  "parentPR": 76,
+  "createdAt": "2026-01-10T23:16:00Z",
+  "lastAccessedAt": "2026-01-10T23:37:30Z",
+  "status": "in-review",
+  "baseBranch": "feature/onek-162-deals-starter",
+  "parentPR": 77,
   "workflowState": {
-    "testsWritten": false,
-    "implementationComplete": false,
+    "testsWritten": true,
+    "implementationComplete": true,
     "codeReviewPassed": false,
-    "prCreated": false,
+    "prCreated": true,
+    "prNumber": 80,
     "merged": false
   },
   "dependencies": [
@@ -23,6 +24,7 @@
     "ONEK-158",
     "ONEK-159",
     "ONEK-160",
-    "ONEK-161"
+    "ONEK-161",
+    "ONEK-162"
   ]
 }
