@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Clock, Loader2, Search, FileText, Calculator, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { validateAndFixAvinodeUrl } from "@/lib/utils/avinode-url"
 
 export interface WorkflowStepData {
   // Real data from agents/API
@@ -358,23 +359,31 @@ export function WorkflowVisualization({
               )}
 
               {/* Deep Link Button for Step 3 - Awaiting Selection */}
-              {step.id === "3" && step.status === "in-progress" && deepLink && (
-                <div className="ml-8 mt-2">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={(e) => {
-                      e.stopPropagation() // Prevent step toggle
-                      window.open(deepLink, '_blank', 'noopener,noreferrer')
-                      onDeepLinkClick?.()
-                    }}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Goto Avinode Marketplace
-                  </Button>
-                </div>
-              )}
+              {step.id === "3" && step.status === "in-progress" && deepLink && (() => {
+                // Validate and fix the deep link URL to ensure it points to web UI, not API
+                const validatedDeepLink = validateAndFixAvinodeUrl(deepLink);
+                if (!validatedDeepLink) {
+                  console.error('[WorkflowVisualization] Invalid deep link URL:', deepLink);
+                  return null;
+                }
+                return (
+                  <div className="ml-8 mt-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={(e) => {
+                        e.stopPropagation() // Prevent step toggle
+                        window.open(validatedDeepLink, '_blank', 'noopener,noreferrer')
+                        onDeepLinkClick?.()
+                      }}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Goto Avinode Marketplace
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           ))}
         </div>

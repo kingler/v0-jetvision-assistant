@@ -86,15 +86,25 @@ export function GeneralChatCard({ session, isActive, onClick, onDelete, onArchiv
 
   /**
    * Get conversation title
-   * Uses first message preview or default title
+   * Prioritizes generatedName (from conversation.subject), then first message preview, then default title
+   * This ensures the title is dynamic from the start without requiring a click to load messages
    */
   const getTitle = (): string => {
+    // First, check if generatedName is available (from conversation.subject in chat-session-to-ui.ts)
+    // This should be available immediately when the session is loaded
+    if (session.generatedName) {
+      return session.generatedName
+    }
+    
+    // Fall back to first message preview if messages are loaded
     const firstMessage = session.messages[0]
     if (firstMessage?.content) {
       // Truncate to first 40 chars
       const preview = firstMessage.content.substring(0, 40)
       return preview.length < firstMessage.content.length ? `${preview}...` : preview
     }
+    
+    // Default fallback
     return "General Chat"
   }
 

@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, Copy, Check, Plane, Calendar, Users } from 'lucide-react';
 import type { DeepLinkPromptProps } from './types';
+import { validateAndFixAvinodeUrl } from '@/lib/utils/avinode-url';
 
 /**
  * DeepLinkPrompt Component
@@ -50,19 +51,40 @@ export function DeepLinkPrompt({
   const [autoOpened, setAutoOpened] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoOpenAttemptedRef = useRef(false);
+  
+  /**
+   * Validate and fix the deep link URL to ensure it points to web UI, not API
+   * This fixes issues where Avinode API returns API endpoint URLs instead of web UI URLs
+   */
+  const validatedDeepLink = useMemo(() => {
+    if (!deepLink) return null;
+    
+    const fixed = validateAndFixAvinodeUrl(deepLink);
+    
+    if (!fixed) {
+      console.error('[DeepLinkPrompt] Invalid deep link URL that cannot be fixed:', deepLink);
+    } else if (fixed !== deepLink) {
+      console.warn('[DeepLinkPrompt] Deep link URL was transformed:', {
+        original: deepLink,
+        fixed,
+      });
+    }
+    
+    return fixed;
+  }, [deepLink]);
 
   // Auto-open Avinode marketplace in new tab when component mounts
   useEffect(() => {
-    if (autoOpen && deepLink && !autoOpenAttemptedRef.current) {
+    if (autoOpen && validatedDeepLink && !autoOpenAttemptedRef.current) {
       autoOpenAttemptedRef.current = true;
 
       // Small delay to ensure UI renders first
       const openTimer = setTimeout(() => {
         try {
-          const newWindow = window.open(deepLink, '_blank', 'noopener,noreferrer');
+          const newWindow = window.open(validatedDeepLink, '_blank', 'noopener,noreferrer');
           if (newWindow) {
             setAutoOpened(true);
-            console.log('[DeepLinkPrompt] Auto-opened Avinode marketplace:', deepLink);
+            console.log('[DeepLinkPrompt] Auto-opened Avinode marketplace:', validatedDeepLink);
             onLinkClick?.();
           } else {
             // Popup might be blocked
@@ -75,7 +97,7 @@ export function DeepLinkPrompt({
 
       return () => clearTimeout(openTimer);
     }
-  }, [autoOpen, deepLink, onLinkClick]);
+  }, [autoOpen, validatedDeepLink, onLinkClick]);
 
   // Cleanup timeout on unmount to prevent memory leaks
   useEffect(() => {
@@ -130,8 +152,13 @@ export function DeepLinkPrompt({
    * Handle copy link to clipboard
    */
   const handleCopyLink = async (): Promise<void> => {
+    if (!validatedDeepLink) {
+      console.error('[DeepLinkPrompt] Cannot copy link - invalid URL');
+      return;
+    }
+    
     try {
-      await navigator.clipboard.writeText(deepLink);
+      await navigator.clipboard.writeText(validatedDeepLink);
       setCopied(true);
 
       // Clear any existing timeout to prevent race conditions
@@ -268,14 +295,16 @@ export function DeepLinkPrompt({
             variant="default"
             size="lg"
             className="w-full"
+            disabled={!validatedDeepLink}
           >
             <a
               data-testid="avinode-deep-link-button"
-              href={deepLink}
+              href={validatedDeepLink || '#'}
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleLinkClick}
               className="flex items-center justify-center gap-2"
+              aria-disabled={!validatedDeepLink}
             >
               <ExternalLink className="h-5 w-5" />
               <span>Open in Avinode Marketplace</span>

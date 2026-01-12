@@ -199,10 +199,15 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
 
   // Build ChatSession object for sidebar display
   const chatSession: ChatSession = {
-    // Use chat_session ID (or request ID if available)
+    // Use request ID as primary ID (for consistency with request-based sessions)
+    // Fall back to chat_session ID if no request_id exists
     id: chatSessionRow.request_id || chatSessionRow.id,
     conversationId: (chatSessionRow.conversation?.id || chatSessionRow.conversation_id) ?? undefined,
     requestId: chatSessionRow.request_id || chatSessionRow.request?.id || undefined,
+
+    // Set conversation type based on whether request exists
+    // Flight requests have a request_id, general chats don't
+    conversationType: chatSessionRow.request_id || chatSessionRow.request ? 'flight_request' : 'general',
 
     // Basic flight information from request
     route,
@@ -215,7 +220,7 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     // Optional aircraft information
     aircraft: request?.aircraft_type || undefined,
 
-    // Avinode integration fields from chat_session
+    // Avinode integration fields from chat_session (prefer chat_session, fallback to request)
     tripId: chatSessionRow.avinode_trip_id || request?.avinode_trip_id || undefined,
     rfqId: chatSessionRow.avinode_rfq_id || undefined,
     rfpId: chatSessionRow.avinode_rfp_id || request?.avinode_rfp_id || undefined,
@@ -225,14 +230,17 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     quotesReceived: chatSessionRow.quotes_received_count || undefined,
     quotesTotal: chatSessionRow.quotes_expected_count || undefined,
 
-    // Generated name from request
-    generatedName: request
+    // Generated name - prefer conversation subject (LLM-generated title), fallback to request name
+    generatedName: conversation?.subject || (request
       ? `${request.departure_airport || 'Unknown'} → ${request.arrival_airport || 'Unknown'} (${date})`
-      : conversation?.subject || undefined,
+      : undefined),
 
     // Messages will be loaded separately (empty array for now)
     // Can be populated by loading messages from conversation_id
     messages: [],
+
+    // Initialize rfqFlights as empty array (will be lazy-loaded when card is clicked)
+    rfqFlights: [],
 
     // Metadata from chat_session
     ...(chatSessionRow.metadata && typeof chatSessionRow.metadata === 'object'

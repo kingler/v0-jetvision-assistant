@@ -40,6 +40,7 @@ import { convertToAvinodeRFQFlight } from './utils';
 import type { RFQFlight } from './rfq-flight-card';
 import type { RFQFlight as AvinodeRFQFlight } from '@/lib/mcp/clients/avinode-client';
 import { getAirportByIcao } from '@/lib/airports/airport-database';
+import { validateAndFixAvinodeUrl } from '@/lib/utils/avinode-url';
 
 // =============================================================================
 // TYPES
@@ -461,27 +462,40 @@ export function FlightSearchProgress({
   /**
    * Handle copy deep link to clipboard
    */
+  /**
+   * Validate and fix the deep link URL to ensure it points to web UI, not API
+   */
+  const validatedDeepLink = useMemo(() => {
+    if (!deepLink) return null;
+    return validateAndFixAvinodeUrl(deepLink);
+  }, [deepLink]);
+
   const handleCopyLink = useCallback(async () => {
-    if (!deepLink) return;
+    if (!validatedDeepLink) {
+      console.error('[FlightSearchProgress] Cannot copy link - invalid URL');
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(deepLink);
+      await navigator.clipboard.writeText(validatedDeepLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       onCopyDeepLink?.();
     } catch {
       // Clipboard API may fail - fail silently
     }
-  }, [deepLink, onCopyDeepLink]);
+  }, [validatedDeepLink, onCopyDeepLink]);
 
   /**
    * Handle deep link button click
    */
   const handleDeepLinkClick = useCallback(() => {
-    if (deepLink) {
-      window.open(deepLink, '_blank', 'noopener,noreferrer');
+    if (validatedDeepLink) {
+      window.open(validatedDeepLink, '_blank', 'noopener,noreferrer');
       onDeepLinkClick?.();
+    } else {
+      console.error('[FlightSearchProgress] Cannot open deep link - invalid URL:', deepLink);
     }
-  }, [deepLink, onDeepLinkClick]);
+  }, [validatedDeepLink, onDeepLinkClick, deepLink]);
 
   return (
     <div data-testid="flight-search-progress" className={cn('w-full bg-white dark:bg-gray-900', className)}>

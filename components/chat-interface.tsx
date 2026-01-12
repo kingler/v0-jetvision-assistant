@@ -265,15 +265,34 @@ export function ChatInterface({
     // Create abort controller for cancellation
     abortControllerRef.current = new AbortController()
 
-    // Add user message to chat
-    const userMessage = {
-      id: `user-${Date.now()}`,
-      type: "user" as const,
-      content: message,
-      timestamp: new Date(),
+    // Check if the message already exists in the chat (to prevent duplicates)
+    // This can happen when needsInitialApiCall is true and the message was already added during chat creation
+    // Use activeChat.messages directly (not the ref) to ensure we have the latest state
+    const existingMessages = activeChat.messages || []
+    const trimmedMessage = message.trim()
+    
+    // Check if any existing message matches this content (not just the last one)
+    const messageAlreadyExists = existingMessages.some(
+      (msg) => msg.type === "user" && msg.content.trim() === trimmedMessage
+    )
+
+    // Only add user message if it doesn't already exist
+    let currentMessages: ChatSession['messages']
+    if (messageAlreadyExists) {
+      // Message already exists, use existing messages
+      currentMessages = existingMessages
+      console.log('[ChatInterface] Message already exists, skipping duplicate:', trimmedMessage)
+    } else {
+      // Add user message to chat
+      const userMessage = {
+        id: `user-${Date.now()}`,
+        type: "user" as const,
+        content: message,
+        timestamp: new Date(),
+      }
+      currentMessages = [...existingMessages, userMessage]
     }
 
-    const currentMessages = [...latestMessagesRef.current, userMessage]
     onUpdateChat(activeChat.id, {
       messages: currentMessages,
       needsInitialApiCall: false,
@@ -511,6 +530,18 @@ export function ChatInterface({
             newRfqFlights.push(flight)
           }
         }
+      }
+      
+      // Log warning if RFQs exist but no flights were extracted
+      if (result.rfqData?.rfqs && result.rfqData.rfqs.length > 0 && newRfqFlights.length === 0) {
+        console.error('[ChatInterface] ⚠️ RFQs exist but no flights were extracted:', {
+          rfqs_count: result.rfqData.rfqs.length,
+          rfq_ids: result.rfqData.rfqs.map((r: any) => r.rfq_id || r.id),
+          has_flights: !!(result.rfqData?.flights),
+          flights_count: result.rfqData?.flights?.length || 0,
+          message: result.rfqData?.message,
+          _debug: result.rfqData?._debug,
+        });
       }
 
       // Merge quote details using extracted utility
@@ -981,9 +1012,9 @@ export function ChatInterface({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`Message about Flight Request #${activeChat.id}...`}
+                placeholder="Message about this request..."
                 disabled={isProcessing}
-                className="min-h-[44px] py-3 px-4 pr-12 rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400 resize-none"
+                className="min-h-[44px] py-3 px-4 pr-12 rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400 resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
               />
               <Button
                 onClick={handleSendMessage}

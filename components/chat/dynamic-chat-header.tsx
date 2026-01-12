@@ -167,8 +167,8 @@ export function DynamicChatHeader({
         </div>
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          {/* Trip ID Badge with Copy (when tripId exists) or Flight ID Badge (fallback) */}
-          {activeChat.tripId ? (
+          {/* Trip ID Badge with Copy (only when tripId exists) */}
+          {activeChat.tripId && (
             <Badge
               variant="secondary"
               className="font-mono text-xs font-semibold text-black dark:text-black cursor-pointer hover:bg-secondary/80 transition-colors"
@@ -189,10 +189,6 @@ export function DynamicChatHeader({
               ) : (
                 <Copy className="w-3 h-3" />
               )}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="font-mono text-xs">
-              FR-{activeChat.id}
             </Badge>
           )}
 

@@ -271,48 +271,58 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
               </div>
             ) : (
               <h3 className="font-medium text-xs sm:text-sm text-gray-900 dark:text-white truncate min-w-0 flex-1">
-                Flight Request #{session.id}
+                {session.generatedName || 'Untitled #1'}
               </h3>
             )}
           </div>
-          <div className="shrink-0 ml-2 max-w-fit">{getStatusBadge()}</div>
-        </div>
-
-        {/* Route and passenger info */}
-        <div className="space-y-1 mb-2 min-w-0 w-full overflow-hidden">
-          <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{session.route}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-            {session.passengers} passengers • {session.date}
-          </p>
-          {session.aircraft && session.operator && (
-            <p className="text-xs text-green-600 dark:text-green-400 truncate">
-              {session.aircraft} • {session.operator}
-            </p>
+          {/* Status Badge - only show when tripId exists */}
+          {session.tripId && (
+            <div className="shrink-0 ml-2 max-w-fit">{getStatusBadge()}</div>
           )}
         </div>
 
-        {/* Workflow Status */}
-        <div className="flex items-center justify-between min-w-0 w-full">
-          <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1 overflow-hidden">
-            <span className="text-xs text-gray-600 dark:text-gray-300 truncate">
-              {workflowSteps[session.currentStep as keyof typeof workflowSteps]?.title}
-            </span>
-          </div>
-          <span className="text-xs text-gray-400 shrink-0 ml-2">{getLastActivity()}</span>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 mt-2">
-          <div
-            className={cn(
-              "h-1 rounded-full transition-all duration-300",
-              session.status === "proposal_ready" ? "bg-green-500" : "bg-cyan-500",
+        {/* Route and passenger info - only show when tripId exists */}
+        {session.tripId && (
+          <div className="space-y-1 mb-2 min-w-0 w-full overflow-hidden">
+            <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{session.route}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {session.passengers} passengers • {session.date}
+            </p>
+            {session.aircraft && session.operator && (
+              <p className="text-xs text-green-600 dark:text-green-400 truncate">
+                {session.aircraft} • {session.operator}
+              </p>
             )}
-            style={{
-              width: `${Math.min((session.currentStep / session.totalSteps) * 100, 100)}%`,
-            }}
-          />
-        </div>
+          </div>
+        )}
+
+        {/* Workflow Status - only show when tripId exists */}
+        {session.tripId && (
+          <div className="flex items-center justify-between min-w-0 w-full">
+            <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1 overflow-hidden">
+              <span className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                {workflowSteps[session.currentStep as keyof typeof workflowSteps]?.title}
+              </span>
+            </div>
+            {/* Timestamp - only show when tripId exists */}
+            <span className="text-xs text-gray-400 shrink-0 ml-2">{getLastActivity()}</span>
+          </div>
+        )}
+
+        {/* Progress Bar - only show when tripId exists */}
+        {session.tripId && (
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 mt-2">
+            <div
+              className={cn(
+                "h-1 rounded-full transition-all duration-300",
+                session.status === "proposal_ready" ? "bg-green-500" : "bg-cyan-500",
+              )}
+              style={{
+                width: `${Math.min((session.currentStep / session.totalSteps) * 100, 100)}%`,
+              }}
+            />
+          </div>
+        )}
 
         {/* Footer with RFQ badge and actions menu */}
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -338,16 +348,6 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
               )}
             </div>
           )}
-          {/* Fallback: Simple message indicator when no trip ID */}
-          {!session.tripId && (
-            <div className="relative flex items-center">
-              <MessageSquare className="w-4 h-4 text-gray-400" />
-              {hasUnreadMessages() && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-900" />
-              )}
-            </div>
-          )}
-
           {/* Actions menu (right side) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

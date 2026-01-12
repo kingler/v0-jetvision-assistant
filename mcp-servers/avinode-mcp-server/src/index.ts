@@ -2220,10 +2220,52 @@ async function getRFQ(params: GetRFQParams) {
       
       // Transform this RFQ's quotes to RFQFlight format
       const flights = transformToRFQFlights(rfq, rfq.trip_id || params.rfq_id);
-      console.log('[getRFQ] RFQ', rfq.rfq_id || rfq.id, 'has', quotes.length, 'quotes, transformed to', flights.length, 'flights');
       
-      // If no flights were created but RFQ exists, log a warning
-      if (flights.length === 0 && quotes.length === 0) {
+      // Count quotes from sellerLift (PRIMARY source for quotes with prices)
+      const sellerLiftQuoteCount = hasSellerLift
+        ? rfq.sellerLift.reduce((count: number, lift: any) => {
+            if (lift.links?.quotes && Array.isArray(lift.links.quotes)) {
+              return count + lift.links.quotes.length;
+            }
+            // Also count if lift itself is a quote (after merging quote details)
+            if (lift.quote_id || lift.id || lift.sellerPrice) {
+              return count + 1;
+            }
+            return count;
+          }, 0)
+        : 0;
+      
+      const totalQuotesExpected = Math.max(quotes.length, sellerLiftQuoteCount);
+      
+      console.log('[getRFQ] RFQ', rfq.rfq_id || rfq.id, ':', {
+        legacy_quotes_count: quotes.length,
+        sellerLift_quote_count: sellerLiftQuoteCount,
+        total_quotes_expected: totalQuotesExpected,
+        flights_transformed: flights.length,
+        has_sellerLift: hasSellerLift,
+      });
+      
+      // If no flights were created but RFQ exists with quotes, log a detailed warning
+      if (flights.length === 0 && totalQuotesExpected > 0) {
+        console.error('[getRFQ] ⚠️ CRITICAL: RFQ exists with quotes but no flights were created!', {
+          rfq_id: rfq.rfq_id || rfq.id,
+          status: rfq.status,
+          route: rfq.route,
+          legacy_quotes_count: quotes.length,
+          sellerLift_quote_count: sellerLiftQuoteCount,
+          sellerLift_sample: hasSellerLift && rfq.sellerLift.length > 0
+            ? {
+                lift_id: rfq.sellerLift[0].id,
+                has_links: !!rfq.sellerLift[0].links,
+                has_quotes_links: !!(rfq.sellerLift[0].links?.quotes),
+                quotes_links_count: rfq.sellerLift[0].links?.quotes?.length || 0,
+                has_sellerPrice: !!rfq.sellerLift[0].sellerPrice,
+                sourcingDisplayStatus: rfq.sellerLift[0].sourcingDisplayStatus,
+                keys: Object.keys(rfq.sellerLift[0]),
+              }
+            : null,
+        });
+      } else if (flights.length === 0 && totalQuotesExpected === 0) {
         console.warn('[getRFQ] RFQ exists but has no quotes and no flights were created:', {
           rfq_id: rfq.rfq_id || rfq.id,
           status: rfq.status,
@@ -2249,6 +2291,37 @@ async function getRFQ(params: GetRFQParams) {
 
     console.log('[getRFQ] Total flights transformed:', allFlights.length);
     console.log('[getRFQ] Total RFQ details:', rfqDetails.length);
+
+    // Check if RFQs exist but no flights were created (transformation issue)
+    if (rfqDetails.length > 0 && allFlights.length === 0) {
+      console.error('[getRFQ] ⚠️ CRITICAL ISSUE: RFQs exist but no flights were transformed!', {
+        trip_id: params.rfq_id,
+        rfqs_count: rfqDetails.length,
+        flights_count: allFlights.length,
+        rfq_statuses: rfqDetails.map(r => r.status),
+        rfq_ids: rfqDetails.map(r => r.rfq_id),
+        message: 'This indicates a problem in transformToRFQFlights - quotes exist but were not extracted correctly',
+      });
+      
+      // Return RFQ details even if no flights were created, so UI can show RFQs exist
+      // This allows the UI to show RFQs even if transformation failed
+      return {
+        trip_id: params.rfq_id,
+        rfqs: rfqDetails,
+        total_rfqs: rfqDetails.length,
+        quotes: [],
+        total_quotes: 0,
+        flights: [],
+        flights_received: 0,
+        status: 'pending',
+        message: `Found ${rfqDetails.length} RFQ${rfqDetails.length !== 1 ? 's' : ''} for this Trip ID, but quote extraction encountered an issue. Please check the server logs for details.`,
+        _debug: {
+          rfqs_found: rfqDetails.length,
+          flights_created: 0,
+          transformation_issue: true,
+        },
+      };
+    }
 
     // If no RFQs found, return user-friendly message directing to Step 2
     if (rfqDetails.length === 0) {

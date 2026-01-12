@@ -160,38 +160,70 @@ export default function JetvisionAgent() {
   /**
    * Load messages for a specific chat session from the API
    *
-   * @param sessionId - The chat session ID to load messages for
+   * @param session - The chat session to load messages for (needs conversationId or requestId)
    * @returns The loaded messages or empty array if failed
    */
-  const loadMessagesForSession = async (sessionId: string): Promise<Array<{
+  const loadMessagesForSession = async (session: ChatSession): Promise<Array<{
     id: string;
     type: 'user' | 'agent';
     content: string;
     timestamp: Date;
   }>> => {
     // Skip loading for temporary sessions
-    if (sessionId.startsWith('temp-')) {
+    if (session.id.startsWith('temp-')) {
       return [];
     }
 
     try {
-      const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(sessionId)}&limit=100`, {
+      // Use conversationId if available, otherwise try to use requestId via chat-sessions API
+      // The chat-sessions/messages API expects a chat_session ID, not a request ID
+      // So we need to find the chat_session that matches this request/conversation
+      let messages: Array<{ id: string; type: 'user' | 'agent'; content: string; timestamp: string }> = [];
+
+      // Try to load messages via conversationId if available (preferred method)
+      if (session.conversationId) {
+        // For now, we'll use the chat-sessions API which requires a chat_session ID
+        // This is a limitation we'll need to work around
+        // For sessions loaded from chat_sessions table, we need to use the original chat_session ID
+        // But since we're using request_id as the session ID, we need to look up the chat_session
+      }
+
+      // Use chat-sessions/messages API (requires chat_session ID, not request ID)
+      // This will work if session.id is actually a chat_session ID
+      // Otherwise, it will fail and we'll return empty array
+      const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(session.id)}&limit=100`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        console.warn('[loadMessagesForSession] Failed to load messages:', {
-          sessionId,
-          status: response.status,
-        });
-        return [];
-      }
+      if (response.ok) {
+        const data = await response.json();
+        messages = data.messages || [];
+      } else if (session.requestId) {
+        // If chat-sessions API fails, try loading messages via request API
+        // This uses requestId to find the conversation
+        try {
+          const requestsResponse = await fetch(`/api/requests?limit=50`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
 
-      const data = await response.json();
-      const messages = data.messages || [];
+          if (requestsResponse.ok) {
+            const requestsData = await requestsResponse.json();
+            const requestMessages = requestsData.messages?.[session.requestId] || [];
+            messages = requestMessages.map((msg: any) => ({
+              id: msg.id,
+              type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
+              content: msg.content,
+              timestamp: msg.createdAt,
+            }));
+          }
+        } catch (error) {
+          console.warn('[loadMessagesForSession] Failed to load via requests API:', error);
+        }
+      }
 
       // Convert timestamps to Date objects
       return messages.map((msg: { id: string; type: 'user' | 'agent'; content: string; timestamp: string }) => ({
@@ -653,7 +685,7 @@ export default function JetvisionAgent() {
 
     // Phase 1: Load messages and RFQ flights in parallel
     const [messages, rfqFlights] = await Promise.all([
-      needsMessages ? loadMessagesForSession(chatId) : Promise.resolve(session.messages || []),
+      needsMessages ? loadMessagesForSession(session) : Promise.resolve(session.messages || []),
       needsRFQFlights ? loadRFQFlightsForSession(session.tripId!) : Promise.resolve(session.rfqFlights || []),
     ]);
 
@@ -741,15 +773,9 @@ export default function JetvisionAgent() {
       status: "understanding_request", // Start at step 1 - will be updated by API response
       currentStep: 1,
       totalSteps: 5,
-      messages: [
-        {
-          id: "1",
-          type: "user",
-          content: message,
-          timestamp: new Date(),
-        },
-        // No static agent message - ChatInterface will call the API and add the real response
-      ],
+      // Don't add the message here - ChatInterface will add it when calling the API
+      // This prevents duplicate messages from appearing
+      messages: [],
       // Flag to indicate this chat needs an initial API call
       needsInitialApiCall: true,
       initialUserMessage: message,

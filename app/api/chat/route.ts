@@ -155,12 +155,33 @@ function classifyConversationType(
 /**
  * Generate a subject line from the message content
  */
-function getSubjectFromMessage(message: string, conversationType: 'flight_request' | 'general'): string {
-  if (conversationType === 'general') {
-    const preview = message.substring(0, 50).trim()
-    return preview.length < message.length ? `${preview}...` : preview
+/**
+ * Get subject for conversation - uses LLM to generate semantic title
+ * Falls back to simple preview if generation fails
+ */
+/**
+ * Get subject for conversation - uses LLM to generate semantic title
+ * Falls back to simple preview if generation fails
+ */
+async function getSubjectFromMessage(
+  message: string,
+  conversationType: 'flight_request' | 'general'
+): Promise<string> {
+  // Try to generate semantic title using LLM
+  try {
+    const { generateChatTitle, generateFallbackTitle } = await import('@/lib/utils/generate-chat-title')
+    const generatedTitle = await generateChatTitle(message, conversationType)
+    if (generatedTitle) {
+      return generatedTitle
+    }
+    // If generation returned null, use fallback
+    return generateFallbackTitle(message, conversationType)
+  } catch (error) {
+    console.error('[Chat API] Error generating semantic title, using fallback:', error)
+    // Fallback to simple title on error
+    const { generateFallbackTitle } = await import('@/lib/utils/generate-chat-title')
+    return generateFallbackTitle(message, conversationType)
   }
-  return 'New Flight Request'
 }
 
 // System prompt for JetVision assistant with Avinode integration
@@ -659,8 +680,8 @@ export async function POST(req: NextRequest) {
           conversationType = classifyConversationType(message, hasFlightDetailsEarly, wantsRFPEarly)
           console.log('[Chat API] Classified conversation type:', conversationType)
 
-          // Generate appropriate subject
-          const subject = getSubjectFromMessage(message, conversationType)
+          // Generate appropriate subject using LLM (with fallback)
+          const subject = await getSubjectFromMessage(message, conversationType)
 
           // Create real conversation record
           conversationId = await getOrCreateConversation({
