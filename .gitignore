@@ -63,3 +63,4 @@ build-output.log
 
 # Vercel project settings (local only)
 .vercel/
+.mcp.json
