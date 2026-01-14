@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import type { ChatSession } from "./chat-sidebar"
 import { createSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import { chatToast } from '@/hooks/use-toast'
 
 // UI Components
 import { AgentMessage } from "./chat/agent-message"
@@ -223,8 +224,10 @@ export function ChatInterface({
     const payload = event.payload || {}
 
     if (eventType === 'TripRequestSellerResponse') {
-      // New quote received - trigger RFQ refresh
+      // New quote received - trigger RFQ refresh and show toast
       const quoteId = payload.quoteId || payload.quote_id
+      const operatorName = payload.senderName || 'An operator'
+      chatToast.quoteReceived(operatorName)
       if (quoteId && activeChat.tripId) {
         handleTripIdSubmit(activeChat.tripId)
       }
@@ -232,13 +235,20 @@ export function ChatInterface({
       // New message - update operator messages
       const quoteId = payload.quoteId || payload.quote_id
       if (quoteId) {
+        const senderName = eventType === 'TripChatMine' ? 'You' : payload.senderName || 'Operator'
+
+        // Show toast for incoming operator messages (not our own messages)
+        if (eventType === 'TripChatSeller') {
+          chatToast.operatorMessage(senderName)
+        }
+
         const currentMessages = activeChat.operatorMessages?.[quoteId] || []
         const newMessage: OperatorMessage = {
           id: payload.messageId || `msg-${Date.now()}`,
           type: eventType === 'TripChatMine' ? 'REQUEST' : 'RESPONSE',
           content: payload.message || payload.content || '',
           timestamp: payload.timestamp || new Date().toISOString(),
-          sender: eventType === 'TripChatMine' ? 'You' : payload.senderName || 'Operator',
+          sender: senderName,
         }
 
         onUpdateChat(activeChat.id, {
@@ -331,6 +341,7 @@ export function ChatInterface({
         },
         onError: (error) => {
           setStreamError(error.message)
+          chatToast.error(error.message)
         },
         onToolCall: (toolCall) => {
           console.log('[ChatInterface] Tool call:', toolCall.name)
@@ -346,7 +357,9 @@ export function ChatInterface({
         return
       }
       console.error('[ChatInterface] Error sending message:', error)
-      setStreamError(error instanceof Error ? error.message : 'Unknown error')
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+      setStreamError(errorMsg)
+      chatToast.error(errorMsg)
     } finally {
       setIsTyping(false)
       onProcessingChange(false)
@@ -379,6 +392,12 @@ export function ChatInterface({
       trip_data: result.tripData,
       rfp_data: result.rfpData,
     } as any, activeChat.status)
+
+    // Show toast for trip creation
+    const newTripId = tripData?.trip_id || rfpData?.trip_id
+    if (showDeepLink && newTripId && newTripId !== activeChat.tripId) {
+      chatToast.tripCreated(newTripId)
+    }
 
     // Create agent message
     const agentMessage = {

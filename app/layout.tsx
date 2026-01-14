@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { SkipToContent } from "@/components/skip-to-content"
+import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -35,6 +36,7 @@ export default function RootLayout({
             </Suspense>
           </ErrorBoundary>
           <Analytics />
+          <Toaster position="top-right" richColors closeButton />
         </body>
       </html>
     </ClerkProvider>

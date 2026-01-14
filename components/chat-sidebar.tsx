@@ -1,10 +1,13 @@
 "use client"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus } from "lucide-react"
+import { Plus, Search, X, Filter } from "lucide-react"
 import { FlightRequestCard } from "@/components/chat/flight-request-card"
 import { GeneralChatCard } from "@/components/chat/general-chat-card"
 import type { PipelineData } from "@/lib/types/chat-agent"
+import { cn } from "@/lib/utils"
 
 /**
  * Chat Sidebar Component
@@ -173,7 +176,65 @@ interface ChatSidebarProps {
   onArchiveChat?: (chatId: string) => void
 }
 
+/** Status filter options */
+type StatusFilter = 'all' | 'proposal_ready' | 'requesting_quotes' | 'understanding_request' | 'searching_aircraft' | 'analyzing_options'
+
+const STATUS_LABELS: Record<StatusFilter, string> = {
+  all: 'All',
+  proposal_ready: 'Ready',
+  requesting_quotes: 'Quotes',
+  understanding_request: 'Pending',
+  searching_aircraft: 'Searching',
+  analyzing_options: 'Analyzing',
+}
+
 export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewChat, onDeleteChat, onCancelChat, onArchiveChat }: ChatSidebarProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Filter sessions based on search query and status filter
+  const filteredSessions = useMemo(() => {
+    let filtered = chatSessions
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter((session) => {
+        // Search in route
+        if (session.route?.toLowerCase().includes(query)) return true
+        // Search in generated name
+        if (session.generatedName?.toLowerCase().includes(query)) return true
+        // Search in trip ID
+        if (session.tripId?.toLowerCase().includes(query)) return true
+        // Search in operator name
+        if (session.operator?.toLowerCase().includes(query)) return true
+        // Search in aircraft type
+        if (session.aircraft?.toLowerCase().includes(query)) return true
+        // Search in date
+        if (session.date?.toLowerCase().includes(query)) return true
+        return false
+      })
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((session) => session.status === statusFilter)
+    }
+
+    return filtered
+  }, [chatSessions, searchQuery, statusFilter])
+
+  const clearSearch = () => {
+    setSearchQuery('')
+  }
+
+  const clearFilters = () => {
+    setSearchQuery('')
+    setStatusFilter('all')
+  }
+
+  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all'
 
   return (
     <div className="w-80 sm:w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full overflow-x-hidden">
@@ -186,8 +247,81 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
             New
           </Button>
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {chatSessions.length} active flight request{chatSessions.length !== 1 ? "s" : ""}
+
+        {/* Search Input */}
+        <div className="relative mb-2">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search flights, routes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 pr-8 h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+          />
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter Toggle */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={cn(
+              "flex items-center gap-1 text-xs transition-colors",
+              showFilters || hasActiveFilters
+                ? "text-cyan-600 dark:text-cyan-400"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            )}
+          >
+            <Filter className="w-3 h-3" />
+            Filter
+            {hasActiveFilters && (
+              <span className="ml-1 px-1.5 py-0.5 bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300 rounded-full text-xs">
+                {(searchQuery ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
+              </span>
+            )}
+          </button>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+
+        {/* Status Filter Pills */}
+        {showFilters && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={cn(
+                  "px-2 py-1 text-xs rounded-full transition-colors",
+                  statusFilter === status
+                    ? "bg-cyan-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                )}
+              >
+                {STATUS_LABELS[status]}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Results count */}
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          {filteredSessions.length === chatSessions.length
+            ? `${chatSessions.length} active request${chatSessions.length !== 1 ? "s" : ""}`
+            : `${filteredSessions.length} of ${chatSessions.length} requests`}
         </p>
       </div>
 
@@ -195,7 +329,19 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
       <div className="relative flex-1 min-h-0 w-full overflow-x-hidden">
         <ScrollArea className="h-full w-full overflow-x-hidden">
           <div className="p-1 sm:p-2 space-y-2 flex flex-col items-center">
-            {chatSessions.map((session) => (
+            {filteredSessions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No matching requests</p>
+                <button
+                  onClick={clearFilters}
+                  className="text-xs text-cyan-600 hover:underline mt-1"
+                >
+                  Clear filters
+                </button>
+              </div>
+            ) : (
+            filteredSessions.map((session) => (
               // Render GeneralChatCard for general conversations, FlightRequestCard for flight requests
               session.conversationType === 'general' ? (
                 <GeneralChatCard
@@ -217,7 +363,8 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
                   onArchive={onArchiveChat}
                 />
               )
-            ))}
+            ))
+            )}
           </div>
         </ScrollArea>
       </div>
