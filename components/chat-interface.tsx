@@ -28,6 +28,7 @@ import { AgentMessage } from "./chat/agent-message"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
+import { ProposalDrawer, type ProposalCustomer, type ProposalTripDetails } from "./proposal-drawer"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
 import type { PipelineData } from "@/lib/types/chat-agent"
@@ -118,6 +119,10 @@ export function ChatInterface({
   const [messageThreadQuoteId, setMessageThreadQuoteId] = useState<string | undefined>(undefined)
   const [messageThreadFlightId, setMessageThreadFlightId] = useState<string | undefined>(undefined)
   const [messageThreadOperatorName, setMessageThreadOperatorName] = useState<string | undefined>(undefined)
+
+  // Proposal drawer state
+  const [isProposalDrawerOpen, setIsProposalDrawerOpen] = useState(false)
+  const [proposalFlightId, setProposalFlightId] = useState<string | null>(null)
 
   // Trip ID input state
   const [isTripIdLoading, setIsTripIdLoading] = useState(false)
@@ -650,7 +655,60 @@ export function ChatInterface({
    */
   const handleGenerateProposal = (flightId: string, quoteId?: string) => {
     console.log('[ChatInterface] Generate proposal:', { flightId, quoteId })
-    // TODO: Implement proposal generation
+    setProposalFlightId(flightId)
+    setIsProposalDrawerOpen(true)
+  }
+
+  /**
+   * Handle proposal sent callback
+   */
+  const handleProposalSent = (proposalId: string) => {
+    console.log('[ChatInterface] Proposal sent:', proposalId)
+    // Update chat status to proposal_ready
+    onUpdateChat(activeChat.id, {
+      status: 'proposal_ready',
+    })
+  }
+
+  /**
+   * Get selected flight for proposal drawer
+   */
+  const getProposalFlight = (): RFQFlight | undefined => {
+    if (!proposalFlightId) return undefined
+    return rfqFlights.find((f) => f.id === proposalFlightId)
+  }
+
+  /**
+   * Get customer data for proposal drawer
+   */
+  const getProposalCustomer = (): ProposalCustomer | undefined => {
+    if (!activeChat.customer?.name) return undefined
+    return {
+      name: activeChat.customer.name,
+      email: activeChat.customer.name.toLowerCase().replace(/\s+/g, '.') + '@example.com',
+    }
+  }
+
+  /**
+   * Get trip details for proposal drawer
+   */
+  const getProposalTripDetails = (): ProposalTripDetails | undefined => {
+    const flight = getProposalFlight()
+    // routeParts is a tuple [departure, arrival]
+    const [departureIcao, arrivalIcao] = routeParts
+    if (!flight && departureIcao === 'N/A') return undefined
+
+    return {
+      departureAirport: flight?.departureAirport || {
+        icao: departureIcao,
+      },
+      arrivalAirport: flight?.arrivalAirport || {
+        icao: arrivalIcao,
+      },
+      departureDate: activeChat.date || new Date().toISOString().split('T')[0],
+      passengers: activeChat.passengers || 1,
+      tripId: activeChat.tripId,
+    }
   }
 
   /**
@@ -1066,6 +1124,19 @@ export function ChatInterface({
         quoteId={messageThreadQuoteId}
         flightId={messageThreadFlightId}
         operatorName={messageThreadOperatorName}
+      />
+
+      {/* Proposal Drawer */}
+      <ProposalDrawer
+        isOpen={isProposalDrawerOpen}
+        onClose={() => {
+          setIsProposalDrawerOpen(false)
+          setProposalFlightId(null)
+        }}
+        flight={getProposalFlight()}
+        customer={getProposalCustomer()}
+        tripDetails={getProposalTripDetails()}
+        onProposalSent={handleProposalSent}
       />
     </div>
   )
