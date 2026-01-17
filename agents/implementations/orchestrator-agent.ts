@@ -11,6 +11,13 @@
  * - Contextual question generation
  * - Conversation state tracking
  * - Structured message component responses
+ *
+ * ONEK-115: Redis-backed conversation state storage
+ * - Replaced in-memory Map with RedisConversationStore
+ * - Enables horizontal scaling (multiple server instances)
+ * - State persistence across server restarts
+ * - Automatic session expiry (1 hour TTL)
+ * - Graceful fallback to in-memory on Redis failure
  */
 
 import { BaseAgent } from '../core/base-agent';
@@ -34,6 +41,7 @@ import {
 import type { MessageComponent } from '@/components/message-components/types';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { detectTripId } from '@/lib/avinode/trip-id';
+import { RedisConversationStore, getConversationStore } from '@/lib/sessions';
 
 /**
  * RFP data structure (backward compatibility)
@@ -83,9 +91,13 @@ export class OrchestratorAgent extends BaseAgent {
   private dataExtractor: DataExtractor;
   private questionGenerator: QuestionGenerator;
 
-  // TODO(ONEK-115): Replace in-memory conversation state with Redis-backed storage
-  // Conversation state store (in-memory, tracked as tech debt in ONEK-115)
-  private conversationStates: Map<string, ConversationState> = new Map();
+  /**
+   * ONEK-115: Redis-backed conversation state store
+   * - Replaces in-memory Map for scalability
+   * - Provides automatic TTL (1 hour default)
+   * - Falls back to in-memory on Redis connection failure
+   */
+  private conversationStore: RedisConversationStore;
 
   constructor(config: AgentConfig) {
     super({
@@ -98,14 +110,29 @@ export class OrchestratorAgent extends BaseAgent {
     this.intentParser = new IntentParser();
     this.dataExtractor = new DataExtractor();
     this.questionGenerator = new QuestionGenerator();
+
+    // Initialize Redis-backed conversation store (ONEK-115)
+    this.conversationStore = getConversationStore();
   }
 
   /**
    * Initialize the agent
+   * Sets up base agent and Redis conversation store
    */
   async initialize(): Promise<void> {
     await super.initialize();
+
+    // Initialize Redis conversation store connection
+    await this.conversationStore.initialize();
+
+    // Log health status for debugging
+    const health = await this.conversationStore.getHealth();
     console.log(`[${this.name}] OrchestratorAgent initialized with conversational capabilities`);
+    console.log(`[${this.name}] Conversation store: ${health.connected ? 'Redis connected' : 'Using in-memory fallback'}`, {
+      connected: health.connected,
+      latencyMs: health.latencyMs,
+      usingFallback: health.usingFallback,
+    });
   }
 
   /**
@@ -145,6 +172,7 @@ export class OrchestratorAgent extends BaseAgent {
 
   /**
    * Handle conversational interaction
+   * ONEK-115: Updated to use async Redis-backed conversation store
    */
   private async handleConversation(
     userMessage: string,
@@ -152,15 +180,18 @@ export class OrchestratorAgent extends BaseAgent {
   ): Promise<ConversationalResponse> {
     const sessionId = context.sessionId || 'default-session';
 
-    // Get or create conversation state
-    let conversationState = this.conversationStates.get(sessionId);
+    // Get or create conversation state from Redis store
+    let conversationState = await this.conversationStore.get(sessionId);
     if (!conversationState) {
       conversationState = createConversationState(
         sessionId,
         context.userId,
         context.requestId
       );
-      this.conversationStates.set(sessionId, conversationState);
+      await this.conversationStore.set(sessionId, conversationState);
+    } else {
+      // Refresh TTL on existing session to extend lifetime
+      await this.conversationStore.refreshTTL(sessionId);
     }
 
     // Add user message to history
@@ -228,7 +259,8 @@ export class OrchestratorAgent extends BaseAgent {
       isComplete,
     });
 
-    this.conversationStates.set(conversationState.sessionId, conversationState);
+    // Persist updated state to Redis store (ONEK-115)
+    await this.conversationStore.set(conversationState.sessionId, conversationState);
 
     // If complete, create RFP and delegate to downstream agents
     if (isComplete) {
@@ -282,7 +314,8 @@ export class OrchestratorAgent extends BaseAgent {
       timestamp: new Date(),
     });
 
-    this.conversationStates.set(conversationState.sessionId, conversationState);
+    // Persist updated state to Redis store (ONEK-115)
+    await this.conversationStore.set(conversationState.sessionId, conversationState);
 
     return {
       message: questionResult.question,
@@ -349,7 +382,8 @@ export class OrchestratorAgent extends BaseAgent {
       isComplete: true,
     });
 
-    this.conversationStates.set(conversationState.sessionId, conversationState);
+    // Persist completed state to Redis store (ONEK-115)
+    await this.conversationStore.set(conversationState.sessionId, conversationState);
 
     return {
       message,
@@ -547,7 +581,8 @@ export class OrchestratorAgent extends BaseAgent {
         timestamp: new Date(),
       });
 
-      this.conversationStates.set(conversationState.sessionId, conversationState);
+      // Persist updated state to Redis store (ONEK-115)
+      await this.conversationStore.set(conversationState.sessionId, conversationState);
 
       return {
         message: fullMessage,
@@ -599,7 +634,8 @@ export class OrchestratorAgent extends BaseAgent {
       timestamp: new Date(),
     });
 
-    this.conversationStates.set(conversationState.sessionId, conversationState);
+    // Persist updated state to Redis store (ONEK-115)
+    await this.conversationStore.set(conversationState.sessionId, conversationState);
 
     return {
       message: questionResult.question,
@@ -641,7 +677,8 @@ export class OrchestratorAgent extends BaseAgent {
       timestamp: new Date(),
     });
 
-    this.conversationStates.set(conversationState.sessionId, conversationState);
+    // Persist updated state to Redis store (ONEK-115)
+    await this.conversationStore.set(conversationState.sessionId, conversationState);
 
     return {
       message: response,
@@ -878,23 +915,34 @@ export class OrchestratorAgent extends BaseAgent {
 
   /**
    * Get conversation state for a session (for testing/debugging)
+   * ONEK-115: Updated to async Redis store access
    */
-  getConversationState(sessionId: string): ConversationState | undefined {
-    return this.conversationStates.get(sessionId);
+  async getConversationState(sessionId: string): Promise<ConversationState | undefined> {
+    return this.conversationStore.get(sessionId);
   }
 
   /**
    * Clear conversation state (for testing/session reset)
+   * ONEK-115: Updated to async Redis store access
    */
-  clearConversationState(sessionId: string): void {
-    this.conversationStates.delete(sessionId);
+  async clearConversationState(sessionId: string): Promise<void> {
+    await this.conversationStore.delete(sessionId);
   }
 
   /**
-   * Shutdown - cleanup conversation states
+   * Get conversation store health status (for monitoring/debugging)
+   * ONEK-115: New method to check Redis connection status
+   */
+  async getStoreHealth(): Promise<{ connected: boolean; latencyMs: number; usingFallback: boolean }> {
+    return this.conversationStore.getHealth();
+  }
+
+  /**
+   * Shutdown - cleanup conversation store connection
+   * ONEK-115: Updated to close Redis connection properly
    */
   async shutdown(): Promise<void> {
     await super.shutdown();
-    this.conversationStates.clear();
+    await this.conversationStore.close();
   }
 }
