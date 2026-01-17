@@ -211,162 +211,6 @@ export type Database = {
           },
         ]
       }
-      chat_sessions: {
-        Row: {
-          avinode_rfp_id: string | null
-          avinode_rfq_id: string | null
-          avinode_trip_id: string | null
-          conversation_id: string
-          conversation_type: string | null
-          created_at: string
-          current_step: string | null
-          id: string
-          iso_agent_id: string
-          last_activity_at: string
-          message_count: number | null
-          metadata: Json | null
-          operators_contacted_count: number | null
-          primary_quote_id: string | null
-          proposal_id: string | null
-          quotes_expected_count: number | null
-          quotes_received_count: number | null
-          request_id: string | null
-          session_ended_at: string | null
-          session_started_at: string
-          status: Database["public"]["Enums"]["chat_session_status"]
-          updated_at: string
-          workflow_state: Json | null
-        }
-        Insert: {
-          avinode_rfp_id?: string | null
-          avinode_rfq_id?: string | null
-          avinode_trip_id?: string | null
-          conversation_id: string
-          conversation_type?: string | null
-          created_at?: string
-          current_step?: string | null
-          id?: string
-          iso_agent_id: string
-          last_activity_at?: string
-          message_count?: number | null
-          metadata?: Json | null
-          operators_contacted_count?: number | null
-          primary_quote_id?: string | null
-          proposal_id?: string | null
-          quotes_expected_count?: number | null
-          quotes_received_count?: number | null
-          request_id?: string | null
-          session_ended_at?: string | null
-          session_started_at?: string
-          status?: Database["public"]["Enums"]["chat_session_status"]
-          updated_at?: string
-          workflow_state?: Json | null
-        }
-        Update: {
-          avinode_rfp_id?: string | null
-          avinode_rfq_id?: string | null
-          avinode_trip_id?: string | null
-          conversation_id?: string
-          conversation_type?: string | null
-          created_at?: string
-          current_step?: string | null
-          id?: string
-          iso_agent_id?: string
-          last_activity_at?: string
-          message_count?: number | null
-          metadata?: Json | null
-          operators_contacted_count?: number | null
-          primary_quote_id?: string | null
-          proposal_id?: string | null
-          quotes_expected_count?: number | null
-          quotes_received_count?: number | null
-          request_id?: string | null
-          session_ended_at?: string | null
-          session_started_at?: string
-          status?: Database["public"]["Enums"]["chat_session_status"]
-          updated_at?: string
-          workflow_state?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_sessions_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_sessions_iso_agent_id_fkey"
-            columns: ["iso_agent_id"]
-            isOneToOne: false
-            referencedRelation: "iso_agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_sessions_primary_quote_id_fkey"
-            columns: ["primary_quote_id"]
-            isOneToOne: false
-            referencedRelation: "quotes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_sessions_proposal_id_fkey"
-            columns: ["proposal_id"]
-            isOneToOne: false
-            referencedRelation: "proposals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_sessions_request_id_fkey"
-            columns: ["request_id"]
-            isOneToOne: false
-            referencedRelation: "requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chatkit_sessions: {
-        Row: {
-          clerk_user_id: string
-          created_at: string
-          device_id: string
-          expires_at: string
-          id: string
-          last_activity_at: string
-          metadata: Json | null
-          session_token: string
-          status: Database["public"]["Enums"]["session_status"]
-          updated_at: string
-          workflow_id: string
-        }
-        Insert: {
-          clerk_user_id: string
-          created_at?: string
-          device_id: string
-          expires_at: string
-          id?: string
-          last_activity_at?: string
-          metadata?: Json | null
-          session_token: string
-          status?: Database["public"]["Enums"]["session_status"]
-          updated_at?: string
-          workflow_id: string
-        }
-        Update: {
-          clerk_user_id?: string
-          created_at?: string
-          device_id?: string
-          expires_at?: string
-          id?: string
-          last_activity_at?: string
-          metadata?: Json | null
-          session_token?: string
-          status?: Database["public"]["Enums"]["session_status"]
-          updated_at?: string
-          workflow_id?: string
-        }
-        Relationships: []
-      }
       client_profiles: {
         Row: {
           company_name: string
@@ -417,98 +261,6 @@ export type Database = {
           },
         ]
       }
-      conversation_participants: {
-        Row: {
-          can_invite: boolean | null
-          can_reply: boolean | null
-          conversation_id: string
-          id: string
-          is_active: boolean | null
-          is_typing: boolean | null
-          iso_agent_id: string | null
-          joined_at: string | null
-          last_read_at: string | null
-          last_read_message_id: string | null
-          left_at: string | null
-          metadata: Json | null
-          muted_until: string | null
-          notifications_enabled: boolean | null
-          operator_profile_id: string | null
-          role: Database["public"]["Enums"]["participant_role"]
-          typing_started_at: string | null
-          unread_count: number | null
-        }
-        Insert: {
-          can_invite?: boolean | null
-          can_reply?: boolean | null
-          conversation_id: string
-          id?: string
-          is_active?: boolean | null
-          is_typing?: boolean | null
-          iso_agent_id?: string | null
-          joined_at?: string | null
-          last_read_at?: string | null
-          last_read_message_id?: string | null
-          left_at?: string | null
-          metadata?: Json | null
-          muted_until?: string | null
-          notifications_enabled?: boolean | null
-          operator_profile_id?: string | null
-          role: Database["public"]["Enums"]["participant_role"]
-          typing_started_at?: string | null
-          unread_count?: number | null
-        }
-        Update: {
-          can_invite?: boolean | null
-          can_reply?: boolean | null
-          conversation_id?: string
-          id?: string
-          is_active?: boolean | null
-          is_typing?: boolean | null
-          iso_agent_id?: string | null
-          joined_at?: string | null
-          last_read_at?: string | null
-          last_read_message_id?: string | null
-          left_at?: string | null
-          metadata?: Json | null
-          muted_until?: string | null
-          notifications_enabled?: boolean | null
-          operator_profile_id?: string | null
-          role?: Database["public"]["Enums"]["participant_role"]
-          typing_started_at?: string | null
-          unread_count?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversation_participants_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversation_participants_iso_agent_id_fkey"
-            columns: ["iso_agent_id"]
-            isOneToOne: false
-            referencedRelation: "iso_agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversation_participants_operator_profile_id_fkey"
-            columns: ["operator_profile_id"]
-            isOneToOne: false
-            referencedRelation: "operator_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_last_read_message"
-            columns: ["last_read_message_id"]
-            isOneToOne: false
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       conversation_state: {
         Row: {
           completed_fields: string[] | null
@@ -553,84 +305,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      conversations: {
-        Row: {
-          avinode_thread_id: string | null
-          chatkit_thread_id: string | null
-          created_at: string | null
-          id: string
-          is_pinned: boolean | null
-          is_priority: boolean | null
-          last_message_at: string | null
-          last_message_by: string | null
-          message_count: number | null
-          metadata: Json | null
-          quote_id: string | null
-          request_id: string | null
-          status: Database["public"]["Enums"]["conversation_status"]
-          subject: string | null
-          type: Database["public"]["Enums"]["conversation_type"]
-          unread_count_iso: number | null
-          unread_count_operator: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          avinode_thread_id?: string | null
-          chatkit_thread_id?: string | null
-          created_at?: string | null
-          id?: string
-          is_pinned?: boolean | null
-          is_priority?: boolean | null
-          last_message_at?: string | null
-          last_message_by?: string | null
-          message_count?: number | null
-          metadata?: Json | null
-          quote_id?: string | null
-          request_id?: string | null
-          status?: Database["public"]["Enums"]["conversation_status"]
-          subject?: string | null
-          type?: Database["public"]["Enums"]["conversation_type"]
-          unread_count_iso?: number | null
-          unread_count_operator?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          avinode_thread_id?: string | null
-          chatkit_thread_id?: string | null
-          created_at?: string | null
-          id?: string
-          is_pinned?: boolean | null
-          is_priority?: boolean | null
-          last_message_at?: string | null
-          last_message_by?: string | null
-          message_count?: number | null
-          metadata?: Json | null
-          quote_id?: string | null
-          request_id?: string | null
-          status?: Database["public"]["Enums"]["conversation_status"]
-          subject?: string | null
-          type?: Database["public"]["Enums"]["conversation_type"]
-          unread_count_iso?: number | null
-          unread_count_operator?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversations_quote_id_fkey"
-            columns: ["quote_id"]
-            isOneToOne: false
-            referencedRelation: "quotes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversations_request_id_fkey"
-            columns: ["request_id"]
-            isOneToOne: false
-            referencedRelation: "requests"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       iso_agents: {
         Row: {
@@ -756,7 +430,6 @@ export type Database = {
           chatkit_message_id: string | null
           content: string | null
           content_type: Database["public"]["Enums"]["message_content_type"]
-          conversation_id: string
           created_at: string | null
           deleted_at: string | null
           edited_at: string | null
@@ -765,9 +438,11 @@ export type Database = {
           metadata: Json | null
           original_content: string | null
           parent_message_id: string | null
+          quote_id: string | null
           reactions: Json | null
           read_by: Json | null
           reply_count: number | null
+          request_id: string | null
           rich_content: Json | null
           sender_iso_agent_id: string | null
           sender_name: string | null
@@ -783,7 +458,6 @@ export type Database = {
           chatkit_message_id?: string | null
           content?: string | null
           content_type?: Database["public"]["Enums"]["message_content_type"]
-          conversation_id: string
           created_at?: string | null
           deleted_at?: string | null
           edited_at?: string | null
@@ -792,9 +466,11 @@ export type Database = {
           metadata?: Json | null
           original_content?: string | null
           parent_message_id?: string | null
+          quote_id?: string | null
           reactions?: Json | null
           read_by?: Json | null
           reply_count?: number | null
+          request_id?: string | null
           rich_content?: Json | null
           sender_iso_agent_id?: string | null
           sender_name?: string | null
@@ -810,7 +486,6 @@ export type Database = {
           chatkit_message_id?: string | null
           content?: string | null
           content_type?: Database["public"]["Enums"]["message_content_type"]
-          conversation_id?: string
           created_at?: string | null
           deleted_at?: string | null
           edited_at?: string | null
@@ -819,9 +494,11 @@ export type Database = {
           metadata?: Json | null
           original_content?: string | null
           parent_message_id?: string | null
+          quote_id?: string | null
           reactions?: Json | null
           read_by?: Json | null
           reply_count?: number | null
+          request_id?: string | null
           rich_content?: Json | null
           sender_iso_agent_id?: string | null
           sender_name?: string | null
@@ -833,17 +510,24 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "messages_parent_message_id_fkey"
             columns: ["parent_message_id"]
             isOneToOne: false
             referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
             referencedColumns: ["id"]
           },
           {
@@ -1231,24 +915,42 @@ export type Database = {
           avinode_rfp_id: string | null
           avinode_session_ended_at: string | null
           avinode_session_started_at: string | null
+          avinode_thread_id: string | null
           avinode_trip_id: string | null
           budget: number | null
+          chatkit_thread_id: string | null
           client_profile_id: string | null
+          conversation_type: string | null
           created_at: string | null
+          current_step: string | null
           departure_airport: string
           departure_date: string
           id: string
+          is_pinned: boolean | null
+          is_priority: boolean | null
           iso_agent_id: string
+          last_activity_at: string | null
+          last_message_at: string | null
+          last_message_by: string | null
+          message_count: number | null
           metadata: Json | null
           operators_contacted: number | null
           passengers: number
-          primary_conversation_id: string | null
           quotes_expected: number | null
           quotes_received: number | null
           return_date: string | null
+          segment_count: number | null
+          session_ended_at: string | null
+          session_started_at: string | null
+          session_status: string | null
           special_requirements: string | null
           status: Database["public"]["Enums"]["request_status"]
+          subject: string | null
+          trip_type: string | null
+          unread_count_iso: number | null
+          unread_count_operator: number | null
           updated_at: string | null
+          workflow_state: Json | null
         }
         Insert: {
           aircraft_type?: string | null
@@ -1257,24 +959,42 @@ export type Database = {
           avinode_rfp_id?: string | null
           avinode_session_ended_at?: string | null
           avinode_session_started_at?: string | null
+          avinode_thread_id?: string | null
           avinode_trip_id?: string | null
           budget?: number | null
+          chatkit_thread_id?: string | null
           client_profile_id?: string | null
+          conversation_type?: string | null
           created_at?: string | null
+          current_step?: string | null
           departure_airport: string
           departure_date: string
           id?: string
+          is_pinned?: boolean | null
+          is_priority?: boolean | null
           iso_agent_id: string
+          last_activity_at?: string | null
+          last_message_at?: string | null
+          last_message_by?: string | null
+          message_count?: number | null
           metadata?: Json | null
           operators_contacted?: number | null
           passengers: number
-          primary_conversation_id?: string | null
           quotes_expected?: number | null
           quotes_received?: number | null
           return_date?: string | null
+          segment_count?: number | null
+          session_ended_at?: string | null
+          session_started_at?: string | null
+          session_status?: string | null
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["request_status"]
+          subject?: string | null
+          trip_type?: string | null
+          unread_count_iso?: number | null
+          unread_count_operator?: number | null
           updated_at?: string | null
+          workflow_state?: Json | null
         }
         Update: {
           aircraft_type?: string | null
@@ -1283,24 +1003,42 @@ export type Database = {
           avinode_rfp_id?: string | null
           avinode_session_ended_at?: string | null
           avinode_session_started_at?: string | null
+          avinode_thread_id?: string | null
           avinode_trip_id?: string | null
           budget?: number | null
+          chatkit_thread_id?: string | null
           client_profile_id?: string | null
+          conversation_type?: string | null
           created_at?: string | null
+          current_step?: string | null
           departure_airport?: string
           departure_date?: string
           id?: string
+          is_pinned?: boolean | null
+          is_priority?: boolean | null
           iso_agent_id?: string
+          last_activity_at?: string | null
+          last_message_at?: string | null
+          last_message_by?: string | null
+          message_count?: number | null
           metadata?: Json | null
           operators_contacted?: number | null
           passengers?: number
-          primary_conversation_id?: string | null
           quotes_expected?: number | null
           quotes_received?: number | null
           return_date?: string | null
+          segment_count?: number | null
+          session_ended_at?: string | null
+          session_started_at?: string | null
+          session_status?: string | null
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["request_status"]
+          subject?: string | null
+          trip_type?: string | null
+          unread_count_iso?: number | null
+          unread_count_operator?: number | null
           updated_at?: string | null
+          workflow_state?: Json | null
         }
         Relationships: [
           {
@@ -1315,13 +1053,6 @@ export type Database = {
             columns: ["iso_agent_id"]
             isOneToOne: false
             referencedRelation: "iso_agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "requests_primary_conversation_id_fkey"
-            columns: ["primary_conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -1527,7 +1258,6 @@ export type Database = {
         Returns: string
       }
       claim_webhook_event: { Args: { event_id: string }; Returns: boolean }
-      cleanup_expired_chatkit_sessions: { Args: never; Returns: number }
       complete_chat_session: {
         Args: { session_id: string }
         Returns: undefined
@@ -1936,5 +1666,3 @@ export type Request = Database["public"]["Tables"]["requests"]["Row"]
 export type Quote = Database["public"]["Tables"]["quotes"]["Row"]
 export type Proposal = Database["public"]["Tables"]["proposals"]["Row"]
 export type Message = Database["public"]["Tables"]["messages"]["Row"]
-export type Conversation = Database["public"]["Tables"]["conversations"]["Row"]
-export type ChatSession = Database["public"]["Tables"]["chat_sessions"]["Row"]

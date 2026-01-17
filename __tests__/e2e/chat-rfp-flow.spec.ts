@@ -308,11 +308,11 @@ test.describe('Error States', () => {
 });
 
 test.describe('Chat Page Tests', () => {
-  test('ChatKit interface loads', async ({ page }) => {
+  test('Chat interface loads', async ({ page }) => {
     await page.goto('/chat');
     await waitForPageLoad(page);
 
-    await captureScreenshot(page, '20-chatkit-page');
+    await captureScreenshot(page, '20-chat-page');
 
     // Verify main heading
     const heading = page.locator('h1:has-text("JetVision")');

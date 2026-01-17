@@ -96,48 +96,6 @@ export type Database = {
           },
         ]
       }
-      chatkit_sessions: {
-        Row: {
-          clerk_user_id: string
-          created_at: string
-          device_id: string
-          expires_at: string
-          id: string
-          last_activity_at: string
-          metadata: Json | null
-          session_token: string
-          status: Database["public"]["Enums"]["session_status"]
-          updated_at: string
-          workflow_id: string
-        }
-        Insert: {
-          clerk_user_id: string
-          created_at?: string
-          device_id: string
-          expires_at: string
-          id?: string
-          last_activity_at?: string
-          metadata?: Json | null
-          session_token: string
-          status?: Database["public"]["Enums"]["session_status"]
-          updated_at?: string
-          workflow_id: string
-        }
-        Update: {
-          clerk_user_id?: string
-          created_at?: string
-          device_id?: string
-          expires_at?: string
-          id?: string
-          last_activity_at?: string
-          metadata?: Json | null
-          session_token?: string
-          status?: Database["public"]["Enums"]["session_status"]
-          updated_at?: string
-          workflow_id?: string
-        }
-        Relationships: []
-      }
       client_profiles: {
         Row: {
           company_name: string
@@ -715,7 +673,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_chatkit_sessions: { Args: never; Returns: number }
       generate_proposal_number: { Args: never; Returns: string }
       get_current_user_id: { Args: never; Returns: string }
       get_current_user_role: {

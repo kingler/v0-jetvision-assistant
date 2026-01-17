@@ -400,7 +400,6 @@ type AssertNoExtraTables<T extends readonly string[]> = {
  */
 const VALID_TABLES = [
   'agent_executions',
-  'chatkit_sessions',
   'client_profiles',
   'conversation_state',
   'iso_agents',
@@ -580,16 +579,6 @@ function getTableColumns(table: string): string[] {
       'duration_ms',
       'tokens_used',
       'created_at',
-    ],
-    chatkit_sessions: [
-      'id',
-      'user_id',
-      'title',
-      'status',
-      'messages',
-      'context',
-      'created_at',
-      'updated_at',
     ],
   };
 

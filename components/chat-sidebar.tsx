@@ -86,7 +86,6 @@ export interface ChatSession {
   basePrice?: number
   totalPrice?: number
   margin?: number
-  chatkitThreadId?: string
   selectedQuoteId?: string
   /** Avinode trip ID for tracking flight searches */
   tripId?: string
