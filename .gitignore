@@ -63,3 +63,8 @@ build-output.log
 
 # Vercel project settings (local only)
 .vercel/
+
+# Storybook
+.storybook/
+stories/
+storybook-static/
