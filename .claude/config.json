@@ -107,7 +107,22 @@
         "env": {
           "TASKMASTER_PROJECT_ROOT": "."
         }
-      }
+      },
+      "supabase-mcp": {
+    "command":
+  "/Users/kinglerbercy/Neo-MCP/core/database/supabase/.venv/bin/python",
+    "args": [
+      "-m",
+      "supabase_mcp.main"
+    ],
+    "env": {
+      "SUPABASE_URL": "postgresql://postgres:91iSJglKzv2nIvHM@db.sbzaevawnjlrsjsuevli.supabase.co:5432/postgres",
+      "SUPABASE_DB": "postgres",
+      "SUPABASE_PASSWORD":"91iSJglKzv2nIvHM",
+      "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNiemFldmF3bmpscnNqc3VldmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDkyNzEwMiwiZXhwIjoyMDc2NTAzMTAyfQ.R2TtahKp42sk11OqwB_DSn6-Uxi6flfD-_1hpm4FaEU",
+      "PYTHONUNBUFFERED": "1"
+    }
+  }
     }
   },
   "shortcuts": {

@@ -56,7 +56,7 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
   const [showArchiveDialog, setShowArchiveDialog] = useState(false)
 
   /**
-   * Calculate if there are unread messages for this session
+   * Calculate if there are unread operator messages for this session
    * Unread messages are determined by comparing operatorMessages timestamps
    * with lastMessagesReadAt timestamps for each quote ID
    */

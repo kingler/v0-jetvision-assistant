@@ -81,7 +81,7 @@ export interface AgentMessageProps {
   showDeepLink?: boolean
   /** Deep link data - contains flight request details */
   deepLinkData?: {
-    rfpId?: string
+    rfqId?: string
     tripId?: string
     deepLink?: string
     departureAirport?: { icao: string; name?: string; city?: string }
@@ -386,7 +386,7 @@ export function AgentMessage({
               ),
               departureDate: deepLinkData.departureDate || new Date().toISOString().split('T')[0],
               passengers: deepLinkData.passengers || 1,
-              requestId: deepLinkData.rfpId,
+              requestId: deepLinkData.rfqId,
               aircraftPreferences: deepLinkData.aircraftPreferences,
               specialRequirements: deepLinkData.specialRequirements,
             }}

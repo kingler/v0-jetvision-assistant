@@ -30,7 +30,6 @@ type ChatSessionRow = {
   iso_agent_id: string;
   status: 'active' | 'paused' | 'completed' | 'archived';
   avinode_trip_id: string | null;
-  avinode_rfp_id: string | null;
   avinode_rfq_id: string | null;
   primary_quote_id: string | null;
   proposal_id: string | null;
@@ -68,7 +67,7 @@ type ChatSessionRow = {
     budget: number | null;
     status: string;
     avinode_trip_id: string | null;
-    avinode_rfp_id: string | null;
+    avinode_rfq_id: string | null;
     avinode_deep_link: string | null;
     created_at: string;
   } | null;
@@ -222,8 +221,7 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
 
     // Avinode integration fields from chat_session (prefer chat_session, fallback to request)
     tripId: chatSessionRow.avinode_trip_id || request?.avinode_trip_id || undefined,
-    rfqId: chatSessionRow.avinode_rfq_id || undefined,
-    rfpId: chatSessionRow.avinode_rfp_id || request?.avinode_rfp_id || undefined,
+    rfqId: chatSessionRow.avinode_rfq_id || request?.avinode_rfq_id || undefined,
     deepLink: request?.avinode_deep_link || undefined,
 
     // Quote statistics from chat_session

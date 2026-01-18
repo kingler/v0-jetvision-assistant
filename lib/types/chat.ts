@@ -144,8 +144,6 @@ export interface Conversation {
   status: ConversationStatus;
   subject: string | null;
   avinode_thread_id: string | null;
-  /** @deprecated ChatKit is no longer used. This field remains for backward compatibility. */
-  chatkit_thread_id: string | null;
   last_message_at: string | null;
   last_message_by: string | null;
   message_count: number;
@@ -165,8 +163,6 @@ export interface ConversationInsert {
   status?: ConversationStatus;
   subject?: string | null;
   avinode_thread_id?: string | null;
-  /** @deprecated ChatKit is no longer used. This field remains for backward compatibility. */
-  chatkit_thread_id?: string | null;
   is_priority?: boolean;
   is_pinned?: boolean;
   metadata?: Record<string, unknown>;
@@ -262,8 +258,6 @@ export interface Message {
   reply_count: number;
   status: MessageStatus;
   avinode_message_id: string | null;
-  /** @deprecated ChatKit is no longer used. This field remains for backward compatibility. */
-  chatkit_message_id: string | null;
   read_by: ReadReceipt[];
   reactions: Record<string, Array<{ user_id: string; created_at: string }>>;
   is_edited: boolean;
@@ -288,8 +282,6 @@ export interface MessageInsert {
   parent_message_id?: string | null;
   thread_root_id?: string | null;
   avinode_message_id?: string | null;
-  /** @deprecated ChatKit is no longer used. This field remains for backward compatibility. */
-  chatkit_message_id?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -422,7 +414,7 @@ export interface AvinodeWebhookEvent {
   conversation_id: string | null;
   operator_profile_id: string | null;
   message_id: string | null;
-  avinode_rfp_id: string | null;
+  avinode_rfq_id: string | null;
   avinode_quote_id: string | null;
   avinode_trip_id: string | null;
   avinode_thread_id: string | null;

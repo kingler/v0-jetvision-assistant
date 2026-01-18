@@ -518,7 +518,7 @@ function getTableColumns(table: string): string[] {
       'passengers',
       'special_requirements',
       'status',
-      'avinode_rfp_id',
+      'avinode_rfq_id',
       'avinode_trip_id',
       'avinode_deep_link',
       'avinode_session_started_at',

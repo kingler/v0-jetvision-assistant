@@ -302,7 +302,7 @@ export async function updateRequestWithAvinodeTrip(
   tripData: {
     avinode_trip_id: string;
     avinode_deep_link: string;
-    avinode_rfp_id?: string;
+    avinode_rfq_id?: string;
   }
 ) {
   const { data, error } = await supabaseAdmin
@@ -310,7 +310,7 @@ export async function updateRequestWithAvinodeTrip(
     .update({
       avinode_trip_id: tripData.avinode_trip_id,
       avinode_deep_link: tripData.avinode_deep_link,
-      avinode_rfp_id: tripData.avinode_rfp_id,
+      avinode_rfq_id: tripData.avinode_rfq_id,
       avinode_session_started_at: new Date().toISOString(),
     })
     .eq('id', requestId)
@@ -321,6 +321,95 @@ export async function updateRequestWithAvinodeTrip(
     console.error('Failed to update request with Avinode trip:', error);
     throw error;
   }
+
+  return data;
+}
+
+/**
+ * Update an existing conversation request with trip data and flight details
+ *
+ * This function is used when a trip is created during a chat conversation.
+ * Instead of creating a new request (which would orphan the conversation messages),
+ * it updates the existing conversation request with the trip information.
+ *
+ * This fixes the dual-request bug where:
+ * - Request A (conversation) had messages but no trip ID
+ * - Request B (trip) had trip ID but no messages
+ *
+ * @param requestId - The existing conversation request ID to update
+ * @param tripData - Trip information from create_trip tool
+ * @param flightData - Flight details from the tool call arguments
+ * @returns The updated request row
+ */
+export async function updateConversationWithTripData(
+  requestId: string,
+  tripData: {
+    trip_id: string;
+    deep_link?: string;
+    rfq_id?: string;
+  },
+  flightData: {
+    departure_airport?: string;
+    arrival_airport?: string;
+    departure_date?: string;
+    passengers?: number;
+  }
+): Promise<Database['public']['Tables']['requests']['Row']> {
+  const updatePayload: Record<string, unknown> = {
+    avinode_trip_id: tripData.trip_id,
+    avinode_session_started_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    last_activity_at: new Date().toISOString(),
+    // Ensure conversation_type is flight_request when trip is created
+    conversation_type: 'flight_request',
+  };
+
+  // Add optional trip data
+  if (tripData.deep_link) {
+    updatePayload.avinode_deep_link = tripData.deep_link;
+  }
+  if (tripData.rfq_id) {
+    updatePayload.avinode_rfq_id = tripData.rfq_id;
+  }
+
+  // Add flight details if provided (only update non-empty values)
+  if (flightData.departure_airport) {
+    updatePayload.departure_airport = flightData.departure_airport;
+  }
+  if (flightData.arrival_airport) {
+    updatePayload.arrival_airport = flightData.arrival_airport;
+  }
+  if (flightData.departure_date) {
+    updatePayload.departure_date = flightData.departure_date;
+  }
+  if (flightData.passengers && flightData.passengers > 0) {
+    updatePayload.passengers = flightData.passengers;
+  }
+
+  console.log('[Admin] Updating conversation request with trip data:', {
+    requestId,
+    tripId: tripData.trip_id,
+    flightData,
+  });
+
+  const { data, error } = await supabaseAdmin
+    .from('requests')
+    .update(updatePayload)
+    .eq('id', requestId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[Admin] Failed to update conversation with trip data:', error);
+    throw error;
+  }
+
+  console.log('[Admin] Successfully updated conversation request:', {
+    requestId: data.id,
+    tripId: data.avinode_trip_id,
+    sessionStatus: data.session_status,
+    conversationType: data.conversation_type,
+  });
 
   return data;
 }
@@ -401,7 +490,7 @@ export interface UserPipelineData {
   trips: Array<{
     id: string;
     avinode_trip_id: string | null;
-    avinode_rfp_id: string | null;
+    avinode_rfq_id: string | null;
     avinode_deep_link: string | null;
     departure_airport: string;
     arrival_airport: string;
@@ -464,7 +553,7 @@ export async function getUserPipeline(
   const pipelineTrips = trips.map(t => ({
     id: t.id,
     avinode_trip_id: t.avinode_trip_id,
-    avinode_rfp_id: t.avinode_rfp_id,
+    avinode_rfq_id: t.avinode_rfq_id,
     avinode_deep_link: t.avinode_deep_link,
     departure_airport: t.departure_airport,
     arrival_airport: t.arrival_airport,
@@ -491,7 +580,7 @@ export async function getUserPipeline(
 
 /**
  * Get trips by Trip ID pattern for a user
- * Searches across avinode_trip_id and avinode_rfp_id
+ * Searches across avinode_trip_id and avinode_rfq_id
  *
  * @param clerkUserId - The Clerk user ID
  * @param searchTerm - Trip ID search pattern (partial or full)
@@ -515,7 +604,7 @@ export async function searchUserTripsByTripId(
     .from('requests')
     .select('*')
     .eq('iso_agent_id', isoAgentId)
-    .or(`avinode_trip_id.ilike.%${unprefixed}%,avinode_rfp_id.ilike.%${unprefixed}%`)
+    .or(`avinode_trip_id.ilike.%${unprefixed}%,avinode_rfq_id.ilike.%${unprefixed}%`)
     .order('created_at', { ascending: false })
     .limit(20);
 

@@ -1,14 +1,19 @@
 /**
- * Chat Session Messages API
+ * Chat Session Messages API (Consolidated Schema)
  *
  * GET /api/chat-sessions/messages
- * Loads messages for a specific chat session
+ * Loads messages for a specific chat session (request)
  *
  * Query parameters:
- * - session_id (required): Chat session ID
+ * - session_id (required): Request ID (session ID in consolidated schema)
  * - limit (optional): Maximum number of messages (default: 100)
+ * - quote_id (optional): Filter messages by operator quote thread
  *
  * Returns messages array formatted for UI consumption
+ *
+ * NOTE: After schema consolidation (migration 030-033), chat sessions are
+ * stored directly in the `requests` table. The session_id parameter now
+ * refers to a request ID.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -34,6 +39,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('session_id');
     const limit = parseInt(searchParams.get('limit') || '100', 10);
+    const quoteId = searchParams.get('quote_id') || undefined;
 
     if (!sessionId) {
       return NextResponse.json(
@@ -65,27 +71,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch the chat session to get conversation_id
-    const { data: session, error: sessionError } = await supabaseAdmin
-      .from('chat_sessions')
+    // Fetch the request (session in consolidated schema)
+    // In the consolidated schema, session_id IS the request_id
+    const { data: requestData, error: requestError } = await supabaseAdmin
+      .from('requests')
       .select(`
         id,
-        conversation_id,
-        request_id,
         iso_agent_id,
         avinode_trip_id,
-        conversation:conversations(
-          id,
-          request_id
-        )
+        avinode_rfq_id,
+        avinode_deep_link,
+        session_status,
+        conversation_type,
+        subject,
+        message_count,
+        departure_airport,
+        arrival_airport,
+        departure_date,
+        passengers,
+        status,
+        created_at,
+        updated_at
       `)
       .eq('id', sessionId)
       .single();
 
-    if (sessionError || !session) {
-      console.error('[GET /api/chat-sessions/messages] Session not found:', {
+    if (requestError || !requestData) {
+      console.error('[GET /api/chat-sessions/messages] Request not found:', {
         sessionId,
-        error: sessionError?.message,
+        error: requestError?.message,
       });
       return NextResponse.json(
         { error: 'Session not found' },
@@ -94,14 +108,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify ownership
-    if (session.iso_agent_id !== agent.id) {
+    if (requestData.iso_agent_id !== agent.id) {
       return NextResponse.json(
         { error: 'Forbidden', message: 'You do not have permission to access this session' },
         { status: 403 }
       );
     }
 
-    // Load messages if conversation_id exists
+    // Load messages for this request
+    // In consolidated schema, messages link directly to request_id
     let messages: Array<{
       id: string;
       type: 'user' | 'agent';
@@ -111,36 +126,46 @@ export async function GET(request: NextRequest) {
       contentType?: string;
       richContent?: Record<string, unknown> | null;
       metadata?: Record<string, unknown> | null;
+      quoteId?: string | null;
     }> = [];
 
-    if (session.conversation_id) {
-      try {
-        const dbMessages = await loadMessages(session.conversation_id, limit);
+    try {
+      const dbMessages = await loadMessages(sessionId, { quoteId, limit });
 
-        // Transform to UI format
-        messages = dbMessages.map((msg) => ({
-          id: msg.id,
-          type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
-          content: msg.content,
-          timestamp: msg.createdAt,
-          senderName: msg.senderName,
-          contentType: msg.contentType,
-          richContent: msg.richContent,
-          metadata: msg.metadata,
-        }));
-      } catch (loadError) {
-        console.error('[GET /api/chat-sessions/messages] Error loading messages:', loadError);
-        // Return empty messages array rather than failing
-      }
+      // Transform to UI format
+      messages = dbMessages.map((msg) => ({
+        id: msg.id,
+        type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
+        content: msg.content,
+        timestamp: msg.createdAt,
+        senderName: msg.senderName,
+        contentType: msg.contentType,
+        richContent: msg.richContent,
+        metadata: msg.metadata,
+        quoteId: msg.quoteId,
+      }));
+    } catch (loadError) {
+      console.error('[GET /api/chat-sessions/messages] Error loading messages:', loadError);
+      // Return empty messages array rather than failing
     }
 
     // Return response with session info and messages
     return NextResponse.json({
       session: {
-        id: session.id,
-        conversationId: session.conversation_id,
-        requestId: session.request_id,
-        tripId: session.avinode_trip_id,
+        id: requestData.id,
+        requestId: requestData.id, // Same as id in consolidated schema
+        tripId: requestData.avinode_trip_id,
+        rfqId: requestData.avinode_rfq_id,
+        deepLink: requestData.avinode_deep_link,
+        status: requestData.session_status,
+        conversationType: requestData.conversation_type,
+        subject: requestData.subject,
+        route: requestData.departure_airport && requestData.arrival_airport
+          ? `${requestData.departure_airport} → ${requestData.arrival_airport}`
+          : null,
+        departureDate: requestData.departure_date,
+        passengers: requestData.passengers,
+        requestStatus: requestData.status,
       },
       messages,
       count: messages.length,

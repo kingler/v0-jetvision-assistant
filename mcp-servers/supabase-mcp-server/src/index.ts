@@ -19,6 +19,9 @@
  * @module mcp-servers/supabase-mcp-server
  */
 
+import { config } from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -26,29 +29,22 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-import { config } from 'dotenv';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-// Import shared helpers from lib/supabase/
-// Note: Uses relative path for standalone MCP server execution
-import {
-  queryTable,
-  insertRow,
-  updateRow,
-  deleteRow,
-  countRows,
-  callRpc,
-  listTables,
-  describeTable,
-  type QueryOptions,
-} from '../../../lib/supabase/mcp-helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load environment variables from project root
 config({ path: resolve(__dirname, '../../../.env.local') });
+
+// Type for the mcp-helpers module
+import type { QueryOptions } from '../../../lib/supabase/mcp-helpers';
+
+// Dynamic import for mcp-helpers (loaded after env vars are set)
+let mcpHelpers: typeof import('../../../lib/supabase/mcp-helpers');
+
+async function loadHelpers() {
+  mcpHelpers = await import('../../../lib/supabase/mcp-helpers');
+}
 
 // ============================================================================
 // MCP TOOL DEFINITIONS
@@ -261,7 +257,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           offset,
         };
 
-        const result = await queryTable(table, options);
+        const result = await mcpHelpers.queryTable(table, options);
 
         if (result.error) {
           return {
@@ -280,7 +276,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           data: Record<string, unknown>;
         };
 
-        const result = await insertRow(table, data);
+        const result = await mcpHelpers.insertRow(table, data);
 
         if (result.error) {
           return {
@@ -300,7 +296,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           data: Record<string, unknown>;
         };
 
-        const result = await updateRow(table, filters, data);
+        const result = await mcpHelpers.updateRow(table, filters, data);
 
         if (result.error) {
           return {
@@ -319,7 +315,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           filters: Record<string, unknown>;
         };
 
-        const result = await deleteRow(table, filters);
+        const result = await mcpHelpers.deleteRow(table, filters);
 
         if (result.error) {
           return {
@@ -338,7 +334,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           params?: Record<string, unknown>;
         };
 
-        const result = await callRpc(functionName, params);
+        const result = await mcpHelpers.callRpc(functionName, params);
 
         if (result.error) {
           return {
@@ -352,7 +348,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'supabase_list_tables': {
-        const tables = listTables();
+        const tables = mcpHelpers.listTables();
         return {
           content: [{ type: 'text', text: JSON.stringify(tables, null, 2) }],
         };
@@ -361,7 +357,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'supabase_describe_table': {
         const { table } = args as { table: string };
 
-        const result = await describeTable(table);
+        const result = await mcpHelpers.describeTable(table);
 
         if (result.error) {
           return {
@@ -380,7 +376,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           filters?: Record<string, unknown>;
         };
 
-        const result = await countRows(table, filters);
+        const result = await mcpHelpers.countRows(table, filters);
 
         if (result.error) {
           return {
@@ -417,6 +413,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // ============================================================================
 
 async function main() {
+  // Load mcp-helpers after env vars are set
+  await loadHelpers();
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Supabase MCP server running on stdio');

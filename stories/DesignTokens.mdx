@@ -1,0 +1,231 @@
+{/* DesignTokens.mdx - Design System Tokens Documentation */}
+
+import { Meta, ColorPalette, ColorItem } from '@storybook/blocks';
+
+<Meta title="Design System/Tokens" />
+
+# Design Tokens
+
+The Jetvision design system is built on a comprehensive set of design tokens that ensure consistency across all components.
+
+## Brand Colors
+
+Our color palette is inspired by aviation and luxury travel aesthetics.
+
+### Sky Blue (Primary)
+
+The primary brand color representing innovation, speed, trust, and professionalism.
+
+<ColorPalette>
+  <ColorItem
+    title="Sky Blue"
+    subtitle="Primary Brand Color"
+    colors={{
+      '50': '#e6f7fc',
+      '100': '#cceff9',
+      '200': '#99dff3',
+      '300': '#66cfed',
+      '400': '#33bfe7',
+      '500': '#00a8e8',
+      '600': '#0087ba',
+      '700': '#00658b',
+      '800': '#00445d',
+      '900': '#00222e',
+    }}
+  />
+</ColorPalette>
+
+### Sunset Orange (Accent)
+
+The accent color representing luxury and premium service.
+
+<ColorPalette>
+  <ColorItem
+    title="Sunset Orange"
+    subtitle="Accent Color"
+    colors={{
+      '50': '#fff3ed',
+      '100': '#ffe7db',
+      '200': '#ffcfb7',
+      '300': '#ffb793',
+      '400': '#ff9f6f',
+      '500': '#ff6b35',
+      '600': '#cc562a',
+      '700': '#99401f',
+      '800': '#662b15',
+      '900': '#33150a',
+    }}
+  />
+</ColorPalette>
+
+### Aviation Blue (Legacy)
+
+The legacy brand color maintained for backward compatibility.
+
+<ColorPalette>
+  <ColorItem
+    title="Aviation Blue"
+    subtitle="Legacy Brand Color"
+    colors={{
+      '50': '#e6f2ff',
+      '100': '#cce5ff',
+      '200': '#99cbff',
+      '300': '#66b0ff',
+      '400': '#3396ff',
+      '500': '#0066cc',
+      '600': '#0052a3',
+      '700': '#003d7a',
+      '800': '#002952',
+      '900': '#001429',
+    }}
+  />
+</ColorPalette>
+
+### Neutral Colors
+
+Clean, modern neutral colors for text, backgrounds, and borders.
+
+<ColorPalette>
+  <ColorItem
+    title="Neutral"
+    subtitle="Text & Backgrounds"
+    colors={{
+      '50': '#f9fafb',
+      '100': '#f3f4f6',
+      '200': '#e5e7eb',
+      '300': '#d1d5db',
+      '400': '#9ca3af',
+      '500': '#6b7280',
+      '600': '#4b5563',
+      '700': '#374151',
+      '800': '#1f2937',
+      '900': '#111827',
+    }}
+  />
+</ColorPalette>
+
+## Semantic Colors
+
+Context-aware colors for status and feedback.
+
+<ColorPalette>
+  <ColorItem
+    title="Success"
+    subtitle="Confirmed, Complete"
+    colors={{ light: '#10b981', dark: '#34d399' }}
+  />
+  <ColorItem
+    title="Warning"
+    subtitle="Pending, Attention"
+    colors={{ light: '#f59e0b', dark: '#fbbf24' }}
+  />
+  <ColorItem
+    title="Error"
+    subtitle="Failed, Critical"
+    colors={{ light: '#dc2626', dark: '#f87171' }}
+  />
+  <ColorItem
+    title="Info"
+    subtitle="Information"
+    colors={{ light: '#0891b2', dark: '#22d3ee' }}
+  />
+</ColorPalette>
+
+## Typography
+
+### Font Families
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `font-sans` | Arial, sans-serif | Body text, UI elements |
+| `font-mono` | "Courier New", monospace | Code, data displays |
+
+### Font Sizes
+
+| Token | Size | Usage |
+|-------|------|-------|
+| `text-xs` | 0.75rem (12px) | Labels, metadata |
+| `text-sm` | 0.875rem (14px) | Captions, small text |
+| `text-base` | 1rem (16px) | Body text |
+| `text-lg` | 1.125rem (18px) | Large body text |
+| `text-xl` | 1.25rem (20px) | Subheadings |
+| `text-2xl` | 1.5rem (24px) | Section headers |
+| `text-3xl` | 1.875rem (30px) | Page titles |
+| `text-4xl` | 2.25rem (36px) | Hero text |
+
+## Spacing
+
+Base unit: 4px (0.25rem)
+
+| Token | Value | Pixels |
+|-------|-------|--------|
+| `space-1` | 0.25rem | 4px |
+| `space-2` | 0.5rem | 8px |
+| `space-3` | 0.75rem | 12px |
+| `space-4` | 1rem | 16px |
+| `space-5` | 1.25rem | 20px |
+| `space-6` | 1.5rem | 24px |
+| `space-8` | 2rem | 32px |
+| `space-10` | 2.5rem | 40px |
+| `space-12` | 3rem | 48px |
+| `space-16` | 4rem | 64px |
+
+## Border Radius
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `radius-sm` | 4px | Small elements, badges |
+| `radius-md` | 6px | Inputs, buttons |
+| `radius-lg` | 8px | Cards, containers |
+| `radius-xl` | 12px | Dialogs, panels |
+| `radius-full` | 9999px | Pills, avatars |
+
+## Shadows
+
+| Token | Usage |
+|-------|-------|
+| `shadow-xs` | Subtle elevation |
+| `shadow-sm` | Cards, buttons |
+| `shadow-md` | Dropdown menus |
+| `shadow-lg` | Dialogs, popovers |
+| `shadow-xl` | Modal overlays |
+
+## Breakpoints
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `sm` | 640px | Mobile landscape |
+| `md` | 768px | Tablet |
+| `lg` | 1024px | Desktop |
+| `xl` | 1280px | Large desktop |
+| `2xl` | 1536px | Wide screens |
+
+## Z-Index Scale
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `z-base` | 0 | Default |
+| `z-dropdown` | 1000 | Dropdown menus |
+| `z-sticky` | 1100 | Sticky headers |
+| `z-modal` | 1400 | Modal dialogs |
+| `z-popover` | 1500 | Popovers |
+| `z-tooltip` | 1600 | Tooltips |
+
+## Accessibility
+
+### Focus Ring
+
+All interactive elements have visible focus indicators:
+- Width: 3px
+- Offset: 2px
+- Color: Sky Blue (ring color)
+
+### Touch Targets
+
+- Minimum: 24×24px (WCAG 2.1 AA)
+- Recommended: 44×44px (WCAG 2.1 AAA)
+
+### Color Contrast
+
+- Normal text: 4.5:1 minimum (WCAG AA)
+- Large text: 3:1 minimum (WCAG AA)

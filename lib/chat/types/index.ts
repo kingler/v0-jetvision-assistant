@@ -50,9 +50,11 @@ export interface TripData {
 
 /**
  * RFP data from create_rfp tool
+ * Note: The property is named rfq_id for internal consistency,
+ * though Avinode API returns rfp_id (Request for Proposal ID)
  */
 export interface RFPData extends TripData {
-  rfp_id?: string;
+  rfq_id?: string;
 }
 
 /**
@@ -299,7 +301,7 @@ export interface AgentMetadata {
  * Deep link data for Avinode marketplace
  */
 export interface DeepLinkData {
-  rfpId?: string;
+  rfqId?: string;
   tripId?: string;
   deepLink?: string;
   departureAirport?: AirportInfo | string;

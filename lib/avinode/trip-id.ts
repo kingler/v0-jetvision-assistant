@@ -15,7 +15,7 @@ const AVINODE_TRIP_PATTERN = /\batrip-(\d{6,12})\b/i;
 const NUMERIC_TRIP_PATTERN = /\b(\d{6,12})\b/;
 const ALPHANUMERIC_TRIP_PATTERN = /\b([A-Z0-9]{6,8})\b/i;
 const CONTEXT_PATTERN =
-  /\b(trip\s*id|tripid|trip-id|trip\s*#|trip\s*number|my\s*trip|check\s*trip|lookup|search|get\s*rfq|get\s*quotes|avinode)\b/i;
+  /\b(trip\s*id|tripid|trip-id|trip\s*#|trip\s*number|my\s*trip|check\s*trip|lookup|search|get[_\s]*rfq|get[_\s]*quotes|avinode)\b/i;
 
 export function normalizeTripId(input?: string | null): TripIdDetection | null {
   if (!input) {

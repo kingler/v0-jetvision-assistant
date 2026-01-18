@@ -147,8 +147,7 @@ export function requestToChatSession(
 
     // Avinode integration fields
     tripId: request.avinode_trip_id || undefined,
-    rfqId: request.avinode_rfp_id || undefined,
-    rfpId: request.avinode_rfp_id || undefined, // Same as rfqId for compatibility
+    rfqId: request.avinode_rfq_id || undefined,
     deepLink: request.avinode_deep_link || undefined,
 
     // Generated name for display

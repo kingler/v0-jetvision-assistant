@@ -215,7 +215,11 @@ export function OperatorMessageThread({
   }, [messages])
 
   /**
-   * Fetch messages from the API
+   * Fetch messages from database first, then fallback to Avinode API
+   *
+   * Priority order:
+   * 1. Database messages (synced via sync-avinode-trips script)
+   * 2. Avinode API (for real-time messages not yet synced)
    */
   const fetchMessages = async () => {
     if (!tripId && !requestId) {
@@ -227,70 +231,122 @@ export function OperatorMessageThread({
     setError(null)
 
     try {
-      const response = await fetch('/api/avinode', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tool: 'get_trip_messages',
-          params: {
-            ...(tripId && { trip_id: tripId }),
-            ...(requestId && { request_id: requestId }),
-            limit: 100,
-          },
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to fetch messages')
-      }
-
-      const data = await response.json()
-      
-      // Transform the API response to our message format
-      // The API returns messages in various formats that need to be normalized
       let messagesArray: any[] = []
-      
-      // Handle different response structures
-      if (data.result) {
-        if (Array.isArray(data.result)) {
-          // Direct array of messages
-          messagesArray = data.result
-        } else if (data.result.messages && Array.isArray(data.result.messages)) {
-          // Nested messages array
-          messagesArray = data.result.messages
-        } else if (data.result.data?.messages && Array.isArray(data.result.data.messages)) {
-          // Deeply nested messages array
-          messagesArray = data.result.data.messages
+
+      // Step 1: Try to fetch from database first (synced messages)
+      if (requestId) {
+        try {
+          const dbUrl = new URL('/api/chat-sessions/messages', window.location.origin)
+          dbUrl.searchParams.set('session_id', requestId)
+          if (quoteId) {
+            dbUrl.searchParams.set('quote_id', quoteId)
+          }
+          dbUrl.searchParams.set('limit', '100')
+
+          const dbResponse = await fetch(dbUrl.toString(), {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (dbResponse.ok) {
+            const dbData = await dbResponse.json()
+            if (dbData.messages && Array.isArray(dbData.messages) && dbData.messages.length > 0) {
+              console.log('[OperatorMessageThread] Loaded', dbData.messages.length, 'messages from database')
+
+              // Transform database messages to our format
+              // Database messages have: id, type, content, timestamp, senderName, quoteId
+              messagesArray = dbData.messages.map((msg: any) => ({
+                id: msg.id,
+                content: msg.content || '',
+                // Map 'user' -> 'iso_agent', 'agent' -> 'operator' (reversed from UI type)
+                sender_type: msg.metadata?.sender_type ||
+                            (msg.type === 'user' ? 'iso_agent' :
+                             msg.type === 'agent' ? (msg.senderName ? 'operator' : 'ai_assistant') : 'system'),
+                sender_name: msg.senderName || (msg.type === 'user' ? 'You' : 'Operator'),
+                sender_operator_id: msg.metadata?.sender_operator_id,
+                sender_iso_agent_id: msg.metadata?.sender_iso_agent_id,
+                created_at: msg.timestamp || new Date().toISOString(),
+                status: msg.metadata?.status || 'sent',
+                rich_content: msg.richContent,
+              }))
+            }
+          }
+        } catch (dbError) {
+          console.warn('[OperatorMessageThread] Database fetch failed, will try Avinode API:', dbError)
         }
-      } else if (Array.isArray(data.messages)) {
-        // Messages at root level
-        messagesArray = data.messages
-      } else if (data.data?.messages && Array.isArray(data.data.messages)) {
-        // Messages in data.messages
-        messagesArray = data.data.messages
       }
-      
-      // Transform messages to our format
-      const transformedMessages: OperatorMessage[] = messagesArray.map((msg: any, index: number) => ({
-        id: msg.id || msg.message_id || `msg-${index}-${Date.now()}`,
-        content: msg.content || msg.message || msg.text || '',
-        sender_type: msg.sender_type || (msg.sender_operator_id ? 'operator' : msg.sender_iso_agent_id ? 'iso_agent' : 'system'),
-        sender_name: msg.sender_name || msg.operator_name || msg.sender || 'Operator',
-        sender_operator_id: msg.sender_operator_id,
-        sender_iso_agent_id: msg.sender_iso_agent_id,
-        created_at: msg.created_at || msg.timestamp || msg.date || new Date().toISOString(),
-        status: msg.status,
-        rich_content: msg.rich_content,
-      }))
-      
+
+      // Step 2: If no database messages, try Avinode API
+      if (messagesArray.length === 0 && (tripId || requestId)) {
+        console.log('[OperatorMessageThread] No database messages, fetching from Avinode API')
+
+        const response = await fetch('/api/avinode', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tool: 'get_trip_messages',
+            params: {
+              ...(tripId && { trip_id: tripId }),
+              ...(requestId && { request_id: requestId }),
+              limit: 100,
+            },
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || 'Failed to fetch messages')
+        }
+
+        const data = await response.json()
+
+        // Transform the API response to our message format
+        // The API returns messages in various formats that need to be normalized
+
+        // Handle different response structures
+        if (data.result) {
+          if (Array.isArray(data.result)) {
+            // Direct array of messages
+            messagesArray = data.result
+          } else if (data.result.messages && Array.isArray(data.result.messages)) {
+            // Nested messages array
+            messagesArray = data.result.messages
+          } else if (data.result.data?.messages && Array.isArray(data.result.data.messages)) {
+            // Deeply nested messages array
+            messagesArray = data.result.data.messages
+          }
+        } else if (Array.isArray(data.messages)) {
+          // Messages at root level
+          messagesArray = data.messages
+        } else if (data.data?.messages && Array.isArray(data.data.messages)) {
+          // Messages in data.messages
+          messagesArray = data.data.messages
+        }
+
+        // Transform Avinode API messages to our format
+        messagesArray = messagesArray.map((msg: any, index: number) => ({
+          id: msg.id || msg.message_id || `msg-${index}-${Date.now()}`,
+          content: msg.content || msg.message || msg.text || '',
+          sender_type: msg.sender_type || (msg.sender_operator_id ? 'operator' : msg.sender_iso_agent_id ? 'iso_agent' : 'system'),
+          sender_name: msg.sender_name || msg.operator_name || msg.sender || 'Operator',
+          sender_operator_id: msg.sender_operator_id,
+          sender_iso_agent_id: msg.sender_iso_agent_id,
+          created_at: msg.created_at || msg.timestamp || msg.date || new Date().toISOString(),
+          status: msg.status,
+          rich_content: msg.rich_content,
+        }))
+      }
+
       // Sort by timestamp (oldest first)
-      transformedMessages.sort((a, b) => 
+      const transformedMessages: OperatorMessage[] = messagesArray
+      transformedMessages.sort((a, b) =>
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       )
-      
+
       setMessages(transformedMessages)
     } catch (err) {
       console.error('[OperatorMessageThread] Error fetching messages:', err)

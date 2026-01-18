@@ -427,7 +427,7 @@ export class OrchestratorAgent extends BaseAgent {
           status,
           created_at,
           updated_at,
-          avinode_rfp_id,
+          avinode_rfq_id,
           avinode_deep_link,
           iso_agent_id,
           client_profiles (

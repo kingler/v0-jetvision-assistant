@@ -355,7 +355,7 @@ export class FlightSearchAgent extends BaseAgent {
       await updateRequestWithAvinodeTrip(requestId, {
         avinode_trip_id: tripResult.tripId,
         avinode_deep_link: tripResult.deepLink,
-        avinode_rfp_id: tripResult.rfpId,
+        avinode_rfq_id: tripResult.rfpId,
       });
     } catch (error) {
       // Log but don't fail - trip was created successfully, DB save is secondary

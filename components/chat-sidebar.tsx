@@ -89,10 +89,8 @@ export interface ChatSession {
   selectedQuoteId?: string
   /** Avinode trip ID for tracking flight searches */
   tripId?: string
-  /** Avinode RFQ ID when RFQ is created */
+  /** Avinode RFQ ID (Request for Quote) - identifies an RFQ sent to a specific operator */
   rfqId?: string
-  /** Avinode RFP ID for the request */
-  rfpId?: string
   /** Deep link URL to open Avinode Web UI */
   deepLink?: string
   /** AI-generated descriptive name for the flight request */
@@ -141,7 +139,7 @@ export interface ChatSession {
     showQuotes?: boolean
     showDeepLink?: boolean
     deepLinkData?: {
-      rfpId?: string
+      rfqId?: string
       tripId?: string
       deepLink?: string
       departureAirport?: { icao: string; name?: string; city?: string }

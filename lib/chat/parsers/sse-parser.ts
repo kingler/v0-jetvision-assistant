@@ -351,7 +351,8 @@ export function extractDeepLinkData(data: SSEStreamData): {
         showDeepLink = true;
         rfpData = {
           trip_id: result.trip_id as string,
-          rfp_id: result.rfp_id as string,
+          // Map API's rfp_id to internal rfq_id for naming consistency
+          rfq_id: (result.rfq_id || result.rfp_id) as string,
           deep_link: (result.deep_link as string) ||
             'https://sandbox.avinode.com/marketplace/mvc/search#preSearch',
           departure_airport: result.departure_airport as any,

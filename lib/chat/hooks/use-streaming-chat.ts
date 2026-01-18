@@ -237,7 +237,7 @@ export function useStreamingChat(options: UseStreamingChatOptions) {
               if (finalResult.rfpData) {
                 extractedDeepLink = {
                   tripId: finalResult.rfpData.trip_id,
-                  rfpId: finalResult.rfpData.rfp_id,
+                  rfqId: finalResult.rfpData.rfq_id,
                   deepLink: finalResult.rfpData.deep_link,
                   departureAirport: finalResult.rfpData.departure_airport,
                   arrivalAirport: finalResult.rfpData.arrival_airport,

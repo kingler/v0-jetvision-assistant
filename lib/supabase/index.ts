@@ -28,6 +28,7 @@ export {
   createQuote,
   syncUserFromClerk,
   updateRequestWithAvinodeTrip,
+  updateConversationWithTripData,
   // Trip ID lookup helpers
   findRequestByTripId,
   listUserTrips,

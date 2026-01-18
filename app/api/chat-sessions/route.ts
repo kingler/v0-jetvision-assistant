@@ -1,14 +1,20 @@
 /**
- * Chat Sessions API
- * 
+ * Chat Sessions API (Consolidated Schema)
+ *
  * GET /api/chat-sessions
- * Lists chat conversation sessions for the authenticated user
- * 
+ * Lists chat sessions (requests with session fields) for the authenticated user
+ *
  * Query parameters:
- * - trip_id (optional): Filter sessions by Avinode trip ID
+ * - trip_id (optional): Filter by Avinode trip ID
  * - status (optional): Filter by session status (active, paused, completed, archived)
- * 
- * Returns list of chat sessions with conversation and request details
+ * - id (optional): Filter by specific request ID
+ *
+ * DELETE /api/chat-sessions
+ * Deletes a request and all associated messages
+ *
+ * NOTE: After schema consolidation (migration 030-033), chat sessions are now
+ * stored directly in the `requests` table with session fields. The old
+ * `chat_sessions` and `conversations` tables are deprecated.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -33,7 +39,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const tripId = searchParams.get('trip_id');
     const status = searchParams.get('status');
-    const id = searchParams.get('id'); // Support filtering by chat_session ID
+    const id = searchParams.get('id');
 
     // Get user's ISO agent ID using admin client (bypasses RLS)
     const { data: agent, error: agentError } = await supabaseAdmin
@@ -49,86 +55,74 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query for chat sessions (using admin client to bypass RLS for joins)
+    // Build query for requests with session fields (consolidated schema)
+    // This replaces the old chat_sessions + conversations join
     let query = supabaseAdmin
-      .from('chat_sessions')
+      .from('requests')
       .select(`
         id,
-        conversation_id,
-        request_id,
         iso_agent_id,
+        client_profile_id,
+        departure_airport,
+        arrival_airport,
+        departure_date,
+        return_date,
+        passengers,
+        aircraft_type,
+        budget,
+        special_requirements,
         status,
-        conversation_type,
-        avinode_trip_id,
-        avinode_rfp_id,
-        avinode_rfq_id,
-        primary_quote_id,
-        proposal_id,
-        session_started_at,
-        session_ended_at,
-        last_activity_at,
-        current_step,
-        workflow_state,
-        message_count,
-        quotes_received_count,
-        quotes_expected_count,
-        operators_contacted_count,
         metadata,
         created_at,
         updated_at,
-        conversation:conversations(
-          id,
-          request_id,
-          quote_id,
-          type,
-          status,
-          subject,
-          last_message_at,
-          message_count
-        ),
-        request:requests(
-          id,
-          departure_airport,
-          arrival_airport,
-          departure_date,
-          return_date,
-          passengers,
-          aircraft_type,
-          budget,
-          status,
-          avinode_trip_id,
-          avinode_rfp_id,
-          avinode_deep_link,
-          created_at
-        )
+        avinode_rfq_id,
+        avinode_trip_id,
+        avinode_deep_link,
+        operators_contacted,
+        quotes_expected,
+        quotes_received,
+        session_status,
+        conversation_type,
+        current_step,
+        workflow_state,
+        session_started_at,
+        session_ended_at,
+        last_activity_at,
+        subject,
+        avinode_thread_id,
+        last_message_at,
+        last_message_by,
+        message_count,
+        unread_count_iso,
+        unread_count_operator,
+        is_priority,
+        is_pinned
       `)
       .eq('iso_agent_id', agent.id)
-      .order('last_activity_at', { ascending: false });
+      .order('last_activity_at', { ascending: false, nullsFirst: false });
 
     // Filter by trip ID if provided
     if (tripId) {
       query = query.eq('avinode_trip_id', tripId);
     }
 
-    // Filter by chat_session ID if provided
+    // Filter by request ID if provided
     if (id) {
       query = query.eq('id', id);
     }
 
-    // Filter by status if provided
+    // Filter by session status if provided
     if (status) {
-      // Validate status is a valid chat session status
       const validStatuses = ['active', 'paused', 'completed', 'archived'];
       if (validStatuses.includes(status)) {
-        query = query.eq('status', status as 'active' | 'paused' | 'completed' | 'archived');
+        query = query.eq('session_status', status);
       }
     } else if (!id) {
       // Default to active sessions only if no status filter and no ID filter
-      // (If filtering by ID, we want to return it regardless of status)
-      query = query.in('status', ['active', 'paused']);
+      query = query.in('session_status', ['active', 'paused']);
     }
 
-    const { data: sessions, error } = await query;
+    const { data: requests, error } = await query;
 
     if (error) {
       console.error('[GET /api/chat-sessions] Database error:', error);
@@ -138,9 +132,65 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Transform to match the old API response format for backward compatibility
+    // The frontend expects certain field names from the old chat_sessions structure
+    const sessions = (requests || []).map(req => ({
+      // Session-level fields (previously from chat_sessions)
+      id: req.id,
+      request_id: req.id, // Self-reference for backward compat
+      iso_agent_id: req.iso_agent_id,
+      status: req.session_status || 'active',
+      conversation_type: req.conversation_type || 'flight_request',
+      avinode_trip_id: req.avinode_trip_id,
+      avinode_rfq_id: req.avinode_rfq_id,
+      primary_quote_id: null, // Can be derived from quotes table if needed
+      proposal_id: null, // Can be derived from proposals table if needed
+      session_started_at: req.session_started_at || req.created_at,
+      session_ended_at: req.session_ended_at,
+      last_activity_at: req.last_activity_at || req.updated_at,
+      current_step: req.current_step,
+      workflow_state: req.workflow_state || {},
+      message_count: req.message_count || 0,
+      quotes_received_count: req.quotes_received || 0,
+      quotes_expected_count: req.quotes_expected || 0,
+      operators_contacted_count: req.operators_contacted || 0,
+      metadata: req.metadata || {},
+      created_at: req.created_at,
+      updated_at: req.updated_at,
+
+      // Request details (embedded, previously from join)
+      request: {
+        id: req.id,
+        departure_airport: req.departure_airport,
+        arrival_airport: req.arrival_airport,
+        departure_date: req.departure_date,
+        return_date: req.return_date,
+        passengers: req.passengers,
+        aircraft_type: req.aircraft_type,
+        budget: req.budget,
+        status: req.status,
+        avinode_trip_id: req.avinode_trip_id,
+        avinode_rfq_id: req.avinode_rfq_id,
+        avinode_deep_link: req.avinode_deep_link,
+        created_at: req.created_at,
+      },
+
+      // Conversation metadata (previously from conversations join)
+      conversation: {
+        id: req.id, // Using request ID as conversation ID
+        request_id: req.id,
+        quote_id: null,
+        type: req.conversation_type || 'flight_request',
+        status: req.session_status || 'active',
+        subject: req.subject,
+        last_message_at: req.last_message_at,
+        message_count: req.message_count || 0,
+      },
+    }));
+
     return NextResponse.json({
-      sessions: sessions || [],
-      count: sessions?.length || 0,
+      sessions,
+      count: sessions.length,
     });
   } catch (error) {
     console.error('[GET /api/chat-sessions] Unexpected error:', error);
@@ -153,13 +203,13 @@ export async function GET(request: NextRequest) {
 
 /**
  * DELETE /api/chat-sessions
- * Deletes a chat session from the database
+ * Deletes a request and all associated messages
  *
  * Query parameters:
- * - id: Chat session ID to delete (required)
+ * - id: Request ID to delete (required)
  *
- * This is useful for deleting orphaned chat sessions that don't have an associated request.
- * For chat sessions with a request_id, use DELETE /api/requests instead.
+ * With the consolidated schema, deleting a "chat session" means deleting the
+ * request and its messages (via CASCADE on request_id FK).
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -174,25 +224,25 @@ export async function DELETE(request: NextRequest) {
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get('id');
+    const requestId = searchParams.get('id');
 
-    if (!sessionId) {
+    if (!requestId) {
       return NextResponse.json(
-        { error: 'Missing session ID', message: 'Session ID is required' },
+        { error: 'Missing request ID', message: 'Request ID is required' },
         { status: 400 }
       );
     }
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(sessionId)) {
+    if (!uuidRegex.test(requestId)) {
       return NextResponse.json(
-        { error: 'Invalid session ID', message: 'Session ID must be a valid UUID' },
+        { error: 'Invalid request ID', message: 'Request ID must be a valid UUID' },
         { status: 400 }
       );
     }
 
-    // Get user's ISO agent ID using admin client (bypasses RLS)
+    // Get user's ISO agent ID
     const { data: agent, error: agentError } = await supabaseAdmin
       .from('iso_agents')
       .select('id')
@@ -206,50 +256,86 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verify the chat session exists and belongs to this user
-    const { data: session, error: fetchError } = await supabaseAdmin
-      .from('chat_sessions')
-      .select('id, iso_agent_id, request_id')
-      .eq('id', sessionId)
+    // Verify the request exists and belongs to this user
+    const { data: existingRequest, error: fetchError } = await supabaseAdmin
+      .from('requests')
+      .select('id, iso_agent_id')
+      .eq('id', requestId)
       .single();
 
-    if (fetchError || !session) {
-      console.error('[DELETE /api/chat-sessions] Session not found:', {
-        sessionId,
+    if (fetchError || !existingRequest) {
+      console.error('[DELETE /api/chat-sessions] Request not found:', {
+        requestId,
         error: fetchError?.message,
       });
       return NextResponse.json(
-        { error: 'Session not found', message: 'The specified chat session does not exist' },
+        { error: 'Request not found', message: 'The specified request does not exist' },
         { status: 404 }
       );
     }
 
     // Verify ownership
-    if (session.iso_agent_id !== agent.id) {
+    if (existingRequest.iso_agent_id !== agent.id) {
       return NextResponse.json(
-        { error: 'Forbidden', message: 'You do not have permission to delete this session' },
+        { error: 'Forbidden', message: 'You do not have permission to delete this request' },
         { status: 403 }
       );
     }
 
-    // Delete the chat session
+    // Delete messages first (they reference request_id with CASCADE, but explicit is safer)
+    console.log('[DELETE /api/chat-sessions] Deleting messages for request:', requestId);
+    const { error: messagesError, count: messagesCount } = await supabaseAdmin
+      .from('messages')
+      .delete({ count: 'exact' })
+      .eq('request_id', requestId);
+
+    if (messagesError) {
+      console.warn('[DELETE /api/chat-sessions] Failed to delete messages:', {
+        requestId,
+        error: messagesError.message,
+      });
+      // Continue - CASCADE should handle this
+    } else {
+      console.log('[DELETE /api/chat-sessions] Deleted messages:', messagesCount);
+    }
+
+    // Delete quotes (they reference request_id with CASCADE)
+    const { error: quotesError, count: quotesCount } = await supabaseAdmin
+      .from('quotes')
+      .delete({ count: 'exact' })
+      .eq('request_id', requestId);
+
+    if (quotesError) {
+      console.warn('[DELETE /api/chat-sessions] Failed to delete quotes:', {
+        requestId,
+        error: quotesError.message,
+      });
+      // Continue - CASCADE should handle this
+    } else if (quotesCount && quotesCount > 0) {
+      console.log('[DELETE /api/chat-sessions] Deleted quotes:', quotesCount);
+    }
+
+    // Delete the request itself
     const { error: deleteError } = await supabaseAdmin
-      .from('chat_sessions')
+      .from('requests')
       .delete()
-      .eq('id', sessionId);
+      .eq('id', requestId);
 
     if (deleteError) {
       console.error('[DELETE /api/chat-sessions] Deletion failed:', {
-        sessionId,
+        requestId,
         error: deleteError.message,
       });
       return NextResponse.json(
-        { error: 'Failed to delete session', message: deleteError.message },
+        { error: 'Failed to delete request', message: deleteError.message },
         { status: 500 }
       );
     }
 
-    console.log('[DELETE /api/chat-sessions] Successfully deleted session:', { sessionId });
+    console.log('[DELETE /api/chat-sessions] Successfully deleted request:', {
+      requestId,
+      messagesDeleted: messagesCount || 0,
+    });
 
     return NextResponse.json(
       { message: 'Chat session deleted successfully' },

@@ -786,7 +786,7 @@ export function ChatInterface({
             passengers: activeChat.passengers,
             date: activeChat.date,
             tripId: activeChat.tripId,
-            rfpId: activeChat.rfpId,
+            rfqId: activeChat.rfqId,
           },
         }),
         signal: abortControllerRef.current.signal,
@@ -856,7 +856,7 @@ export function ChatInterface({
                 let showDeepLink = false
                 let tripIdSubmittedLocal = activeChat.tripIdSubmitted || false
                 let deepLinkData: {
-                  rfpId?: string
+                  rfqId?: string
                   tripId?: string
                   deepLink?: string
                   departureAirport?: { icao: string; name?: string; city?: string }
@@ -927,7 +927,8 @@ export function ChatInterface({
                       // Extract RFP data for deeplink
                       if (toolCall.result) {
                         deepLinkData = {
-                          rfpId: toolCall.result.rfp_id,
+                          // Map API's rfp_id to internal rfqId for naming consistency
+                          rfqId: toolCall.result.rfq_id || toolCall.result.rfp_id,
                           tripId: toolCall.result.trip_id,
                           deepLink: toolCall.result.deep_link || `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
                           departureAirport: toolCall.result.departure_airport,
@@ -986,7 +987,8 @@ export function ChatInterface({
                   newStep = 3
                   showDeepLink = true
                   deepLinkData = {
-                    rfpId: data.rfp_data.rfp_id,
+                    // Map API's rfp_id to internal rfqId for naming consistency
+                    rfqId: data.rfp_data.rfq_id || data.rfp_data.rfp_id,
                     tripId: data.rfp_data.trip_id,
                     deepLink: data.rfp_data.deep_link || `https://sandbox.avinode.com/marketplace/mvc/search#preSearch`,
                     departureAirport: data.rfp_data.departure_airport,
@@ -1209,7 +1211,7 @@ export function ChatInterface({
                   messages: updatedMessages,
                   status: newStatus as typeof activeChat.status,
                   currentStep: newStep,
-                  rfpId: deepLinkData?.rfpId,
+                  rfqId: deepLinkData?.rfqId,
                   tripId: deepLinkData?.tripId || activeChat.tripId,
                   deepLink: deepLinkData?.deepLink,
                 }
@@ -3324,7 +3326,7 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
     if (quoteRequest) {
       return {
         id: quoteRequest.id,
-        rfqId: activeChat.rfpId || '',
+        rfqId: activeChat.rfqId || '',
         operator: {
           name: quoteRequest.operatorName,
           rating: 4.5, // Default rating - would come from actual data
@@ -3354,7 +3356,7 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
     if (quote) {
       return {
         id: quote.id,
-        rfqId: activeChat.rfpId || '',
+        rfqId: activeChat.rfqId || '',
         operator: {
           name: quote.operatorName,
           rating: quote.operatorRating,
@@ -3444,7 +3446,7 @@ DO NOT use any hardcoded values - all prices, status, and messages must come fro
                   } : undefined}
                   showDeepLink={message.showDeepLink}
                   deepLinkData={message.deepLinkData ? {
-                    rfpId: message.deepLinkData.rfpId || activeChat.rfpId,
+                    rfqId: message.deepLinkData.rfqId || activeChat.rfqId,
                     tripId: message.deepLinkData.tripId || activeChat.tripId,
                     deepLink: message.deepLinkData.deepLink || (activeChat.tripId ? `https://sandbox.avinode.com/marketplace/mvc/search#preSearch` : undefined),
                     departureAirport: message.deepLinkData.departureAirport || { icao: activeChat.route?.split(' → ')[0] || 'N/A' },

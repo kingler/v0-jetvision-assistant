@@ -163,6 +163,13 @@ export default function JetvisionAgent() {
    * @param session - The chat session to load messages for (needs conversationId or requestId)
    * @returns The loaded messages or empty array if failed
    */
+  /**
+   * Load messages for a specific chat session from the API
+   * Prioritizes requestId (most reliable) over conversationId or session.id
+   *
+   * @param session - The chat session to load messages for (needs conversationId or requestId)
+   * @returns The loaded messages or empty array if failed
+   */
   const loadMessagesForSession = async (session: ChatSession): Promise<Array<{
     id: string;
     type: 'user' | 'agent';
@@ -171,40 +178,23 @@ export default function JetvisionAgent() {
   }>> => {
     // Skip loading for temporary sessions
     if (session.id.startsWith('temp-')) {
+      console.log('[loadMessagesForSession] Skipping temp session:', session.id);
       return [];
     }
 
     try {
-      // Use conversationId if available, otherwise try to use requestId via chat-sessions API
-      // The chat-sessions/messages API expects a chat_session ID, not a request ID
-      // So we need to find the chat_session that matches this request/conversation
       let messages: Array<{ id: string; type: 'user' | 'agent'; content: string; timestamp: string }> = [];
 
-      // Try to load messages via conversationId if available (preferred method)
-      if (session.conversationId) {
-        // For now, we'll use the chat-sessions API which requires a chat_session ID
-        // This is a limitation we'll need to work around
-        // For sessions loaded from chat_sessions table, we need to use the original chat_session ID
-        // But since we're using request_id as the session ID, we need to look up the chat_session
-      }
-
-      // Use chat-sessions/messages API (requires chat_session ID, not request ID)
-      // This will work if session.id is actually a chat_session ID
-      // Otherwise, it will fail and we'll return empty array
-      const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(session.id)}&limit=100`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      console.log('[loadMessagesForSession] Loading messages for session:', {
+        sessionId: session.id,
+        requestId: session.requestId,
+        conversationId: session.conversationId,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        messages = data.messages || [];
-      } else if (session.requestId) {
-        // If chat-sessions API fails, try loading messages via request API
-        // This uses requestId to find the conversation
+      // PRIORITY 1: Use requestId via /api/requests (most reliable for flight requests)
+      if (session.requestId) {
         try {
+          console.log('[loadMessagesForSession] Attempting to load via requests API with requestId:', session.requestId);
           const requestsResponse = await fetch(`/api/requests?limit=50`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -213,27 +203,104 @@ export default function JetvisionAgent() {
           if (requestsResponse.ok) {
             const requestsData = await requestsResponse.json();
             const requestMessages = requestsData.messages?.[session.requestId] || [];
-            messages = requestMessages.map((msg: any) => ({
-              id: msg.id,
-              type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
-              content: msg.content,
-              timestamp: msg.createdAt,
-            }));
+            
+            if (requestMessages.length > 0) {
+              messages = requestMessages.map((msg: any) => ({
+                id: msg.id,
+                type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
+                content: msg.content,
+                timestamp: msg.createdAt,
+              }));
+              console.log('[loadMessagesForSession] ✅ Loaded messages via requests API:', {
+                requestId: session.requestId,
+                messageCount: messages.length,
+                firstMessage: messages[0]?.content?.substring(0, 50),
+              });
+            } else {
+              console.warn('[loadMessagesForSession] ⚠️ No messages found in requests API for requestId:', session.requestId);
+            }
+          } else {
+            console.warn('[loadMessagesForSession] ⚠️ Requests API failed:', {
+              requestId: session.requestId,
+              status: requestsResponse.status,
+            });
           }
         } catch (error) {
-          console.warn('[loadMessagesForSession] Failed to load via requests API:', error);
+          console.warn('[loadMessagesForSession] Error loading via requests API:', error);
+        }
+      }
+
+      // PRIORITY 2: If no messages found and we have conversationId, try chat-sessions API
+      if (messages.length === 0 && session.conversationId) {
+        try {
+          console.log('[loadMessagesForSession] Attempting to load via chat-sessions API with conversationId:', session.conversationId);
+          const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(session.conversationId)}&limit=100`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            messages = data.messages || [];
+            console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions API:', {
+              conversationId: session.conversationId,
+              messageCount: messages.length,
+            });
+          } else {
+            console.warn('[loadMessagesForSession] ⚠️ Chat-sessions API failed:', {
+              conversationId: session.conversationId,
+              status: response.status,
+            });
+          }
+        } catch (error) {
+          console.warn('[loadMessagesForSession] Error loading via chat-sessions API:', error);
+        }
+      }
+
+      // PRIORITY 3: Fallback to session.id (might be a chat_session ID)
+      if (messages.length === 0 && !session.requestId && !session.conversationId) {
+        try {
+          console.log('[loadMessagesForSession] Attempting to load via chat-sessions API with session.id:', session.id);
+          const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(session.id)}&limit=100`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            messages = data.messages || [];
+            console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions API (fallback):', {
+              sessionId: session.id,
+              messageCount: messages.length,
+            });
+          }
+        } catch (error) {
+          console.warn('[loadMessagesForSession] Error loading via chat-sessions API (fallback):', error);
         }
       }
 
       // Convert timestamps to Date objects
-      return messages.map((msg: { id: string; type: 'user' | 'agent'; content: string; timestamp: string }) => ({
+      const result = messages.map((msg: { id: string; type: 'user' | 'agent'; content: string; timestamp: string }) => ({
         id: msg.id,
         type: msg.type,
         content: msg.content,
         timestamp: new Date(msg.timestamp),
       }));
+
+      console.log('[loadMessagesForSession] Final result:', {
+        sessionId: session.id,
+        requestId: session.requestId,
+        messageCount: result.length,
+        hasMessages: result.length > 0,
+      });
+
+      return result;
     } catch (error) {
-      console.error('[loadMessagesForSession] Error:', error);
+      console.error('[loadMessagesForSession] Unexpected error:', error);
       return [];
     }
   };
@@ -668,12 +735,15 @@ export default function JetvisionAgent() {
     }
 
     // Track what needs to be loaded
+    // Always try to load messages to ensure we have the latest data from database
+    // This fixes the issue where messages might not be loaded correctly
     const needsMessages = !session.messages || session.messages.length === 0;
     const needsRFQFlights = session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0);
     const needsOperatorThreads = session.tripId && (!session.operatorThreads || Object.keys(session.operatorThreads).length === 0);
 
     console.log('[handleSelectChat] Loading data for session:', {
       chatId,
+      requestId: session.requestId,
       tripId: session.tripId,
       needsMessages,
       needsRFQFlights,
@@ -684,8 +754,11 @@ export default function JetvisionAgent() {
     });
 
     // Phase 1: Load messages and RFQ flights in parallel
+    // CRITICAL: Always try to load messages to ensure we have real data from database
+    // Even if messages exist, reload them to get the latest data
     const [messages, rfqFlights] = await Promise.all([
-      needsMessages ? loadMessagesForSession(session) : Promise.resolve(session.messages || []),
+      // Always load messages if we have a requestId or conversationId
+      (session.requestId || session.conversationId) ? loadMessagesForSession(session) : Promise.resolve(session.messages || []),
       needsRFQFlights ? loadRFQFlightsForSession(session.tripId!) : Promise.resolve(session.rfqFlights || []),
     ]);
 
@@ -697,7 +770,9 @@ export default function JetvisionAgent() {
       : (session.operatorThreads || {});
 
     // Update session with loaded data
-    const hasNewData = messages.length > 0 || rfqFlights.length > 0 || Object.keys(operatorThreads).length > 0;
+    // Always update messages if we loaded them (even if count is 0, to ensure we have real data)
+    const hasNewData = messages.length > 0 || rfqFlights.length > 0 || Object.keys(operatorThreads).length > 0 || (session.requestId || session.conversationId);
+    
     if (hasNewData) {
       setChatSessions((prevSessions) =>
         prevSessions.map((s) => {
@@ -705,8 +780,12 @@ export default function JetvisionAgent() {
 
           const updates: Partial<ChatSession> = {};
 
-          if (needsMessages && messages.length > 0) {
-            updates.messages = messages;
+          // Always update messages if we have a requestId/conversationId (to ensure real data from DB)
+          if (session.requestId || session.conversationId) {
+            // Use loaded messages if available, otherwise keep existing
+            if (messages.length > 0 || !s.messages || s.messages.length === 0) {
+              updates.messages = messages;
+            }
           }
 
           if (needsRFQFlights && rfqFlights.length > 0) {
@@ -735,9 +814,13 @@ export default function JetvisionAgent() {
         })
       );
 
-      console.log('[handleSelectChat] Loaded data:', {
+      console.log('[handleSelectChat] ✅ Loaded and updated session data:', {
         chatId,
         messageCount: messages.length,
+        messageSample: messages.length > 0 ? {
+          firstMessage: messages[0]?.content?.substring(0, 50),
+          lastMessage: messages[messages.length - 1]?.content?.substring(0, 50),
+        } : 'No messages',
         rfqFlightCount: rfqFlights.length,
         operatorThreadCount: Object.keys(operatorThreads).length,
         operatorThreadDetails: Object.entries(operatorThreads).map(([id, t]) => ({
@@ -747,7 +830,20 @@ export default function JetvisionAgent() {
           messageCount: t.messages.length,
           hasQuote: !!t.quote,
         })),
-        rfqFlightPrices: rfqFlights.map(f => ({ operator: f.operatorName, price: f.totalPrice, status: f.rfqStatus })),
+        rfqFlightPrices: rfqFlights.map(f => ({ 
+          operator: f.operatorName, 
+          price: f.totalPrice, 
+          status: f.rfqStatus,
+          quoteId: f.quoteId,
+        })),
+      });
+    } else {
+      console.log('[handleSelectChat] ⚠️ No new data loaded for session:', {
+        chatId,
+        hasRequestId: !!session.requestId,
+        hasConversationId: !!session.conversationId,
+        hasTripId: !!session.tripId,
+        currentMessageCount: session.messages?.length || 0,
       });
     }
   }
@@ -1277,6 +1373,43 @@ export default function JetvisionAgent() {
     }
   }
 
+  /**
+   * Construct workflow data from chat session for WorkflowVisualization component
+   * This extracts real data from the chat session to populate workflow steps
+   */
+  const constructWorkflowData = (session: ChatSession | null) => {
+    if (!session) return undefined
+
+    return {
+      step1: {
+        // Step 1: Understanding Request - completed when we have route/date/passengers
+        aircraftFound: session.aircraft ? 1 : undefined,
+      },
+      step2: {
+        // Step 2: Creating Trip - completed when tripId exists
+        operatorsQueried: session.quotesTotal,
+        aircraftFound: session.rfqFlights?.length || session.quotesTotal,
+        avinodeResults: session.tripId ? { tripId: session.tripId } : undefined,
+      },
+      step3: {
+        // Step 3: Awaiting Selection - completed when we have RFQ ID
+        avinodeRfpId: session.rfqId,
+        quotesReceived: session.quotesReceived,
+        operatorsQueried: session.quotesTotal,
+      },
+      step4: {
+        // Step 4: Receiving Quotes - completed when we have quotes
+        quotesReceived: session.quotesReceived,
+        quotesAnalyzed: session.quotesReceived,
+        avinodeQuotes: session.rfqFlights || session.quotes,
+      },
+      step5: {
+        // Step 5: Generate Proposal - completed when status is proposal_ready
+        proposalGenerated: session.status === 'proposal_ready',
+      },
+    }
+  }
+
   const activeChat = activeChatId ? chatSessions.find((chat) => chat.id === activeChatId) : null
 
   // Show loading state while Clerk is initializing or requests are loading
@@ -1357,6 +1490,9 @@ export default function JetvisionAgent() {
               isProcessing={isProcessing}
               currentStep={activeChat.currentStep}
               status={activeChat.status}
+              workflowData={constructWorkflowData(activeChat)}
+              tripId={activeChat.tripId}
+              deepLink={activeChat.deepLink}
             />
           )}
         </main>
