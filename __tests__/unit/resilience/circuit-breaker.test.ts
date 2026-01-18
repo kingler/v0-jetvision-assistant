@@ -616,7 +616,7 @@ describe('CircuitBreaker', () => {
         successThreshold: 2,
         resetTimeout: 5000,
         monitoringWindow: 10000,
-        fallback: async (_error: Error) => 'fallback-value',
+        fallback: (async (_error: Error) => 'fallback-value') as <T>(error: Error) => T | Promise<T>,
       });
 
       const fn = createAlwaysFailingFn();
@@ -644,7 +644,7 @@ describe('CircuitBreaker', () => {
         successThreshold: 2,
         resetTimeout: 5000,
         monitoringWindow: 10000,
-        fallback: async (_error: Error) => 'fallback-value',
+        fallback: (async (_error: Error) => 'fallback-value') as <T>(error: Error) => T | Promise<T>,
       });
 
       circuitBreaker.on(CircuitBreakerEvent.FALLBACK_EXECUTED, fallbackHandler);

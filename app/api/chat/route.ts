@@ -15,7 +15,7 @@ import OpenAI from 'openai'
 import type { ChatCompletionMessageToolCall } from 'openai/resources/chat/completions'
 import { z } from 'zod'
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
-import { supabaseAdmin, findRequestByTripId, listUserTrips, upsertRequestWithTripId } from '@/lib/supabase'
+import { supabaseAdmin, findRequestByTripId, listUserTrips, updateConversationWithTripData, createQuote } from '@/lib/supabase'
 import type { PipelineData, PipelineStats, PipelineRequest } from '@/lib/types/chat-agent'
 import { detectTripId, normalizeTripId } from '@/lib/avinode/trip-id'
 import {
@@ -39,7 +39,6 @@ import {
   getOrCreateConversation,
   saveMessage,
   getIsoAgentIdFromClerkUserId,
-  linkConversationToRequest,
 } from '@/lib/conversation/message-persistence'
 
 // Feature flag for agent-based processing
@@ -81,7 +80,7 @@ const ChatRequestSchema = z.object({
     passengers: z.number().optional(),
     date: z.string().optional(),
     tripId: z.string().optional(),
-    rfpId: z.string().optional(),
+    rfqId: z.string().optional(),
   }).optional(),
 })
 
@@ -750,21 +749,20 @@ export async function POST(req: NextRequest) {
         })
 
         // Create/update chat session
+        // IMPORTANT: Pass conversationId as existingRequestId to UPDATE the existing request
+        // rather than creating a new one. The request was already created by getOrCreateConversation().
         if (conversationId) {
           const chatSessionSeed: ChatSessionInsert = {
-            conversation_id: conversationId,
             iso_agent_id: isoAgentId,
-            status: 'active',
+            session_status: 'active',
             conversation_type: conversationType,
-            ...(isValidUuid(context?.flightRequestId)
-              ? { request_id: context?.flightRequestId }
-              : {}),
             ...(context?.tripId ? { avinode_trip_id: context.tripId } : {}),
-            ...(context?.rfpId ? { avinode_rfp_id: context.rfpId } : {}),
+            ...(context?.rfqId ? { avinode_rfq_id: context.rfqId } : {}),
           }
 
           try {
-            const session = await createOrUpdateChatSession(chatSessionSeed)
+            // Pass conversationId as the second argument to update the existing request
+            const session = await createOrUpdateChatSession(chatSessionSeed, conversationId)
             chatSessionId = session?.id || null
             console.log('[Chat API] Chat session upserted:', chatSessionId, 'type:', conversationType)
           } catch (error) {
@@ -887,7 +885,7 @@ export async function POST(req: NextRequest) {
       if (context.passengers) contextParts.push(`Passengers: ${context.passengers}`)
       if (context.date) contextParts.push(`Date: ${context.date}`)
       if (context.tripId) contextParts.push(`Trip ID: ${context.tripId}`)
-      if (context.rfpId) contextParts.push(`RFP ID: ${context.rfpId}`)
+      if (context.rfqId) contextParts.push(`RFQ ID: ${context.rfqId}`)
 
       if (contextParts.length > 0) {
         messages.push({
@@ -980,8 +978,33 @@ export async function POST(req: NextRequest) {
                          /\bmy\s+trips\b/i.test(messageText) ||
                          /\blist\s+trips\b/i.test(messageText)
 
-    // Use 'required' for tool_choice when flight details, RFP request, Trip ID, or list trips is detected
-    const toolChoice = hasFlightDetails || wantsRFP || hasTripId || wantsAllTrips ? 'required' : 'auto'
+    // Check if message explicitly requests get_rfq (e.g., "get_rfq A648J4")
+    const wantsGetRfq = /^get_rfq\s+/i.test(trimmedMessage) || /\bget_rfq\b/i.test(messageText)
+
+    // Debug logging for trip ID detection
+    console.log(`[Chat API] Trip ID detection:`)
+    console.log(`  - trimmedMessage: "${trimmedMessage}"`)
+    console.log(`  - wantsGetRfq: ${wantsGetRfq}`)
+    console.log(`  - tripIdDetection:`, tripIdDetection)
+    console.log(`  - detectedTripId: ${detectedTripId}`)
+    console.log(`  - standaloneCandidate:`, standaloneCandidate)
+    console.log(`  - awaitingTripId: ${context?.tripId !== undefined}`)
+
+    // Use specific tool_choice when the intent is clear
+    // When message is "get_rfq <tripId>", force the specific get_rfq tool
+    let toolChoice: 'auto' | 'required' | { type: 'function'; function: { name: string } }
+    if (wantsGetRfq && detectedTripId) {
+      // Force get_rfq tool with the detected trip ID
+      toolChoice = { type: 'function', function: { name: 'get_rfq' } }
+      console.log(`[Chat API] ✓ Forcing get_rfq tool for Trip ID: ${detectedTripId}`)
+    } else if (wantsGetRfq && !detectedTripId) {
+      console.log(`[Chat API] ⚠ wantsGetRfq=true but detectedTripId is null - check CONTEXT_PATTERN in trip-id.ts`)
+      toolChoice = 'required'
+    } else if (hasFlightDetails || wantsRFP || hasTripId || wantsAllTrips) {
+      toolChoice = 'required'
+    } else {
+      toolChoice = 'auto'
+    }
     console.log(`[Chat API] Message analysis:`)
     console.log(`  - hasAirportCode: ${hasAirportCode}`)
     console.log(`  - hasPassengers: ${hasPassengers}`)
@@ -992,10 +1015,11 @@ export async function POST(req: NextRequest) {
     console.log(`  - wantsRFP: ${wantsRFP} (requires both RFP keywords AND flight details)`)
     console.log(`  - wantsPipeline: ${wantsPipeline}`)
     console.log(`  - hasTripId: ${hasTripId}`)
+    console.log(`  - wantsGetRfq: ${wantsGetRfq}`)
     if (detectedTripId) {
       console.log(`  - detectedTripId: ${detectedTripId}`)
     }
-    console.log(`[Chat API] Tool choice: ${toolChoice}`)
+    console.log(`[Chat API] Tool choice: ${typeof toolChoice === 'object' ? JSON.stringify(toolChoice) : toolChoice}`)
     console.log(`  - wantsAllTrips: ${wantsAllTrips}`)
 
     // =========================================================================
@@ -1026,23 +1050,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Update existing session/request with detected Trip ID
+    // IMPORTANT: Use conversationId as the request to update (not create new)
     if (detectedTripId && isoAgentId && conversationId) {
       try {
-        const existingSession = await getActiveChatSession(conversationId)
-        if (existingSession) {
-          await updateChatSessionWithTripInfo(existingSession.id, {
-            avinode_trip_id: detectedTripId,
-            request_id: existingRequest?.id,
-          })
-        } else {
-          await createOrUpdateChatSession({
-            conversation_id: conversationId,
-            iso_agent_id: isoAgentId,
-            status: 'active',
-            ...(existingRequest?.id ? { request_id: existingRequest.id } : {}),
-            avinode_trip_id: detectedTripId,
-          })
-        }
+        // updateChatSessionWithTripInfo works with request ID directly
+        await updateChatSessionWithTripInfo(conversationId, {
+          avinode_trip_id: detectedTripId,
+        })
+        console.log('[Chat API] Updated request with detected Trip ID:', { conversationId, detectedTripId })
       } catch (error) {
         console.error('[Chat API] Error updating chat session with detected Trip ID:', error)
       }
@@ -1146,7 +1162,7 @@ export async function POST(req: NextRequest) {
       model: 'gpt-4o', // Use GPT-4o for function calling (GPT-5.2 may not support tools yet)
       messages,
       tools: AVINODE_TOOLS,
-      tool_choice: toolChoice as 'auto' | 'required',
+      tool_choice: toolChoice as OpenAI.Chat.ChatCompletionToolChoiceOption,
       temperature: 0.7,
       max_tokens: 1024,
       user: userId,
@@ -1355,19 +1371,111 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Handle get_rfq tool - returns quotes data for a single RFQ
+        // Handle get_rfq tool - returns RFQ data including flights and rfqs arrays
+        // getRFQFlights returns: { rfq_id, trip_id, flights, rfqs, status, ... }
         if (toolCall.function.name === 'get_rfq') {
           try {
             const parsed = JSON.parse(toolResultContent)
-            if (parsed.rfq_id || parsed.quotes) {
+
+            // Check if tool execution failed (error response from executeAvinodeTool)
+            if (parsed.error) {
+              console.error('[Chat API] get_rfq tool execution failed:', {
+                error: parsed.error,
+                toolCallId: toolCall.id,
+              })
+              // Still set rfqData to pass the error to the frontend
+              rfqData = {
+                error: parsed.error,
+                rfq_id: null,
+                flights: [],
+                rfqs: [],
+              }
+            }
+            // Check for any valid response structure from getRFQFlights
+            // Note: flights may be empty for unanswered RFQs, but rfqs will contain the pending RFQs
+            else if (parsed.rfq_id || parsed.trip_id || parsed.flights !== undefined || parsed.rfqs !== undefined || parsed.quotes) {
               rfqData = parsed
               console.log('[Chat API] RFQ data retrieved:', {
                 rfqId: parsed.rfq_id,
+                tripId: parsed.trip_id,
+                status: parsed.status,
+                flightsCount: parsed.flights?.length || 0,
+                rfqsCount: parsed.rfqs?.length || 0,
                 quotesCount: parsed.quotes?.length || 0,
+                totalRfqs: parsed.total_rfqs,
+                totalQuotes: parsed.total_quotes,
+              })
+
+              // Save quotes to database if we have a request_id (conversationId)
+              // The flights array contains RFQFlight objects with quote data
+              if (conversationId && parsed.flights && Array.isArray(parsed.flights) && parsed.flights.length > 0) {
+                console.log('[Chat API] Saving', parsed.flights.length, 'quotes to database for request:', conversationId)
+
+                for (const flight of parsed.flights) {
+                  try {
+                    // Map RFQFlight to quotes table schema
+                    const quoteData = {
+                      request_id: conversationId,
+                      avinode_quote_id: flight.quoteId || flight.id || null,
+                      operator_id: flight.operatorId || flight.operatorName?.replace(/\s+/g, '-').toLowerCase() || 'unknown',
+                      operator_name: flight.operatorName || 'Unknown Operator',
+                      aircraft_type: flight.aircraftType || 'Unknown',
+                      aircraft_tail_number: flight.tailNumber || null,
+                      base_price: flight.basePrice || flight.totalPrice || 0,
+                      total_price: flight.totalPrice || 0,
+                      status: (flight.rfqStatus === 'quoted' ? 'received' : 'pending') as 'pending' | 'received' | 'analyzed' | 'accepted' | 'rejected' | 'expired',
+                      received_at: new Date().toISOString(),
+                      valid_until: flight.validUntil || null,
+                      aircraft_details: flight.aircraftDetails ? JSON.stringify(flight.aircraftDetails) : null,
+                      schedule: flight.schedule ? JSON.stringify(flight.schedule) : null,
+                      metadata: {
+                        rfq_id: parsed.rfq_id,
+                        trip_id: parsed.trip_id,
+                        flight_duration: flight.flightDuration,
+                        departure_airport: flight.departureAirport,
+                        arrival_airport: flight.arrivalAirport,
+                        passenger_capacity: flight.passengerCapacity,
+                        currency: flight.currency,
+                      },
+                    }
+
+                    // Upsert quote (insert or update if avinode_quote_id exists)
+                    const { error: upsertError } = await supabaseAdmin
+                      .from('quotes')
+                      .upsert(quoteData, {
+                        onConflict: 'avinode_quote_id',
+                        ignoreDuplicates: false,
+                      })
+
+                    if (upsertError) {
+                      console.error('[Chat API] Error saving quote:', {
+                        quoteId: flight.quoteId || flight.id,
+                        error: upsertError.message,
+                      })
+                    } else {
+                      console.log('[Chat API] Quote saved:', {
+                        quoteId: flight.quoteId || flight.id,
+                        operator: flight.operatorName,
+                        price: flight.totalPrice,
+                      })
+                    }
+                  } catch (quoteError) {
+                    console.error('[Chat API] Exception saving quote:', quoteError)
+                    // Continue with other quotes even if one fails
+                  }
+                }
+              }
+            } else {
+              console.warn('[Chat API] get_rfq returned unexpected structure:', {
+                keys: Object.keys(parsed),
+                parsed: JSON.stringify(parsed).substring(0, 500),
               })
             }
-          } catch {
-            // Ignore parse errors
+          } catch (error) {
+            console.error('[Chat API] Failed to parse get_rfq result:', {
+              error: error instanceof Error ? error.message : String(error),
+              rawContent: toolResultContent.substring(0, 500),
+            })
           }
         }
 
@@ -1458,79 +1566,52 @@ export async function POST(req: NextRequest) {
 
       if (tripData) {
         responseData.trip_data = tripData
-        
-        // If create_trip was successful and we have a conversation, try to create/link request
+
+        // If create_trip was successful and we have a conversation, update the existing
+        // conversation request with trip data (FIX: prevents dual-request creation bug)
         if (tripData.trip_id && isoAgentId && conversationId) {
           try {
             // Extract flight details from tool call arguments
             const createTripCall = allFunctionToolCalls.find(tc => tc.function.name === 'create_trip')
             if (createTripCall) {
               const tripArgs = JSON.parse(createTripCall.function.arguments)
-              
-              // Create or update request with trip ID
-              const request = await upsertRequestWithTripId(
-                tripData.trip_id,
-                isoAgentId,
+
+              // Update the EXISTING conversation request with trip data
+              // This fixes the dual-request bug where we previously created a separate
+              // request for the trip, orphaning the conversation messages
+              const updatedRequest = await updateConversationWithTripData(
+                conversationId, // conversationId IS the request ID in consolidated schema
+                {
+                  trip_id: tripData.trip_id,
+                  deep_link: tripData.deep_link,
+                  rfq_id: tripData.rfq_id,
+                },
                 {
                   departure_airport: tripArgs.departure_airport || '',
                   arrival_airport: tripArgs.arrival_airport || '',
                   departure_date: tripArgs.departure_date || new Date().toISOString(),
                   passengers: tripArgs.passengers || 1,
-                  deep_link: tripData.deep_link,
                 }
               )
 
-              // Link conversation to the newly created/updated request
-              if (request) {
-                await linkConversationToRequest(conversationId, request.id)
-                console.log('[Chat API] Linked conversation to request:', {
-                  conversationId,
-                  requestId: request.id,
-                  tripId: tripData.trip_id,
-                })
+              console.log('[Chat API] Updated conversation request with trip data:', {
+                conversationId,
+                requestId: updatedRequest.id,
+                tripId: tripData.trip_id,
+                sessionStatus: updatedRequest.session_status,
+                conversationType: updatedRequest.conversation_type,
+              })
 
-                try {
-                  const existingSession = await getActiveChatSession(conversationId)
-                  if (existingSession) {
-                    await updateChatSessionWithTripInfo(existingSession.id, {
-                      request_id: request.id,
-                      avinode_trip_id: tripData.trip_id,
-                      avinode_rfp_id: tripData.rfp_id,
-                    })
-
-                    // TRANSITION: If session was 'general', transition to 'flight_request'
-                    // This happens when user provides flight details in a general chat
-                    if (conversationType === 'general') {
-                      console.log('[Chat API] Transitioning session from general to flight_request')
-                      await updateChatSessionType(existingSession.id, 'flight_request')
-                      conversationType = 'flight_request'
-                      // Update the response data with new type
-                      responseData.conversation_type = 'flight_request'
-                    }
-                  } else {
-                    await createOrUpdateChatSession({
-                      conversation_id: conversationId,
-                      iso_agent_id: isoAgentId,
-                      status: 'active',
-                      request_id: request.id,
-                      avinode_trip_id: tripData.trip_id,
-                      avinode_rfp_id: tripData.rfp_id,
-                      conversation_type: 'flight_request', // Always flight_request when trip is created
-                    })
-                    conversationType = 'flight_request'
-                    responseData.conversation_type = 'flight_request'
-                  }
-                } catch (error) {
-                  console.error('[Chat API] Error updating chat session after request link:', error)
-                }
-              }
+              // Update conversation type to flight_request (already done in updateConversationWithTripData)
+              conversationType = 'flight_request'
+              responseData.conversation_type = 'flight_request'
             }
           } catch (error) {
-            console.error('[Chat API] Error creating/linking request from trip:', error)
+            console.error('[Chat API] Error updating conversation with trip data:', error)
             // Don't fail the request if this fails
           }
         }
-        
+
         console.log(`[Chat API] Including trip_data in response:`, JSON.stringify(tripData, null, 2))
       }
 

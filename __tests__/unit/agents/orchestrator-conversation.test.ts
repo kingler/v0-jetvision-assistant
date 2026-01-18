@@ -233,7 +233,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       await agent.execute(context);
 
-      const conversationState = agent.getConversationState('new-session');
+      const conversationState = await agent.getConversationState('new-session');
       expect(conversationState).toBeDefined();
       expect(conversationState?.sessionId).toBe('new-session');
       expect(conversationState?.userId).toBe('user-789');
@@ -249,7 +249,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       await agent.execute(context);
 
-      const conversationState = agent.getConversationState('history-test');
+      const conversationState = await agent.getConversationState('history-test');
       expect(conversationState?.conversationHistory).toBeDefined();
       expect(conversationState?.conversationHistory.length).toBeGreaterThan(0);
       expect(conversationState?.conversationHistory[0].role).toBe('user');
@@ -268,7 +268,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       const result = await agent.execute(context);
 
-      const conversationState = agent.getConversationState('extraction-test');
+      const conversationState = await agent.getConversationState('extraction-test');
       expect(conversationState?.extractedData).toBeDefined();
     });
 
@@ -282,7 +282,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       const result = await agent.execute(context);
 
-      const conversationState = agent.getConversationState('missing-fields-test');
+      const conversationState = await agent.getConversationState('missing-fields-test');
       expect(conversationState?.missingFields).toBeDefined();
       expect(Array.isArray(conversationState?.missingFields)).toBe(true);
     });
@@ -296,7 +296,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
         metadata: { userMessage: 'I need a flight from LA' },
       });
 
-      let state = agent.getConversationState(sessionId);
+      let state = await agent.getConversationState(sessionId);
       expect(state?.extractedData).toBeDefined();
 
       // Second message - add more data
@@ -305,7 +305,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
         metadata: { userMessage: 'to Miami' },
       });
 
-      state = agent.getConversationState(sessionId);
+      state = await agent.getConversationState(sessionId);
       expect(state?.extractedData).toBeDefined();
 
       // Third message - complete data
@@ -314,7 +314,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
         metadata: { userMessage: 'next Friday for 6 passengers' },
       });
 
-      state = agent.getConversationState(sessionId);
+      state = await agent.getConversationState(sessionId);
       expect(state?.extractedData).toBeDefined();
     });
   });
@@ -330,7 +330,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       await agent.execute(context);
 
-      const conversationState = agent.getConversationState('clarification-test');
+      const conversationState = await agent.getConversationState('clarification-test');
       expect(conversationState?.clarificationRound).toBeDefined();
       expect(typeof conversationState?.clarificationRound).toBe('number');
     });
@@ -345,7 +345,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       await agent.execute(context);
 
-      const conversationState = agent.getConversationState('questions-test');
+      const conversationState = await agent.getConversationState('questions-test');
       expect(conversationState?.questionsAsked).toBeDefined();
       expect(Array.isArray(conversationState?.questionsAsked)).toBe(true);
     });
@@ -360,7 +360,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       await agent.execute(context);
 
-      const conversationState = agent.getConversationState('completion-test');
+      const conversationState = await agent.getConversationState('completion-test');
       expect(conversationState?.isComplete).toBeDefined();
       expect(typeof conversationState?.isComplete).toBe('boolean');
     });
@@ -375,7 +375,7 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       await agent.execute(context);
 
-      const conversationState = agent.getConversationState('timestamp-test');
+      const conversationState = await agent.getConversationState('timestamp-test');
       expect(conversationState?.lastUpdated).toBeDefined();
       expect(conversationState?.lastUpdated).toBeInstanceOf(Date);
     });
@@ -462,8 +462,8 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
       await agent.execute(context1);
       await agent.execute(context2);
 
-      const state1 = agent.getConversationState('session-1');
-      const state2 = agent.getConversationState('session-2');
+      const state1 = await agent.getConversationState('session-1');
+      const state2 = await agent.getConversationState('session-2');
 
       expect(state1).toBeDefined();
       expect(state2).toBeDefined();
@@ -479,12 +479,12 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       await agent.execute(context);
 
-      let state = agent.getConversationState('clear-test');
+      let state = await agent.getConversationState('clear-test');
       expect(state).toBeDefined();
 
-      agent.clearConversationState('clear-test');
+      await agent.clearConversationState('clear-test');
 
-      state = agent.getConversationState('clear-test');
+      state = await agent.getConversationState('clear-test');
       expect(state).toBeUndefined();
     });
 
@@ -501,8 +501,8 @@ describe('OrchestratorAgent - Conversational Capabilities (ONEK-98)', () => {
 
       await agent.shutdown();
 
-      const state1 = agent.getConversationState('shutdown-test-1');
-      const state2 = agent.getConversationState('shutdown-test-2');
+      const state1 = await agent.getConversationState('shutdown-test-1');
+      const state2 = await agent.getConversationState('shutdown-test-2');
 
       expect(state1).toBeUndefined();
       expect(state2).toBeUndefined();

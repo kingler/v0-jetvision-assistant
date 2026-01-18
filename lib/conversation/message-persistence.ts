@@ -1,31 +1,25 @@
 /**
- * Message Persistence Utilities
- * 
+ * Message Persistence Utilities (Consolidated Schema)
+ *
  * Handles saving and loading chat messages to/from Supabase database.
  * Ensures all chat conversations are persisted and recoverable across page refreshes.
+ *
+ * NOTE: After schema consolidation (migration 030-033), messages link directly
+ * to requests via `request_id`. The old `conversations` and `conversation_participants`
+ * tables are deprecated.
  */
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
-type MessageSenderType = string;
-type MessageContentType = string;
-type MessageStatus = string;
-type ConversationType = string;
+
+type MessageSenderType = 'iso_agent' | 'operator' | 'ai_assistant' | 'system';
+type MessageContentType = 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal';
 
 /**
- * Interface for creating a conversation
- */
-export interface CreateConversationParams {
-  requestId?: string; // Optional - can create conversation before request exists
-  userId: string;
-  subject?: string;
-  type?: ConversationType;
-}
-
-/**
- * Interface for saving a message
+ * Interface for saving a message (consolidated schema)
  */
 export interface SaveMessageParams {
-  conversationId: string;
+  requestId: string;
+  quoteId?: string; // Optional - for operator message threading
   senderType: MessageSenderType;
   senderIsoAgentId?: string;
   senderOperatorId?: string;
@@ -37,137 +31,112 @@ export interface SaveMessageParams {
 }
 
 /**
- * Get or create a conversation for a request
- * 
- * If requestId is provided, looks for existing conversation linked to that request.
- * If no requestId or no existing conversation, creates a new one.
- * 
+ * Interface for backward compatibility - maps to SaveMessageParams
+ * @deprecated Use SaveMessageParams with requestId instead
+ */
+export interface SaveMessageParamsLegacy {
+  conversationId: string; // Maps to requestId in new schema
+  senderType: string;
+  senderIsoAgentId?: string;
+  senderOperatorId?: string;
+  senderName?: string;
+  content: string;
+  contentType?: string;
+  richContent?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Interface for creating a conversation (now creates/updates a request)
+ * @deprecated With consolidated schema, work with requests directly
+ */
+export interface CreateConversationParams {
+  requestId?: string;
+  userId: string;
+  subject?: string;
+  type?: string;
+}
+
+/**
+ * Get or create a request for messaging
+ *
+ * If requestId is provided and valid, returns it.
+ * If no requestId, creates a new draft request.
+ *
  * @param params - Conversation creation parameters
- * @returns Conversation ID
+ * @returns Request ID
  */
 export async function getOrCreateConversation(
   params: CreateConversationParams
 ): Promise<string> {
-  // If requestId is provided, check for existing conversation
+  // If requestId is provided and valid, return it
   if (params.requestId) {
-    // Validate that requestId is a valid UUID (not a temp ID)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const isValidRequestId = uuidRegex.test(params.requestId);
-
-    if (isValidRequestId) {
+    if (uuidRegex.test(params.requestId)) {
+      // Verify request exists
       const { data: existing, error: findError } = await supabaseAdmin
-        .from('conversations')
+        .from('requests')
         .select('id')
-        .eq('request_id', params.requestId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('id', params.requestId)
         .maybeSingle();
 
       if (findError) {
-        console.error('[Message Persistence] Error finding conversation:', findError);
-        throw new Error(`Failed to find conversation: ${findError.message}`);
+        console.error('[Message Persistence] Error finding request:', findError);
+        throw new Error(`Failed to find request: ${findError.message}`);
       }
 
-      // Return existing conversation ID if found
       if (existing) {
         return existing.id;
       }
     }
   }
 
-  // Create new conversation (with or without request_id)
-  const { data: newConversation, error: createError } = await supabaseAdmin
-    .from('conversations')
+  // Create new draft request for conversation
+  const { data: newRequest, error: createError } = await supabaseAdmin
+    .from('requests')
     .insert({
-      request_id: params.requestId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.requestId)
-        ? params.requestId
-        : null,
-      type: (params.type || 'rfp_negotiation') as 'rfp_negotiation' | 'quote_discussion' | 'general_inquiry' | 'booking_confirmation' | 'support',
-      status: 'active' as 'active' | 'awaiting_response' | 'resolved' | 'archived',
+      iso_agent_id: params.userId,
+      departure_airport: '',
+      arrival_airport: '',
+      departure_date: new Date().toISOString().split('T')[0], // Default to today, will be updated when details are provided
+      passengers: 1,
+      status: 'draft',
+      session_status: 'active',
+      conversation_type: (params.type === 'general' ? 'general' : 'flight_request') as 'flight_request' | 'general',
       subject: params.subject || null,
-      metadata: {},
+      session_started_at: new Date().toISOString(),
+      last_activity_at: new Date().toISOString(),
     })
     .select('id')
     .single();
 
   if (createError) {
-    console.error('[Message Persistence] Error creating conversation:', createError);
-    throw new Error(`Failed to create conversation: ${createError.message}`);
+    console.error('[Message Persistence] Error creating request:', createError);
+    throw new Error(`Failed to create request: ${createError.message}`);
   }
 
-  // Create participant record to link user to conversation
-  // This is required so the user can see and access the conversation
-  // Use supabaseAdmin to bypass RLS (service role has full access per policy)
-  const { error: participantError } = await supabaseAdmin
-    .from('conversation_participants')
-    .insert({
-      conversation_id: newConversation.id,
-      iso_agent_id: params.userId,
-      role: 'iso_agent',
-      is_active: true,
-      can_reply: true,
-      can_invite: false,
-      notifications_enabled: true,
-    });
-
-  if (participantError) {
-    console.error('[Message Persistence] Error creating conversation participant:', participantError);
-    // Don't throw - conversation was created, participant creation failure is non-fatal
-    // But log it so we know something went wrong
-  } else {
-    console.log('[Message Persistence] ✅ Created conversation participant for user:', params.userId);
-  }
-
-  // Also add AI assistant as a participant (for system messages)
-  const { error: aiParticipantError } = await supabaseAdmin
-    .from('conversation_participants')
-    .insert({
-      conversation_id: newConversation.id,
-      role: 'ai_assistant',
-      is_active: true,
-      can_reply: true,
-      can_invite: false,
-      notifications_enabled: false,
-    });
-
-  if (aiParticipantError) {
-    // Non-fatal - log but don't throw
-    console.warn('[Message Persistence] Warning: Could not create AI assistant participant:', aiParticipantError);
-  }
-
-  // Update request with primary_conversation_id if requestId was provided and is valid
-  if (params.requestId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.requestId)) {
-    await supabaseAdmin
-      .from('requests')
-      .update({ primary_conversation_id: newConversation.id })
-      .eq('id', params.requestId)
-      .is('primary_conversation_id', null);
-  }
-
-  return newConversation.id;
+  console.log('[Message Persistence] Created request for conversation:', newRequest.id);
+  return newRequest.id;
 }
 
 /**
- * Get conversation ID for a request
- * 
+ * Get request ID for a conversation (backward compatibility)
+ *
  * @param requestId - Request ID
- * @returns Conversation ID or null if not found
+ * @returns Request ID or null if not found
+ * @deprecated Use requestId directly
  */
 export async function getConversationForRequest(
   requestId: string
 ): Promise<string | null> {
   const { data, error } = await supabaseAdmin
-    .from('conversations')
+    .from('requests')
     .select('id')
-    .eq('request_id', requestId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
+    .eq('id', requestId)
     .maybeSingle();
 
   if (error) {
-    console.error('[Message Persistence] Error getting conversation:', error);
+    console.error('[Message Persistence] Error getting request:', error);
     return null;
   }
 
@@ -175,51 +144,37 @@ export async function getConversationForRequest(
 }
 
 /**
- * Link a conversation to a request
- * 
- * Used when a request is created after a conversation already exists
- * (e.g., when a new chat creates a request via the chat API)
- * 
- * @param conversationId - Conversation ID to link
- * @param requestId - Request ID to link to
+ * Link a conversation to a request (no-op in new schema)
+ *
+ * @param conversationId - Request ID (conversation = request now)
+ * @param requestId - Should be same as conversationId
+ * @deprecated No longer needed - messages link directly to requests
  */
 export async function linkConversationToRequest(
   conversationId: string,
   requestId: string
 ): Promise<void> {
-  const { error: updateError } = await supabaseAdmin
-    .from('conversations')
-    .update({ request_id: requestId })
-    .eq('id', conversationId)
-    .is('request_id', null); // Only update if request_id is currently null
-
-  if (updateError) {
-    console.error('[Message Persistence] Error linking conversation to request:', updateError);
-    throw new Error(`Failed to link conversation to request: ${updateError.message}`);
-  }
-
-  // Also update request with primary_conversation_id if not set
-  await supabaseAdmin
-    .from('requests')
-    .update({ primary_conversation_id: conversationId })
-    .eq('id', requestId)
-    .is('primary_conversation_id', null);
-
-  console.log('[Message Persistence] Linked conversation to request:', {
+  // In the new schema, conversationId IS the requestId
+  // This function exists for backward compatibility
+  console.log('[Message Persistence] linkConversationToRequest is deprecated:', {
     conversationId,
     requestId,
   });
 }
 
 /**
- * Save a message to the database
- * 
- * @param params - Message parameters
+ * Save a message to the database (new schema)
+ *
+ * @param params - Message parameters with requestId
  * @returns Message ID
  */
 export async function saveMessage(
-  params: SaveMessageParams
+  params: SaveMessageParams | SaveMessageParamsLegacy
 ): Promise<string> {
+  // Handle both new and legacy params
+  const requestId = 'requestId' in params ? params.requestId : params.conversationId;
+  const quoteId = 'quoteId' in params ? params.quoteId : undefined;
+
   // Validate sender based on sender type
   if (params.senderType === 'iso_agent' && !params.senderIsoAgentId) {
     throw new Error('senderIsoAgentId is required for iso_agent sender type');
@@ -228,20 +183,23 @@ export async function saveMessage(
     throw new Error('senderOperatorId is required for operator sender type');
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const insertData: any = {
+    request_id: requestId,
+    quote_id: quoteId || null,
+    sender_type: params.senderType as 'iso_agent' | 'operator' | 'ai_assistant' | 'system',
+    sender_iso_agent_id: params.senderIsoAgentId || null,
+    sender_operator_id: params.senderOperatorId || null,
+    sender_name: params.senderName || null,
+    content: params.content,
+    content_type: (params.contentType || 'text') as 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal',
+    rich_content: params.richContent as Record<string, unknown> | null || null,
+    status: 'sent' as 'draft' | 'sent' | 'delivered' | 'read' | 'failed',
+    metadata: params.metadata as Record<string, unknown> || {},
+  };
   const { data: message, error } = await supabaseAdmin
     .from('messages')
-    .insert({
-      conversation_id: params.conversationId,
-      sender_type: params.senderType as any,
-      sender_iso_agent_id: params.senderIsoAgentId || null,
-      sender_operator_id: params.senderOperatorId || null,
-      sender_name: params.senderName || null,
-      content: params.content,
-      content_type: (params.contentType || 'text') as any,
-      rich_content: params.richContent as any || null,
-      status: 'sent' as any,
-      metadata: params.metadata as any || {},
-    })
+    .insert(insertData)
     .select('id')
     .single();
 
@@ -254,17 +212,35 @@ export async function saveMessage(
 }
 
 /**
- * Load messages for a conversation
- * 
- * @param conversationId - Conversation ID
- * @param limit - Maximum number of messages to load (default: 100)
+ * Save a message with request ID (explicit new schema)
+ *
+ * @param params - Message parameters
+ * @returns Message ID
+ */
+export async function saveMessageToRequest(
+  params: SaveMessageParams
+): Promise<string> {
+  return saveMessage(params);
+}
+
+/**
+ * Load messages for a request
+ *
+ * @param requestId - Request ID
+ * @param options - Optional filters (quoteId, limit)
  * @returns Array of messages
  */
 export async function loadMessages(
-  conversationId: string,
-  limit: number = 100
+  requestId: string,
+  options?: {
+    quoteId?: string; // Filter by quote for operator threading
+    limit?: number;
+    includeDeleted?: boolean;
+  }
 ): Promise<Array<{
   id: string;
+  requestId: string;
+  quoteId: string | null;
   senderType: MessageSenderType;
   senderName: string | null;
   content: string;
@@ -273,13 +249,30 @@ export async function loadMessages(
   createdAt: string;
   metadata: Record<string, unknown> | null;
 }>> {
-  const { data: messages, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('messages')
-    .select('id, sender_type, sender_name, content, content_type, rich_content, created_at, metadata')
-    .eq('conversation_id', conversationId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-    .limit(limit);
+    .select('id, request_id, quote_id, sender_type, sender_name, content, content_type, rich_content, created_at, metadata')
+    .eq('request_id', requestId)
+    .order('created_at', { ascending: true });
+
+  // Filter by quote_id if provided (for operator threading)
+  if (options?.quoteId) {
+    query = query.eq('quote_id', options.quoteId);
+  }
+
+  // Exclude soft-deleted messages unless explicitly requested
+  if (!options?.includeDeleted) {
+    query = query.is('deleted_at', null);
+  }
+
+  // Apply limit
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  } else {
+    query = query.limit(100);
+  }
+
+  const { data: messages, error } = await query;
 
   if (error) {
     console.error('[Message Persistence] Error loading messages:', error);
@@ -288,10 +281,12 @@ export async function loadMessages(
 
   return (messages || []).map((msg) => ({
     id: msg.id,
-    senderType: msg.sender_type,
+    requestId: msg.request_id || '',
+    quoteId: msg.quote_id,
+    senderType: msg.sender_type as MessageSenderType,
     senderName: msg.sender_name,
     content: msg.content || '',
-    contentType: msg.content_type,
+    contentType: msg.content_type as MessageContentType,
     richContent: msg.rich_content as Record<string, unknown> | null,
     createdAt: msg.created_at || '',
     metadata: msg.metadata as Record<string, unknown> | null,
@@ -299,8 +294,114 @@ export async function loadMessages(
 }
 
 /**
+ * Load messages grouped by operator (quote_id)
+ *
+ * @param requestId - Request ID
+ * @returns Messages grouped by quote_id
+ */
+export async function loadMessagesGroupedByOperator(
+  requestId: string
+): Promise<Map<string | null, Array<{
+  id: string;
+  quoteId: string | null;
+  senderType: MessageSenderType;
+  senderName: string | null;
+  content: string;
+  createdAt: string;
+}>>> {
+  const messages = await loadMessages(requestId, { limit: 500 });
+
+  const grouped = new Map<string | null, typeof messages>();
+
+  for (const msg of messages) {
+    const key = msg.quoteId;
+    if (!grouped.has(key)) {
+      grouped.set(key, []);
+    }
+    grouped.get(key)!.push(msg);
+  }
+
+  return grouped;
+}
+
+/**
+ * Get operator threads for a request
+ *
+ * @param requestId - Request ID
+ * @returns Array of operator thread summaries
+ */
+export async function getOperatorThreads(
+  requestId: string
+): Promise<Array<{
+  quoteId: string;
+  operatorName: string | null;
+  messageCount: number;
+  lastMessageAt: string | null;
+  hasUnread: boolean;
+}>> {
+  // Get quotes for this request
+  const { data: quotes, error: quotesError } = await supabaseAdmin
+    .from('quotes')
+    .select('id, operator_name')
+    .eq('request_id', requestId);
+
+  if (quotesError) {
+    console.error('[Message Persistence] Error fetching quotes:', quotesError);
+    return [];
+  }
+
+  // Get message counts per quote
+  const threads: Array<{
+    quoteId: string;
+    operatorName: string | null;
+    messageCount: number;
+    lastMessageAt: string | null;
+    hasUnread: boolean;
+  }> = [];
+
+  for (const quote of quotes || []) {
+    const { data: messages, count } = await supabaseAdmin
+      .from('messages')
+      .select('id, created_at, read_by', { count: 'exact' })
+      .eq('request_id', requestId)
+      .eq('quote_id', quote.id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const lastMessage = messages?.[0];
+
+    // Check if there are unread operator messages
+    const { count: unreadCount } = await supabaseAdmin
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('request_id', requestId)
+      .eq('quote_id', quote.id)
+      .eq('sender_type', 'operator')
+      .is('deleted_at', null);
+
+    threads.push({
+      quoteId: quote.id,
+      operatorName: quote.operator_name,
+      messageCount: count || 0,
+      lastMessageAt: lastMessage?.created_at || null,
+      hasUnread: (unreadCount || 0) > 0,
+    });
+  }
+
+  // Sort by last message time
+  threads.sort((a, b) => {
+    if (!a.lastMessageAt) return 1;
+    if (!b.lastMessageAt) return -1;
+    return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+  });
+
+  return threads;
+}
+
+/**
  * Get user's ISO agent ID from Clerk user ID
- * 
+ *
  * @param clerkUserId - Clerk user ID
  * @returns ISO agent ID or null
  */
@@ -319,4 +420,57 @@ export async function getIsoAgentIdFromClerkUserId(
   }
 
   return data.id;
+}
+
+/**
+ * Soft delete a message
+ *
+ * @param messageId - Message ID
+ * @returns true if deleted, false otherwise
+ */
+export async function deleteMessage(messageId: string): Promise<boolean> {
+  const { error } = await supabaseAdmin
+    .from('messages')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', messageId);
+
+  if (error) {
+    console.error('[Message Persistence] Error deleting message:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Mark messages as read for a user
+ *
+ * @param requestId - Request ID
+ * @param userId - User ID who is reading
+ * @param userType - 'iso' or 'operator'
+ */
+export async function markMessagesAsRead(
+  requestId: string,
+  userId: string,
+  userType: 'iso' | 'operator'
+): Promise<void> {
+  // Use the database function if available
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.rpc as any)('mark_request_messages_read', {
+      p_request_id: requestId,
+      p_reader_type: userType,
+      p_reader_id: userId,
+    });
+  } catch (rpcError) {
+    // Function may not exist yet, fall back to manual update
+    console.warn('[Message Persistence] RPC not available, using manual update:', rpcError);
+
+    // Update request unread count
+    const updateField = userType === 'iso' ? 'unread_count_iso' : 'unread_count_operator';
+    await supabaseAdmin
+      .from('requests')
+      .update({ [updateField]: 0 })
+      .eq('id', requestId);
+  }
 }

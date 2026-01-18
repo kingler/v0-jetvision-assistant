@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
           }
 
           // Load messages from database
-          const dbMessages = await loadMessages(conversationId, 100);
+          const dbMessages = await loadMessages(conversationId, { limit: 100 });
 
           // Convert to API response format
           const messages = dbMessages.map((msg) => ({
@@ -285,13 +285,12 @@ export async function POST(request: NextRequest) {
 /**
  * DELETE /api/requests
  * Deletes a flight request from the database (hard delete)
- * 
- * This will permanently remove the request and cascade delete related records:
- * - Quotes (ON DELETE CASCADE)
- * - Proposals (ON DELETE CASCADE)
- * - Conversations will have request_id set to NULL (ON DELETE SET NULL)
- * - Avinode webhook events will have request_id set to NULL (ON DELETE SET NULL)
- * 
+ *
+ * With consolidated schema (migration 030-033), this will cascade delete:
+ * - Messages (ON DELETE CASCADE via request_id)
+ * - Quotes (ON DELETE CASCADE via request_id)
+ * - Proposals (ON DELETE CASCADE via request_id)
+ *
  * Query parameters:
  * - id: Request ID to delete (required)
  */
@@ -316,86 +315,58 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Look up user in iso_agents table using Clerk user ID
-    // Use admin client to bypass RLS since we already have Clerk authentication
     const { data: user, error: userError } = await supabaseAdmin
       .from('iso_agents')
       .select('id, role')
       .eq('clerk_user_id', userId)
       .single<Pick<User, 'id' | 'role'>>();
 
-    // Handle user lookup errors
     if (userError || !user) {
       console.error('[DELETE /api/requests] User lookup failed:', {
         userId,
         error: userError?.message,
-        code: userError?.code,
       });
       return NextResponse.json(
-        { error: 'User not found', message: 'Your account may not be synced to the database. Please contact support.' },
+        { error: 'User not found', message: 'Your account may not be synced to the database.' },
         { status: 404 }
       );
     }
 
     // Validate request ID format (should be UUID)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(requestId)) {
-      console.error('[DELETE /api/requests] Invalid request ID format:', {
-        requestId,
-        userId: user.id,
-      })
       return NextResponse.json(
         { error: 'Invalid request ID', message: 'Request ID must be a valid UUID' },
         { status: 400 }
-      )
+      );
     }
 
     // Verify ownership - check if request exists and belongs to user
-    // Use admin client to bypass RLS for ownership check
     const { data: existingRequest, error: fetchError } = await supabaseAdmin
       .from('requests')
-      .select('id, iso_agent_id, status, primary_conversation_id')
+      .select('id, iso_agent_id, status')
       .eq('id', requestId)
       .single();
 
-    // Handle request lookup errors
     if (fetchError) {
-      // Check if it's a "not found" error (PGRST116) vs other errors
       if (fetchError.code === 'PGRST116' || fetchError.message?.includes('No rows')) {
-        console.error('[DELETE /api/requests] Request not found:', {
-          requestId,
-          userId: user.id,
-          error: fetchError.message,
-          code: fetchError.code,
-        })
         return NextResponse.json(
-          { error: 'Request not found', message: 'The specified request does not exist in the database' },
+          { error: 'Request not found', message: 'The specified request does not exist' },
           { status: 404 }
-        )
+        );
       }
-      
-      // Other database errors
-      console.error('[DELETE /api/requests] Database error during request lookup:', {
-        requestId,
-        userId: user.id,
-        error: fetchError.message,
-        code: fetchError.code,
-        details: fetchError,
-      })
+      console.error('[DELETE /api/requests] Database error:', fetchError);
       return NextResponse.json(
-        { error: 'Database error', message: `Failed to lookup request: ${fetchError.message}` },
+        { error: 'Database error', message: fetchError.message },
         { status: 500 }
-      )
+      );
     }
 
     if (!existingRequest) {
-      console.error('[DELETE /api/requests] Request not found (no data returned):', {
-        requestId,
-        userId: user.id,
-      })
       return NextResponse.json(
         { error: 'Request not found', message: 'The specified request does not exist' },
         { status: 404 }
-      )
+      );
     }
 
     // Verify ownership (user must own the request or be an admin)
@@ -406,75 +377,29 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete related conversations if they exist
-    // First, find all conversations linked to this request
-    if (existingRequest.primary_conversation_id) {
-      // Delete the primary conversation and its messages (CASCADE will handle messages)
-      const { error: conversationDeleteError } = await supabaseAdmin
-        .from('conversations')
-        .delete()
-        .eq('id', existingRequest.primary_conversation_id);
-
-      if (conversationDeleteError) {
-        console.warn('[DELETE /api/requests] Failed to delete primary conversation:', {
-          conversationId: existingRequest.primary_conversation_id,
-          error: conversationDeleteError.message,
-        });
-        // Continue with request deletion even if conversation deletion fails
-      }
-    }
-
-    // Also delete any other conversations linked to this request
-    const { data: relatedConversations, error: conversationsFetchError } = await supabaseAdmin
-      .from('conversations')
-      .select('id')
+    // Delete messages explicitly (CASCADE handles this too, but explicit is clearer)
+    console.log('[DELETE /api/requests] Deleting messages for request:', requestId);
+    const { error: messagesError, count: messagesCount } = await supabaseAdmin
+      .from('messages')
+      .delete({ count: 'exact' })
       .eq('request_id', requestId);
 
-    if (!conversationsFetchError && relatedConversations && relatedConversations.length > 0) {
-      const conversationIds = relatedConversations.map((c) => c.id);
-      const { error: conversationsDeleteError } = await supabaseAdmin
-        .from('conversations')
-        .delete()
-        .in('id', conversationIds);
-
-      if (conversationsDeleteError) {
-        console.warn('[DELETE /api/requests] Failed to delete related conversations:', {
-          conversationIds,
-          error: conversationsDeleteError.message,
-        });
-        // Continue with request deletion even if conversation deletion fails
-      }
+    if (messagesError) {
+      console.warn('[DELETE /api/requests] Messages delete warning:', messagesError.message);
+    } else {
+      console.log('[DELETE /api/requests] Deleted messages:', messagesCount || 0);
     }
 
-    // Delete related chat_sessions linked to this request
-    const { error: chatSessionsDeleteError } = await supabaseAdmin
-      .from('chat_sessions')
-      .delete()
-      .eq('request_id', requestId);
-
-    if (chatSessionsDeleteError) {
-      console.warn('[DELETE /api/requests] Failed to delete chat_sessions:', {
-        requestId,
-        error: chatSessionsDeleteError.message,
-      });
-      // Continue with request deletion even if chat_sessions deletion fails
-    }
-
-    // Hard delete the request from the database
-    // Use admin client to bypass RLS and ensure deletion works
-    // Related records (quotes, proposals) will be cascade deleted automatically
+    // Delete the request (CASCADE will handle quotes and other related records)
     const { error: deleteError } = await supabaseAdmin
       .from('requests')
       .delete()
       .eq('id', requestId);
 
-    // Handle deletion errors
     if (deleteError) {
-      console.error('[DELETE /api/requests] Database deletion failed:', {
+      console.error('[DELETE /api/requests] Deletion failed:', {
         requestId,
-        userId: user.id,
         error: deleteError.message,
-        code: deleteError.code,
       });
       return NextResponse.json(
         { error: 'Failed to delete request', message: deleteError.message },
@@ -482,16 +407,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Return successful response
+    console.log('[DELETE /api/requests] Successfully deleted request:', requestId);
     return NextResponse.json(
       { message: 'Request deleted successfully' },
       { status: 200 }
     );
   } catch (error) {
-    // Handle unexpected errors
     console.error('[DELETE /api/requests] Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: 'An unexpected error occurred while deleting the request' },
+      { error: 'Internal server error', message: 'An unexpected error occurred' },
       { status: 500 }
     );
   }

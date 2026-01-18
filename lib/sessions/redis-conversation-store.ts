@@ -17,7 +17,7 @@
  * @see https://github.com/luin/ioredis
  */
 
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
 import type { ConversationState } from '@/agents/tools/types';
 
 /**
@@ -74,7 +74,7 @@ const DEFAULT_CONFIG: Required<Omit<RedisConfig, 'password' | 'url' | 'tls'>> = 
  */
 export class RedisConversationStore {
   private redis: Redis | null = null;
-  private config: Required<Omit<RedisConfig, 'password' | 'url' | 'tls'>> & Pick<RedisConfig, 'password' | 'tls'>;
+  private config: Required<Omit<RedisConfig, 'password' | 'url' | 'tls'>> & Pick<RedisConfig, 'password' | 'tls' | 'url'>;
   private fallbackStore: Map<string, ConversationState> = new Map();
   private usingFallback: boolean = false;
   private lastError: string | undefined;
@@ -153,13 +153,13 @@ export class RedisConversationStore {
   /**
    * Build Redis connection options from config
    */
-  private buildRedisOptions(): Redis.RedisOptions {
+  private buildRedisOptions(): RedisOptions {
     // If URL is provided, use it directly
     if (this.config.url) {
       return {
         lazyConnect: false,
         connectTimeout: this.config.connectTimeout,
-        retryStrategy: (times) => {
+        retryStrategy: (times: number) => {
           // Exponential backoff with max 30 seconds
           const delay = Math.min(times * 1000, 30000);
           console.log(`[RedisConversationStore] Retry attempt ${times}, delay ${delay}ms`);
@@ -168,14 +168,14 @@ export class RedisConversationStore {
       };
     }
 
-    const options: Redis.RedisOptions = {
+    const options: RedisOptions = {
       host: this.config.host,
       port: this.config.port,
       password: this.config.password,
       db: this.config.db,
       connectTimeout: this.config.connectTimeout,
       lazyConnect: false,
-      retryStrategy: (times) => {
+      retryStrategy: (times: number) => {
         // Exponential backoff with max 30 seconds
         const delay = Math.min(times * 1000, 30000);
         console.log(`[RedisConversationStore] Retry attempt ${times}, delay ${delay}ms`);

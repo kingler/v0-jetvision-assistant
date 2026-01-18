@@ -17,7 +17,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Loader2, Plane, Eye } from "lucide-react"
-import { cn } from "@/lib/utils"
 import type { ChatSession } from "./chat-sidebar"
 import { createSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -29,7 +28,6 @@ import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./q
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
-import type { PipelineData } from "@/lib/types/chat-agent"
 
 // Realtime webhook event type (from Supabase subscription)
 interface RealtimeWebhookEvent {
@@ -306,7 +304,7 @@ export function ChatInterface({
           message,
           tripId: activeChat.tripId,
           requestId: activeChat.requestId,
-          rfpId: activeChat.rfpId,
+          rfqId: activeChat.rfqId,
           conversationHistory: currentMessages.map((m) => ({
             role: m.type === "user" ? "user" : "assistant",
             content: m.content,
@@ -389,7 +387,7 @@ export function ChatInterface({
       showDeepLink,
       deepLinkData: showDeepLink ? {
         tripId: tripData?.trip_id || rfpData?.trip_id,
-        rfpId: rfpData?.rfp_id,
+        rfqId: rfpData?.rfq_id,
         deepLink: tripData?.deep_link || rfpData?.deep_link,
         departureAirport: tripData?.departure_airport,
         arrivalAirport: tripData?.arrival_airport,
@@ -432,12 +430,12 @@ export function ChatInterface({
       currentStep: step,
     }
 
-    // Update trip/rfp IDs if we got new ones
+    // Update trip/rfq IDs if we got new ones
     if (tripData?.trip_id) {
       updates.tripId = tripData.trip_id
     }
-    if (rfpData?.rfp_id) {
-      updates.rfpId = rfpData.rfp_id
+    if (rfpData?.rfq_id) {
+      updates.rfqId = rfpData.rfq_id
     }
 
     // Update RFQ flights if we got new ones
@@ -515,6 +513,13 @@ export function ChatInterface({
         }
       }
 
+      // Check for API error in RFQ data (error field may be returned from API but not in type)
+      const rfqDataWithError = result.rfqData as (typeof result.rfqData & { error?: string }) | undefined
+      if (rfqDataWithError?.error) {
+        console.error('[ChatInterface] get_rfq API error:', rfqDataWithError.error)
+        throw new Error(rfqDataWithError.error)
+      }
+
       // Extract flights from RFQ data using extracted transformer
       if (result.rfqData?.flights && result.rfqData.flights.length > 0) {
         newRfqFlights = result.rfqData.flights as RFQFlight[]
@@ -532,6 +537,15 @@ export function ChatInterface({
         }
       }
       
+      // Log warning if no rfqData was returned (get_rfq tool may not have been called)
+      if (!result.rfqData) {
+        console.warn('[ChatInterface] ⚠️ No rfqData in response - get_rfq tool may not have been called:', {
+          hasContent: !!result.content,
+          toolCalls: result.toolCalls.map(tc => tc.name),
+          tripId,
+        });
+      }
+
       // Log warning if RFQs exist but no flights were extracted
       if (result.rfqData?.rfqs && result.rfqData.rfqs.length > 0 && newRfqFlights.length === 0) {
         console.error('[ChatInterface] ⚠️ RFQs exist but no flights were extracted:', {
@@ -724,7 +738,7 @@ export function ChatInterface({
     if (quoteRequest) {
       return {
         id: quoteRequest.id,
-        rfqId: activeChat.rfpId || '',
+        rfqId: activeChat.rfqId || '',
         operator: {
           name: quoteRequest.operatorName,
           rating: 4.5, // Default rating
@@ -754,7 +768,7 @@ export function ChatInterface({
     if (flight) {
       return {
         id: flight.id,
-        rfqId: activeChat.rfpId || '',
+        rfqId: activeChat.rfqId || '',
         operator: {
           name: flight.operatorName,
           rating: flight.operatorRating || 4.5,

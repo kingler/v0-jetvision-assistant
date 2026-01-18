@@ -139,7 +139,7 @@ describe('extractDeepLinkData', () => {
     const data: SSEStreamData = {
       rfp_data: {
         trip_id: 'trip456',
-        rfp_id: 'rfp789',
+        rfq_id: 'rfq789',
         deep_link: 'https://avinode.com/rfp/789',
       },
     };
@@ -148,7 +148,7 @@ describe('extractDeepLinkData', () => {
 
     expect(result.showDeepLink).toBe(true);
     expect(result.rfpData).not.toBeUndefined();
-    expect(result.rfpData!.rfp_id).toBe('rfp789');
+    expect(result.rfpData!.rfq_id).toBe('rfq789');
   });
 
   it('should extract from tool_calls', () => {
