@@ -80,7 +80,7 @@ export type Database = {
         Row: {
           avinode_event_id: string
           avinode_quote_id: string | null
-          avinode_rfp_id: string | null
+          avinode_rfq_id: string | null
           avinode_thread_id: string | null
           avinode_timestamp: string | null
           avinode_trip_id: string | null
@@ -112,7 +112,7 @@ export type Database = {
         Insert: {
           avinode_event_id: string
           avinode_quote_id?: string | null
-          avinode_rfp_id?: string | null
+          avinode_rfq_id?: string | null
           avinode_thread_id?: string | null
           avinode_timestamp?: string | null
           avinode_trip_id?: string | null
@@ -144,7 +144,7 @@ export type Database = {
         Update: {
           avinode_event_id?: string
           avinode_quote_id?: string | null
-          avinode_rfp_id?: string | null
+          avinode_rfq_id?: string | null
           avinode_thread_id?: string | null
           avinode_timestamp?: string | null
           avinode_trip_id?: string | null
@@ -427,7 +427,6 @@ export type Database = {
         Row: {
           attachments: Json | null
           avinode_message_id: string | null
-          chatkit_message_id: string | null
           content: string | null
           content_type: Database["public"]["Enums"]["message_content_type"]
           created_at: string | null
@@ -455,7 +454,6 @@ export type Database = {
         Insert: {
           attachments?: Json | null
           avinode_message_id?: string | null
-          chatkit_message_id?: string | null
           content?: string | null
           content_type?: Database["public"]["Enums"]["message_content_type"]
           created_at?: string | null
@@ -483,7 +481,6 @@ export type Database = {
         Update: {
           attachments?: Json | null
           avinode_message_id?: string | null
-          chatkit_message_id?: string | null
           content?: string | null
           content_type?: Database["public"]["Enums"]["message_content_type"]
           created_at?: string | null
@@ -912,13 +909,12 @@ export type Database = {
           aircraft_type: string | null
           arrival_airport: string
           avinode_deep_link: string | null
-          avinode_rfp_id: string | null
+          avinode_rfq_id: string | null
           avinode_session_ended_at: string | null
           avinode_session_started_at: string | null
           avinode_thread_id: string | null
           avinode_trip_id: string | null
           budget: number | null
-          chatkit_thread_id: string | null
           client_profile_id: string | null
           conversation_type: string | null
           created_at: string | null
@@ -956,13 +952,12 @@ export type Database = {
           aircraft_type?: string | null
           arrival_airport: string
           avinode_deep_link?: string | null
-          avinode_rfp_id?: string | null
+          avinode_rfq_id?: string | null
           avinode_session_ended_at?: string | null
           avinode_session_started_at?: string | null
           avinode_thread_id?: string | null
           avinode_trip_id?: string | null
           budget?: number | null
-          chatkit_thread_id?: string | null
           client_profile_id?: string | null
           conversation_type?: string | null
           created_at?: string | null
@@ -1000,13 +995,12 @@ export type Database = {
           aircraft_type?: string | null
           arrival_airport?: string
           avinode_deep_link?: string | null
-          avinode_rfp_id?: string | null
+          avinode_rfq_id?: string | null
           avinode_session_ended_at?: string | null
           avinode_session_started_at?: string | null
           avinode_thread_id?: string | null
           avinode_trip_id?: string | null
           budget?: number | null
-          chatkit_thread_id?: string | null
           client_profile_id?: string | null
           conversation_type?: string | null
           created_at?: string | null
@@ -1113,7 +1107,7 @@ export type Database = {
         Row: {
           avinode_event_id: string | null
           avinode_quote_id: string | null
-          avinode_rfp_id: string | null
+          avinode_rfq_id: string | null
           avinode_thread_id: string | null
           avinode_timestamp: string | null
           avinode_trip_id: string | null
@@ -1147,7 +1141,7 @@ export type Database = {
         Insert: {
           avinode_event_id?: string | null
           avinode_quote_id?: string | null
-          avinode_rfp_id?: string | null
+          avinode_rfq_id?: string | null
           avinode_thread_id?: string | null
           avinode_timestamp?: string | null
           avinode_trip_id?: string | null
@@ -1181,7 +1175,7 @@ export type Database = {
         Update: {
           avinode_event_id?: string | null
           avinode_quote_id?: string | null
-          avinode_rfp_id?: string | null
+          avinode_rfq_id?: string | null
           avinode_thread_id?: string | null
           avinode_timestamp?: string | null
           avinode_trip_id?: string | null

@@ -1,5 +1,19 @@
 #!/usr/bin/env node
 /**
+ * @deprecated This script is OBSOLETE after schema consolidation (migrations 030-033)
+ * The chat_sessions table no longer exists - sessions are now stored directly in the requests table.
+ *
+ * Original purpose: Apply migration 025 to add conversation_type to chat_sessions
+ * This script is kept for historical reference only.
+ */
+
+console.error('ERROR: This script is obsolete.');
+console.error('The chat_sessions table was removed in schema consolidation (migrations 030-033).');
+console.error('Sessions are now stored directly in the requests table.');
+process.exit(1);
+
+/* DEPRECATED CODE BELOW - kept for reference only
+/**
  * Script to apply migration 025 directly to Supabase
  * Run with: node scripts/apply-migration-025.mjs
  */
@@ -117,3 +131,4 @@ WHERE message_count = 0
 }
 
 applyMigration();
+*/

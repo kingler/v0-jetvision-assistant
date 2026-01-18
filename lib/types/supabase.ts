@@ -374,7 +374,7 @@ export type Database = {
           aircraft_type: string | null
           arrival_airport: string
           avinode_deep_link: string | null
-          avinode_rfp_id: string | null
+          avinode_rfq_id: string | null
           avinode_session_started_at: string | null
           avinode_trip_id: string | null
           budget: number | null

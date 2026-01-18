@@ -38,19 +38,31 @@ ALTER TABLE requests
   DROP CONSTRAINT IF EXISTS requests_primary_conversation_id_fkey;
 
 -- Chat sessions: Drop all FKs (the table will be dropped anyway)
-ALTER TABLE chat_sessions
-  DROP CONSTRAINT IF EXISTS chat_sessions_conversation_id_fkey,
-  DROP CONSTRAINT IF EXISTS chat_sessions_request_id_fkey,
-  DROP CONSTRAINT IF EXISTS chat_sessions_iso_agent_id_fkey,
-  DROP CONSTRAINT IF EXISTS chat_sessions_primary_quote_id_fkey,
-  DROP CONSTRAINT IF EXISTS chat_sessions_proposal_id_fkey;
+-- Using DO block to handle case where table doesn't exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'chat_sessions') THEN
+    ALTER TABLE chat_sessions
+      DROP CONSTRAINT IF EXISTS chat_sessions_conversation_id_fkey,
+      DROP CONSTRAINT IF EXISTS chat_sessions_request_id_fkey,
+      DROP CONSTRAINT IF EXISTS chat_sessions_iso_agent_id_fkey,
+      DROP CONSTRAINT IF EXISTS chat_sessions_primary_quote_id_fkey,
+      DROP CONSTRAINT IF EXISTS chat_sessions_proposal_id_fkey;
+  END IF;
+END $$;
 
 -- Conversation participants: Drop all FKs
-ALTER TABLE conversation_participants
-  DROP CONSTRAINT IF EXISTS conversation_participants_conversation_id_fkey,
-  DROP CONSTRAINT IF EXISTS conversation_participants_iso_agent_id_fkey,
-  DROP CONSTRAINT IF EXISTS conversation_participants_operator_profile_id_fkey,
-  DROP CONSTRAINT IF EXISTS conversation_participants_last_read_message_id_fkey;
+-- Using DO block to handle case where table doesn't exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'conversation_participants') THEN
+    ALTER TABLE conversation_participants
+      DROP CONSTRAINT IF EXISTS conversation_participants_conversation_id_fkey,
+      DROP CONSTRAINT IF EXISTS conversation_participants_iso_agent_id_fkey,
+      DROP CONSTRAINT IF EXISTS conversation_participants_operator_profile_id_fkey,
+      DROP CONSTRAINT IF EXISTS conversation_participants_last_read_message_id_fkey;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- STEP 2: Drop deprecated columns from messages table
@@ -120,8 +132,21 @@ DROP FUNCTION IF EXISTS archive_old_chat_sessions() CASCADE;
 
 -- Old triggers (may have already been dropped with tables)
 DROP TRIGGER IF EXISTS trigger_update_conversation_on_message ON messages;
-DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;
-DROP TRIGGER IF EXISTS set_chat_sessions_updated_at ON chat_sessions;
+
+-- Drop triggers on tables that may not exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'conversations') THEN
+    DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'chat_sessions') THEN
+    DROP TRIGGER IF EXISTS set_chat_sessions_updated_at ON chat_sessions;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- STEP 11: Update RLS policies (if any reference dropped tables)
@@ -133,6 +158,10 @@ DROP TRIGGER IF EXISTS set_chat_sessions_updated_at ON chat_sessions;
 -- Drop old policies that may reference conversation_id
 DROP POLICY IF EXISTS "Users can view messages in their conversations" ON messages;
 DROP POLICY IF EXISTS "Users can insert messages in their conversations" ON messages;
+
+-- Drop existing request-based policies before re-creating (idempotent)
+DROP POLICY IF EXISTS "Users can view messages in their requests" ON messages;
+DROP POLICY IF EXISTS "Users can insert messages in their requests" ON messages;
 
 -- Create new policies for request-based access
 CREATE POLICY "Users can view messages in their requests"
