@@ -46,7 +46,8 @@ playwright-report/
 
 # IDE
 .cursor/
-.obsidian/workspace.json
+.obsidian/
+.conductor/
 .DS_Store
 .auth/
 screenshots/
