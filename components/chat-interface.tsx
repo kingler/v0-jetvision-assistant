@@ -16,7 +16,7 @@ import React from "react"
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Loader2, Plane, Eye } from "lucide-react"
+import { Send, Loader2, Plane } from "lucide-react"
 import type { ChatSession } from "./chat-sidebar"
 import { createSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -26,6 +26,7 @@ import { AgentMessage } from "./chat/agent-message"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
+import { FlightSearchProgress } from "./avinode/flight-search-progress"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
 
@@ -84,7 +85,6 @@ interface ChatInterfaceProps {
   activeChat: ChatSession
   isProcessing: boolean
   onProcessingChange: (processing: boolean) => void
-  onViewWorkflow: () => void
   onUpdateChat: (chatId: string, updates: Partial<ChatSession>) => void
 }
 
@@ -92,7 +92,6 @@ export function ChatInterface({
   activeChat,
   isProcessing,
   onProcessingChange,
-  onViewWorkflow,
   onUpdateChat,
 }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("")
@@ -821,6 +820,42 @@ export function ChatInterface({
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto p-4">
           <div className="space-y-4">
+            {/* Inline Flight Search Progress - persistent workflow visualization */}
+            {activeChat.tripId && (
+              <FlightSearchProgress
+                currentStep={activeChat.currentStep || 1}
+                flightRequest={{
+                  departureAirport: activeChat.route?.split(' to ')[0]
+                    ? { icao: activeChat.route.split(' to ')[0].trim() }
+                    : { icao: 'TBD' },
+                  arrivalAirport: activeChat.route?.split(' to ')[1]
+                    ? { icao: activeChat.route.split(' to ')[1].trim() }
+                    : { icao: 'TBD' },
+                  departureDate: activeChat.date || new Date().toISOString().split('T')[0],
+                  passengers: activeChat.passengers || 1,
+                  requestId: activeChat.requestId,
+                }}
+                deepLink={activeChat.deepLink}
+                tripId={activeChat.tripId}
+                isTripIdLoading={isTripIdLoading}
+                tripIdError={tripIdError}
+                tripIdSubmitted={tripIdSubmitted}
+                rfqFlights={rfqFlights}
+                isRfqFlightsLoading={false}
+                selectedRfqFlightIds={selectedRfqFlightIds}
+                rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
+                customerEmail={activeChat.customer?.email}
+                customerName={activeChat.customer?.name}
+                onTripIdSubmit={handleTripIdSubmit}
+                onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                onViewChat={handleViewChat}
+                onBookFlight={handleBookFlight}
+                onGenerateProposal={handleGenerateProposal}
+                onReviewAndBook={handleReviewAndBook}
+                className="mb-4"
+              />
+            )}
+
             {activeChat.messages?.map((message, index) => (
               <div key={message.id || index}>
                 {message.type === "user" ? (
@@ -1006,15 +1041,6 @@ export function ChatInterface({
               className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
             >
               Check Status
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onViewWorkflow}
-              className="ml-auto text-xs bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
-            >
-              <Eye className="w-3 h-3 mr-1" />
-              Full Workflow
             </Button>
           </div>
 

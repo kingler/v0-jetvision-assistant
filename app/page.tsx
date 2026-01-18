@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
-import { WorkflowVisualization } from "@/components/workflow-visualization"
 import { ChatSidebar, type ChatSession, type OperatorMessage, type OperatorThread } from "@/components/chat-sidebar"
 import { initializeOperatorThreads, mergeMessagesIntoThreads } from "@/lib/avinode/operator-threads"
 import { LandingPage } from "@/components/landing-page"
@@ -12,7 +11,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { chatSessionsToUIFormat } from "@/lib/utils/chat-session-to-ui"
 import type { RFQFlight } from "@/components/avinode/rfq-flight-card"
 
-type View = "landing" | "chat" | "workflow"
+type View = "landing" | "chat"
 
 export default function JetvisionAgent() {
   const { user, isLoaded } = useUser()
@@ -417,6 +416,229 @@ export default function JetvisionAgent() {
   };
 
   /**
+   * Fetch trip details from Avinode API
+   * Used to reconstruct session data when database is empty
+   *
+   * @param tripId - The Avinode trip ID to fetch details for
+   * @returns Trip details including route, dates, passengers, and flights
+   */
+  const fetchTripDetailsFromAvinode = async (tripId: string): Promise<{
+    departureAirport: string | null;
+    arrivalAirport: string | null;
+    departureDate: string | null;
+    passengers: number | null;
+    rfqFlights: RFQFlight[];
+    deepLink: string | null;
+  } | null> => {
+    try {
+      console.log('[fetchTripDetailsFromAvinode] Fetching trip details for:', tripId);
+
+      // Call the chat API with get_rfq command
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `get_rfq ${tripId}`,
+          tripId,
+          skipMessagePersistence: true,
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('[fetchTripDetailsFromAvinode] Failed to fetch:', { tripId, status: response.status });
+        return null;
+      }
+
+      // Parse SSE stream to extract trip details
+      const reader = response.body?.getReader();
+      if (!reader) return null;
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let tripDetails: {
+        departureAirport: string | null;
+        arrivalAirport: string | null;
+        departureDate: string | null;
+        passengers: number | null;
+        deepLink: string | null;
+      } = {
+        departureAirport: null,
+        arrivalAirport: null,
+        departureDate: null,
+        passengers: null,
+        deepLink: null,
+      };
+      let rfqFlights: RFQFlight[] = [];
+      const quoteDetailsMap: Record<string, Record<string, unknown>> = {};
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+
+            // Extract quote details
+            if (parsed.type === 'tool_result' && parsed.name === 'get_quote') {
+              const result = parsed.result;
+              const apiQuoteId = result?.quote_id || result?.quoteId;
+              if (apiQuoteId) {
+                quoteDetailsMap[apiQuoteId] = result;
+              }
+            }
+
+            // Extract RFQ data and trip details
+            if (parsed.type === 'tool_result' && parsed.name === 'get_rfq') {
+              const result = parsed.result;
+
+              // Extract trip-level details from the result
+              if (result?.trip) {
+                const trip = result.trip;
+                // Extract from trip legs
+                if (trip.legs && Array.isArray(trip.legs) && trip.legs.length > 0) {
+                  const firstLeg = trip.legs[0];
+                  tripDetails.departureAirport = firstLeg.departureAirportId || firstLeg.departure?.icao || null;
+                  tripDetails.arrivalAirport = firstLeg.arrivalAirportId || firstLeg.arrival?.icao || null;
+                  tripDetails.departureDate = firstLeg.departureDate || firstLeg.date || null;
+                  tripDetails.passengers = firstLeg.passengerCount || trip.passengerCount || null;
+                }
+                tripDetails.deepLink = trip.deepLink || result.deepLink || null;
+              }
+
+              // Extract from direct result fields (fallback)
+              if (!tripDetails.departureAirport && result.departureAirport) {
+                tripDetails.departureAirport = result.departureAirport;
+              }
+              if (!tripDetails.arrivalAirport && result.arrivalAirport) {
+                tripDetails.arrivalAirport = result.arrivalAirport;
+              }
+              if (!tripDetails.departureDate && result.departureDate) {
+                tripDetails.departureDate = result.departureDate;
+              }
+              if (!tripDetails.passengers && result.passengers) {
+                tripDetails.passengers = result.passengers;
+              }
+              if (!tripDetails.deepLink && result.deepLink) {
+                tripDetails.deepLink = result.deepLink;
+              }
+
+              // Extract flights
+              if (result?.flights && Array.isArray(result.flights)) {
+                rfqFlights = result.flights as RFQFlight[];
+                // Try to get trip details from first flight if not already set
+                if (rfqFlights.length > 0) {
+                  const firstFlight = rfqFlights[0];
+                  if (!tripDetails.departureAirport && firstFlight.departureAirport?.icao) {
+                    tripDetails.departureAirport = firstFlight.departureAirport.icao;
+                  }
+                  if (!tripDetails.arrivalAirport && firstFlight.arrivalAirport?.icao) {
+                    tripDetails.arrivalAirport = firstFlight.arrivalAirport.icao;
+                  }
+                  if (!tripDetails.departureDate && firstFlight.departureDate) {
+                    tripDetails.departureDate = firstFlight.departureDate;
+                  }
+                  if (!tripDetails.passengers && firstFlight.passengerCapacity) {
+                    tripDetails.passengers = firstFlight.passengerCapacity;
+                  }
+                }
+              }
+
+              // Process RFQs array (legacy format)
+              if (result?.rfqs && Array.isArray(result.rfqs)) {
+                for (const rfq of result.rfqs) {
+                  // Extract trip details from RFQ
+                  if (!tripDetails.departureAirport && rfq.departure_airport) {
+                    tripDetails.departureAirport = rfq.departure_airport;
+                  }
+                  if (!tripDetails.arrivalAirport && rfq.arrival_airport) {
+                    tripDetails.arrivalAirport = rfq.arrival_airport;
+                  }
+                  if (!tripDetails.departureDate && rfq.departure_date) {
+                    tripDetails.departureDate = rfq.departure_date;
+                  }
+                  if (!tripDetails.passengers && rfq.passengers) {
+                    tripDetails.passengers = rfq.passengers;
+                  }
+
+                  if (rfq.quotes && Array.isArray(rfq.quotes)) {
+                    for (const quote of rfq.quotes) {
+                      const flight = transformQuoteToRFQFlight(quote, rfq);
+                      if (flight) rfqFlights.push(flight);
+                    }
+                  } else {
+                    const flight = transformRFQToFlight(rfq);
+                    if (flight) rfqFlights.push(flight);
+                  }
+                }
+              }
+            }
+          } catch {
+            // Skip unparseable lines
+          }
+        }
+      }
+
+      // Merge quote details into flights
+      if (Object.keys(quoteDetailsMap).length > 0 && rfqFlights.length > 0) {
+        rfqFlights = rfqFlights.map(flight => {
+          const quoteDetails = quoteDetailsMap[flight.quoteId];
+          if (!quoteDetails) return flight;
+
+          const sellerPrice = quoteDetails.sellerPrice as Record<string, unknown> | undefined;
+          let newPrice = 0;
+          let newCurrency = 'USD';
+
+          if (sellerPrice && typeof sellerPrice.price === 'number' && sellerPrice.price > 0) {
+            newPrice = sellerPrice.price;
+            newCurrency = (sellerPrice.currency as string) || 'USD';
+          }
+
+          let newStatus: 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired' = flight.rfqStatus;
+          if (newPrice > 0 && (newStatus === 'unanswered' || newStatus === 'sent')) {
+            newStatus = 'quoted';
+          }
+
+          return {
+            ...flight,
+            totalPrice: newPrice > 0 ? newPrice : flight.totalPrice,
+            currency: newCurrency,
+            rfqStatus: newStatus,
+          };
+        });
+      }
+
+      console.log('[fetchTripDetailsFromAvinode] ✅ Fetched trip details:', {
+        tripId,
+        departureAirport: tripDetails.departureAirport,
+        arrivalAirport: tripDetails.arrivalAirport,
+        departureDate: tripDetails.departureDate,
+        passengers: tripDetails.passengers,
+        deepLink: tripDetails.deepLink ? 'present' : null,
+        flightCount: rfqFlights.length,
+      });
+
+      return {
+        ...tripDetails,
+        rfqFlights,
+      };
+    } catch (error) {
+      console.error('[fetchTripDetailsFromAvinode] Error:', error);
+      return null;
+    }
+  };
+
+  /**
    * Load RFQ flights data for a specific trip ID
    * Calls the get_rfq MCP tool to fetch quote data from Avinode
    *
@@ -714,6 +936,7 @@ export default function JetvisionAgent() {
   /**
    * Handle chat selection from sidebar
    * Loads full conversation messages, RFQ flights, and operator threads for the selected chat
+   * Falls back to Avinode API when database content is missing
    *
    * @param chatId - The ID of the chat to select
    */
@@ -740,6 +963,8 @@ export default function JetvisionAgent() {
     const needsMessages = !session.messages || session.messages.length === 0;
     const needsRFQFlights = session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0);
     const needsOperatorThreads = session.tripId && (!session.operatorThreads || Object.keys(session.operatorThreads).length === 0);
+    // Check if session needs trip details (route is empty but tripId exists)
+    const needsTripDetails = session.tripId && (!session.route || session.route === 'Select route' || session.route === ' → ');
 
     console.log('[handleSelectChat] Loading data for session:', {
       chatId,
@@ -748,23 +973,48 @@ export default function JetvisionAgent() {
       needsMessages,
       needsRFQFlights,
       needsOperatorThreads,
+      needsTripDetails,
+      currentRoute: session.route,
       currentMessageCount: session.messages?.length || 0,
       currentRFQFlightCount: session.rfqFlights?.length || 0,
       currentOperatorThreadCount: session.operatorThreads ? Object.keys(session.operatorThreads).length : 0,
     });
 
-    // Phase 1: Load messages and RFQ flights in parallel
-    // CRITICAL: Always try to load messages to ensure we have real data from database
-    // Even if messages exist, reload them to get the latest data
-    const [messages, rfqFlights] = await Promise.all([
-      // Always load messages if we have a requestId or conversationId
-      (session.requestId || session.conversationId) ? loadMessagesForSession(session) : Promise.resolve(session.messages || []),
-      needsRFQFlights ? loadRFQFlightsForSession(session.tripId!) : Promise.resolve(session.rfqFlights || []),
-    ]);
+    // Phase 1: Load messages from database
+    let messages = (session.requestId || session.conversationId)
+      ? await loadMessagesForSession(session)
+      : (session.messages || []);
 
-    // Phase 2: Load operator threads with RFQ flights data for initialization
-    // This needs RFQ flights to properly initialize operator info
-    const effectiveRfqFlights = needsRFQFlights ? rfqFlights : (session.rfqFlights || []);
+    // Phase 2: If tripId exists but no data from database, fetch from Avinode API
+    let rfqFlights: RFQFlight[] = session.rfqFlights || [];
+    let tripDetails: {
+      departureAirport: string | null;
+      arrivalAirport: string | null;
+      departureDate: string | null;
+      passengers: number | null;
+      deepLink: string | null;
+    } | null = null;
+
+    // Fetch from Avinode API when:
+    // 1. Session has tripId but no messages in DB (reconstruction needed)
+    // 2. Session has tripId but route info is missing
+    // 3. Session needs RFQ flights
+    if (session.tripId && (needsTripDetails || (needsMessages && messages.length === 0) || needsRFQFlights)) {
+      console.log('[handleSelectChat] 🔄 Fetching trip details from Avinode API (database data missing)');
+      const avinodeData = await fetchTripDetailsFromAvinode(session.tripId);
+
+      if (avinodeData) {
+        tripDetails = avinodeData;
+        rfqFlights = avinodeData.rfqFlights;
+        console.log('[handleSelectChat] ✅ Loaded trip details from Avinode API');
+      }
+    } else if (needsRFQFlights && session.tripId) {
+      // Just load RFQ flights if that's all we need
+      rfqFlights = await loadRFQFlightsForSession(session.tripId);
+    }
+
+    // Phase 3: Load operator threads with RFQ flights data for initialization
+    const effectiveRfqFlights = rfqFlights.length > 0 ? rfqFlights : (session.rfqFlights || []);
     const operatorThreads = needsOperatorThreads && session.tripId
       ? await loadOperatorThreadsForSession(session.tripId, effectiveRfqFlights)
       : (session.operatorThreads || {});
@@ -808,6 +1058,38 @@ export default function JetvisionAgent() {
             if (Object.keys(legacyMessages).length > 0) {
               updates.operatorMessages = legacyMessages;
             }
+          }
+
+          // Update trip details from Avinode API if fetched
+          if (tripDetails) {
+            if (tripDetails.departureAirport && tripDetails.arrivalAirport) {
+              updates.route = `${tripDetails.departureAirport} → ${tripDetails.arrivalAirport}`;
+            }
+            if (tripDetails.departureDate) {
+              updates.date = tripDetails.departureDate;
+            }
+            if (tripDetails.passengers) {
+              updates.passengers = tripDetails.passengers;
+            }
+            if (tripDetails.deepLink) {
+              updates.deepLink = tripDetails.deepLink;
+            }
+            // Update status based on quotes
+            if (rfqFlights.length > 0) {
+              const quotedCount = rfqFlights.filter(f => f.rfqStatus === 'quoted').length;
+              if (quotedCount > 0) {
+                updates.status = 'analyzing_options';
+                updates.currentStep = 4;
+              } else {
+                updates.status = 'requesting_quotes';
+                updates.currentStep = 3;
+              }
+            }
+          }
+
+          // Also update messages if we created synthetic ones
+          if (messages.length > 0 && !updates.messages) {
+            updates.messages = messages;
           }
 
           return { ...s, ...updates };
@@ -1373,43 +1655,6 @@ export default function JetvisionAgent() {
     }
   }
 
-  /**
-   * Construct workflow data from chat session for WorkflowVisualization component
-   * This extracts real data from the chat session to populate workflow steps
-   */
-  const constructWorkflowData = (session: ChatSession | null) => {
-    if (!session) return undefined
-
-    return {
-      step1: {
-        // Step 1: Understanding Request - completed when we have route/date/passengers
-        aircraftFound: session.aircraft ? 1 : undefined,
-      },
-      step2: {
-        // Step 2: Creating Trip - completed when tripId exists
-        operatorsQueried: session.quotesTotal,
-        aircraftFound: session.rfqFlights?.length || session.quotesTotal,
-        avinodeResults: session.tripId ? { tripId: session.tripId } : undefined,
-      },
-      step3: {
-        // Step 3: Awaiting Selection - completed when we have RFQ ID
-        avinodeRfpId: session.rfqId,
-        quotesReceived: session.quotesReceived,
-        operatorsQueried: session.quotesTotal,
-      },
-      step4: {
-        // Step 4: Receiving Quotes - completed when we have quotes
-        quotesReceived: session.quotesReceived,
-        quotesAnalyzed: session.quotesReceived,
-        avinodeQuotes: session.rfqFlights || session.quotes,
-      },
-      step5: {
-        // Step 5: Generate Proposal - completed when status is proposal_ready
-        proposalGenerated: session.status === 'proposal_ready',
-      },
-    }
-  }
-
   const activeChat = activeChatId ? chatSessions.find((chat) => chat.id === activeChatId) : null
 
   // Show loading state while Clerk is initializing or requests are loading
@@ -1464,12 +1709,7 @@ export default function JetvisionAgent() {
           isMobile={isMobile}
         />
 
-        <main
-          className={`
-          flex-1 flex flex-col min-h-0
-          ${currentView === "workflow" ? "overflow-y-auto" : "overflow-hidden"}
-        `}
-        >
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {currentView === "landing" && (
             <LandingPage
               onStartChat={handleStartChat}
@@ -1481,18 +1721,7 @@ export default function JetvisionAgent() {
               activeChat={activeChat}
               isProcessing={isProcessing}
               onProcessingChange={setIsProcessing}
-              onViewWorkflow={() => setCurrentView("workflow")}
               onUpdateChat={handleUpdateChat}
-            />
-          )}
-          {currentView === "workflow" && activeChat && (
-            <WorkflowVisualization
-              isProcessing={isProcessing}
-              currentStep={activeChat.currentStep}
-              status={activeChat.status}
-              workflowData={constructWorkflowData(activeChat)}
-              tripId={activeChat.tripId}
-              deepLink={activeChat.deepLink}
             />
           )}
         </main>

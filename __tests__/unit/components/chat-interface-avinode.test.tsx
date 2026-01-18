@@ -68,7 +68,6 @@ global.fetch = vi.fn();
 
 describe.skip('ChatInterface Avinode Integration', () => {
   const mockOnProcessingChange = vi.fn();
-  const mockOnViewWorkflow = vi.fn();
   const mockOnUpdateChat = vi.fn();
 
   const createMockChat = (overrides: Partial<ChatSession> = {}): ChatSession => ({
@@ -114,7 +113,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -132,7 +130,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithoutTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -153,7 +150,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithDeepLink}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -174,7 +170,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithoutDeepLink}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -215,7 +210,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -251,7 +245,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -293,7 +286,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithQuotes}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -324,7 +316,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithQuoteRequests}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -346,7 +337,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithoutTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -364,7 +354,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithInput}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -394,7 +383,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithoutTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -424,7 +412,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -461,7 +448,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -484,7 +470,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithTrip}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
@@ -515,7 +500,6 @@ describe.skip('ChatInterface Avinode Integration', () => {
           activeChat={chatWithPendingAction}
           isProcessing={false}
           onProcessingChange={mockOnProcessingChange}
-          onViewWorkflow={mockOnViewWorkflow}
           onUpdateChat={mockOnUpdateChat}
         />
       );
