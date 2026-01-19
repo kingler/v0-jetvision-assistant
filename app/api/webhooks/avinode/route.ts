@@ -263,14 +263,66 @@ async function handleSellerResponse(
 }
 
 /**
+ * Find or create an operator profile from Avinode sender data
+ */
+async function findOrCreateOperatorProfile(
+  senderId: string,
+  senderName: string,
+  companyName: string
+): Promise<string | null> {
+  if (!senderId) return null;
+
+  try {
+    // Check if operator profile exists
+    const { data: existing } = await supabaseAdmin
+      .from('operator_profiles')
+      .select('id')
+      .eq('avinode_operator_id', senderId)
+      .single();
+
+    if (existing) return existing.id;
+
+    // Create new operator profile
+    const { data: newProfile, error } = await supabaseAdmin
+      .from('operator_profiles')
+      .insert({
+        avinode_operator_id: senderId,
+        avinode_company_id: senderId,
+        company_name: companyName || senderName || 'Unknown Operator',
+        contact_name: senderName,
+        is_active: true,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[Avinode Webhook] Error creating operator profile:', error);
+      return null;
+    }
+
+    console.log('[Avinode Webhook] Created operator profile:', companyName);
+    return newProfile.id;
+  } catch (error) {
+    console.error('[Avinode Webhook] Error in findOrCreateOperatorProfile:', error);
+    return null;
+  }
+}
+
+/**
  * Handle TripChatSeller/TripChatMine - Messages
+ *
+ * Stores messages in both:
+ * 1. avinode_webhook_events (audit log)
+ * 2. messages table (for chat UI display)
  */
 async function handleChatMessage(data: TripChatData): Promise<void> {
   const { trip, message, sender, request } = data;
+  const isOperatorMessage = data.type === 'TripChatSeller';
 
   console.log('[Avinode Webhook] Chat Message:', {
     tripId: trip.id,
     type: data.type,
+    isOperatorMessage,
     sender: sender.name,
     company: sender.companyName,
     requestId: request?.id,
@@ -280,9 +332,7 @@ async function handleChatMessage(data: TripChatData): Promise<void> {
   console.log('[Avinode Webhook] Message preview:', message.content.substring(0, 200));
 
   try {
-    // Store chat message in database
-    // Use 'message_received' for all chat webhooks - it's the valid enum value
-    // TripChatSeller = operator message, TripChatMine = confirmation of our sent message
+    // 1. Store in avinode_webhook_events (audit log)
     const eventType = 'message_received' as const;
     const { error: webhookError } = await supabaseAdmin
       .from('avinode_webhook_events')
@@ -294,29 +344,151 @@ async function handleChatMessage(data: TripChatData): Promise<void> {
           type: data.type,
           tripId: trip.id,
           requestId: request?.id,
-          quoteId: request?.id, // Use request ID as quote reference
+          quoteId: request?.id,
           messageId: message.id,
           content: message.content,
           senderName: sender.name,
           senderCompany: sender.companyName,
+          senderId: sender.id,
           timestamp: message.sentAt || new Date().toISOString(),
         } as Json,
-        processing_status: 'completed',
+        processing_status: 'pending',
         received_at: new Date().toISOString(),
-        processed_at: new Date().toISOString(),
       });
 
     if (webhookError) {
-      console.error('[Avinode Webhook] Error storing chat message:', webhookError);
-    } else {
-      console.log('[Avinode Webhook] Chat message stored successfully');
+      console.error('[Avinode Webhook] Error storing webhook event:', webhookError);
     }
+
+    // 2. Find the request by trip ID
+    const { data: requestRecord, error: requestError } = await supabaseAdmin
+      .from('requests')
+      .select('id')
+      .eq('avinode_trip_id', trip.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (requestError || !requestRecord) {
+      console.warn('[Avinode Webhook] No request found for trip ID:', trip.id);
+      // Update webhook event status
+      await supabaseAdmin
+        .from('avinode_webhook_events')
+        .update({ processing_status: 'skipped', processed_at: new Date().toISOString() })
+        .eq('avinode_event_id', `chat_${trip.id}_${message.id || Date.now()}`);
+      return;
+    }
+
+    // 3. Check if message already exists (prevent duplicates)
+    const avinodeMessageId = message.id || `${trip.id}_${message.sentAt || Date.now()}`;
+    const { data: existingMessage } = await supabaseAdmin
+      .from('messages')
+      .select('id')
+      .eq('request_id', requestRecord.id)
+      .contains('metadata', { avinode_message_id: avinodeMessageId });
+
+    if (existingMessage && existingMessage.length > 0) {
+      console.log('[Avinode Webhook] Message already exists, skipping:', avinodeMessageId);
+      await supabaseAdmin
+        .from('avinode_webhook_events')
+        .update({ processing_status: 'skipped', processed_at: new Date().toISOString() })
+        .eq('avinode_event_id', `chat_${trip.id}_${message.id || Date.now()}`);
+      return;
+    }
+
+    // 4. Find or create operator profile (for operator messages)
+    let operatorProfileId: string | null = null;
+    if (isOperatorMessage && sender.id) {
+      operatorProfileId = await findOrCreateOperatorProfile(
+        sender.id,
+        sender.name,
+        sender.companyName
+      );
+    }
+
+    // 5. Find associated quote if request ID is provided
+    let quoteId: string | null = null;
+    if (request?.id) {
+      const { data: quote } = await supabaseAdmin
+        .from('quotes')
+        .select('id')
+        .eq('request_id', requestRecord.id)
+        .contains('metadata', { avinode_rfq_id: request.id })
+        .limit(1)
+        .single();
+      quoteId = quote?.id || null;
+    }
+
+    // 6. Insert into messages table
+    const { error: messageError } = await supabaseAdmin
+      .from('messages')
+      .insert({
+        request_id: requestRecord.id,
+        quote_id: quoteId,
+        sender_type: isOperatorMessage ? 'operator' : 'system',
+        sender_operator_id: operatorProfileId,
+        sender_name: isOperatorMessage
+          ? (sender.companyName || sender.name || 'Operator')
+          : 'System',
+        content: message.content,
+        content_type: 'text',
+        status: 'delivered',
+        metadata: {
+          avinode_message_id: avinodeMessageId,
+          avinode_trip_id: trip.id,
+          avinode_request_id: request?.id,
+          sender_id: sender.id,
+          sender_company_id: sender.companyId,
+          webhook_event_type: data.type,
+        },
+        created_at: message.sentAt || new Date().toISOString(),
+      });
+
+    if (messageError) {
+      console.error('[Avinode Webhook] Error inserting message:', messageError);
+      await supabaseAdmin
+        .from('avinode_webhook_events')
+        .update({ processing_status: 'failed', processed_at: new Date().toISOString() })
+        .eq('avinode_event_id', `chat_${trip.id}_${message.id || Date.now()}`);
+    } else {
+      console.log('[Avinode Webhook] ✓ Message stored in messages table:', {
+        requestId: requestRecord.id,
+        senderType: isOperatorMessage ? 'operator' : 'system',
+        senderName: sender.companyName || sender.name,
+        preview: message.content.substring(0, 50),
+      });
+
+      // 7. Update request message count
+      const { count } = await supabaseAdmin
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('request_id', requestRecord.id);
+
+      await supabaseAdmin
+        .from('requests')
+        .update({
+          message_count: count || 0,
+          last_activity_at: new Date().toISOString(),
+        })
+        .eq('id', requestRecord.id);
+
+      // 8. Mark webhook event as completed
+      await supabaseAdmin
+        .from('avinode_webhook_events')
+        .update({
+          processing_status: 'completed',
+          processed_at: new Date().toISOString(),
+          message_id: null, // Would need to capture the inserted message ID
+        })
+        .eq('avinode_event_id', `chat_${trip.id}_${message.id || Date.now()}`);
+    }
+
   } catch (error) {
-    console.error('[Avinode Webhook] Error storing chat message:', error);
+    console.error('[Avinode Webhook] Error processing chat message:', error);
   }
 
-  // TODO: If from operator, notify CommunicationAgent
-  // TODO: If contains important info (pricing, schedule), extract and process
+  // TODO: If from operator, trigger real-time notification via SSE
+  // TODO: If contains important info (pricing, schedule), notify CommunicationAgent
 }
 
 /**
