@@ -51,6 +51,8 @@ import {
   extractQuotesFromSSEData,
   extractDeepLinkData,
   determineWorkflowStatus,
+  parseQuotesFromText,
+  convertParsedQuotesToQuotes,
   // Transformers
   convertQuoteToRFQFlight,
   convertRfqToRFQFlight,
@@ -182,7 +184,58 @@ export function ChatInterface({
   const rfqFlights: RFQFlight[] = useMemo(() => {
     // If activeChat already has rfqFlights, use them
     if (activeChat.rfqFlights && activeChat.rfqFlights.length > 0) {
-      return activeChat.rfqFlights
+      // CRITICAL: Log what flights we're using from activeChat with expanded details
+      console.log('[ChatInterface] 📋 Using rfqFlights from activeChat:', {
+        count: activeChat.rfqFlights.length,
+        flights: activeChat.rfqFlights.map(f => ({
+          id: f.id,
+          quoteId: f.quoteId,
+          operatorName: f.operatorName,
+          totalPrice: f.totalPrice,
+          currency: f.currency,
+          rfqStatus: f.rfqStatus,
+          lastUpdated: f.lastUpdated,
+          hasPrice: f.totalPrice > 0,
+          hasStatus: !!f.rfqStatus && f.rfqStatus !== 'unanswered',
+        })),
+      })
+      
+      // CRITICAL: Log first 3 flights with ALL fields to debug
+      if (activeChat.rfqFlights.length > 0) {
+        console.log('[ChatInterface] 📋 Sample flights (first 3) with ALL fields:', 
+          activeChat.rfqFlights.slice(0, 3).map(f => ({
+            id: f.id,
+            quoteId: f.quoteId,
+            operatorName: f.operatorName,
+            totalPrice: f.totalPrice,
+            currency: f.currency,
+            rfqStatus: f.rfqStatus,
+            priceIsZero: f.totalPrice === 0,
+            statusIsUnanswered: f.rfqStatus === 'unanswered',
+            ALL_PRICE_FIELDS: {
+              totalPrice: f.totalPrice,
+              price: (f as any).price,
+              total_price: (f as any).total_price,
+              sellerPrice: (f as any).sellerPrice,
+              pricing: (f as any).pricing,
+            },
+            ALL_STATUS_FIELDS: {
+              rfqStatus: f.rfqStatus,
+              status: (f as any).status,
+              rfq_status: (f as any).rfq_status,
+              quote_status: (f as any).quote_status,
+            },
+          }))
+        )
+      }
+      
+      // CRITICAL: Return a new array reference to ensure React detects changes
+      // Also ensure each flight object is a new reference
+      return activeChat.rfqFlights.map(flight => ({
+        ...flight,
+        // Ensure lastUpdated is set to force re-renders
+        lastUpdated: flight.lastUpdated || new Date().toISOString(),
+      }))
     }
 
     // Otherwise convert from quotes
@@ -200,7 +253,7 @@ export function ChatInterface({
     }
 
     return flights
-  }, [activeChat.rfqFlights, activeChat.quotes, activeChat.date, routeParts, quoteDetailsMap])
+  }, [activeChat.rfqFlights, activeChat.quotes, activeChat.date, routeParts, quoteDetailsMap, activeChat.rfqsLastFetchedAt]) // Add rfqsLastFetchedAt to dependencies to force update when RFQs are fetched
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -321,7 +374,8 @@ export function ChatInterface({
       })
       
       // Auto-load RFQs without requiring manual trip ID submission
-      handleTripIdSubmit(activeChat.tripId).catch((error) => {
+      // tripId is guaranteed to exist when shouldAutoLoad is true
+      handleTripIdSubmit(activeChat.tripId!).catch((error) => {
         console.error('[ChatInterface] ❌ Error auto-loading RFQs:', error)
         // Reset the ref on error so we can retry if needed
         if (activeChat.id === autoLoadedRfqsForChatIdRef.current) {
@@ -533,11 +587,97 @@ export function ChatInterface({
     } as any)
 
     // Extract quotes using extracted utility
-    const quotes = result.quotes.length > 0 ? result.quotes : extractQuotesFromSSEData({
+    let quotes = result.quotes.length > 0 ? result.quotes : extractQuotesFromSSEData({
       quotes: result.quotes,
       rfq_data: result.rfqData,
       tool_calls: result.toolCalls,
     } as any)
+
+    // CRITICAL: Also parse quotes from agent's text response to extract price information
+    // The agent may include price information in the text response even if structured data is missing
+    if (result.content) {
+      try {
+        const parsedTextQuotes = parseQuotesFromText(result.content)
+        if (parsedTextQuotes.length > 0) {
+          console.log('[ChatInterface] 📝 Parsed quotes from text:', {
+            parsedCount: parsedTextQuotes.length,
+            hasPrice: parsedTextQuotes.some(q => q.price && q.price > 0),
+          })
+          
+          // Convert parsed quotes to Quote format
+          const textQuotes = convertParsedQuotesToQuotes(parsedTextQuotes)
+          
+          // Merge with existing quotes (prefer structured quotes, but fill in missing price data)
+          const quoteMap = new Map<string, Quote>()
+          
+          // Add structured quotes first
+          quotes.forEach(quote => {
+            const quoteId = quote.quote_id || quote.quoteId || quote.id || `quote-${quoteMap.size + 1}`
+            quoteMap.set(quoteId, quote)
+          })
+          
+          // Merge text quotes - if operator name matches, update price if missing
+          textQuotes.forEach(textQuote => {
+            const textQuoteId = textQuote.quote_id || textQuote.quoteId || textQuote.id || `quote-text-${textQuote.operatorName}`
+            
+            // Try to find matching quote by operator name if quote ID doesn't match
+            let existingQuote: Quote | undefined = quoteMap.get(textQuoteId)
+            if (!existingQuote && textQuote.operatorName) {
+              // Find by operator name match
+              for (const [id, quote] of quoteMap.entries()) {
+                const quoteOperatorName = quote.operator_name || quote.operatorName || quote.operator?.name
+                if (quoteOperatorName && 
+                    quoteOperatorName.toLowerCase().includes(textQuote.operatorName.toLowerCase())) {
+                  existingQuote = quote
+                  break
+                }
+              }
+            }
+            
+            if (existingQuote) {
+              // Merge: keep existing quote but update price if it's missing or zero
+              // CRITICAL: Set both price and total_price fields for compatibility
+              const hasPrice = existingQuote.price || existingQuote.total_price || existingQuote.sellerPrice?.price
+              const priceValue = textQuote.price || (textQuote as any).totalPrice
+              
+              if (priceValue && priceValue > 0 && (!hasPrice || (existingQuote.price === 0 && existingQuote.total_price === 0))) {
+                // Update all price field variations for maximum compatibility
+                existingQuote.price = priceValue
+                existingQuote.total_price = priceValue
+                existingQuote.currency = textQuote.currency || existingQuote.currency || 'USD'
+                
+                // Also update sellerPrice if it exists
+                if (!existingQuote.sellerPrice) {
+                  existingQuote.sellerPrice = {
+                    price: priceValue,
+                    currency: textQuote.currency || existingQuote.currency || 'USD',
+                  }
+                } else if (!existingQuote.sellerPrice.price || existingQuote.sellerPrice.price === 0) {
+                  existingQuote.sellerPrice.price = priceValue
+                  existingQuote.sellerPrice.currency = textQuote.currency || existingQuote.sellerPrice.currency || 'USD'
+                }
+                
+                console.log('[ChatInterface] ✅ Updated quote price from text:', {
+                  quoteId: existingQuote.quote_id || existingQuote.id,
+                  operatorName: existingQuote.operator_name || existingQuote.operatorName,
+                  price: priceValue,
+                  currency: textQuote.currency || existingQuote.currency,
+                  updatedFields: ['price', 'total_price', 'sellerPrice'],
+                })
+              }
+            } else {
+              // New quote from text - add it
+              quoteMap.set(textQuoteId, textQuote)
+            }
+          })
+          
+          // Convert map back to array
+          quotes = Array.from(quoteMap.values())
+        }
+      } catch (error) {
+        console.warn('[ChatInterface] ⚠️ Error parsing quotes from text:', error)
+      }
+    }
 
     // Determine workflow status using extracted utility
     const { status, step } = determineWorkflowStatus({
@@ -775,12 +915,43 @@ export function ChatInterface({
 
     // Update RFQ flights if we got new ones
     if (newRfqFlights.length > 0) {
-      // Merge with existing flights
+      // Merge with existing flights - CRITICAL: Update existing flights with new price/status data
       const existingIds = new Set((activeChat.rfqFlights || []).map((f) => f.id))
       const uniqueNewFlights = newRfqFlights.filter((f) => !existingIds.has(f.id))
+      
+      // CRITICAL: When merging, prioritize new price/status data over existing
+      // Also update lastUpdated to ensure React re-renders when price/status changes
       const updatedExisting = (activeChat.rfqFlights || []).map((existing) => {
-        const updated = newRfqFlights.find((f) => f.id === existing.id)
-        return updated ? { ...existing, ...updated } : existing
+        const updated = newRfqFlights.find((f) => f.id === existing.id || f.quoteId === existing.quoteId)
+        if (updated) {
+          // Merge but prioritize updated price/status if they're non-zero/changed
+          const merged = {
+            ...existing,
+            ...updated,
+            // CRITICAL: If new data has price/status, use it (don't overwrite with 0)
+            totalPrice: updated.totalPrice && updated.totalPrice > 0 ? updated.totalPrice : existing.totalPrice,
+            rfqStatus: updated.rfqStatus || existing.rfqStatus,
+            currency: updated.currency || existing.currency || 'USD',
+            // Update lastUpdated to force React re-render
+            lastUpdated: updated.lastUpdated || new Date().toISOString(),
+          }
+          
+          // CRITICAL: Log when price/status is updated for debugging
+          if (process.env.NODE_ENV === 'development' && 
+              (merged.totalPrice !== existing.totalPrice || merged.rfqStatus !== existing.rfqStatus)) {
+            console.log('[ChatInterface] ✅ Updated flight price/status:', {
+              flightId: existing.id,
+              quoteId: existing.quoteId,
+              oldPrice: existing.totalPrice,
+              newPrice: merged.totalPrice,
+              oldStatus: existing.rfqStatus,
+              newStatus: merged.rfqStatus,
+            })
+          }
+          
+          return merged
+        }
+        return existing
       })
       const allRfqFlights = [...updatedExisting, ...uniqueNewFlights]
       updates.rfqFlights = allRfqFlights
@@ -802,12 +973,31 @@ export function ChatInterface({
         updates.currentStep = allRfqFlights.length > 0 ? 4 : 3
       }
       
-      console.log('[ChatInterface] ✅ Updated RFQ flights in handleSSEResult:', {
-        totalFlights: allRfqFlights.length,
-        quotedCount,
-        status: updates.status,
-        currentStep: updates.currentStep,
-      })
+      // CRITICAL: Log detailed flight data with expanded values for debugging
+      const flightsWithPrice = allRfqFlights.filter(f => f.totalPrice > 0).length
+      const flightsWithStatus = allRfqFlights.filter(f => f.rfqStatus === 'quoted').length
+      
+      console.log('[ChatInterface] ✅ Updated RFQ flights in handleSSEResult:')
+      console.log('  Total flights:', allRfqFlights.length)
+      console.log('  Flights with price > 0:', flightsWithPrice)
+      console.log('  Flights with quoted status:', flightsWithStatus)
+      console.log('  Quoted count:', quotedCount)
+      
+      // CRITICAL: Log first 3 flights with expanded values to see actual data
+      if (allRfqFlights.length > 0) {
+        console.log('[ChatInterface] ✅ Sample flights (first 3):')
+        allRfqFlights.slice(0, 3).forEach((f, idx) => {
+          console.log(`  Flight ${idx + 1}:`, {
+            'ID': f.id,
+            'Operator': f.operatorName,
+            'Price': f.totalPrice,
+            'Currency': f.currency,
+            'RFQ Status': f.rfqStatus,
+            'Has Price?': f.totalPrice > 0 ? 'YES' : 'NO',
+            'Display Status': f.rfqStatus === 'quoted' ? 'QUOTED' : f.rfqStatus.toUpperCase(),
+          })
+        })
+      }
     }
 
     // Update quotes for legacy compatibility
@@ -1018,7 +1208,7 @@ export function ChatInterface({
 
       // Update chat with RFQ data
       const quotedCount = newRfqFlights.filter((f) => f.rfqStatus === 'quoted').length
-      const updates = {
+      const updates: Partial<ChatSession> = {
         tripId,
         tripIdSubmitted: true,
         rfqFlights: newRfqFlights,
@@ -1026,7 +1216,7 @@ export function ChatInterface({
         quotesTotal: newRfqFlights.length,
         quotesReceived: quotedCount,
         // Update status based on whether we have quotes
-        status: quotedCount > 0 ? 'analyzing_options' : 'requesting_quotes',
+        status: quotedCount > 0 ? 'analyzing_options' as const : 'requesting_quotes' as const,
         currentStep: newRfqFlights.length > 0 ? 4 : 3,
       }
       

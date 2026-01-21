@@ -1427,12 +1427,16 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
             tailNumber: lift.aircraftTail,
             category: lift.aircraftCategory,
           },
-          // Status from lift
-          status: lift.sourcingDisplayStatus === 'Accepted' ? 'quoted' : 
-                  lift.sourcingDisplayStatus === 'Declined' ? 'declined' : 
+          // Status from lift - check both camelCase and snake_case variants
+          // Note: Actual status determination happens later in transform function
+          status: (lift.sourcingDisplayStatus || lift.sourcing_display_status) === 'Accepted' ? 'quoted' : 
+                  (lift.sourcingDisplayStatus || lift.sourcing_display_status) === 'Declined' ? 'declined' : 
                   lift.status || 'pending',
-          sourcingStatus: lift.sourcingStatus,
-          sourcingDisplayStatus: lift.sourcingDisplayStatus,
+          sourcingStatus: lift.sourcingStatus ?? lift.sourcing_status,
+          sourcingDisplayStatus: lift.sourcingDisplayStatus || lift.sourcing_display_status,
+          // Also include snake_case variant for compatibility
+          sourcing_display_status: lift.sourcing_display_status || lift.sourcingDisplayStatus,
+          sourcing_status: lift.sourcing_status ?? lift.sourcingStatus,
           // Store lift ID for reference
           lift_id: lift.id,
           // CRITICAL: sellerPrice and sellerMessage are already in lift from merged quote details
@@ -1521,44 +1525,71 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     // 
     // CRITICAL: Status can come from multiple sources:
     // 1. quote.status (direct status field)
-    // 2. quote.sourcingDisplayStatus (from sellerLift - "Accepted" = quoted, "Declined" = declined)
-    // 3. quote.sourcingStatus (numeric: 2 = Accepted/quoted)
+    // 2. quote.sourcingDisplayStatus / quote.sourcing_display_status (from sellerLift - "Accepted" = quoted, "Declined" = declined)
+    // 3. quote.sourcingStatus / quote.sourcing_status (numeric: 2 = Accepted/quoted)
     // 4. quote.quote?.status (nested quote object)
     // 5. rfqData.status (RFQ-level status)
     let rfqStatus: RFQFlight['rfqStatus'];
     
+    // Normalize field names - check both camelCase and snake_case variants (API may use either)
+    const sourcingDisplayStatus = quote.sourcingDisplayStatus || quote.sourcing_display_status;
+    const sourcingStatus = quote.sourcingStatus ?? quote.sourcing_status;
+    const sourcingDisplayNormalized = String(sourcingDisplayStatus || '').toLowerCase();
+    
     // PRIMARY: Check sourcingDisplayStatus from sellerLift (most reliable for Avinode API)
-    // "Accepted" means operator has provided a quote (quoted status)
-    // "Declined" means operator declined the request
-    if (quote.sourcingDisplayStatus === 'Accepted') {
+    // IMPORTANT: Avinode marketplace can show "Unanswered" even when price > 0 exists
+    // - "Accepted" means operator has provided a quote (quoted status)
+    // - "Unanswered" means RFQ sent but awaiting response (even if price exists in UI)
+    // - "Declined" means operator declined the request
+    // Normalize to lowercase for case-insensitive comparison
+    if (sourcingDisplayNormalized === 'accepted') {
       rfqStatus = 'quoted';
-    } else if (quote.sourcingDisplayStatus === 'Declined') {
-      rfqStatus = 'declined';
-    }
-    // SECONDARY: Check sourcingStatus (numeric: 2 = Accepted/quoted)
-    else if (quote.sourcingStatus === 2) {
-      rfqStatus = 'quoted';
-    }
-    // TERTIARY: Check quote.status (direct status field)
-    else if (quote.status === 'quoted' || quote.quote?.status === 'quoted') {
-      rfqStatus = 'quoted';
-    } else if (quote.status === 'declined' || quote.quote?.status === 'declined') {
-      rfqStatus = 'declined';
-    } else if (quote.status === 'expired' || quote.quote?.status === 'expired') {
-      rfqStatus = 'expired';
-    } else if (quote.status === 'sent' || rfqData.status === 'sent') {
-      // RFQ was sent but no response yet
-      rfqStatus = 'sent';
-    } else {
-      // Default to unanswered if no clear status
+    } else if (sourcingDisplayNormalized === 'unanswered' || sourcingDisplayNormalized === 'pending' || sourcingDisplayNormalized === 'open') {
+      // In Avinode, "Unanswered" can have prices - this is a valid state
+      // However, if price > 0 AND we have quote data, treat as quoted (per user requirement)
       rfqStatus = 'unanswered';
+    } else if (sourcingDisplayNormalized === 'declined') {
+      rfqStatus = 'declined';
+    } else if (sourcingDisplayNormalized === 'expired') {
+      rfqStatus = 'expired';
+    }
+    // SECONDARY: Check sourcingStatus (numeric: 2 = Accepted/quoted, 3 = Declined)
+    else if (sourcingStatus === 2) {
+      rfqStatus = 'quoted';
+    } else if (sourcingStatus === 3) {
+      rfqStatus = 'declined';
+    }
+    // TERTIARY: Check quote.status (direct status field) - normalize to lowercase for comparison
+    else {
+      const statusRaw = quote.status || quote.quote?.status || quote.rfqStatus || quote.rfq_status || quote.quote_status;
+      const statusNormalized = String(statusRaw || '').toLowerCase();
+      
+      if (statusNormalized === 'quoted' || statusNormalized === 'received' || statusNormalized === 'accepted') {
+        rfqStatus = 'quoted';
+      } else if (statusNormalized === 'declined' || statusNormalized === 'rejected') {
+        rfqStatus = 'declined';
+      } else if (statusNormalized === 'expired') {
+        rfqStatus = 'expired';
+      } else if (statusNormalized === 'sent' || rfqData.status === 'sent') {
+        // RFQ was sent but no response yet
+        rfqStatus = 'sent';
+      } else if (statusNormalized === 'pending' || statusNormalized === 'open') {
+        rfqStatus = 'unanswered';
+      } else {
+        // Default to unanswered if no clear status
+        rfqStatus = 'unanswered';
+      }
     }
     
-           // Log status determination for debugging
+           // Log status determination for debugging (include both camelCase and snake_case variants)
            console.log('[transformToRFQFlights] 📊 Status determination for quote', quote.quote?.id || quote.id || quote.quote_id, ':', {
              finalStatus: rfqStatus,
-             sourcingDisplayStatus: quote.sourcingDisplayStatus,
-             sourcingStatus: quote.sourcingStatus,
+             sourcingDisplayStatus_camelCase: quote.sourcingDisplayStatus,
+             sourcingDisplayStatus_snakeCase: quote.sourcing_display_status,
+             sourcingDisplayStatus_normalized: sourcingDisplayNormalized,
+             sourcingStatus_camelCase: quote.sourcingStatus,
+             sourcingStatus_snakeCase: quote.sourcing_status,
+             sourcingStatus_value: sourcingStatus,
              quote_status: quote.status,
              quote_quote_status: quote.quote?.status,
              rfqData_status: rfqData.status,
@@ -1607,11 +1638,19 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     // This should override the status determination - if there's a price, it's a quote
     const hasSellerPrice = !!(quote.sellerPrice?.price || quote.sellerPriceWithoutCommission?.price || totalPrice > 0);
     
-    // Update status if we have a price but status is still unanswered
-    // This handles the case where operator responded but sourcingDisplayStatus hasn't updated yet
-    if (hasSellerPrice && (rfqStatus === 'unanswered' || rfqStatus === 'sent')) {
-      console.log('[transformToRFQFlights] ⚠️ Found price but status is unanswered/sent - updating to quoted');
-      rfqStatus = 'quoted';
+    // USER REQUIREMENT: If totalPrice > 0, status should be 'quoted'
+    // This is the business logic - even if Avinode shows "Unanswered", if there's a price, show "Quoted"
+    // This handles the case where Avinode marketplace UI shows "Unanswered" but the quote has been submitted
+    // Note: Avinode can have "Unanswered" status with prices > 0 in their UI, but we want to show "Quoted" in ours
+    if (totalPrice > 0 && totalPrice !== 0) {
+      // Price exists - treat as quoted (per user requirement: "If totalPrice > 0, the status will be 'quoted'")
+      if (rfqStatus !== 'declined' && rfqStatus !== 'expired') {
+        // Only override if not explicitly declined/expired
+        if (rfqStatus === 'unanswered' || rfqStatus === 'sent' || !rfqStatus) {
+          console.log('[transformToRFQFlights] ✅ Price > 0 exists (' + totalPrice + ' ' + currency + ') - updating status to quoted (was:', rfqStatus, ', sourcingDisplayStatus:', sourcingDisplayStatus, ')');
+          rfqStatus = 'quoted';
+        }
+      }
     }
     
     const hasQuote = rfqStatus === 'quoted' || hasSellerPrice;

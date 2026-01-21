@@ -47,7 +47,7 @@ export function extractRouteParts(route?: string): RouteParts {
 
 /**
  * Extract price from quote object
- * Priority: sellerPrice.price > pricing.total > pricing.amount > price > totalPrice
+ * Priority: sellerPrice.price > pricing.total > pricing.amount > totalPrice > total_price > price > totalPrice?.amount
  */
 export function extractPrice(quote: Quote): { price: number; currency: string } {
   // PRIMARY: sellerPrice (from Avinode API)
@@ -60,13 +60,22 @@ export function extractPrice(quote: Quote): { price: number; currency: string } 
 
   // FALLBACK: pricing object
   if (quote.pricing) {
-    const pricingTotal = quote.pricing.total || quote.pricing.amount;
+    const pricingTotal = quote.pricing.total || quote.pricing.amount || quote.pricing.base;
     if (pricingTotal && pricingTotal > 0) {
       return {
         price: pricingTotal,
         currency: quote.pricing.currency || 'USD',
       };
     }
+  }
+
+  // FALLBACK: totalPrice field (direct number, not object)
+  // This is a common pattern where the price is stored as totalPrice directly
+  if (typeof (quote as any).totalPrice === 'number' && (quote as any).totalPrice > 0) {
+    return {
+      price: (quote as any).totalPrice,
+      currency: quote.currency || 'USD',
+    };
   }
 
   // FALLBACK: direct price fields
@@ -79,11 +88,30 @@ export function extractPrice(quote: Quote): { price: number; currency: string } 
   }
 
   // FALLBACK: totalPrice object
-  if (quote.totalPrice?.amount && quote.totalPrice.amount > 0) {
-    return {
-      price: quote.totalPrice.amount,
-      currency: quote.totalPrice.currency || 'USD',
-    };
+  if (quote.totalPrice && typeof quote.totalPrice === 'object') {
+    if (quote.totalPrice.amount && quote.totalPrice.amount > 0) {
+      return {
+        price: quote.totalPrice.amount,
+        currency: quote.totalPrice.currency || 'USD',
+      };
+    }
+  }
+
+  // CRITICAL: Log when price extraction fails for debugging
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[extractPrice] ⚠️ No price found in quote:', {
+      quoteId: quote.quote_id || quote.quoteId || quote.id,
+      availableFields: Object.keys(quote).filter(key => 
+        key.toLowerCase().includes('price') || 
+        key.toLowerCase().includes('amount') ||
+        key.toLowerCase().includes('total')
+      ),
+      sellerPrice: quote.sellerPrice,
+      pricing: quote.pricing,
+      totalPrice: (quote as any).totalPrice,
+      total_price: (quote as any).total_price,
+      price: (quote as any).price,
+    });
   }
 
   return { price: 0, currency: quote.currency || 'USD' };
@@ -152,6 +180,21 @@ export function convertQuoteToRFQFlight(
   try {
     const quoteId = quote.quote_id || quote.quoteId || quote.id || `quote-${Date.now()}`;
     const { price, currency } = extractPrice(quote);
+    
+    // CRITICAL: Log price extraction for debugging
+    if (price === 0 && process.env.NODE_ENV === 'development') {
+      console.warn('[convertQuoteToRFQFlight] ⚠️ Price is 0 after extraction:', {
+        quoteId,
+        quoteKeys: Object.keys(quote),
+        sellerPrice: (quote as any).sellerPrice,
+        pricing: (quote as any).pricing,
+        totalPrice: (quote as any).totalPrice,
+        total_price: (quote as any).total_price,
+        price: (quote as any).price,
+        rawQuote: quote,
+      });
+    }
+    
     const rfqStatus = extractRFQStatus(quote);
 
     // If we have a price, ensure status is 'quoted'
@@ -376,6 +419,21 @@ export function mergeQuoteDetailsIntoFlights(
 
     // Extract new price from quote details
     const { price: newPrice, currency: newCurrency } = extractPrice(quoteDetails);
+
+    // CRITICAL: Log when merging quote details for debugging
+    if (process.env.NODE_ENV === 'development' && (newPrice === 0 || !newPrice)) {
+      console.warn('[mergeQuoteDetailsIntoFlights] ⚠️ Price extraction failed during merge:', {
+        flightId: flight.id,
+        quoteId: flight.quoteId,
+        existingPrice: flight.totalPrice,
+        newPrice,
+        quoteDetailsKeys: Object.keys(quoteDetails),
+        sellerPrice: (quoteDetails as any).sellerPrice,
+        pricing: (quoteDetails as any).pricing,
+        totalPrice: (quoteDetails as any).totalPrice,
+        rawQuoteDetails: quoteDetails,
+      });
+    }
 
     // Use new price if valid, otherwise keep existing
     const finalPrice =

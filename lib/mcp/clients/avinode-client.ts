@@ -990,8 +990,28 @@ export class AvinodeClient {
    */
   private deriveRfqStatus(quote: any): RFQFlight['rfqStatus'] {
     // 'unanswered' = RFQ sent but no response yet
-    // 'quoted' = Response received with quote
-    // 'declined' = Response received with decline
+    // 'quoted' = Response received with quote (Avinode: "Accepted")
+    // 'declined' = Response received with decline (Avinode: "Declined")
+
+    // Check sourcingDisplayStatus from sellerLiftData first (Avinode's primary status field)
+    // Values: "Accepted", "Unanswered", "Declined"
+    const sourcingStatus = quote.sellerLiftData?.sourcingDisplayStatus?.toLowerCase();
+    if (sourcingStatus) {
+      if (sourcingStatus === 'accepted') {
+        // Check if quote is expired
+        if (quote.validUntil && new Date(quote.validUntil) < new Date()) {
+          return 'expired';
+        }
+        return 'quoted';
+      }
+      if (sourcingStatus === 'declined') {
+        return 'declined';
+      }
+      // 'unanswered' or any other status
+      return 'unanswered';
+    }
+
+    // Fallback: check quote.status for backwards compatibility
     if (quote.status === 'quoted' && quote.validUntil && new Date(quote.validUntil) < new Date()) {
       return 'expired';
     }
@@ -1255,11 +1275,28 @@ export class AvinodeClient {
     const allQuotesMap = new Map<string, any>();
 
     // Add quotes from all sources, using quote ID as key to prevent duplicates
+    // IMPORTANT: Merge data when duplicates are found to preserve both sellerPrice and sellerLiftData
     [...quotesFromQuotes, ...quotesFromRequests, ...quotesFromResponses, ...quotesFromSellerLift].forEach((quote: any) => {
       const quoteId = quote.quote?.id || quote.id;
-      if (quoteId && !allQuotesMap.has(quoteId)) {
-        allQuotesMap.set(quoteId, quote);
-      } else if (!quoteId) {
+      if (quoteId) {
+        if (allQuotesMap.has(quoteId)) {
+          // Merge: combine existing quote with new data
+          // This ensures sellerPrice from fetchQuoteDetails is merged with sellerLiftData from sellerLift
+          const existing = allQuotesMap.get(quoteId);
+          allQuotesMap.set(quoteId, {
+            ...existing,
+            ...quote,
+            // Preserve sellerPrice if it exists in either
+            sellerPrice: existing.sellerPrice || quote.sellerPrice,
+            // Preserve sellerLiftData if it exists in either
+            sellerLiftData: existing.sellerLiftData || quote.sellerLiftData,
+            // Preserve sellerCompany if it exists in either
+            sellerCompany: existing.sellerCompany || quote.sellerCompany,
+          });
+        } else {
+          allQuotesMap.set(quoteId, quote);
+        }
+      } else {
         // If no ID, add with index-based key to preserve it
         allQuotesMap.set(`no-id-${allQuotesMap.size}`, quote);
       }

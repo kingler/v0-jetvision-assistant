@@ -146,13 +146,43 @@ function normalizeQuoteToFlight(
                 : 'quoted';
 
   const sellerPrice = quote.sellerPrice || quote.seller_price || quote.sellerPriceWithoutCommission;
-  const pricingTotal =
-    sellerPrice?.price ||
-    pricing.total ||
-    quote.total_price ||
-    quote.totalPrice?.amount ||
-    quote.price ||
-    0;
+  // CRITICAL: Check multiple price field variations to extract price correctly
+  // Priority: sellerPrice.price > pricing.total > totalPrice (direct number) > total_price > price > totalPrice.amount
+  let pricingTotal = 0;
+  
+  if (sellerPrice?.price && sellerPrice.price > 0) {
+    pricingTotal = sellerPrice.price;
+  } else if (pricing.total && pricing.total > 0) {
+    pricingTotal = pricing.total;
+  } else if (typeof (quote as any).totalPrice === 'number' && (quote as any).totalPrice > 0) {
+    // Direct totalPrice field (not object)
+    pricingTotal = (quote as any).totalPrice;
+  } else if (quote.total_price && quote.total_price > 0) {
+    pricingTotal = quote.total_price;
+  } else if (quote.price && quote.price > 0) {
+    pricingTotal = quote.price;
+  } else if (quote.totalPrice?.amount && quote.totalPrice.amount > 0) {
+    pricingTotal = quote.totalPrice.amount;
+  } else if (pricing.amount && pricing.amount > 0) {
+    pricingTotal = pricing.amount;
+  }
+  
+  // CRITICAL: Log when price extraction fails for debugging
+  if (pricingTotal === 0 && process.env.NODE_ENV === 'development') {
+    console.warn('[normalizeQuoteToFlight] ⚠️ Price is 0 after extraction:', {
+      quoteId: quote.id || quote.quote_id,
+      availableFields: Object.keys(quote).filter(key => 
+        key.toLowerCase().includes('price') || 
+        key.toLowerCase().includes('amount') ||
+        key.toLowerCase().includes('total')
+      ),
+      sellerPrice: sellerPrice,
+      pricing: pricing,
+      totalPrice: (quote as any).totalPrice,
+      total_price: (quote as any).total_price,
+      price: (quote as any).price,
+    });
+  }
   const pricingCurrency =
     sellerPrice?.currency ||
     pricing.currency ||
@@ -195,8 +225,18 @@ function normalizeQuoteToFlight(
         : typeof quote.notes === 'string'
           ? quote.notes
           : quote.sellerMessage?.content || quote.sellerMessage?.text;
-  if ((pricingTotal && rfqStatus === 'unanswered') || (pricingTotal && rfqStatus === 'sent')) {
-    rfqStatus = 'quoted';
+  // USER REQUIREMENT: If totalPrice > 0, status should be 'quoted'
+  // This is the business logic - even if Avinode shows "Unanswered", if there's a price, show "Quoted"
+  // Note: Avinode can have "Unanswered" status with prices > 0 in their UI, but we want to show "Quoted" in ours
+  if (pricingTotal && pricingTotal > 0 && pricingTotal !== 0) {
+    // Price exists - treat as quoted (per user requirement: "If totalPrice > 0, the status will be 'quoted'")
+    if (rfqStatus !== 'declined' && rfqStatus !== 'expired') {
+      // Only override if not explicitly declined/expired
+      if (rfqStatus === 'unanswered' || rfqStatus === 'sent' || !rfqStatus) {
+        console.log('[normalizeQuoteToFlight] ✅ Price > 0 exists (' + pricingTotal + ' ' + pricingCurrency + ') - updating status to quoted (was:', rfqStatus, ')');
+        rfqStatus = 'quoted';
+      }
+    }
   }
 
   return {

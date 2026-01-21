@@ -422,18 +422,46 @@ export function RFQFlightCard({
 
   // CRITICAL: Log flight data when component renders to debug price/status issues
   useEffect(() => {
-    console.log('[RFQFlightCard] 🎴 Component rendered with flight data:', {
-      flightId: flight.id,
-      quoteId: flight.quoteId,
+    // CRITICAL: Extract ALL price/status fields to see what data is available
+    const priceFields = {
       totalPrice: flight.totalPrice,
-      currency: flight.currency,
+      price: (flight as any).price,
+      total_price: (flight as any).total_price,
+      sellerPrice_price: (flight as any).sellerPrice?.price,
+      pricing_total: (flight as any).pricing?.total,
+    }
+    const statusFields = {
       rfqStatus: flight.rfqStatus,
-      priceIsZero: flight.totalPrice === 0,
-      statusIsUnanswered: flight.rfqStatus === 'unanswered',
-      hasSellerMessage: !!flight.sellerMessage,
-      sellerMessagePreview: flight.sellerMessage?.substring(0, 100),
-      componentKey: `${flight.id}-${flight.totalPrice}-${flight.rfqStatus}`, // Key that should change when price/status changes
-    })
+      status: (flight as any).status,
+      rfq_status: (flight as any).rfq_status,
+      quote_status: (flight as any).quote_status,
+    }
+    
+    // CRITICAL: Log with expanded values, not collapsed objects
+    console.log('[RFQFlightCard] 🎴 Component rendered - Flight ID:', flight.id)
+    console.log('[RFQFlightCard] 🎴 Operator:', flight.operatorName)
+    console.log('[RFQFlightCard] 🎴 PRICE FIELDS:', priceFields)
+    console.log('[RFQFlightCard] 🎴 STATUS FIELDS:', statusFields)
+    console.log('[RFQFlightCard] 🎴 Currency:', flight.currency)
+    console.log('[RFQFlightCard] 🎴 Has price in any field:', Object.values(priceFields).some(v => v && v > 0))
+    console.log('[RFQFlightCard] 🎴 Has status in any field:', Object.values(statusFields).some(v => v && v !== 'unanswered' && v !== 'sent'))
+    
+    // WARNING: If price is 0 in all fields, log detailed debug info
+    const hasAnyPrice = Object.values(priceFields).some(v => 
+      (typeof v === 'number' && v > 0) || 
+      (typeof v === 'object' && v?.price && v.price > 0)
+    )
+    
+    if (!hasAnyPrice) {
+      console.warn('[RFQFlightCard] ⚠️ NO PRICE FOUND IN ANY FIELD!', {
+        flightId: flight.id,
+        quoteId: flight.quoteId,
+        operatorName: flight.operatorName,
+        ALL_PRICE_FIELDS_CHECKED: priceFields,
+        ALL_STATUS_FIELDS: statusFields,
+        FLIGHT_KEYS: Object.keys(flight),
+      })
+    }
     
     // WARNING: If price is 0 or undefined, log for debugging
     if (!flight.totalPrice || flight.totalPrice === 0) {

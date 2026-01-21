@@ -292,17 +292,32 @@ export function RFQFlightsList({
           // This ensures React re-renders the card when price/status updates
           const cardKey = `${flight.id}-${flight.totalPrice}-${flight.rfqStatus}-${flight.lastUpdated || Date.now()}`
           
-          // Log what we're passing to the card
-          console.log('[RFQFlightsList] 📋 Rendering flight card:', {
-            key: cardKey,
-            flightId: flight.id,
-            quoteId: flight.quoteId,
+          // CRITICAL: Log what we're passing to the card with ALL price/status fields expanded
+          const priceFields = {
             totalPrice: flight.totalPrice,
-            currency: flight.currency,
+            price: (flight as any).price,
+            total_price: (flight as any).total_price,
+            sellerPrice_price: (flight as any).sellerPrice?.price,
+            pricing_total: (flight as any).pricing?.total,
+          }
+          const statusFields = {
             rfqStatus: flight.rfqStatus,
-            priceIsZero: flight.totalPrice === 0,
-            statusIsUnanswered: flight.rfqStatus === 'unanswered',
-          })
+            status: (flight as any).status,
+            rfq_status: (flight as any).rfq_status,
+            quote_status: (flight as any).quote_status,
+          }
+          
+          // Only log first 3 flights to avoid console spam
+          if (processedFlights.indexOf(flight) < 3) {
+            console.log('[RFQFlightsList] 📋 Rendering flight card #' + (processedFlights.indexOf(flight) + 1) + ':')
+            console.log('  ID:', flight.id)
+            console.log('  Operator:', flight.operatorName)
+            console.log('  PRICE FIELDS:', priceFields)
+            console.log('  STATUS FIELDS:', statusFields)
+            console.log('  Currency:', flight.currency)
+            console.log('  Has price in ANY field?', Object.values(priceFields).some(v => v && v > 0) ? 'YES' : 'NO')
+            console.log('  Has quoted status?', flight.rfqStatus === 'quoted' ? 'YES' : 'NO')
+          }
           
           return (
             <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-6 last:pb-0">
