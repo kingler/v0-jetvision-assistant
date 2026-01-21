@@ -1513,9 +1513,33 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
   }
 
   // Get route data from RFQ level (fallback for quote-level route data)
-  const rfqDepartureAirport = rfqData.route?.departure?.airport;
-  const rfqArrivalAirport = rfqData.route?.arrival?.airport;
-  const rfqDepartureDate = rfqData.route?.departure?.date;
+  // IMPORTANT: Avinode API returns route data in multiple possible locations:
+  // 1. rfqData.segments[0].startAirport/endAirport (PRIMARY - from trip segments)
+  // 2. rfqData.route?.departure?.airport (legacy structure)
+  // 3. rfqData.departureAirport/arrivalAirport (direct fields)
+  const segment = Array.isArray(rfqData.segments) && rfqData.segments.length > 0 ? rfqData.segments[0] : null;
+
+  // PRIMARY: Extract from segments (preferred structure from Avinode API)
+  const rfqDepartureAirport = segment?.startAirportDetails || segment?.startAirport ||
+                              rfqData.route?.departure?.airport ||
+                              rfqData.departureAirport;
+  const rfqArrivalAirport = segment?.endAirportDetails || segment?.endAirport ||
+                            rfqData.route?.arrival?.airport ||
+                            rfqData.arrivalAirport;
+  const rfqDepartureDate = segment?.dateTime?.date || segment?.departureDateTime?.dateTimeLocal ||
+                           rfqData.route?.departure?.date ||
+                           rfqData.departureDate;
+  const rfqPassengers = segment?.paxCount ? parseInt(segment.paxCount, 10) : rfqData.passengers;
+
+  // Log route extraction for debugging
+  console.log('[transformToRFQFlights] Route data extraction:', {
+    hasSegments: !!segment,
+    segmentCount: rfqData.segments?.length || 0,
+    departure: rfqDepartureAirport?.icao || rfqDepartureAirport?.searchValue || 'MISSING',
+    arrival: rfqArrivalAirport?.icao || rfqArrivalAirport?.searchValue || 'MISSING',
+    departureDate: rfqDepartureDate || 'MISSING',
+    passengers: rfqPassengers || 'MISSING',
+  });
 
   return quotes.map((quote: any, index: number): RFQFlight | null => {
     // Derive RFQ status from quote response
@@ -1719,15 +1743,33 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     const departureAirport = quote.route?.departure?.airport || rfqDepartureAirport;
     const arrivalAirport = quote.route?.arrival?.airport || rfqArrivalAirport;
     const departureDate = quote.route?.departure?.date || rfqDepartureDate;
+    const passengers = quote.passengers || rfqPassengers;
+
+    // Extract ICAO codes - handle multiple possible structures from Avinode API:
+    // 1. airport.icao (standard structure)
+    // 2. airport.searchValue (from segments)
+    // 3. airport directly as string (rare)
+    const getIcao = (airport: any): string | undefined => {
+      if (!airport) return undefined;
+      if (typeof airport === 'string') return airport;
+      return airport.icao || airport.searchValue || airport.code;
+    };
+
+    const departureIcao = getIcao(departureAirport);
+    const arrivalIcao = getIcao(arrivalAirport);
 
     // Validate that we have airport data
-    if (!departureAirport?.icao || !arrivalAirport?.icao) {
+    if (!departureIcao || !arrivalIcao) {
       console.error('[transformToRFQFlights] Missing airport data', {
         quoteId: quote.quote?.id || quote.id,
         hasQuoteDeparture: !!quote.route?.departure?.airport,
         hasRfqDeparture: !!rfqDepartureAirport,
         hasQuoteArrival: !!quote.route?.arrival?.airport,
         hasRfqArrival: !!rfqArrivalAirport,
+        departureAirport,
+        arrivalAirport,
+        departureIcao,
+        arrivalIcao,
       });
       // Skip this quote if we don't have required airport data
       return null;
@@ -1785,14 +1827,14 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
       // This is the PRIMARY source for operator messages when fetching quote details
       sellerMessage: sellerMessageText,
       departureAirport: {
-        icao: departureAirport.icao,
-        name: departureAirport.name || quote.route?.departure?.name,
-        city: departureAirport.city || quote.route?.departure?.city,
+        icao: departureIcao,
+        name: departureAirport?.name || quote.route?.departure?.name,
+        city: departureAirport?.city || quote.route?.departure?.city,
       },
       arrivalAirport: {
-        icao: arrivalAirport.icao,
-        name: arrivalAirport.name || quote.route?.arrival?.name,
-        city: arrivalAirport.city || quote.route?.arrival?.city,
+        icao: arrivalIcao,
+        name: arrivalAirport?.name || quote.route?.arrival?.name,
+        city: arrivalAirport?.city || quote.route?.arrival?.city,
       },
       departureDate: departureDate || new Date().toISOString().split('T')[0],
       departureTime: quote.schedule?.departureTime ? new Date(quote.schedule.departureTime).toTimeString().slice(0, 5) : undefined,

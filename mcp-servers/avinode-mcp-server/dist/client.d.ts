@@ -23,6 +23,7 @@ export declare class AvinodeClient {
     post<T = any>(endpoint: string, data: any): Promise<T>;
     delete<T = any>(endpoint: string): Promise<T>;
     put<T = any>(endpoint: string, data: any): Promise<T>;
+    patch<T = any>(endpoint: string, data: any): Promise<T>;
 }
 export declare function getAvinodeClient(): AvinodeClient;
 //# sourceMappingURL=client.d.ts.map

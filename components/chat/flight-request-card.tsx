@@ -376,7 +376,27 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
               >
                 <MessageSquare className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
                 <span className="text-gray-700 dark:text-gray-300">
-                  {session.rfqFlights?.length || 0} RFQ{(session.rfqFlights?.length || 0) !== 1 ? 's' : ''}
+                  {(() => {
+                    /**
+                     * Count RFQs that have responded (status === 'quoted')
+                     * Only operators who have submitted a quote are counted as "responded"
+                     * 
+                     * If rfqFlights is not loaded yet but tripId exists, show 0
+                     * This is expected until RFQs are fetched when the chat becomes active
+                     */
+                    const totalCount = session.rfqFlights?.length || 0
+                    const respondedCount = session.rfqFlights?.filter(
+                      (rfq) => rfq.rfqStatus === 'quoted'
+                    ).length || 0
+                    
+                    // Show responded count (primary) / total count (if available)
+                    if (totalCount > 0) {
+                      return `${respondedCount}/${totalCount} RFQ${totalCount !== 1 ? 's' : ''}`
+                    }
+                    
+                    // If no RFQs loaded yet but tripId exists, show 0
+                    return `${respondedCount} RFQ${respondedCount !== 1 ? 's' : ''}`
+                  })()}
                 </span>
               </Badge>
               {/* Red dot indicator for new messages from operators - positioned at top right of badge */}

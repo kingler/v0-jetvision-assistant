@@ -89,6 +89,10 @@ export class MockAvinodeClient {
         }
         return { ...data, updated: true };
     }
+    async patch(endpoint, data) {
+        await this.delay(200, 400);
+        return { ...data, updated: true, updatedAt: new Date().toISOString() };
+    }
     /**
      * Mock flight search results with proper nested structure
      */

@@ -83,6 +83,7 @@ export declare class MockAvinodeClient {
     get<T = any>(endpoint: string, config?: any): Promise<T>;
     delete<T = any>(endpoint: string): Promise<T>;
     put<T = any>(endpoint: string, data: any): Promise<T>;
+    patch<T = any>(endpoint: string, data: any): Promise<T>;
     /**
      * Mock flight search results with proper nested structure
      */
