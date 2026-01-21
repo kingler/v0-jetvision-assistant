@@ -8,8 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { AgentFactory } from '@agents/core';
-import { AgentType } from '@agents/core/types';
 import type { Database, User, Request } from '@/lib/types/database';
 import { getConversationForRequest, loadMessages } from '@/lib/conversation/message-persistence';
 
@@ -261,11 +259,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Trigger orchestrator in background (non-blocking)
-    triggerOrchestrator(newRequest.id, userId).catch((err) => {
-      console.error('[POST /api/requests] Orchestrator trigger failed:', err);
-      // Don't fail the request creation if orchestrator fails
-    });
+    // TODO: Trigger JetvisionAgent processing via /api/chat endpoint
+    // The new single-agent architecture handles processing through the chat interface
+    console.log('[POST /api/requests] Request created:', newRequest.id);
 
     // Return successful response
     return NextResponse.json(
@@ -622,15 +618,4 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-async function triggerOrchestrator(requestId: string, userId: string) {
-  const factory = AgentFactory.getInstance();
-  const orchestrator = await factory.createAndInitialize({
-    type: AgentType.ORCHESTRATOR,
-    name: 'RFP Orchestrator',
-    model: 'gpt-4-turbo-preview',
-    temperature: 0.7,
-  });
-  await orchestrator.execute({ sessionId: `session-${Date.now()}`, requestId, userId });
 }

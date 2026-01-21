@@ -476,16 +476,16 @@ jobs:
 
           VIOLATIONS=0
 
-          # Check agents extend BaseAgent
-          echo "Checking agents extend BaseAgent..."
-          for file in $(find agents/implementations -name "*.ts" 2>/dev/null); do
-            if grep -q "class.*Agent" "$file"; then
-              if ! grep -q "extends BaseAgent" "$file"; then
-                echo "⚠️ $file: Agent class does not extend BaseAgent"
-                VIOLATIONS=$((VIOLATIONS + 1))
-              fi
-            fi
-          done
+          # Check JetvisionAgent structure exists
+          echo "Checking JetvisionAgent structure..."
+          if [ ! -f "agents/jetvision-agent/index.ts" ]; then
+            echo "⚠️ Missing agents/jetvision-agent/index.ts"
+            VIOLATIONS=$((VIOLATIONS + 1))
+          fi
+          if [ ! -f "agents/jetvision-agent/tool-executor.ts" ]; then
+            echo "⚠️ Missing agents/jetvision-agent/tool-executor.ts"
+            VIOLATIONS=$((VIOLATIONS + 1))
+          fi
 
           # Check MCP servers use SDK
           echo "Checking MCP servers use @modelcontextprotocol/sdk..."

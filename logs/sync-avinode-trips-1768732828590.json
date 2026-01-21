@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-01-18T10:40:24.776Z",
+  "dryRun": false,
+  "tripIds": [
+    "A3UUFH",
+    "DB7X2J",
+    "UKXA2M",
+    "QMYRXY",
+    "ZD2ZQ2"
+  ],
+  "tripsProcessed": 5,
+  "tripsCreated": 0,
+  "tripsUpdated": 5,
+  "quotesCreated": 0,
+  "messagesCreated": 10,
+  "errors": [],
+  "details": [
+    {
+      "tripId": "A3UUFH",
+      "status": "updated",
+      "requestId": "e6ca5b4c-796c-4f0c-958f-f104e51cb530",
+      "quotes": 0,
+      "messages": 2
+    },
+    {
+      "tripId": "DB7X2J",
+      "status": "updated",
+      "requestId": "d513c03f-3e31-41b4-bfbc-0eae5bf442d8",
+      "quotes": 0,
+      "messages": 2
+    },
+    {
+      "tripId": "UKXA2M",
+      "status": "updated",
+      "requestId": "8bd59038-551e-4e13-80bf-a10a8936bdec",
+      "quotes": 0,
+      "messages": 2
+    },
+    {
+      "tripId": "QMYRXY",
+      "status": "updated",
+      "requestId": "f745c49d-b396-4e94-8609-1fc1748871c5",
+      "quotes": 0,
+      "messages": 2
+    },
+    {
+      "tripId": "ZD2ZQ2",
+      "status": "updated",
+      "requestId": "cee741b7-5ce0-4403-bc32-32e0b80b744a",
+      "quotes": 0,
+      "messages": 2
+    }
+  ]
+}

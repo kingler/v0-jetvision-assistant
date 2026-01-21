@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { getIsoAgentIdFromClerkUserId } from '@/lib/conversation/message-persistence';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -41,19 +42,18 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const id = searchParams.get('id');
 
-    // Get user's ISO agent ID using admin client (bypasses RLS)
-    const { data: agent, error: agentError } = await supabaseAdmin
-      .from('iso_agents')
-      .select('id')
-      .eq('clerk_user_id', userId)
-      .single();
+    // Get user's ISO agent ID (auto-syncs from Clerk if not found)
+    const agentId = await getIsoAgentIdFromClerkUserId(userId);
 
-    if (agentError || !agent) {
+    if (!agentId) {
       return NextResponse.json(
-        { error: 'User not found', message: 'Your account may not be synced to the database' },
+        { error: 'User not found', message: 'Failed to sync your account. Please try again.' },
         { status: 404 }
       );
     }
+
+    // Create agent object for backward compatibility with rest of function
+    const agent = { id: agentId };
 
     // Build query for requests with session fields (consolidated schema)
     // This replaces the old chat_sessions + conversations join

@@ -22,6 +22,10 @@ export interface SSEStreamData {
   quotes?: Quote[];
   agent?: AgentMetadata;
   _debug?: Record<string, unknown>;
+  /** Session info for frontend state sync (returned from chat API) */
+  conversation_id?: string;
+  chat_session_id?: string;
+  conversation_type?: 'flight_request' | 'general';
 }
 
 /**
@@ -336,6 +340,10 @@ export interface SSEParseResult {
   quotes: Quote[];
   agentMetadata?: AgentMetadata;
   debug?: Record<string, unknown>;
+  /** Session info for frontend state sync */
+  conversationId?: string;
+  chatSessionId?: string;
+  conversationType?: 'flight_request' | 'general';
 }
 
 /**

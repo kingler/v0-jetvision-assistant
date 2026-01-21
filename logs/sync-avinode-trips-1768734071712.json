@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-01-18T11:01:11.152Z",
+  "dryRun": true,
+  "tripIds": [
+    "A648J4"
+  ],
+  "tripsProcessed": 1,
+  "tripsCreated": 0,
+  "tripsUpdated": 1,
+  "quotesCreated": 3,
+  "messagesCreated": 1,
+  "errors": [],
+  "details": [
+    {
+      "tripId": "A648J4",
+      "status": "updated",
+      "requestId": "4308534a-9ae8-4eed-bd12-a1ee02ac0c9d",
+      "quotes": 3,
+      "messages": 1
+    }
+  ]
+}

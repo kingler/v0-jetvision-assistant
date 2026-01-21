@@ -180,9 +180,14 @@ export function RFQFlightsList({
   }, []);
 
   // Loading state
+  // FIXED: Added explicit background to prevent collapse during loading
+  // Removed fixed min-height to allow full expansion
   if (isLoading) {
     return (
-      <div data-testid="flights-loading" className="flex flex-col items-center justify-center py-12">
+      <div 
+        data-testid="flights-loading" 
+        className="flex flex-col items-center justify-center py-12 bg-white dark:bg-gray-900"
+      >
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">Loading available flights...</p>
       </div>
@@ -190,14 +195,16 @@ export function RFQFlightsList({
   }
 
   // Empty state - check if there are any flights to display
+  // FIXED: Added explicit background to prevent collapse when empty
+  // Removed fixed min-height to allow full expansion
   if (processedFlights.length === 0) {
     // No flights at all - show initial empty state
     if (flights.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="flex flex-col items-center justify-center py-12 text-center bg-white dark:bg-gray-900">
           <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No RFQs available</h3>
-          <p className="text-muted-foreground">
+          <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">No RFQs available</h3>
+          <p className="text-muted-foreground max-w-md">
             No RFQ has been submitted yet. Please follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.
           </p>
         </div>
@@ -205,10 +212,10 @@ export function RFQFlightsList({
     }
     // This case should not occur since we removed filtering, but keeping for safety
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="flex flex-col items-center justify-center py-12 text-center bg-white dark:bg-gray-900">
         <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No flights available</h3>
-        <p className="text-muted-foreground">
+        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">No flights available</h3>
+        <p className="text-muted-foreground max-w-md">
           No flights are currently available to display.
         </p>
       </div>
@@ -216,7 +223,16 @@ export function RFQFlightsList({
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div 
+      className={cn('space-y-4 bg-white dark:bg-gray-900', className)}
+      style={{ 
+        height: 'auto', 
+        minHeight: 'auto',
+        overflow: 'visible',
+        display: 'block',
+        width: '100%'
+      }}
+    >
       {/* Header with controls */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -263,11 +279,13 @@ export function RFQFlightsList({
       </div>
 
       {/* Flight Cards List - Added proper spacing between cards */}
+      {/* FIXED: Removed any overflow constraints to ensure all cards are visible when scrolling */}
       <ul
         data-testid="rfq-flights-list"
         role="list"
         aria-label="Available flights"
         className={cn('space-y-6', compact && 'space-y-4')}
+        style={{ height: 'auto', overflow: 'visible' }}
       >
         {processedFlights.map((flight) => {
           // CRITICAL: Create a key that includes price and status to force re-render when they change

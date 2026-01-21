@@ -1,15 +1,20 @@
 /**
  * RFP Orchestrator Service
  *
- * Service layer that bridges the RFP conversational flow with the OrchestratorAgent.
- * Handles the complete workflow from RFP data collection to agent execution.
+ * DEPRECATED: This service used the old multi-agent infrastructure which has been removed.
+ * The new architecture uses JetvisionAgent directly via /api/chat.
+ *
+ * This file is kept as a stub to prevent import errors.
+ * TODO: Remove this file and its consumers once all references are cleaned up.
  */
 
-import { RFPFlow } from '@/lib/conversation/rfp-flow';
 import type { RFPData } from '@/lib/conversation/rfp-flow';
-import { AgentFactory } from '@agents/core/agent-factory';
-import { AgentType } from '@agents/core/types';
-import type { AgentContext, AgentResult } from '@agents/core/types';
+
+// Stub types for backward compatibility
+interface AgentResult {
+  success: boolean;
+  error?: Error;
+}
 
 /**
  * RFP workflow status
@@ -42,13 +47,13 @@ export interface RFPWorkflowState {
 
 /**
  * Service for coordinating RFP flow with OrchestratorAgent
+ * DEPRECATED: Stubbed implementation - use JetvisionAgent via /api/chat instead
  */
 export class RFPOrchestratorService {
-  private agentFactory: AgentFactory;
   private workflows: Map<string, RFPWorkflowState> = new Map();
 
   constructor() {
-    this.agentFactory = AgentFactory.getInstance();
+    // No-op - old AgentFactory has been removed
   }
 
   /**
@@ -87,80 +92,28 @@ export class RFPOrchestratorService {
 
   /**
    * Execute OrchestratorAgent with RFP data
+   * DEPRECATED: This method is stubbed. Use JetvisionAgent via /api/chat instead.
    */
   async executeWithRFPData(
     sessionId: string,
     userId: string,
     rfpData: RFPData
   ): Promise<AgentResult> {
-    // Update workflow status
+    console.warn('[RFPOrchestratorService] DEPRECATED: executeWithRFPData is no longer functional');
+    console.warn('[RFPOrchestratorService] Use JetvisionAgent via /api/chat instead');
+
+    // Update workflow status to failed since this is deprecated
     this.updateWorkflow(sessionId, {
-      status: RFPWorkflowStatus.VALIDATING,
+      status: RFPWorkflowStatus.FAILED,
       rfpData,
+      error: new Error('RFPOrchestratorService is deprecated. Use JetvisionAgent via /api/chat.'),
+      completedAt: new Date(),
     });
 
-    // Validate RFP data
-    this.validateRFPData(rfpData);
-
-    // Update to processing
-    this.updateWorkflow(sessionId, {
-      status: RFPWorkflowStatus.PROCESSING,
-    });
-
-    try {
-      // Create OrchestratorAgent
-      const orchestrator = await this.agentFactory.createAndInitialize({
-        type: AgentType.ORCHESTRATOR,
-        name: `RFP Orchestrator - ${sessionId}`,
-        model: 'gpt-4-turbo-preview',
-        temperature: 0.7,
-      });
-
-      // Generate request ID
-      const requestId = `rfp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-      // Create agent context with RFP data
-      const context: AgentContext = {
-        sessionId,
-        requestId,
-        userId,
-        metadata: {
-          // Include RFP data in metadata for backward compatibility
-          rfpData,
-          // Also include as individual fields for direct access
-          departure: rfpData.departure,
-          arrival: rfpData.arrival,
-          departureDate: rfpData.departureDate,
-          passengers: rfpData.passengers,
-          returnDate: rfpData.returnDate,
-          aircraftType: rfpData.aircraftType,
-          budget: rfpData.budget,
-          specialRequirements: rfpData.specialRequirements,
-        },
-      };
-
-      // Execute orchestrator
-      const result = await orchestrator.execute(context);
-
-      // Update workflow with result
-      this.updateWorkflow(sessionId, {
-        requestId,
-        agentResult: result,
-        status: result.success ? RFPWorkflowStatus.SEARCHING : RFPWorkflowStatus.FAILED,
-        ...(result.success ? {} : { error: result.error }),
-      });
-
-      return result;
-    } catch (error) {
-      // Update workflow with error
-      this.updateWorkflow(sessionId, {
-        status: RFPWorkflowStatus.FAILED,
-        error: error as Error,
-        completedAt: new Date(),
-      });
-
-      throw error;
-    }
+    return {
+      success: false,
+      error: new Error('RFPOrchestratorService is deprecated. Use JetvisionAgent via /api/chat.'),
+    };
   }
 
   /**

@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-01-17T17:49:23.185Z",
+  "dryRun": true,
+  "totalMessagesScanned": 12,
+  "totalRequestsFound": 5,
+  "tripIdsDetected": 5,
+  "requestsUpdated": 5,
+  "requestsSkipped": 0,
+  "errors": [],
+  "details": [
+    {
+      "requestId": "511a100f-9914-4923-beaf-5b12b490a05d",
+      "tripId": "RBL8FL",
+      "normalized": "RBL8FL",
+      "kind": "alphanumeric",
+      "source": "Message: \"get_rfq RBL8FL\"",
+      "updated": true
+    },
+    {
+      "requestId": "945570b0-5547-4b9c-9407-a1dd8c265172",
+      "tripId": "RBL8FL",
+      "normalized": "RBL8FL",
+      "kind": "alphanumeric",
+      "source": "Message: \"get_rfq RBL8FL\"",
+      "updated": true
+    },
+    {
+      "requestId": "8b2645bc-470f-469d-b066-001f2bfeb2f5",
+      "tripId": "RBL8FL",
+      "normalized": "RBL8FL",
+      "kind": "alphanumeric",
+      "source": "Message: \"get_rfq RBL8FL\"",
+      "updated": true
+    },
+    {
+      "requestId": "06a50068-3c29-48bc-af8a-06e76010b275",
+      "tripId": "RBL8FL",
+      "normalized": "RBL8FL",
+      "kind": "alphanumeric",
+      "source": "Message: \"get_rfq RBL8FL\"",
+      "updated": true
+    },
+    {
+      "requestId": "ca4394ee-505f-4d6b-8813-a89179d2edde",
+      "tripId": "RBL8FL",
+      "normalized": "RBL8FL",
+      "kind": "alphanumeric",
+      "source": "Message: \"get_rfq RBL8FL\"",
+      "updated": true
+    }
+  ]
+}

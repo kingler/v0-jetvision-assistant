@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-01-17T17:50:00.225Z",
+  "dryRun": true,
+  "tripIds": [
+    "A648J4",
+    "DEFA55",
+    "RBL8FL"
+  ],
+  "tripsProcessed": 3,
+  "tripsCreated": 3,
+  "tripsUpdated": 0,
+  "quotesCreated": 0,
+  "messagesCreated": 0,
+  "errors": [],
+  "details": [
+    {
+      "tripId": "A648J4",
+      "status": "created",
+      "requestId": "dry-run-A648J4",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "DEFA55",
+      "status": "created",
+      "requestId": "dry-run-DEFA55",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "RBL8FL",
+      "status": "created",
+      "requestId": "dry-run-RBL8FL",
+      "quotes": 0,
+      "messages": 0
+    }
+  ]
+}

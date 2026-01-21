@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-01-17T18:52:58.773Z",
+  "dryRun": false,
+  "tripIds": [
+    "A648J4",
+    "DEFA55",
+    "4ND3C3",
+    "A3UUFH",
+    "DB7X2J",
+    "UKXA2M",
+    "QMYRXY",
+    "ZD2ZQ2"
+  ],
+  "tripsProcessed": 8,
+  "tripsCreated": 8,
+  "tripsUpdated": 0,
+  "quotesCreated": 0,
+  "messagesCreated": 0,
+  "errors": [],
+  "details": [
+    {
+      "tripId": "A648J4",
+      "status": "created",
+      "requestId": "4308534a-9ae8-4eed-bd12-a1ee02ac0c9d",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "DEFA55",
+      "status": "created",
+      "requestId": "97c3f358-6a2f-4bf9-a3c3-3d8e4b8c9233",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "4ND3C3",
+      "status": "created",
+      "requestId": "3c818b88-402a-4787-b6a9-1a2a306dd056",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "A3UUFH",
+      "status": "created",
+      "requestId": "e6ca5b4c-796c-4f0c-958f-f104e51cb530",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "DB7X2J",
+      "status": "created",
+      "requestId": "d513c03f-3e31-41b4-bfbc-0eae5bf442d8",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "UKXA2M",
+      "status": "created",
+      "requestId": "8bd59038-551e-4e13-80bf-a10a8936bdec",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "QMYRXY",
+      "status": "created",
+      "requestId": "f745c49d-b396-4e94-8609-1fc1748871c5",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "ZD2ZQ2",
+      "status": "created",
+      "requestId": "cee741b7-5ce0-4403-bc32-32e0b80b744a",
+      "quotes": 0,
+      "messages": 0
+    }
+  ]
+}

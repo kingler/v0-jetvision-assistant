@@ -103,6 +103,124 @@ export function extractSSEError(data: SSEStreamData): Error | null {
 }
 
 /**
+ * Process a single SSE data object and update the result
+ * Returns true if the stream is complete (done signal received)
+ */
+function processSSEData(
+  data: SSEStreamData,
+  result: SSEParseResult,
+  handlers: SSEHandlers,
+  logger: Logger
+): boolean {
+  // Check for errors first
+  const error = extractSSEError(data);
+  if (error) {
+    result.error = error.message;
+    handlers.onError?.(error);
+    throw error;
+  }
+
+  // Handle content streaming
+  if (data.content) {
+    result.content += data.content;
+    handlers.onContent?.(data.content, result.content);
+  }
+
+  // Extract RFQ data (sent in separate chunk BEFORE done signal)
+  if (data.rfq_data) {
+    result.rfqData = data.rfq_data;
+    logger.debug('RFQ data received', {
+      hasFlights: !!data.rfq_data.flights,
+      flightsCount: data.rfq_data.flights?.length || 0,
+      hasQuotes: !!data.rfq_data.quotes,
+      quotesCount: data.rfq_data.quotes?.length || 0,
+    });
+  }
+
+  // Extract trip data (sent in separate chunk BEFORE done signal)
+  if (data.trip_data) {
+    result.tripData = data.trip_data;
+    logger.debug('Trip data received', { tripId: data.trip_data.trip_id });
+  }
+
+  // Extract RFP data (sent in separate chunk BEFORE done signal)
+  if (data.rfp_data) {
+    result.rfpData = data.rfp_data;
+    logger.debug('RFP data received', { tripId: data.rfp_data.trip_id });
+  }
+
+  // Handle completion
+  if (data.done) {
+    result.done = true;
+
+    // Extract debug info
+    if (data._debug) {
+      result.debug = data._debug;
+      logger.debug('Server debug info', data._debug);
+    }
+
+    // Extract agent metadata
+    if (data.agent) {
+      result.agentMetadata = data.agent;
+      logger.debug('Agent metadata', {
+        intent: data.agent.intent,
+        phase: data.agent.conversationState?.phase,
+      });
+    }
+
+    // Extract tool calls
+    if (data.tool_calls && Array.isArray(data.tool_calls)) {
+      result.toolCalls = data.tool_calls;
+      for (const toolCall of data.tool_calls) {
+        handlers.onToolCall?.(toolCall);
+      }
+    }
+
+    // Extract trip data
+    if (data.trip_data) {
+      result.tripData = data.trip_data;
+    }
+
+    // Extract RFP data
+    if (data.rfp_data) {
+      result.rfpData = data.rfp_data;
+    }
+
+    // Extract RFQ data
+    if (data.rfq_data) {
+      result.rfqData = data.rfq_data;
+    }
+
+    // Extract pipeline data
+    if (data.pipeline_data) {
+      result.pipelineData = data.pipeline_data;
+    }
+
+    // Extract quotes
+    if (data.quotes && Array.isArray(data.quotes)) {
+      result.quotes = data.quotes;
+    }
+
+    // Extract session info for frontend state sync
+    // This ensures the frontend can update session state with the database ID
+    if (data.conversation_id) {
+      result.conversationId = data.conversation_id;
+    }
+    if (data.chat_session_id) {
+      result.chatSessionId = data.chat_session_id;
+    }
+    if (data.conversation_type) {
+      result.conversationType = data.conversation_type;
+    }
+
+    handlers.onDone?.(result);
+    return true; // Signal to stop processing
+  }
+
+  return false; // Continue processing
+}
+
+/**
  * Parse SSE stream from a ReadableStream
  *
  * @param reader - The stream reader from fetch response
@@ -126,6 +244,10 @@ export async function parseSSEStream(
     quotes: [],
   };
 
+  // Buffer for incomplete lines across chunks
+  // SSE messages can be split across multiple chunks, so we need to buffer
+  let lineBuffer = '';
+
   try {
     while (true) {
       // Check for abort signal
@@ -136,11 +258,24 @@ export async function parseSSEStream(
       const { done, value } = await reader.read();
 
       if (done) {
+        // Process any remaining buffered content
+        if (lineBuffer.trim()) {
+          const data = parseSSELine(lineBuffer);
+          if (data) {
+            processSSEData(data, result, handlers, logger);
+          }
+        }
         break;
       }
 
       const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
+      // Prepend any buffered partial line from previous chunk
+      const fullChunk = lineBuffer + chunk;
+      const lines = fullChunk.split('\n');
+
+      // The last element might be incomplete if chunk didn't end with newline
+      // Keep it in the buffer for the next iteration
+      lineBuffer = lines.pop() || '';
 
       for (const line of lines) {
         const data = parseSSELine(line);
@@ -149,73 +284,8 @@ export async function parseSSEStream(
           continue;
         }
 
-        // Check for errors first
-        const error = extractSSEError(data);
-        if (error) {
-          result.error = error.message;
-          handlers.onError?.(error);
-          throw error;
-        }
-
-        // Handle content streaming
-        if (data.content) {
-          result.content += data.content;
-          handlers.onContent?.(data.content, result.content);
-        }
-
-        // Handle completion
-        if (data.done) {
-          result.done = true;
-
-          // Extract debug info
-          if (data._debug) {
-            result.debug = data._debug;
-            logger.debug('Server debug info', data._debug);
-          }
-
-          // Extract agent metadata
-          if (data.agent) {
-            result.agentMetadata = data.agent;
-            logger.debug('Agent metadata', {
-              intent: data.agent.intent,
-              phase: data.agent.conversationState?.phase,
-            });
-          }
-
-          // Extract tool calls
-          if (data.tool_calls && Array.isArray(data.tool_calls)) {
-            result.toolCalls = data.tool_calls;
-            for (const toolCall of data.tool_calls) {
-              handlers.onToolCall?.(toolCall);
-            }
-          }
-
-          // Extract trip data
-          if (data.trip_data) {
-            result.tripData = data.trip_data;
-          }
-
-          // Extract RFP data
-          if (data.rfp_data) {
-            result.rfpData = data.rfp_data;
-          }
-
-          // Extract RFQ data
-          if (data.rfq_data) {
-            result.rfqData = data.rfq_data;
-          }
-
-          // Extract pipeline data
-          if (data.pipeline_data) {
-            result.pipelineData = data.pipeline_data;
-          }
-
-          // Extract quotes
-          if (data.quotes && Array.isArray(data.quotes)) {
-            result.quotes = data.quotes;
-          }
-
-          handlers.onDone?.(result);
+        const shouldReturn = processSSEData(data, result, handlers, logger);
+        if (shouldReturn) {
           return result;
         }
       }

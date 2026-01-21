@@ -128,8 +128,18 @@ export default function JetvisionAgent() {
           }
         })
 
-        // Update state with loaded sessions
-        setChatSessions(sessionsWithMessages as any)
+        // Update state with loaded sessions, ensuring no duplicates
+        // Deduplicate by tripId (when present) OR session ID
+        // This prevents multiple cards for the same Avinode trip
+        const uniqueSessions = sessionsWithMessages.filter((session, index, self) => {
+          // If session has tripId, deduplicate by tripId (keep the first one with this tripId)
+          if (session.tripId) {
+            return index === self.findIndex((s) => s.tripId === session.tripId)
+          }
+          // Otherwise deduplicate by session ID
+          return index === self.findIndex((s) => s.id === session.id && !s.tripId)
+        })
+        setChatSessions(uniqueSessions as any)
 
         // Always show landing page on initial load, even if sessions exist
         // User can manually select chats from the sidebar
@@ -1176,13 +1186,82 @@ export default function JetvisionAgent() {
   }
 
   const handleUpdateChat = (chatId: string, updates: Partial<ChatSession>) => {
+    // If we're updating the session ID (from temp to real), update activeChatId
+    // This happens when the API returns a real conversation_id/chat_session_id
+    if (updates.id && updates.id !== chatId && activeChatId === chatId) {
+      console.log('[handleUpdateChat] 🔄 Updating activeChatId from temp to real:', {
+        from: chatId,
+        to: updates.id,
+      })
+      setActiveChatId(updates.id)
+    }
+
     setChatSessions((prevSessions) => {
+      // DEDUPLICATION: If we're changing the ID, check if a session with the new ID already exists
+      // This prevents duplicates when the same session is loaded from database while temp session exists
+      if (updates.id && updates.id !== chatId) {
+        const existingWithNewId = prevSessions.find((s) => s.id === updates.id && s.id !== chatId)
+        if (existingWithNewId) {
+          console.log('[handleUpdateChat] ⚠️ Removing duplicate session - new ID already exists:', {
+            tempId: chatId,
+            existingId: updates.id,
+          })
+          // Remove the session we're updating (the temp one) and keep the existing one
+          // But merge any new data into the existing one
+          return prevSessions
+            .filter((s) => s.id !== chatId) // Remove temp session
+            .map((s) => {
+              if (s.id === updates.id) {
+                // Merge updates into existing session
+                return { ...s, ...updates }
+              }
+              return s
+            })
+        }
+      }
+
+      // DEDUPLICATION BY TRIP ID: If we're setting a tripId, check if another session already has it
+      // This prevents multiple cards for the same Avinode trip
+      if (updates.tripId) {
+        const existingWithTripId = prevSessions.find(
+          (s) => s.tripId === updates.tripId && s.id !== chatId
+        )
+        if (existingWithTripId) {
+          console.log('[handleUpdateChat] ⚠️ Removing duplicate session - tripId already exists on another session:', {
+            currentSessionId: chatId,
+            existingSessionId: existingWithTripId.id,
+            tripId: updates.tripId,
+          })
+          // Keep the current session (which is being updated) and remove the duplicate
+          // Merge any useful data from the duplicate into the current session
+          const mergedUpdates = {
+            ...updates,
+            // Preserve messages from the duplicate if current has none
+            messages: updates.messages?.length
+              ? updates.messages
+              : (existingWithTripId.messages?.length ? existingWithTripId.messages : []),
+            // Preserve rfqFlights from the duplicate if current has none
+            rfqFlights: updates.rfqFlights?.length
+              ? updates.rfqFlights
+              : existingWithTripId.rfqFlights,
+          }
+          return prevSessions
+            .filter((s) => s.id !== existingWithTripId.id) // Remove duplicate with same tripId
+            .map((s) => {
+              if (s.id === chatId) {
+                return { ...s, ...mergedUpdates }
+              }
+              return s
+            })
+        }
+      }
+
       const updatedSessions = prevSessions.map((session) => {
         if (session.id === chatId) {
           // Create a completely new object to ensure React detects the change
           // This is especially important for nested arrays like rfqFlights
           const updatedSession = { ...session, ...updates }
-          
+
           // CRITICAL: If rfqFlights is being updated, ensure it's a new array reference
           // This forces React to detect the change and trigger re-renders
           if (updates.rfqFlights) {
@@ -1190,25 +1269,28 @@ export default function JetvisionAgent() {
               ? [...updates.rfqFlights] // Create new array reference
               : updates.rfqFlights
           }
-          
+
           // Also ensure operatorMessages is a new object reference if updated
           if (updates.operatorMessages) {
             updatedSession.operatorMessages = { ...updates.operatorMessages }
           }
-          
+
           console.log('[handleUpdateChat] ✅ Updated session:', {
             chatId,
+            newId: updates.id || chatId,
+            conversationId: updatedSession.conversationId,
+            requestId: updatedSession.requestId,
             hasRfqFlights: !!updatedSession.rfqFlights,
             rfqFlightsCount: updatedSession.rfqFlights?.length || 0,
             samplePrice: updatedSession.rfqFlights?.[0]?.totalPrice,
             sampleStatus: updatedSession.rfqFlights?.[0]?.rfqStatus,
           })
-          
+
           return updatedSession
         }
         return session
       })
-      
+
       return updatedSessions
     })
   }

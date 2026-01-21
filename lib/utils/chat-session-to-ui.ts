@@ -229,9 +229,34 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     quotesTotal: chatSessionRow.quotes_expected_count || undefined,
 
     // Generated name - prefer conversation subject (LLM-generated title), fallback to request name
-    generatedName: conversation?.subject || (request
-      ? `${request.departure_airport || 'Unknown'} → ${request.arrival_airport || 'Unknown'} (${date})`
-      : undefined),
+    // Filter out internal tool call commands like "get_rfq XXXXX" from being used as names
+    generatedName: (() => {
+      const subject = conversation?.subject;
+      // Filter out internal tool call patterns (e.g., "get_rfq XXXXX", "create_trip", etc.)
+      const isInternalCommand = subject && (
+        subject.startsWith('get_rfq ') ||
+        subject.startsWith('get_quote ') ||
+        subject.startsWith('create_trip ') ||
+        subject.startsWith('cancel_trip ') ||
+        subject.startsWith('send_trip_message ')
+      );
+
+      if (subject && !isInternalCommand) {
+        return subject;
+      }
+
+      // Fallback to route-based name from request data
+      if (request?.departure_airport && request?.arrival_airport) {
+        return `${request.departure_airport} → ${request.arrival_airport} (${date})`;
+      }
+
+      // Final fallback using tripId if available
+      if (chatSessionRow.avinode_trip_id || request?.avinode_trip_id) {
+        return `Trip ${chatSessionRow.avinode_trip_id || request?.avinode_trip_id}`;
+      }
+
+      return undefined;
+    })(),
 
     // Messages will be loaded separately (empty array for now)
     // Can be populated by loading messages from conversation_id

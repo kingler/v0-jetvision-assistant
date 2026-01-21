@@ -199,11 +199,12 @@ class CodeReviewValidator {
     console.log('🏗️  Checking architecture compliance...');
 
     for (const file of files) {
-      // Check that agents extend BaseAgent
-      if (file.includes('agents/implementations/') && !file.includes('index.ts')) {
+      // Check JetvisionAgent structure
+      if (file.includes('agents/jetvision-agent/') && file.endsWith('.ts')) {
         const content = fs.readFileSync(file, 'utf-8');
-        if (content.includes('class') && !content.includes('extends BaseAgent')) {
-          this.errors.push(`Agent class must extend BaseAgent: ${file}`);
+        // Verify exports exist for main files
+        if (file.includes('index.ts') && !content.includes('export')) {
+          this.warnings.push(`Agent index should export JetvisionAgent: ${file}`);
         }
       }
 

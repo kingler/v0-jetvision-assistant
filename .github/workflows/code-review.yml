@@ -137,14 +137,17 @@ jobs:
         run: |
           echo "🏗️  Checking architecture compliance..."
 
-          # Check that agent files extend BaseAgent
-          echo "Checking agent implementations..."
-          find agents/implementations -name "*.ts" ! -name "index.ts" | while read file; do
-            if grep -q "class" "$file" && ! grep -q "extends BaseAgent" "$file"; then
-              echo "❌ $file does not extend BaseAgent"
-              exit 1
-            fi
-          done
+          # Check JetvisionAgent files exist
+          echo "Checking jetvision-agent structure..."
+          if [ ! -f "agents/jetvision-agent/index.ts" ]; then
+            echo "❌ Missing agents/jetvision-agent/index.ts"
+            exit 1
+          fi
+          if [ ! -f "agents/jetvision-agent/tool-executor.ts" ]; then
+            echo "❌ Missing agents/jetvision-agent/tool-executor.ts"
+            exit 1
+          fi
+          echo "✅ JetvisionAgent files present"
 
           # Check API routes have error handling
           echo "Checking API routes..."

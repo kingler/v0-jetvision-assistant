@@ -95,52 +95,56 @@ npm run review:fix
 
 ## High-Level Architecture
 
-### Multi-Agent System Overview
+### JetvisionAgent - Single Agent Architecture
 
-The system consists of **6 specialized AI agents** coordinating through an **internal Agent-to-Agent (A2A) communication layer**:
+The system uses a **unified single-agent architecture** that consolidates all charter flight operations:
 
 ```
-┌─────────────────────────────────────────────────┐
-│            Agent Core System                     │
-│  • BaseAgent - Abstract foundation              │
-│  • AgentFactory - Creates agents (Singleton)    │
-│  • AgentRegistry - Central registry (Singleton) │
-│  • AgentContext - Session management            │
-└─────────────────┬───────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────┐
-│         Agent Coordination Layer                 │
-│  • MessageBus - Event-driven A2A (EventEmitter) │
-│  • HandoffManager - Task delegation             │
-│  • TaskQueue - Async processing (BullMQ+Redis)  │
-│  • WorkflowStateMachine - State management      │
-└─────────────────┬───────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────┐
-│          6 Specialized Agents                    │
-│  • OrchestratorAgent                            │
-│  • ClientDataAgent                              │
-│  • FlightSearchAgent                            │
-│  • ProposalAnalysisAgent                        │
-│  • CommunicationAgent                           │
-│  • ErrorMonitorAgent                            │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    JetvisionAgent                            │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              OpenAI Function Calling                 │   │
+│  │  • Conversation handling (via system prompt)        │   │
+│  │  • Tool selection & response generation             │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                           │                                  │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                 Tool Executor                        │   │
+│  │  Routes to MCP servers in mcp-servers/              │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌───────────┐   │   │
+│  │  │ Avinode MCP │  │ Supabase MCP │  │ Gmail MCP │   │   │
+│  │  │ (flights)   │  │ (CRM tables) │  │ (email)   │   │   │
+│  │  └─────────────┘  └─────────────┘  └───────────┘   │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Key Agent Types
+### Agent Capabilities
+
+| Category | Tools | Purpose |
+|----------|-------|---------|
+| **Avinode** | 8 tools | Flight search, trips, quotes, messaging |
+| **Database** | 12 tools | CRM operations (clients, requests, quotes, operators) |
+| **Gmail** | 3 tools | Email sending (proposals, quotes) |
+
+### Usage
 
 ```typescript
-// agents/core/types.ts
-enum AgentType {
-  ORCHESTRATOR = 'orchestrator',           // Analyzes RFP, delegates tasks
-  CLIENT_DATA = 'client_data',             // Fetches client profile
-  FLIGHT_SEARCH = 'flight_search',         // Searches flights via Avinode
-  PROPOSAL_ANALYSIS = 'proposal_analysis', // Scores and ranks quotes
-  COMMUNICATION = 'communication',         // Generates and sends emails
-  ERROR_MONITOR = 'error_monitor',         // Monitors errors, retries
-}
+import { createJetvisionAgent } from '@/agents/jetvision-agent';
+
+const agent = createJetvisionAgent({
+  sessionId: 'session-123',
+  userId: 'user-456',
+  isoAgentId: 'agent-789',
+});
+
+// Connect MCP servers
+agent.setAvinodeMCP(avinodeMCPServer);
+agent.setGmailMCP(gmailMCPServer);
+
+// Execute
+const result = await agent.execute('I need a flight from KTEB to KLAX');
 ```
 
 ---
@@ -506,7 +510,7 @@ From `docs/AGENTS.md`:
 - **Trailing commas**: Required in multi-line objects/arrays
 
 ### Naming Conventions
-- **Classes**: PascalCase (e.g., `OrchestratorAgent`)
+- **Classes**: PascalCase (e.g., `JetvisionAgent`)
 - **Functions**: camelCase (e.g., `fetchClientData`)
 - **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_RETRIES`)
 - **Interfaces**: PascalCase with `I` prefix (e.g., `IAgent`)
@@ -546,14 +550,17 @@ class MyService {
 
 ### Factory Pattern
 
-Used for: Creating agent instances
+Used for: Creating JetvisionAgent instances
 
 ```typescript
-// Register agent type
-factory.registerAgentType(AgentType.ORCHESTRATOR, OrchestratorAgent)
+import { createJetvisionAgent } from '@/agents/jetvision-agent';
 
-// Create agent
-const agent = factory.createAgent({ type: AgentType.ORCHESTRATOR, name: 'Orchestrator' })
+// Create agent with context
+const agent = createJetvisionAgent({
+  sessionId: 'session-123',
+  userId: 'user-456',
+  isoAgentId: 'agent-789',
+});
 ```
 
 ### Observer Pattern (Pub/Sub)
@@ -674,7 +681,7 @@ The Avinode MCP server provides 8 tools:
 
 ### Key Workflow Steps
 
-1. **Trip Creation**: FlightSearchAgent calls `create_trip` MCP tool
+1. **Trip Creation**: JetvisionAgent calls `create_trip` MCP tool
 2. **Deep Link Display**: UI shows "Open in Avinode" button with trip ID
 3. **Manual Selection**: Sales rep opens Avinode, selects operators, sends RFP
 4. **Webhook Events**: Avinode sends quote events to `/api/webhooks/avinode`

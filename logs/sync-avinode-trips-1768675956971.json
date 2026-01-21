@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-01-17T18:52:34.111Z",
+  "dryRun": true,
+  "tripIds": [
+    "A648J4",
+    "DEFA55",
+    "4ND3C3",
+    "A3UUFH",
+    "DB7X2J",
+    "UKXA2M",
+    "QMYRXY",
+    "ZD2ZQ2"
+  ],
+  "tripsProcessed": 8,
+  "tripsCreated": 8,
+  "tripsUpdated": 0,
+  "quotesCreated": 0,
+  "messagesCreated": 0,
+  "errors": [],
+  "details": [
+    {
+      "tripId": "A648J4",
+      "status": "created",
+      "requestId": "dry-run-A648J4",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "DEFA55",
+      "status": "created",
+      "requestId": "dry-run-DEFA55",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "4ND3C3",
+      "status": "created",
+      "requestId": "dry-run-4ND3C3",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "A3UUFH",
+      "status": "created",
+      "requestId": "dry-run-A3UUFH",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "DB7X2J",
+      "status": "created",
+      "requestId": "dry-run-DB7X2J",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "UKXA2M",
+      "status": "created",
+      "requestId": "dry-run-UKXA2M",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "QMYRXY",
+      "status": "created",
+      "requestId": "dry-run-QMYRXY",
+      "quotes": 0,
+      "messages": 0
+    },
+    {
+      "tripId": "ZD2ZQ2",
+      "status": "created",
+      "requestId": "dry-run-ZD2ZQ2",
+      "quotes": 0,
+      "messages": 0
+    }
+  ]
+}

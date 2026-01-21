@@ -19,6 +19,8 @@
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "test:seed": "tsx scripts/test/seed-database.ts",
+    "test:trip-rfqs": "tsx scripts/test-trip-rfqs.ts",
+    "test:trip-rfqs:api": "curl -X GET http://localhost:3000/api/test/trip-rfqs | jq",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",

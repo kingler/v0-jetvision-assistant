@@ -20,6 +20,15 @@ import type {
 import type { UseChatStateReturn } from './use-chat-state';
 
 /**
+ * Session sync data for updating frontend session state
+ */
+export interface SessionSyncData {
+  conversationId?: string;
+  chatSessionId?: string;
+  conversationType?: 'flight_request' | 'general';
+}
+
+/**
  * Options for the streaming chat hook
  */
 export interface UseStreamingChatOptions {
@@ -31,6 +40,8 @@ export interface UseStreamingChatOptions {
   onDeepLinkReceived?: (data: DeepLinkData) => void;
   /** Callback when message is complete */
   onMessageComplete?: (result: SSEParseResult) => void;
+  /** Callback when session sync data is received (conversation_id, chat_session_id) */
+  onSessionSync?: (data: SessionSyncData) => void;
   /** Callback when error occurs */
   onError?: (error: Error) => void;
   /** API endpoint */
@@ -57,6 +68,7 @@ export function useStreamingChat(options: UseStreamingChatOptions) {
     onQuotesReceived,
     onDeepLinkReceived,
     onMessageComplete,
+    onSessionSync,
     onError,
     apiEndpoint = '/api/chat',
   } = options;
@@ -206,18 +218,43 @@ export function useStreamingChat(options: UseStreamingChatOptions) {
                 actions.setWorkflowStatus(WorkflowStatus.ANALYZING_OPTIONS, 4);
               }
 
-              // Extract quotes from tool call results
+              // Extract flights/quotes from tool call results
               if (toolCall.result) {
-                const resultQuotes = (toolCall.result as any).quotes;
-                if (Array.isArray(resultQuotes) && resultQuotes.length > 0) {
-                  extractedQuotes = resultQuotes;
-                  extractedFlights = convertQuotesToRFQFlights(resultQuotes, routeParts, context?.date);
+                const result = toolCall.result as Record<string, unknown>;
+
+                // For get_rfq: use pre-transformed flights directly
+                if (toolName === ToolName.GET_RFQ && result.flights && Array.isArray(result.flights) && result.flights.length > 0) {
+                  extractedFlights = result.flights as RFQFlight[];
+                  if (result.quotes && Array.isArray(result.quotes)) {
+                    extractedQuotes = result.quotes as Quote[];
+                  }
+                  console.log('[useStreamingChat] Extracted flights from get_rfq tool result:', {
+                    flightsCount: extractedFlights.length,
+                  });
+                }
+                // Fallback: Extract quotes and convert to flights
+                else if (result.quotes && Array.isArray(result.quotes) && result.quotes.length > 0) {
+                  extractedQuotes = result.quotes as Quote[];
+                  extractedFlights = convertQuotesToRFQFlights(extractedQuotes, routeParts, context?.date);
                 }
               }
             },
             onDone: (finalResult) => {
-              // Extract quotes from final result
-              if (finalResult.quotes && finalResult.quotes.length > 0) {
+              // Extract flights from rfqData (get_rfq returns already-transformed RFQFlight[])
+              // This is the primary source for Step 3 RFQ display
+              if (finalResult.rfqData?.flights && Array.isArray(finalResult.rfqData.flights) && finalResult.rfqData.flights.length > 0) {
+                extractedFlights = finalResult.rfqData.flights as RFQFlight[];
+                // Also populate quotes from rfqData if available
+                if (finalResult.rfqData.quotes && Array.isArray(finalResult.rfqData.quotes)) {
+                  extractedQuotes = finalResult.rfqData.quotes;
+                }
+                console.log('[useStreamingChat] Extracted flights from rfqData:', {
+                  flightsCount: extractedFlights.length,
+                  quotesCount: extractedQuotes.length,
+                });
+              }
+              // Fallback: Extract quotes from final result and convert to flights
+              else if (finalResult.quotes && finalResult.quotes.length > 0) {
                 extractedQuotes = finalResult.quotes;
                 extractedFlights = convertQuotesToRFQFlights(finalResult.quotes, routeParts, context?.date);
               }
@@ -244,6 +281,17 @@ export function useStreamingChat(options: UseStreamingChatOptions) {
                   departureDate: finalResult.rfpData.departure_date,
                   passengers: finalResult.rfpData.passengers,
                 };
+              }
+
+              // Call session sync callback with conversation/session IDs
+              // This ensures the frontend updates the session with the database ID
+              // so messages can be loaded correctly when the card is clicked
+              if (finalResult.conversationId || finalResult.chatSessionId || finalResult.conversationType) {
+                onSessionSync?.({
+                  conversationId: finalResult.conversationId,
+                  chatSessionId: finalResult.chatSessionId,
+                  conversationType: finalResult.conversationType,
+                });
               }
             },
             onError: (error) => {
@@ -334,6 +382,7 @@ export function useStreamingChat(options: UseStreamingChatOptions) {
       onQuotesReceived,
       onDeepLinkReceived,
       onMessageComplete,
+      onSessionSync,
       onError,
     ]
   );

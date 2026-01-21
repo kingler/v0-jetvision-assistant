@@ -160,7 +160,24 @@ export function DynamicChatHeader({
             {activeChat.date && (
               <>
                 <span className="text-gray-400 dark:text-gray-500">•</span>
-                <span>{activeChat.date}</span>
+                <span>
+                  {(() => {
+                    // Format ISO date (YYYY-MM-DD) or formatted date string for display
+                    try {
+                      const date = new Date(activeChat.date)
+                      if (!isNaN(date.getTime())) {
+                        return date.toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      }
+                    } catch {
+                      // If parsing fails, use as-is (might already be formatted)
+                    }
+                    return activeChat.date
+                  })()}
+                </span>
               </>
             )}
           </div>

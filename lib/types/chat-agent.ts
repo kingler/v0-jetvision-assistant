@@ -3,7 +3,7 @@
  * Type definitions for communication between chat UI and agent orchestrator
  */
 
-import type { AgentResult, AgentContext } from '@/agents/core/types'
+import type { AgentResult, AgentContext } from '@/agents/jetvision-agent/types'
 
 /**
  * Chat Message Types

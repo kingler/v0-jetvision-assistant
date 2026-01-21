@@ -13,7 +13,7 @@ import {
   RFPWorkflowStatus,
   type RFPWorkflowState,
 } from '@/lib/services/rfp-orchestrator-service';
-import type { AgentResult } from '@agents/core/types';
+import type { AgentResult } from '@/agents/jetvision-agent/types';
 
 export interface UseRFPOrchestratorOptions {
   sessionId: string;

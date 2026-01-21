@@ -401,6 +401,7 @@ export async function getOperatorThreads(
 
 /**
  * Get user's ISO agent ID from Clerk user ID
+ * Auto-creates the user in iso_agents table if not found (auto-sync)
  *
  * @param clerkUserId - Clerk user ID
  * @returns ISO agent ID or null
@@ -408,18 +409,89 @@ export async function getOperatorThreads(
 export async function getIsoAgentIdFromClerkUserId(
   clerkUserId: string
 ): Promise<string | null> {
+  // First, try to find existing user
   const { data, error } = await supabaseAdmin
     .from('iso_agents')
     .select('id')
     .eq('clerk_user_id', clerkUserId)
     .single();
 
-  if (error || !data) {
-    console.error('[Message Persistence] Error getting ISO agent ID:', error);
-    return null;
+  if (data) {
+    return data.id;
   }
 
-  return data.id;
+  // User not found - attempt auto-sync from Clerk
+  if (error?.code === 'PGRST116') {
+    // PGRST116 = "No rows returned" - user doesn't exist, try to auto-create
+    console.log('[Message Persistence] User not found in iso_agents, attempting auto-sync for:', clerkUserId);
+
+    try {
+      // Dynamically import Clerk to avoid issues with server components
+      const { clerkClient } = await import('@clerk/nextjs/server');
+      const client = await clerkClient();
+      const clerkUser = await client.users.getUser(clerkUserId);
+
+      if (!clerkUser) {
+        console.error('[Message Persistence] Clerk user not found:', clerkUserId);
+        return null;
+      }
+
+      // Extract user data
+      const primaryEmail = clerkUser.emailAddresses.find(
+        (e) => e.id === clerkUser.primaryEmailAddressId
+      );
+
+      if (!primaryEmail) {
+        console.error('[Message Persistence] Clerk user has no email:', clerkUserId);
+        return null;
+      }
+
+      const email = primaryEmail.emailAddress;
+      const fullName = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || email;
+
+      // Get role from metadata or default to iso_agent
+      const metadata = clerkUser.publicMetadata as Record<string, unknown>;
+      const proposedRole = metadata?.role;
+      const validRoles = ['iso_agent', 'admin', 'operator'] as const;
+      let role: 'iso_agent' | 'admin' | 'operator' = 'iso_agent';
+      if (typeof proposedRole === 'string' && validRoles.includes(proposedRole as typeof validRoles[number])) {
+        role = proposedRole as typeof validRoles[number];
+      }
+
+      // Create the user in iso_agents
+      const { data: newUser, error: insertError } = await supabaseAdmin
+        .from('iso_agents')
+        .insert({
+          clerk_user_id: clerkUserId,
+          email,
+          full_name: fullName,
+          role,
+          is_active: true,
+        })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error('[Message Persistence] Error auto-creating user:', insertError);
+        return null;
+      }
+
+      console.log('[Message Persistence] ✅ Auto-synced user from Clerk:', {
+        clerkUserId,
+        email,
+        isoAgentId: newUser.id,
+      });
+
+      return newUser.id;
+    } catch (syncError) {
+      console.error('[Message Persistence] Error during auto-sync:', syncError);
+      return null;
+    }
+  }
+
+  // Some other error occurred
+  console.error('[Message Persistence] Error getting ISO agent ID:', error);
+  return null;
 }
 
 /**

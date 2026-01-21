@@ -246,6 +246,32 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
     return `${Math.floor(diffMinutes / 1440)}d ago`
   }
 
+  /**
+   * Generate a fallback title when generatedName is missing
+   * Uses available session data to create a meaningful title
+   */
+  const getFallbackTitle = (): string => {
+    // If we have a valid route, use it
+    if (session.route && session.route !== 'Select route' && session.route.trim().length > 0) {
+      return session.route;
+    }
+
+    // If we have a valid date, use it with passenger count
+    if (session.date && session.date !== 'Select date' && session.date.trim().length > 0) {
+      return `${session.passengers || 1} passenger${(session.passengers || 1) !== 1 ? 's' : ''} • ${session.date}`;
+    }
+
+    // If we have messages, try to extract a title from the first user message
+    const firstUserMessage = session.messages?.find(msg => msg.type === 'user');
+    if (firstUserMessage?.content) {
+      const preview = firstUserMessage.content.substring(0, 40).trim();
+      return preview.length < firstUserMessage.content.length ? `${preview}...` : preview;
+    }
+
+    // Last resort: generic title
+    return 'New Flight Request';
+  }
+
   return (
     <Card
       className={cn(
@@ -271,22 +297,37 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
               </div>
             ) : (
               <h3 className="font-medium text-xs sm:text-sm text-gray-900 dark:text-white truncate min-w-0 flex-1">
-                {session.generatedName || 'Untitled #1'}
+                {session.generatedName || getFallbackTitle()}
               </h3>
             )}
           </div>
-          {/* Status Badge - only show when tripId exists */}
-          {session.tripId && (
+          {/* Status Badge - show when we have tripId or route data */}
+          {(session.tripId || (session.route && session.route !== 'Select route')) && (
             <div className="shrink-0 ml-2 max-w-fit">{getStatusBadge()}</div>
           )}
         </div>
 
-        {/* Route and passenger info - only show when tripId exists */}
-        {session.tripId && (
+        {/* Route and passenger info - show if we have route data OR tripId */}
+        {(session.tripId || (session.route && session.route !== 'Select route')) && (
           <div className="space-y-1 mb-2 min-w-0 w-full overflow-hidden">
             <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{session.route}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-              {session.passengers} passengers • {session.date}
+              {session.passengers} passenger{session.passengers !== 1 ? 's' : ''} • {(() => {
+                // Format ISO date (YYYY-MM-DD) or formatted date string for display
+                try {
+                  const date = new Date(session.date)
+                  if (!isNaN(date.getTime())) {
+                    return date.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
+                  }
+                } catch {
+                  // If parsing fails, use as-is (might already be formatted)
+                }
+                return session.date
+              })()}
             </p>
             {session.aircraft && session.operator && (
               <p className="text-xs text-green-600 dark:text-green-400 truncate">
@@ -296,21 +337,21 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
           </div>
         )}
 
-        {/* Workflow Status - only show when tripId exists */}
-        {session.tripId && (
+        {/* Workflow Status - show when we have tripId or route data */}
+        {(session.tripId || (session.route && session.route !== 'Select route')) && (
           <div className="flex items-center justify-between min-w-0 w-full">
             <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1 overflow-hidden">
               <span className="text-xs text-gray-600 dark:text-gray-300 truncate">
                 {workflowSteps[session.currentStep as keyof typeof workflowSteps]?.title}
               </span>
             </div>
-            {/* Timestamp - only show when tripId exists */}
+            {/* Timestamp */}
             <span className="text-xs text-gray-400 shrink-0 ml-2">{getLastActivity()}</span>
           </div>
         )}
 
-        {/* Progress Bar - only show when tripId exists */}
-        {session.tripId && (
+        {/* Progress Bar - show when we have tripId or route data */}
+        {(session.tripId || (session.route && session.route !== 'Select route')) && (
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 mt-2">
             <div
               className={cn(
@@ -327,7 +368,7 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
         {/* Footer with RFQ badge and actions menu */}
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
           {/* RFQ Badge with message icon and count (left side) */}
-          {session.tripId && (
+          {(session.tripId || (session.rfqFlights && session.rfqFlights.length > 0)) && (
             <div className="relative inline-flex items-center">
               <Badge
                 variant="outline"
@@ -362,8 +403,8 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              {/* Cancel option - only show if tripId exists (has active RFQ) */}
-              {session.tripId && (
+              {/* Cancel option - show if tripId exists or has active RFQ */}
+              {(session.tripId || (session.rfqFlights && session.rfqFlights.length > 0)) && (
                 <>
                   <DropdownMenuItem
                     onClick={handleCancelClick}

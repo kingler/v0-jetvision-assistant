@@ -171,6 +171,52 @@ interface ChatSidebarProps {
 }
 
 export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewChat, onDeleteChat, onCancelChat, onArchiveChat }: ChatSidebarProps) {
+  /**
+   * Filter out empty/invalid flight request sessions
+   * A session is considered empty if it has:
+   * - No tripId AND
+   * - No meaningful route (placeholder "Select route" or empty) AND
+   * - No meaningful date (placeholder "Select date" or empty) AND
+   * - No messages (or only empty messages)
+   * 
+   * This prevents "Untitled #1" cards from appearing in the sidebar
+   * for sessions that were never properly initialized with flight data.
+   */
+  const isValidSession = (session: ChatSession): boolean => {
+    // General conversations are always valid (they don't need flight data)
+    if (session.conversationType === 'general') {
+      return true;
+    }
+
+    // Flight request sessions need meaningful data to be displayed
+    // If session has tripId, it's valid (even if route/date are placeholders)
+    if (session.tripId) {
+      return true;
+    }
+
+    // Check if route is meaningful (not placeholder or empty)
+    const hasValidRoute = session.route && 
+      session.route !== 'Select route' && 
+      session.route.trim().length > 0;
+
+    // Check if date is meaningful (not placeholder or empty)
+    const hasValidDate = session.date && 
+      session.date !== 'Select date' && 
+      session.date.trim().length > 0;
+
+    // Check if there are meaningful messages
+    const hasMessages = session.messages && 
+      session.messages.length > 0 && 
+      session.messages.some(msg => msg.content && msg.content.trim().length > 0);
+
+    // Session is valid if it has either:
+    // 1. Valid route AND valid date, OR
+    // 2. Has messages (user has started a conversation)
+    return (hasValidRoute && hasValidDate) || hasMessages;
+  };
+
+  // Filter out invalid/empty sessions before rendering
+  const validSessions = chatSessions.filter(isValidSession);
 
   return (
     <div className="w-80 sm:w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full overflow-x-hidden">
@@ -184,7 +230,7 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
           </Button>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          {chatSessions.length} active flight request{chatSessions.length !== 1 ? "s" : ""}
+          {validSessions.length} active flight request{validSessions.length !== 1 ? "s" : ""}
         </p>
       </div>
 
@@ -192,7 +238,7 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
       <div className="relative flex-1 min-h-0 w-full overflow-x-hidden">
         <ScrollArea className="h-full w-full overflow-x-hidden">
           <div className="p-1 sm:p-2 space-y-2 flex flex-col items-center">
-            {chatSessions.map((session) => (
+            {validSessions.map((session) => (
               // Render GeneralChatCard for general conversations, FlightRequestCard for flight requests
               session.conversationType === 'general' ? (
                 <GeneralChatCard
@@ -223,15 +269,15 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
       <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-800">
         <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+            <div className="w-2 h-2 bg-green-500 rounded-full shrink-0"></div>
             <span>Proposal Ready</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-cyan-500 rounded-full flex-shrink-0"></div>
+            <div className="w-2 h-2 bg-cyan-500 rounded-full shrink-0"></div>
             <span>Processing</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-gray-400 rounded-full flex-shrink-0"></div>
+            <div className="w-2 h-2 bg-gray-400 rounded-full shrink-0"></div>
             <span>Pending</span>
           </div>
         </div>

@@ -554,7 +554,7 @@ export function FlightSearchProgress({
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3 w-3 text-muted-foreground" />
                       <span className="text-lg font-bold text-primary">
-                        {flightRequest.departureAirport?.icao?.toUpperCase() || ''}
+                        {flightRequest.departureAirport?.icao?.toUpperCase() || 'N/A'}
                       </span>
                     </div>
                     {(() => {
@@ -585,7 +585,7 @@ export function FlightSearchProgress({
                   <div className="flex-1 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <span className="text-lg font-bold text-primary">
-                        {flightRequest.arrivalAirport?.icao?.toUpperCase() || ''}
+                        {flightRequest.arrivalAirport?.icao?.toUpperCase() || 'N/A'}
                       </span>
                       <MapPin className="h-3 w-3 text-muted-foreground" />
                     </div>
@@ -624,17 +624,6 @@ export function FlightSearchProgress({
                       <p className="font-medium text-xs text-gray-900 dark:text-gray-100">{flightRequest.passengers}</p>
                     </div>
                   </div>
-                  {flightRequest.requestId && (
-                    <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2 col-span-2 sm:col-span-1">
-                      <span className="text-muted-foreground font-bold text-xs">#</span>
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Request ID</p>
-                        <p className="font-medium text-xs font-mono truncate text-gray-900 dark:text-gray-100">
-                          {flightRequest.requestId}
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Optional Details */}
@@ -659,7 +648,8 @@ export function FlightSearchProgress({
           )}
 
           {/* Step 2: Select Flight & RFQ */}
-          {currentStep >= 2 && deepLink && (
+          {/* Show Step 2 if we're at step 2 or beyond, and we have either a deepLink or tripId (indicates deep link was created) */}
+          {currentStep >= 2 && (deepLink || tripId) && (
             <div
               data-testid="step-2-content"
               className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
@@ -687,9 +677,11 @@ export function FlightSearchProgress({
               </div>
 
               {/* Deep Link Actions - Reduced button width */}
+              {/* Always show buttons when Step 2 is displayed - deepLink should be available from create trip API */}
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   onClick={handleDeepLinkClick}
+                  disabled={!deepLink}
                   className="sm:w-auto"
                   style={{
                     backgroundClip: 'unset',
@@ -702,6 +694,7 @@ export function FlightSearchProgress({
                 <Button
                   variant="outline"
                   onClick={handleCopyLink}
+                  disabled={!deepLink}
                   className="sm:w-auto text-gray-900 dark:text-gray-100"
                 >
                   {copied ? (
@@ -721,10 +714,19 @@ export function FlightSearchProgress({
           )}
 
           {/* Step 3: Enter Trip ID & View RFQ Flights */}
+          {/* FIXED: Added explicit display and width to prevent layout cutoff when RFQs load */}
           {currentStep >= 3 && (
             <div
               data-testid="step-3-content"
               className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 mb-6"
+              style={{ 
+                minHeight: 'auto',
+                height: 'auto',
+                overflow: 'visible',
+                display: 'block',
+                width: '100%',
+                position: 'relative'
+              }}
             >
               {/* Fixed header section - not scrollable */}
               <div className="p-6 pb-4 border-b border-gray-200 dark:border-gray-700">
@@ -809,12 +811,52 @@ export function FlightSearchProgress({
                 )}
               </div>
 
-              {/* Content area - RFQ Flights List without height constraints to show all flights at once */}
-              <div>
-                <div className="p-6 pt-4">
+              {/* Content area - RFQ Flights List with proper background protection */}
+              {/* 
+                FIXED: Added background to prevent collapse when RFQs load.
+                Removed fixed min-height to allow full expansion and prevent cut-off.
+                Without proper background, the container can collapse to 0 height, showing black background.
+                Added explicit height auto and overflow visible to ensure content expands naturally and isn't clipped during scroll.
+              */}
+              <div 
+                className="bg-white dark:bg-gray-900" 
+                style={{ 
+                  height: 'auto', 
+                  minHeight: 'auto',
+                  overflow: 'visible',
+                  display: 'block',
+                  width: '100%'
+                }}
+              >
+                <div 
+                  className="p-6 pt-4" 
+                  style={{ 
+                    height: 'auto', 
+                    minHeight: '100%',
+                    overflow: 'visible',
+                    display: 'block'
+                  }}
+                >
+                  {/* Show loading state when fetching RFQs and no flights yet */}
+                  {isRfqFlightsLoading && !rfqFlights.length && !tripIdSubmitted && (
+                    <div className="flex flex-col items-center justify-center py-12" style={{ minHeight: '200px' }}>
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                      <p className="text-sm text-muted-foreground">Loading available flights...</p>
+                    </div>
+                  )}
+
                   {/* Show RFQ Flights List when Trip ID is submitted OR we have flights to display */}
-                  {(tripIdSubmitted || rfqFlights.length > 0) && (
-                    <div className="space-y-6">
+                  {/* FIXED: Always render if we have flights OR if trip ID is submitted (even during loading) */}
+                  {(tripIdSubmitted || rfqFlights.length > 0 || isRfqFlightsLoading) && (
+                    <div 
+                      className="space-y-6" 
+                      style={{ 
+                        height: 'auto', 
+                        minHeight: 'auto',
+                        overflow: 'visible',
+                        display: 'block'
+                      }}
+                    >
                       {/* Success message - Only show when Trip ID is submitted */}
                       {tripIdSubmitted && (
                         <div className="flex items-start gap-3 p-4 rounded-md bg-green-50 dark:bg-green-950/30">
@@ -823,11 +865,7 @@ export function FlightSearchProgress({
                             <p className="font-medium text-green-700 dark:text-green-300 text-sm mb-2">
                               Trip ID verified successfully!
                             </p>
-                            {isRfqFlightsLoading ? (
-                              <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
-                                Loading flight quotes...
-                              </p>
-                            ) : rfqFlights.length > 0 ? (
+                            {rfqFlights.length > 0 ? (
                               <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
                                 {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Select the flights you want to include in your proposal, then click "Create Proposal" to generate and send the PDF to your customer.
                               </p>
@@ -856,7 +894,9 @@ export function FlightSearchProgress({
                       )}
 
                       {/* RFQ Flights List - Render when Trip ID is submitted OR when we have flights to display */}
-                      {(tripIdSubmitted || (rfqFlights && rfqFlights.length > 0)) && (
+                      {/* Always render the list if we have flights, even if loading more */}
+                      {/* FIXED: Ensure list always renders when conditions are met, even during loading state */}
+                      {rfqFlights.length > 0 || tripIdSubmitted ? (
                         <RFQFlightsList
                           key={`rfq-flights-${rfqsLastFetchedAt || 'initial'}-${rfqFlights.length}`}
                           flights={(rfqFlights || [])
@@ -879,7 +919,26 @@ export function FlightSearchProgress({
                           onBookFlight={onBookFlight}
                           onGenerateProposal={onGenerateProposal}
                         />
+                      ) : (
+                        /* Show loading state inside the content area if we're loading but have no flights yet */
+                        isRfqFlightsLoading && (
+                          <div className="flex flex-col items-center justify-center py-12" style={{ minHeight: '200px' }}>
+                            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                            <p className="text-sm text-muted-foreground">Loading available flights...</p>
+                          </div>
+                        )
                       )}
+                    </div>
+                  )}
+
+                  {/* Show empty state when no RFQs and not loading */}
+                  {!isRfqFlightsLoading && !tripIdSubmitted && rfqFlights.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">No RFQs available yet</h3>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        Follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.
+                      </p>
                     </div>
                   )}
                 </div>

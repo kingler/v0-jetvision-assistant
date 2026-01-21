@@ -279,47 +279,78 @@ export class AvinodeClient {
     };
 
     try {
-      // PRIMARY PATTERN: For Trip IDs, use GET /trips/{tripId} first (per test script)
-      // Correct pattern: GET /trips/{tripId} -> extract data.rfqs[]
+      // PRIMARY PATTERN: For alphanumeric Trip IDs, use GET /rfqs/{tripId} directly
+      // This returns full RFQ objects with segments and sellerLift data
+      // Individual GET /rfqs/{numericId} calls often return NOT_FOUND
       if (isTripId || (!isRfqId && /^[A-Z0-9]+$/.test(apiId))) {
-        // Alphanumeric IDs (like B22E7Z) or atrip-* are Trip IDs - use /trips endpoint
-        this.logger.debug('Using GET /trips/{tripId} pattern for Trip ID', { id, apiId });
-        
+        // Alphanumeric IDs (like B22E7Z, T68XYN) are Trip IDs
+        this.logger.debug('Using GET /rfqs/{tripId} pattern for Trip ID', { id, apiId });
+
         try {
-          const tripResponse = await this.client.get(`/trips/${apiId}`);
-          const tripPayload = tripResponse.data?.data ?? tripResponse.data;
-          const tripRfqs = tripPayload?.rfqs || tripPayload?.data?.rfqs || tripPayload?.data?.data?.rfqs;
-
-          this.logger.debug('Extracted RFQs from trip response', {
-            id,
-            hasData: !!tripResponse.data?.data,
-            hasPayloadRfqs: !!tripPayload?.rfqs,
-            rfqsCount: Array.isArray(tripRfqs) ? tripRfqs.length : tripRfqs ? 1 : 0,
-          });
-
-          if (Array.isArray(tripRfqs)) {
-            return tripRfqs;
-          } else if (tripRfqs) {
-            // If rfqs is not an array but exists, wrap it
-            return [tripRfqs];
-          } else {
-            // No RFQs found in trip response - return empty array
-            this.logger.warn('Trip response has no rfqs array', { id, apiId });
-            return [];
-          }
-        } catch (tripError: any) {
-          this.logger.warn('GET /trips/{tripId} failed, attempting /rfqs fallback', {
-            id,
-            apiId,
-            error: tripError?.message,
-            status: tripError?.response?.status,
-          });
-          
-          // Fallback to /rfqs/{tripId} if /trips fails (for API compatibility)
+          // Use GET /rfqs/{tripId} which returns full RFQ objects directly
           const response = await this.client.get(`/rfqs/${apiId}`, {
             params: defaultParams,
           });
-          return this.extractRfqsFromResponse(response.data);
+
+          const rfqData = response.data?.data ?? response.data;
+
+          // Handle array response (multiple RFQs for trip)
+          if (Array.isArray(rfqData)) {
+            this.logger.info('Fetched RFQs via /rfqs/{tripId}', {
+              tripId: apiId,
+              rfqCount: rfqData.length,
+              hasSegments: rfqData[0]?.segments?.length > 0,
+              hasSellerLift: Array.isArray(rfqData[0]?.sellerLift),
+            });
+            return rfqData;
+          }
+
+          // Handle single RFQ response
+          if (rfqData && typeof rfqData === 'object') {
+            this.logger.info('Fetched single RFQ via /rfqs/{tripId}', {
+              tripId: apiId,
+              hasSegments: rfqData.segments?.length > 0,
+              hasSellerLift: Array.isArray(rfqData.sellerLift),
+            });
+            return [rfqData];
+          }
+
+          this.logger.warn('Unexpected response from /rfqs/{tripId}', { tripId: apiId });
+          return [];
+        } catch (rfqError: any) {
+          // Fallback to /trips/{tripId} if /rfqs fails
+          this.logger.warn('GET /rfqs/{tripId} failed, attempting /trips fallback', {
+            id,
+            apiId,
+            error: rfqError?.message,
+            status: rfqError?.response?.status,
+          });
+
+          try {
+            const tripResponse = await this.client.get(`/trips/${apiId}`);
+            const tripPayload = tripResponse.data?.data ?? tripResponse.data;
+            const tripRfqRefs = tripPayload?.rfqs || [];
+
+            if (!Array.isArray(tripRfqRefs) || tripRfqRefs.length === 0) {
+              this.logger.warn('Trip response has no rfqs array', { id, apiId });
+              return [];
+            }
+
+            // Return the embedded RFQ data from trip response (contains segments, sellerLift, etc.)
+            this.logger.info('Using embedded RFQ data from trip response', {
+              tripId: apiId,
+              rfqCount: tripRfqRefs.length,
+            });
+            return tripRfqRefs;
+          } catch (tripError: any) {
+            this.logger.error('Both /rfqs/{tripId} and /trips/{tripId} failed', {
+              id,
+              apiId,
+              rfqError: rfqError?.message,
+              tripError: tripError?.message,
+            });
+            throw this.sanitizeError(rfqError);
+          }
         }
       } else {
         // For RFQ IDs (arfq-* or single RFQ lookups), use /rfqs/{id} endpoint
@@ -334,17 +365,24 @@ export class AvinodeClient {
       }
     } catch (error: any) {
       const status = error?.response?.status;
-      
+
       // Legacy fallback: if /rfqs fails with 404, try /trips (for backward compatibility)
       if ((status === 404 || status === 400) && !isTripId) {
         try {
           this.logger.debug('GET /rfqs/{id} failed, attempting /trips fallback', { id, apiId });
           const tripResponse = await this.client.get(`/trips/${apiId}`);
           const tripPayload = tripResponse.data?.data ?? tripResponse.data;
-          const tripRfqs = tripPayload?.rfqs || tripPayload?.data?.rfqs;
+          const tripRfqRefs = tripPayload?.rfqs || tripPayload?.data?.rfqs;
 
-          if (Array.isArray(tripRfqs)) {
-            return tripRfqs;
+          if (Array.isArray(tripRfqRefs) && tripRfqRefs.length > 0) {
+            // Return embedded RFQ data directly (contains segments, sellerLift, etc.)
+            // Individual RFQ fetches often fail with NOT_FOUND
+            this.logger.info('Using embedded RFQ data from trip fallback', {
+              id,
+              apiId,
+              rfqCount: tripRfqRefs.length,
+            });
+            return tripRfqRefs;
           }
         } catch (tripError) {
           // If fallback also fails, throw the original error
@@ -966,7 +1004,12 @@ export class AvinodeClient {
   /**
    * Extract aircraft-related data from a quote
    * Provides default values for missing aircraft information
-   * 
+   *
+   * Checks multiple sources:
+   * - quote.aircraft (standard quote format)
+   * - quote.lift (lift data)
+   * - quote.sellerLiftData (from RFQ level, enriched by transformToRFQFlights)
+   *
    * @param quote - The quote object from Avinode API
    * @returns Object containing aircraft type, model, tail number, year, and capacity
    */
@@ -978,19 +1021,42 @@ export class AvinodeClient {
     passengerCapacity: number;
     tailPhotoUrl?: string;
   } {
+    // Check sellerLiftData (from RFQ level enrichment)
+    const sellerLift = quote.sellerLiftData || {};
+
     return {
-      aircraftType: quote.aircraft?.type || quote.lift?.aircraftType || 'Unknown',
-      aircraftModel: quote.aircraft?.model || quote.lift?.aircraftSuperType || 'Unknown',
-      tailNumber: quote.aircraft?.tailNumber || quote.lift?.aircraftTail,
-      yearOfManufacture: quote.aircraft?.yearOfManufacture,
-      passengerCapacity: quote.aircraft?.capacity || quote.lift?.maxPax || 0,
+      aircraftType:
+        quote.aircraft?.type ||
+        quote.lift?.aircraftType ||
+        sellerLift.aircraftType ||
+        sellerLift.liftType ||
+        'Unknown',
+      aircraftModel:
+        quote.aircraft?.model ||
+        quote.lift?.aircraftSuperType ||
+        sellerLift.aircraftSuperType ||
+        sellerLift.aircraftModel ||
+        'Unknown',
+      tailNumber:
+        quote.aircraft?.tailNumber ||
+        quote.lift?.aircraftTail ||
+        sellerLift.aircraftTail,
+      yearOfManufacture: quote.aircraft?.yearOfManufacture || sellerLift.yearOfManufacture,
+      passengerCapacity:
+        quote.aircraft?.capacity ||
+        quote.lift?.maxPax ||
+        sellerLift.maxPax ||
+        sellerLift.paxCapacity ||
+        0,
       tailPhotoUrl:
         quote.aircraft?.tail_photo_url ||
         quote.aircraft?.tailPhotoUrl ||
         quote.tailPhotos?.[0]?.url ||
         quote.typePhotos?.[0]?.url ||
         quote.lift?.tailPhotos?.[0]?.url ||
-        quote.lift?.typePhotos?.[0]?.url,
+        quote.lift?.typePhotos?.[0]?.url ||
+        sellerLift.tailPhotos?.[0]?.url ||
+        sellerLift.typePhotos?.[0]?.url,
     };
   }
 
@@ -1065,6 +1131,7 @@ export class AvinodeClient {
     departureTime?: string;
     flightMinutes?: number;
   } {
+    // Check for route object first (standard quote format)
     if (quote?.route?.departure?.airport?.icao && quote?.route?.arrival?.airport?.icao) {
       return {
         departureAirport: quote.route.departure.airport,
@@ -1073,6 +1140,7 @@ export class AvinodeClient {
       };
     }
 
+    // Check for segments array (from RFQ level or quote level)
     const segments = Array.isArray(quote?.segments) ? quote.segments : [];
     if (segments.length === 0) {
       return {};
@@ -1088,9 +1156,25 @@ export class AvinodeClient {
       };
     };
 
+    // Extract airport info - check both startAirportDetails and startAirport patterns
+    const departureAirport = normalizeAirport(segment.startAirportDetails || segment.startAirport);
+    const arrivalAirport = normalizeAirport(segment.endAirportDetails || segment.endAirport);
+
+    // Log for debugging if airports are missing
+    if (!departureAirport?.icao || !arrivalAirport?.icao) {
+      this.logger.debug('extractQuoteRoute: segment airport data', {
+        hasStartAirportDetails: !!segment.startAirportDetails,
+        hasStartAirport: !!segment.startAirport,
+        hasEndAirportDetails: !!segment.endAirportDetails,
+        hasEndAirport: !!segment.endAirport,
+        startDetails: segment.startAirportDetails,
+        startAirport: segment.startAirport,
+      });
+    }
+
     return {
-      departureAirport: normalizeAirport(segment.startAirportDetails || segment.startAirport),
-      arrivalAirport: normalizeAirport(segment.endAirportDetails || segment.endAirport),
+      departureAirport,
+      arrivalAirport,
       departureDate:
         segment.dateTime?.date ||
         segment.departureDateTime?.dateTimeLocal?.split('T')[0] ||
@@ -1105,32 +1189,82 @@ export class AvinodeClient {
   /**
    * Transform Avinode RFQ data into RFQFlight array format
    * Assembles flight data from quotes/requests, delegating extraction to helper methods
-   * 
+   *
+   * Each RFQ from Avinode represents one operator's response, containing:
+   * - sellerCompany: operator information
+   * - sellerLift[]: aircraft/lift options with links.quotes[] for quote references
+   * - segments[]: route information
+   *
    * @param rfqData - The RFQ data object from Avinode API
    * @returns Array of RFQFlight objects ready for UI display
    */
   private transformToRFQFlights(rfqData: any): RFQFlight[] {
-    // Log available quote sources for debugging
+    // IMPORTANT: Avinode API structure for RFQs:
+    // - sellerLift[].links.quotes[] contains quote references
+    // - sellerCompany contains operator info
+    // - segments[] contains route info
+
+    // Extract quote sources from various possible locations
     const quotesFromQuotes = Array.isArray(rfqData.quotes) ? rfqData.quotes : [];
     const quotesFromRequests = Array.isArray(rfqData.requests) ? rfqData.requests : [];
     const quotesFromResponses = Array.isArray(rfqData.responses) ? rfqData.responses : [];
-    
-    // Combine ALL quotes from ALL possible arrays to ensure we don't miss any
-    // This handles cases where quotes might be split across different fields
-    // Use a Set to deduplicate by quote ID if the same quote appears in multiple arrays
+
+    // Extract from sellerLift - this is where Avinode puts the operator's response data
+    const sellerLifts = Array.isArray(rfqData.sellerLift) ? rfqData.sellerLift : [];
+    const quotesFromSellerLift: any[] = [];
+
+    for (const lift of sellerLifts) {
+      // sellerLift contains aircraft/lift info and may have links.quotes references
+      // Create a quote-like object from the lift data + sellerCompany
+      const quoteRefs = lift?.links?.quotes || lift?.quotes || [];
+
+      if (quoteRefs.length > 0) {
+        // There are quote references - add them with lift and company context
+        for (const quoteRef of quoteRefs) {
+          quotesFromSellerLift.push({
+            ...quoteRef,
+            sellerLiftData: lift,
+            sellerCompany: rfqData.sellerCompany,
+            segments: rfqData.segments,
+          });
+        }
+      } else {
+        // No quote references, but we still have operator response data
+        // Create a "pending" quote entry from the lift data
+        quotesFromSellerLift.push({
+          id: lift.id || `lift-${sellerLifts.indexOf(lift)}`,
+          sellerLiftData: lift,
+          sellerCompany: rfqData.sellerCompany,
+          segments: rfqData.segments,
+          status: 'unanswered', // No quote submitted yet
+        });
+      }
+    }
+
+    // If no lifts but we have sellerCompany, create a placeholder for this operator
+    if (sellerLifts.length === 0 && rfqData.sellerCompany) {
+      quotesFromSellerLift.push({
+        id: rfqData.id || `rfq-pending`,
+        sellerCompany: rfqData.sellerCompany,
+        segments: rfqData.segments,
+        status: 'unanswered',
+      });
+    }
+
+    // Combine ALL quotes from ALL possible sources
     const allQuotesMap = new Map<string, any>();
-    
+
     // Add quotes from all sources, using quote ID as key to prevent duplicates
-    [...quotesFromQuotes, ...quotesFromRequests, ...quotesFromResponses].forEach((quote: any) => {
+    [...quotesFromQuotes, ...quotesFromRequests, ...quotesFromResponses, ...quotesFromSellerLift].forEach((quote: any) => {
       const quoteId = quote.quote?.id || quote.id;
       if (quoteId && !allQuotesMap.has(quoteId)) {
         allQuotesMap.set(quoteId, quote);
       } else if (!quoteId) {
-        // If no ID, add with index-based key to preserve it (might be duplicate but better than losing data)
+        // If no ID, add with index-based key to preserve it
         allQuotesMap.set(`no-id-${allQuotesMap.size}`, quote);
       }
     });
-    
+
     // Convert map back to array
     const quotes = Array.from(allQuotesMap.values());
 
@@ -1182,6 +1316,24 @@ export class AvinodeClient {
         throw new Error(`Missing required airport data for quote ${quote.quote?.id || quote.id || index}`);
       }
 
+      // Extract operator info - check sellerCompany first (from RFQ level), then quote level
+      const sellerCompany = quote.sellerCompany;
+      const operatorName =
+        sellerCompany?.displayName ||
+        quote.seller?.companyName ||
+        quote.operator?.name ||
+        quote.operator_name ||
+        'Unknown Operator';
+
+      const operatorEmail =
+        sellerCompany?.contactInfo?.emails?.[0] ||
+        quote.seller?.email ||
+        quote.operator?.email;
+
+      // Extract deep link from actions if available
+      const viewInAvinodeHref = quote.actions?.viewInAvinode?.href ||
+        quote.sellerLiftData?.actions?.viewInAvinode?.href;
+
       // Assemble the RFQFlight object with extracted data from API response only
       return {
         id: `flight-${quote.quote?.id || quote.id || index + 1}`,
@@ -1203,23 +1355,16 @@ export class AvinodeClient {
         ),
         ...aircraft,
         aircraftImageUrl: undefined,
-        operatorName:
-          quote.seller?.companyName ||
-          quote.sellerCompany?.displayName ||
-          quote.operator?.name ||
-          quote.operator_name ||
-          'Unknown Operator',
+        operatorName,
         operatorRating: quote.seller?.rating || quote.operator?.rating,
-        operatorEmail:
-          quote.seller?.email ||
-          quote.operator?.email ||
-          quote.sellerCompany?.contactInfo?.emails?.[0],
+        operatorEmail,
         ...pricing,
         amenities,
         rfqStatus,
         lastUpdated: quote.updated_at || quote.received_at || quote.createdOn || new Date().toISOString(),
         responseTimeMinutes: quote.response_time_minutes,
         isSelected: false,
+        avinodeDeepLink: viewInAvinodeHref,
       };
     });
   }

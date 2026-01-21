@@ -16,7 +16,7 @@ import React from "react"
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Loader2, Plane } from "lucide-react"
+import { Send, Loader2, Plane, Eye } from "lucide-react"
 import type { ChatSession } from "./chat-sidebar"
 import { createSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -62,6 +62,9 @@ import {
   type SSEParseResult,
 } from "@/lib/chat"
 
+// Flight request parser utility
+import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
+
 /**
  * Convert markdown-formatted text to plain text
  */
@@ -99,9 +102,23 @@ export function ChatInterface({
   const [streamingContent, setStreamingContent] = useState("")
   const [streamError, setStreamError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const workflowRef = useRef<HTMLDivElement>(null)
   const latestMessagesRef = useRef(activeChat.messages)
   const abortControllerRef = useRef<AbortController | null>(null)
-  const hasCalledInitialApiRef = useRef(false)
+  // Track which chat ID we've already made the initial API call for
+  // This prevents duplicate calls when the same chat is re-rendered or in React Strict Mode
+  const initialApiCallChatIdRef = useRef<string | null>(null)
+  // Track the latest streaming content to avoid stale closure issues
+  // State updates in React are batched, so the state value might be stale in callbacks
+  const streamingContentRef = useRef("")
+  // Track which chat IDs we've already auto-loaded RFQs for
+  // This prevents duplicate API calls when switching between chats that have tripIds
+  const autoLoadedRfqsForChatIdRef = useRef<string | null>(null)
+  // CRITICAL: Track processed RFQ message content hashes to prevent duplicates across concurrent calls
+  // This ref persists across renders and prevents duplicates even when multiple handleSSEResult calls happen rapidly
+  const processedRfqMessageHashesRef = useRef<Set<string>>(new Set())
+  // Track which chat ID we're tracking hashes for (reset hashes when chat changes)
+  const processedRfqMessageHashesChatIdRef = useRef<string | null>(null)
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -136,6 +153,31 @@ export function ChatInterface({
   // Parse route to get airport info using extracted utility
   const routeParts = extractRouteParts(activeChat.route)
 
+  /**
+   * Determine if FlightSearchProgress has already been rendered after the first user message.
+   * This prevents duplicate rendering when showing it after all messages for loaded sessions.
+   * 
+   * Per UX requirements: FlightSearchProgress should ALWAYS be visible for flight request conversations.
+   * This check is only used to prevent duplicate rendering in the messages list.
+   */
+  const hasFlightSearchProgressAfterFirstMessage = useMemo(() => {
+    // If no messages, definitely not rendered after first message
+    if (!activeChat.messages || activeChat.messages.length === 0) return false
+    
+    // Check if first message is user message and has workflow step
+    const firstMessage = activeChat.messages[0]
+    const hasWorkflowStep = activeChat.currentStep && activeChat.currentStep >= 1
+    
+    // Also check if this is explicitly a flight request (not general chat)
+    const isFlightRequest = activeChat.conversationType !== 'general' || 
+                           !!activeChat.route || 
+                           !!activeChat.tripId || 
+                           !!activeChat.deepLink ||
+                           !!activeChat.requestId
+    
+    return firstMessage.type === 'user' && hasWorkflowStep && isFlightRequest
+  }, [activeChat.messages, activeChat.currentStep, activeChat.conversationType, activeChat.route, activeChat.tripId, activeChat.deepLink, activeChat.requestId])
+
   // Convert quotes from activeChat to RFQ flights format
   const rfqFlights: RFQFlight[] = useMemo(() => {
     // If activeChat already has rfqFlights, use them
@@ -163,16 +205,32 @@ export function ChatInterface({
   // Scroll to bottom when messages change
   useEffect(() => {
     latestMessagesRef.current = activeChat.messages
+    // CRITICAL: Reset processed RFQ message hashes when switching chats to allow RFQ messages in new chats
+    if (processedRfqMessageHashesChatIdRef.current !== activeChat.id) {
+      processedRfqMessageHashesRef.current.clear()
+      processedRfqMessageHashesChatIdRef.current = activeChat.id
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [activeChat.messages])
+  }, [activeChat.messages, activeChat.id])
 
   // Handle initial API call for new chats
+  // Track by chat ID to prevent duplicate calls when switching between chats or in React Strict Mode
   useEffect(() => {
-    if (activeChat.needsInitialApiCall && !hasCalledInitialApiRef.current && activeChat.initialUserMessage) {
-      hasCalledInitialApiRef.current = true
+    // Only make the call if:
+    // 1. This chat needs an initial API call
+    // 2. We haven't already made the call for THIS specific chat ID
+    // 3. There's an initial user message to send
+    if (
+      activeChat.needsInitialApiCall &&
+      activeChat.id !== initialApiCallChatIdRef.current &&
+      activeChat.initialUserMessage
+    ) {
+      // Mark that we've made the call for this chat ID
+      initialApiCallChatIdRef.current = activeChat.id
       sendMessageWithStreaming(activeChat.initialUserMessage)
     }
-  }, [activeChat.needsInitialApiCall, activeChat.initialUserMessage])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat.needsInitialApiCall, activeChat.initialUserMessage, activeChat.id])
 
   // Supabase realtime subscription for webhook events
   useEffect(() => {
@@ -211,6 +269,74 @@ export function ChatInterface({
       }
     }
   }, [activeChat.tripId, activeChat.requestId, activeChat.id])
+
+  // Auto-load RFQs when a chat with tripId is selected but RFQs haven't been loaded yet
+  useEffect(() => {
+    // Determine if RFQs need to be loaded
+    // Auto-load if:
+    // 1. Chat has a tripId (required)
+    // 2. We haven't already auto-loaded for this specific chat ID
+    // 3. We're not currently loading
+    // 4. We don't have RFQ flights loaded OR they're empty OR tripIdSubmitted is false
+    // 5. We haven't recently fetched RFQs (within last 5 minutes) - prevents excessive API calls
+    
+    const hasRfqFlights = rfqFlights && rfqFlights.length > 0
+    const hasRecentFetch = activeChat.rfqsLastFetchedAt && 
+      (Date.now() - new Date(activeChat.rfqsLastFetchedAt).getTime()) < 5 * 60 * 1000 // 5 minutes
+    
+    // Determine if auto-load should trigger
+    // Always auto-load if:
+    // 1. We have a tripId
+    // 2. We haven't already loaded for this chat ID
+    // 3. We're not currently loading
+    // 4. We don't have RFQ flights OR haven't fetched recently OR tripIdSubmitted is false
+    // 5. Handler is available
+    const shouldAutoLoad = 
+      !!activeChat.tripId && // Must have tripId
+      activeChat.id !== autoLoadedRfqsForChatIdRef.current && // Haven't already loaded for this chat
+      !isTripIdLoading && // Not currently loading
+      (!hasRfqFlights || !hasRecentFetch || !activeChat.tripIdSubmitted) && // No RFQs OR not fetched recently OR not submitted
+      !!handleTripIdSubmit // Handler available
+
+    console.log('[ChatInterface] 🔍 Auto-load check:', {
+      chatId: activeChat.id,
+      tripId: activeChat.tripId,
+      hasRfqFlights,
+      rfqFlightsCount: rfqFlights?.length || 0,
+      tripIdSubmitted: activeChat.tripIdSubmitted,
+      hasRecentFetch,
+      rfqsLastFetchedAt: activeChat.rfqsLastFetchedAt,
+      alreadyLoadedForChat: activeChat.id === autoLoadedRfqsForChatIdRef.current,
+      isTripIdLoading,
+      hasHandler: !!handleTripIdSubmit,
+      shouldAutoLoad,
+    })
+
+    if (shouldAutoLoad) {
+      // Mark that we're auto-loading for this chat ID
+      autoLoadedRfqsForChatIdRef.current = activeChat.id
+      console.log('[ChatInterface] 🔄 Starting auto-load RFQs for chat:', {
+        chatId: activeChat.id,
+        tripId: activeChat.tripId,
+      })
+      
+      // Auto-load RFQs without requiring manual trip ID submission
+      handleTripIdSubmit(activeChat.tripId).catch((error) => {
+        console.error('[ChatInterface] ❌ Error auto-loading RFQs:', error)
+        // Reset the ref on error so we can retry if needed
+        if (activeChat.id === autoLoadedRfqsForChatIdRef.current) {
+          autoLoadedRfqsForChatIdRef.current = null
+        }
+      })
+    }
+    
+    // Reset the ref when chat ID changes (so new chats can auto-load)
+    if (activeChat.id !== autoLoadedRfqsForChatIdRef.current && autoLoadedRfqsForChatIdRef.current !== null) {
+      // Only reset if we're switching to a different chat
+      autoLoadedRfqsForChatIdRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat.tripId, activeChat.id, activeChat.tripIdSubmitted, activeChat.rfqsLastFetchedAt, rfqFlights?.length, isTripIdLoading])
 
   /**
    * Handle webhook events from Supabase realtime
@@ -256,6 +382,7 @@ export function ChatInterface({
 
     setIsTyping(true)
     setStreamingContent("")
+    streamingContentRef.current = ""
     setStreamError(null)
     onProcessingChange(true)
 
@@ -290,10 +417,51 @@ export function ChatInterface({
       currentMessages = [...existingMessages, userMessage]
     }
 
-    onUpdateChat(activeChat.id, {
+    // Parse flight request details from user message immediately
+    // This ensures the header and sidebar card show correct information
+    const parsedFlightRequest = parseFlightRequest(message)
+    
+    // Build updates for chat session
+    const sessionUpdates: Partial<ChatSession> = {
       messages: currentMessages,
       needsInitialApiCall: false,
-    })
+    }
+
+    // Update route if parsed from message (only if not already set or if new data is more complete)
+    if (parsedFlightRequest.route) {
+      sessionUpdates.route = parsedFlightRequest.route
+      // Generate name from route and date if available
+      if (parsedFlightRequest.date) {
+        sessionUpdates.generatedName = `${parsedFlightRequest.route} (${parsedFlightRequest.date})`
+      } else {
+        sessionUpdates.generatedName = parsedFlightRequest.route
+      }
+    }
+
+    // Update passengers if parsed from message
+    if (parsedFlightRequest.passengers !== undefined) {
+      sessionUpdates.passengers = parsedFlightRequest.passengers
+    }
+
+    // Update date if parsed from message
+    // Store ISO date string (YYYY-MM-DD) for consistency with API and FlightSearchProgress
+    if (parsedFlightRequest.departureDate) {
+      sessionUpdates.date = parsedFlightRequest.departureDate
+    } else if (parsedFlightRequest.date) {
+      // If only formatted date is available, try to parse it back to ISO
+      try {
+        const parsedDate = new Date(parsedFlightRequest.date)
+        if (!isNaN(parsedDate.getTime())) {
+          sessionUpdates.date = parsedDate.toISOString().split('T')[0]
+        }
+      } catch {
+        // If parsing fails, store as-is
+        sessionUpdates.date = parsedFlightRequest.date
+      }
+    }
+
+    // Update chat session immediately with parsed flight details
+    onUpdateChat(activeChat.id, sessionUpdates)
 
     try {
       const response = await fetch("/api/chat", {
@@ -324,7 +492,9 @@ export function ChatInterface({
       // Use extracted SSE parser
       const result = await parseSSEStream(reader, {
         onContent: (chunk, accumulated) => {
+          // Update both state (for rendering) and ref (for capturing in closures)
           setStreamingContent(accumulated)
+          streamingContentRef.current = accumulated
         },
         onError: (error) => {
           setStreamError(error.message)
@@ -377,28 +547,7 @@ export function ChatInterface({
       rfp_data: result.rfpData,
     } as any, activeChat.status)
 
-    // Create agent message
-    const agentMessage = {
-      id: `agent-${Date.now()}`,
-      type: "agent" as const,
-      content: result.content || streamingContent,
-      timestamp: new Date(),
-      showDeepLink,
-      deepLinkData: showDeepLink ? {
-        tripId: tripData?.trip_id || rfpData?.trip_id,
-        rfqId: rfpData?.rfq_id,
-        deepLink: tripData?.deep_link || rfpData?.deep_link,
-        departureAirport: tripData?.departure_airport,
-        arrivalAirport: tripData?.arrival_airport,
-        departureDate: tripData?.departure_date,
-        passengers: tripData?.passengers,
-      } : undefined,
-      showQuotes: quotes.length > 0 || (result.rfqData?.flights?.length ?? 0) > 0,
-      showPipeline: !!result.pipelineData,
-      pipelineData: result.pipelineData,
-    }
-
-    // Convert quotes to RFQ flights using extracted transformer
+    // Convert quotes to RFQ flights using extracted transformer (do this FIRST)
     let newRfqFlights: RFQFlight[] = []
     if (result.rfqData?.flights && result.rfqData.flights.length > 0) {
       // Use pre-transformed flights from API
@@ -422,7 +571,158 @@ export function ChatInterface({
       }
     }
 
+    // CRITICAL FIX: Ultra-aggressive duplicate detection for RFQ messages
+    // Check for duplicates BEFORE creating agentMessage - this prevents creating message objects for duplicates
+    // Block ALL RFQ messages if ANY RFQ message already exists - don't even check trip ID
+    const messageContent = (result.content || streamingContentRef.current || '').trim().toLowerCase()
+    
+    // Check if this is ANY kind of RFQ/quote-related message
+    const isRfqMessage = messageContent.includes('rfq') ||
+                        messageContent.includes('quote') ||
+                        messageContent.includes('quotes') ||
+                        messageContent.includes('trip id') ||
+                        messageContent.includes('received quotes') ||
+                        messageContent.includes('here are') ||
+                        messageContent.includes('flight quotes') ||
+                        (messageContent.includes('tist') && messageContent.includes('kopf')) // Route-specific check
+    
+    // CRITICAL: Use content hash to detect duplicates across concurrent calls
+    // Create a simple hash of the message content for deduplication
+    const createContentHash = (content: string): string => {
+      // Use first 100 chars + last 50 chars + length for hash
+      // This catches similar messages even with slight variations
+      const normalized = content.trim().toLowerCase().replace(/\s+/g, ' ')
+      const firstPart = normalized.substring(0, 100)
+      const lastPart = normalized.substring(Math.max(0, normalized.length - 50))
+      return `${firstPart}|${lastPart}|${normalized.length}`
+    }
+    
+    // CRITICAL: Block RFQ messages if ANY RFQ message already exists
+    // Use atomic hash marking to prevent race conditions in concurrent calls
+    if (isRfqMessage) {
+      const contentHash = createContentHash(result.content || streamingContentRef.current || '')
+      
+      // CRITICAL: Check hash FIRST and mark IMMEDIATELY to prevent race conditions
+      // This is an atomic-like operation - check if hash exists, if not, mark it
+      // This ensures only ONE concurrent call can proceed with the same hash
+      const hashWasAlreadyProcessed = processedRfqMessageHashesRef.current.has(contentHash)
+      if (!hashWasAlreadyProcessed) {
+        // Mark hash IMMEDIATELY before any other checks - this prevents concurrent calls from proceeding
+        processedRfqMessageHashesRef.current.add(contentHash)
+      }
+      
+      // If hash was already processed, block immediately
+      if (hashWasAlreadyProcessed) {
+        console.warn('[ChatInterface] 🚫 BLOCKING duplicate RFQ message - content hash already processed:', {
+          contentHash: contentHash.substring(0, 50),
+          processedHashesCount: processedRfqMessageHashesRef.current.size,
+        })
+        // Still update RFQ flights data if needed, but don't add message
+        if (newRfqFlights.length > 0) {
+          const existingIds = new Set((activeChat.rfqFlights || []).map((f) => f.id))
+          const uniqueNewFlights = newRfqFlights.filter((f) => !existingIds.has(f.id))
+          if (uniqueNewFlights.length > 0) {
+            const allRfqFlights = [...(activeChat.rfqFlights || []), ...uniqueNewFlights]
+            onUpdateChat(activeChat.id, {
+              rfqFlights: allRfqFlights,
+              rfqsLastFetchedAt: new Date().toISOString(),
+            })
+          }
+        }
+        return
+      }
+      
+      // Now check if ANY existing message has RFQ content (hash wasn't processed, so check messages)
+      // Combine all messages from both sources
+      const allMessages = [...currentMessages, ...(activeChat.messages || [])]
+      // Remove duplicates by message ID
+      const uniqueMessages = Array.from(
+        new Map(allMessages.map(msg => [msg.id, msg])).values()
+      )
+      
+      // Check if ANY agent message has RFQ/quote content
+      const hasAnyRfqMessage = uniqueMessages.some((msg) => {
+        if (msg.type !== 'agent') return false
+        const msgContent = (msg.content || '').trim().toLowerCase()
+        
+        // Check if message contains RFQ/quote keywords
+        return msgContent.includes('rfq') ||
+               msgContent.includes('quote') ||
+               msgContent.includes('quotes') ||
+               msgContent.includes('received quotes') ||
+               msgContent.includes('here are') ||
+               msgContent.includes('flight quotes') ||
+               (msgContent.includes('tist') && msgContent.includes('kopf')) // Route-specific check
+      })
+      
+      // Also check if we're in Step 3 or 4 (RFQs displayed in FlightSearchProgress)
+      const currentStep = activeChat.currentStep || step || 1
+      const isInStep3Or4 = currentStep >= 3
+      
+      // Also check if we have RFQ flights data
+      const hasExistingRfqFlights = activeChat.rfqFlights && activeChat.rfqFlights.length > 0
+      
+      // BLOCK if ANY RFQ message exists OR we're in Step 3/4 OR we have RFQ flights data
+      if (hasAnyRfqMessage || isInStep3Or4 || hasExistingRfqFlights) {
+        console.warn('[ChatInterface] 🚫 BLOCKING duplicate RFQ message - RFQ content already exists:', {
+          hasAnyRfqMessage,
+          isInStep3Or4,
+          currentStep,
+          hasExistingRfqFlights,
+          existingRfqFlightsCount: activeChat.rfqFlights?.length || 0,
+          currentMessagesCount: currentMessages.length,
+          activeChatMessagesCount: activeChat.messages?.length || 0,
+          uniqueMessagesCount: uniqueMessages.length,
+          contentHash: contentHash.substring(0, 50),
+          reason: hasAnyRfqMessage ? 'RFQ message already exists' :
+                  isInStep3Or4 ? 'Step 3/4 - RFQs displayed in FlightSearchProgress' :
+                  'RFQ flights data exists',
+        })
+        // Hash is already marked above, so no need to mark again
+        // Still update RFQ flights data if we have new flights, but don't add message
+        if (newRfqFlights.length > 0) {
+          const existingIds = new Set((activeChat.rfqFlights || []).map((f) => f.id))
+          const uniqueNewFlights = newRfqFlights.filter((f) => !existingIds.has(f.id))
+          if (uniqueNewFlights.length > 0) {
+            const allRfqFlights = [...(activeChat.rfqFlights || []), ...uniqueNewFlights]
+            onUpdateChat(activeChat.id, {
+              rfqFlights: allRfqFlights,
+              rfqsLastFetchedAt: new Date().toISOString(),
+            })
+          }
+        }
+        // Early return - don't create agentMessage or update chat with message
+        return
+      }
+      
+      // If we reach here, hash is already marked (done above), and no duplicate was found
+      // Proceed with creating the message
+    }
+
+    // Create agent message (only if we didn't block it above)
+    // Use ref for streaming content fallback to avoid stale closure issues
+    const agentMessage = {
+      id: `agent-${Date.now()}`,
+      type: "agent" as const,
+      content: result.content || streamingContentRef.current,
+      timestamp: new Date(),
+      showDeepLink,
+      deepLinkData: showDeepLink ? {
+        tripId: tripData?.trip_id || rfpData?.trip_id,
+        rfqId: rfpData?.rfq_id,
+        deepLink: tripData?.deep_link || rfpData?.deep_link,
+        departureAirport: tripData?.departure_airport,
+        arrivalAirport: tripData?.arrival_airport,
+        departureDate: tripData?.departure_date,
+        passengers: tripData?.passengers,
+      } : undefined,
+      showQuotes: quotes.length > 0 || (result.rfqData?.flights?.length ?? 0) > 0,
+      showPipeline: !!result.pipelineData,
+      pipelineData: result.pipelineData,
+    }
+
     // Update chat with new data
+    // FIXED: Always update RFQ flights data even if we skip the message to keep data current
     const updates: Partial<ChatSession> = {
       messages: [...currentMessages, agentMessage],
       status,
@@ -436,6 +736,42 @@ export function ChatInterface({
     if (rfpData?.rfq_id) {
       updates.rfqId = rfpData.rfq_id
     }
+    // Update deep link if we got one from the API (create trip returns deep_link)
+    const extractedDeepLink = tripData?.deep_link || rfpData?.deep_link
+    if (extractedDeepLink) {
+      updates.deepLink = extractedDeepLink
+    }
+
+    // Update route, date, and passengers from trip data
+    // This ensures the sidebar card shows the correct flight details
+    const departureAirport = tripData?.departure_airport || rfpData?.departure_airport
+    const arrivalAirport = tripData?.arrival_airport || rfpData?.arrival_airport
+    if (departureAirport && arrivalAirport) {
+      updates.route = `${departureAirport} → ${arrivalAirport}`
+    }
+    const departureDate = tripData?.departure_date || rfpData?.departure_date
+    if (departureDate) {
+      // Format date for display
+      try {
+        updates.date = new Date(departureDate).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      } catch {
+        updates.date = departureDate
+      }
+    }
+    const passengerCount = tripData?.passengers || rfpData?.passengers
+    if (passengerCount) {
+      updates.passengers = passengerCount
+    }
+
+    // Generate a descriptive name for the sidebar card
+    if (departureAirport && arrivalAirport) {
+      const dateStr = updates.date || activeChat.date || 'Unknown date'
+      updates.generatedName = `${departureAirport} → ${arrivalAirport} (${dateStr})`
+    }
 
     // Update RFQ flights if we got new ones
     if (newRfqFlights.length > 0) {
@@ -446,9 +782,32 @@ export function ChatInterface({
         const updated = newRfqFlights.find((f) => f.id === existing.id)
         return updated ? { ...existing, ...updated } : existing
       })
-      updates.rfqFlights = [...updatedExisting, ...uniqueNewFlights]
-      updates.quotesTotal = updates.rfqFlights.length
-      updates.quotesReceived = updates.rfqFlights.filter((f) => f.rfqStatus === 'quoted').length
+      const allRfqFlights = [...updatedExisting, ...uniqueNewFlights]
+      updates.rfqFlights = allRfqFlights
+      updates.quotesTotal = allRfqFlights.length
+      updates.quotesReceived = allRfqFlights.filter((f) => f.rfqStatus === 'quoted').length
+      
+      // If we got RFQ data, ensure tripIdSubmitted is set to true
+      if (result.rfqData && !updates.tripIdSubmitted) {
+        updates.tripIdSubmitted = true
+        updates.rfqsLastFetchedAt = new Date().toISOString()
+      }
+      
+      // Update status and step based on RFQ data
+      const quotedCount = allRfqFlights.filter((f) => f.rfqStatus === 'quoted').length
+      if (!updates.status) {
+        updates.status = quotedCount > 0 ? 'analyzing_options' : 'requesting_quotes'
+      }
+      if (!updates.currentStep) {
+        updates.currentStep = allRfqFlights.length > 0 ? 4 : 3
+      }
+      
+      console.log('[ChatInterface] ✅ Updated RFQ flights in handleSSEResult:', {
+        totalFlights: allRfqFlights.length,
+        quotedCount,
+        status: updates.status,
+        currentStep: updates.currentStep,
+      })
     }
 
     // Update quotes for legacy compatibility
@@ -461,12 +820,34 @@ export function ChatInterface({
       }))
     }
 
+    // Sync session IDs from API response
+    // This ensures the frontend has the correct database IDs to load messages later
+    if (result.conversationId) {
+      // In consolidated schema, conversationId === requestId
+      updates.conversationId = result.conversationId
+      updates.requestId = result.conversationId
+      console.log('[ChatInterface] 🔄 Session sync - got conversationId:', result.conversationId)
+    }
+    if (result.chatSessionId) {
+      // chatSessionId is the same as requestId in new schema but kept for backward compat
+      updates.id = result.chatSessionId
+      console.log('[ChatInterface] 🔄 Session sync - got chatSessionId:', result.chatSessionId)
+    }
+    if (result.conversationType) {
+      updates.conversationType = result.conversationType
+    }
+
     onUpdateChat(activeChat.id, updates)
+    // Clear streaming content after update is sent to parent
     setStreamingContent("")
+    streamingContentRef.current = ""
   }
 
   /**
    * Handle trip ID submit (from deep link card)
+   * 
+   * Per UX requirements section 3.3: TripID submission should fetch and display RFQs.
+   * This function calls the get_rfq tool to retrieve all quotes for the given TripID.
    */
   const handleTripIdSubmit = async (tripId: string) => {
     if (!tripId.trim() || isTripIdLoading) return
@@ -475,13 +856,33 @@ export function ChatInterface({
     setTripIdError(undefined)
 
     try {
+      // Build conversation history from active chat messages for context
+      const conversationHistory = (activeChat.messages || []).map((msg) => ({
+        role: msg.type === "user" ? "user" as const : "assistant" as const,
+        content: msg.content,
+      }))
+
+      console.log('[ChatInterface] 📡 Calling get_rfq for TripID:', {
+        tripId,
+        chatId: activeChat.id,
+        hasConversationHistory: conversationHistory.length > 0,
+        historyLength: conversationHistory.length,
+      })
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `get_rfq ${tripId}`,
+          // Use direct instruction format - agent's system prompt says: "Use `get_rfq` when given a trip ID"
+          // Trip IDs can be 6-char codes (like R4QFRX, 5F463X) or atrip-* format
+          message: `Get RFQs for Trip ID ${tripId}`,
           tripId,
-          skipMessagePersistence: true,
+          conversationHistory,
+          context: {
+            conversationId: activeChat.conversationId || activeChat.requestId,
+            tripId,
+          },
+          skipMessagePersistence: true, // Skip saving this technical tool call to conversation history
         }),
       })
 
@@ -497,6 +898,14 @@ export function ChatInterface({
       // Use extracted SSE parser
       const result = await parseSSEStream(reader)
 
+      // Log tool calls for debugging
+      console.log('[ChatInterface] 🔧 Tool calls received:', {
+        tripId,
+        toolCallCount: result.toolCalls.length,
+        toolNames: result.toolCalls.map(tc => tc.name),
+        hasRfqData: !!result.rfqData,
+      })
+
       // Extract RFQ flights from result
       let newRfqFlights: RFQFlight[] = []
       const newQuoteDetailsMap: QuoteDetailsMap = {}
@@ -509,6 +918,17 @@ export function ChatInterface({
           if (quoteId) {
             newQuoteDetailsMap[quoteId] = quoteResult as Quote
           }
+        }
+        
+        // Log get_rfq tool call result
+        if (toolCall.name === 'get_rfq') {
+          console.log('[ChatInterface] 📦 get_rfq tool call result:', {
+            success: !!toolCall.result,
+            hasError: !!((toolCall.result as any)?.error),
+            error: ((toolCall.result as any)?.error),
+            resultType: typeof toolCall.result,
+            resultKeys: toolCall.result && typeof toolCall.result === 'object' ? Object.keys(toolCall.result) : [],
+          })
         }
       }
 
@@ -536,12 +956,37 @@ export function ChatInterface({
         }
       }
       
+      // Check if get_rfq tool was called
+      const getRfqToolCall = result.toolCalls.find(tc => tc.name === 'get_rfq')
+      
       // Log warning if no rfqData was returned (get_rfq tool may not have been called)
       if (!result.rfqData) {
         console.warn('[ChatInterface] ⚠️ No rfqData in response - get_rfq tool may not have been called:', {
           hasContent: !!result.content,
           toolCalls: result.toolCalls.map(tc => tc.name),
+          hasGetRfqToolCall: !!getRfqToolCall,
+          getRfqResult: getRfqToolCall?.result,
           tripId,
+        });
+        
+        // If get_rfq tool was called but no rfqData, check if there's an error
+        if (getRfqToolCall?.result && typeof getRfqToolCall.result === 'object') {
+          const toolResult = getRfqToolCall.result as Record<string, unknown>
+          if (toolResult.error) {
+            console.error('[ChatInterface] ❌ get_rfq tool returned error:', toolResult.error)
+            setTripIdError(`Failed to fetch RFQs: ${toolResult.error}`)
+          }
+        }
+      } else {
+        // Log successful RFQ data retrieval for debugging
+        console.log('[ChatInterface] ✅ RFQ data retrieved:', {
+          hasFlights: !!(result.rfqData?.flights),
+          flightsCount: result.rfqData?.flights?.length || 0,
+          hasRfqs: !!(result.rfqData?.rfqs),
+          rfqsCount: result.rfqData?.rfqs?.length || 0,
+          hasQuotes: !!(result.rfqData?.quotes),
+          quotesCount: result.rfqData?.quotes?.length || 0,
+          message: result.rfqData?.message,
         });
       }
 
@@ -555,6 +1000,15 @@ export function ChatInterface({
           message: result.rfqData?.message,
         });
       }
+      
+      // Log successful extraction of RFQ flights
+      if (newRfqFlights.length > 0) {
+        console.log('[ChatInterface] ✅ Successfully extracted RFQ flights:', {
+          count: newRfqFlights.length,
+          flightIds: newRfqFlights.map(f => f.id),
+          quotedCount: newRfqFlights.filter(f => f.rfqStatus === 'quoted').length,
+        });
+      }
 
       // Merge quote details using extracted utility
       if (Object.keys(newQuoteDetailsMap).length > 0) {
@@ -562,18 +1016,29 @@ export function ChatInterface({
         newRfqFlights = mergeQuoteDetailsIntoFlights(newRfqFlights, newQuoteDetailsMap)
       }
 
-      // Update chat
-      onUpdateChat(activeChat.id, {
+      // Update chat with RFQ data
+      const quotedCount = newRfqFlights.filter((f) => f.rfqStatus === 'quoted').length
+      const updates = {
         tripId,
         tripIdSubmitted: true,
         rfqFlights: newRfqFlights,
         rfqsLastFetchedAt: new Date().toISOString(),
         quotesTotal: newRfqFlights.length,
-        quotesReceived: newRfqFlights.filter((f) => f.rfqStatus === 'quoted').length,
-        status: 'analyzing_options',
-        currentStep: 4,
+        quotesReceived: quotedCount,
+        // Update status based on whether we have quotes
+        status: quotedCount > 0 ? 'analyzing_options' : 'requesting_quotes',
+        currentStep: newRfqFlights.length > 0 ? 4 : 3,
+      }
+      
+      console.log('[ChatInterface] 📊 Updating chat with RFQ data:', {
+        tripId,
+        rfqFlightsCount: newRfqFlights.length,
+        quotedCount,
+        status: updates.status,
+        currentStep: updates.currentStep,
       })
-
+      
+      onUpdateChat(activeChat.id, updates)
       setTripIdSubmitted(true)
 
     } catch (error) {
@@ -602,6 +1067,13 @@ export function ChatInterface({
       e.preventDefault()
       handleSendMessage()
     }
+  }
+
+  /**
+   * Scroll to workflow progress section
+   */
+  const handleViewWorkflow = () => {
+    workflowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   /**
@@ -820,62 +1292,149 @@ export function ChatInterface({
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto p-4">
           <div className="space-y-4">
-            {/* Inline Flight Search Progress - persistent workflow visualization */}
-            {activeChat.tripId && (
-              <FlightSearchProgress
-                currentStep={activeChat.currentStep || 1}
-                flightRequest={{
-                  departureAirport: activeChat.route?.split(' to ')[0]
-                    ? { icao: activeChat.route.split(' to ')[0].trim() }
-                    : { icao: 'TBD' },
-                  arrivalAirport: activeChat.route?.split(' to ')[1]
-                    ? { icao: activeChat.route.split(' to ')[1].trim() }
-                    : { icao: 'TBD' },
-                  departureDate: activeChat.date || new Date().toISOString().split('T')[0],
-                  passengers: activeChat.passengers || 1,
-                  requestId: activeChat.requestId,
-                }}
-                deepLink={activeChat.deepLink}
-                tripId={activeChat.tripId}
-                isTripIdLoading={isTripIdLoading}
-                tripIdError={tripIdError}
-                tripIdSubmitted={tripIdSubmitted}
-                rfqFlights={rfqFlights}
-                isRfqFlightsLoading={false}
-                selectedRfqFlightIds={selectedRfqFlightIds}
-                rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
-                customerEmail={activeChat.customer?.email}
-                customerName={activeChat.customer?.name}
-                onTripIdSubmit={handleTripIdSubmit}
-                onRfqFlightSelectionChange={setSelectedRfqFlightIds}
-                onViewChat={handleViewChat}
-                onBookFlight={handleBookFlight}
-                onGenerateProposal={handleGenerateProposal}
-                onReviewAndBook={handleReviewAndBook}
-                className="mb-4"
-              />
-            )}
 
-            {activeChat.messages?.map((message, index) => (
+            {(() => {
+              // CRITICAL: Deduplicate RFQ messages before rendering
+              // Filter out duplicate agent messages with RFQ/quote content
+              const deduplicatedMessages = (activeChat.messages || []).reduce((acc, message, index) => {
+                // Always keep user messages
+                if (message.type === 'user') {
+                  acc.push({ message, index })
+                  return acc
+                }
+                
+                // For agent messages, check if it's an RFQ-related message
+                const messageContent = (message.content || '').trim().toLowerCase()
+                const isRfqMessage = messageContent.includes('rfq') ||
+                                    messageContent.includes('quote') ||
+                                    messageContent.includes('quotes') ||
+                                    messageContent.includes('trip id') ||
+                                    messageContent.includes('received quotes') ||
+                                    messageContent.includes('here are') ||
+                                    messageContent.includes('flight quotes') ||
+                                    (messageContent.includes('tist') && messageContent.includes('kopf'))
+                
+                // If it's an RFQ message, check if we already have ANY RFQ message
+                // CRITICAL: Only keep the FIRST RFQ message, skip ALL subsequent ones
+                if (isRfqMessage) {
+                  // Check if we already have ANY RFQ message
+                  const hasAnyRfqMessage = acc.some(({ message: existingMsg }) => {
+                    if (existingMsg.type !== 'agent') return false
+                    const existingContent = (existingMsg.content || '').trim().toLowerCase()
+                    // Check if existing message is also an RFQ message
+                    return existingContent.includes('rfq') ||
+                           existingContent.includes('quote') ||
+                           existingContent.includes('quotes') ||
+                           existingContent.includes('trip id') ||
+                           existingContent.includes('received quotes') ||
+                           existingContent.includes('here are') ||
+                           existingContent.includes('flight quotes')
+                  })
+                  
+                  // Skip ALL subsequent RFQ messages - only keep the first one
+                  if (hasAnyRfqMessage) {
+                    console.log('[ChatInterface] 🚫 Skipping duplicate RFQ message in render:', {
+                      messageId: message.id,
+                      contentPreview: messageContent.substring(0, 50),
+                      totalMessagesProcessed: acc.length,
+                    })
+                    return acc
+                  }
+                }
+                
+                // Keep non-RFQ messages or first RFQ message
+                acc.push({ message, index })
+                return acc
+              }, [] as Array<{ message: typeof activeChat.messages[0], index: number }>)
+              
+              return deduplicatedMessages.map(({ message, index }) => (
               <div key={message.id || index}>
                 {message.type === "user" ? (
-                  <div className="flex justify-end">
-                    <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
-                      <p className="text-sm leading-relaxed">{message.content}</p>
+                  <>
+                    <div className="flex justify-end">
+                      <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
+                        <p className="text-sm leading-relaxed">{message.content}</p>
+                      </div>
                     </div>
-                  </div>
+                    {/* Render FlightSearchProgress after the FIRST user message (for new conversations) */}
+                    {/* FIXED: Added overflow-visible to ensure Step 3 content isn't clipped during scroll */}
+                    {index === 0 && (activeChat.currentStep && activeChat.currentStep >= 1) && (
+                      <div ref={workflowRef} className="mt-4" style={{ overflow: 'visible' }}>
+                        <FlightSearchProgress
+                          currentStep={activeChat.currentStep || 1}
+                          flightRequest={{
+                            // Route format is "DEPT → ARR" (with arrow character)
+                            departureAirport: activeChat.route?.split(' → ')[0]
+                              ? { icao: activeChat.route.split(' → ')[0].trim() }
+                              : { icao: 'TBD' },
+                            arrivalAirport: activeChat.route?.split(' → ')[1]
+                              ? { icao: activeChat.route.split(' → ')[1].trim() }
+                              : { icao: 'TBD' },
+                            departureDate: activeChat.date || new Date().toISOString().split('T')[0],
+                            passengers: activeChat.passengers || 1,
+                            requestId: activeChat.requestId,
+                          }}
+                          deepLink={activeChat.deepLink}
+                          tripId={activeChat.tripId}
+                          isTripIdLoading={isTripIdLoading}
+                          tripIdError={tripIdError}
+                          tripIdSubmitted={tripIdSubmitted}
+                          rfqFlights={rfqFlights}
+                          isRfqFlightsLoading={false}
+                          selectedRfqFlightIds={selectedRfqFlightIds}
+                          rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
+                          customerEmail={(activeChat.customer as { email?: string })?.email}
+                          customerName={activeChat.customer?.name}
+                          onTripIdSubmit={handleTripIdSubmit}
+                          onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                          onViewChat={handleViewChat}
+                          onBookFlight={handleBookFlight}
+                          onGenerateProposal={handleGenerateProposal}
+                          onReviewAndBook={handleReviewAndBook}
+                        />
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <AgentMessage
                     content={stripMarkdown(message.content)}
                     timestamp={message.timestamp}
-                    showDeepLink={message.showDeepLink}
+                    // Show workflow status on agent messages during processing
+                    showWorkflow={message.showWorkflow}
+                    workflowProps={message.showWorkflow ? {
+                      isProcessing: activeChat.status !== "proposal_ready",
+                      currentStep: activeChat.currentStep || 1,
+                      status: activeChat.status || "understanding_request",
+                      tripId: activeChat.tripId,
+                      deepLink: activeChat.deepLink,
+                    } : undefined}
+                    // Show deep link in AgentMessage - allow even when tripId exists for context
+                    // BUT don't show if FlightSearchProgress is already rendered after first user message
+                    showDeepLink={message.showDeepLink && !hasFlightSearchProgressAfterFirstMessage}
                     deepLinkData={message.deepLinkData}
                     onTripIdSubmit={handleTripIdSubmit}
                     isTripIdLoading={isTripIdLoading}
                     tripIdError={tripIdError}
                     tripIdSubmitted={tripIdSubmitted}
-                    showQuotes={message.showQuotes && tripIdSubmitted}
-                    rfqFlights={message.showQuotes && tripIdSubmitted ? rfqFlights.map((flight) => {
+                    // Show quotes when we have rfqFlights data
+                    // BUT don't show them if they're already displayed in Step 3 via FlightSearchProgress
+                    // This prevents duplicate RFQ displays - RFQs should only appear in Step 3, not in agent messages
+                    // FlightSearchProgress shows RFQs in Step 3 when tripIdSubmitted is true and currentStep >= 3
+                    // Only show quotes in agent message if we're NOT in Step 3/4 (where FlightSearchProgress handles RFQ display)
+                    showQuotes={(() => {
+                      const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
+                      return !isInStep3Or4 && (
+                        (message.showQuotes && tripIdSubmitted) ||
+                        (rfqFlights.length > 0 && !hasFlightSearchProgressAfterFirstMessage)
+                      )
+                    })()}
+                    rfqFlights={(() => {
+                      const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
+                      const shouldShowQuotesInMessage = !isInStep3Or4 && (
+                        (message.showQuotes && tripIdSubmitted) ||
+                        (rfqFlights.length > 0 && !hasFlightSearchProgressAfterFirstMessage)
+                      )
+                      return shouldShowQuotesInMessage ? rfqFlights.map((flight) => {
                       const messages = activeChat.operatorMessages?.[flight.quoteId || ''] || []
                       const hasMessages = messages.length > 0
                       const latestMessage = hasMessages ? messages.reduce((latest, msg) => {
@@ -897,7 +1456,8 @@ export function ChatInterface({
                         hasNewMessages,
                         sellerMessage: latestMessage?.content || flight.sellerMessage,
                       }
-                    }) : []}
+                      }) : []
+                    })()}
                     selectedRfqFlightIds={selectedRfqFlightIds}
                     rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
                     onRfqFlightSelectionChange={setSelectedRfqFlightIds}
@@ -954,7 +1514,8 @@ export function ChatInterface({
                   />
                 )}
               </div>
-            ))}
+              ))
+            })()}
 
             {/* Streaming Response / Typing Indicator */}
             {isTyping && (
@@ -1005,6 +1566,78 @@ export function ChatInterface({
               </div>
             )}
 
+            {/* Render FlightSearchProgress for loaded chat sessions */}
+            {/* Per UX requirements section 4.3: Always show FlightSearchProgress for flight request conversations */}
+            {/* Show if this is a flight request conversation (has route, tripId, deepLink, or requestId) */}
+            {/* and it hasn't already been shown after the first user message in the messages list */}
+            {/* FIXED: Added overflow-visible to ensure Step 3 content isn't clipped during scroll */}
+            {((activeChat.conversationType !== 'general' && activeChat.route) ||
+              activeChat.tripId ||
+              activeChat.deepLink ||
+              activeChat.requestId) &&
+             !hasFlightSearchProgressAfterFirstMessage && (
+              <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
+                <FlightSearchProgress
+                  currentStep={(() => {
+                    // Calculate proper step based on state per UX requirements:
+                    // Step 1: Request Created (has route/request)
+                    // Step 2: Select in Avinode (has deepLink)
+                    // Step 3: Enter TripID (has tripId but no RFQs yet)
+                    // Step 4: Review Quotes (has tripId and RFQ flights)
+                    // Use activeChat.tripIdSubmitted to check actual chat state, not just local state
+                    const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
+                    
+                    // Step 4: If we have RFQ flights and tripId is submitted
+                    if (rfqFlights.length > 0 && isTripIdSubmitted) {
+                      return 4
+                    }
+                    
+                    // Step 3: If we have tripId but no RFQs loaded yet (or not submitted)
+                    if (activeChat.tripId && !isTripIdSubmitted) {
+                      return 3
+                    }
+                    
+                    // Step 2: If we have deepLink (means request created, ready to select in Avinode)
+                    if (activeChat.deepLink) {
+                      return 2
+                    }
+                    
+                    // Step 1: Default (request created)
+                    return activeChat.currentStep || 1
+                  })()}
+                  flightRequest={{
+                    // Route format is "DEPT → ARR" (with arrow character)
+                    departureAirport: activeChat.route?.split(' → ')[0]
+                      ? { icao: activeChat.route.split(' → ')[0].trim() }
+                      : { icao: 'TBD' },
+                    arrivalAirport: activeChat.route?.split(' → ')[1]
+                      ? { icao: activeChat.route.split(' → ')[1].trim() }
+                      : { icao: 'TBD' },
+                    departureDate: activeChat.date || new Date().toISOString().split('T')[0],
+                    passengers: activeChat.passengers || 1,
+                    requestId: activeChat.requestId,
+                  }}
+                  deepLink={activeChat.deepLink}
+                  tripId={activeChat.tripId}
+                  isTripIdLoading={isTripIdLoading}
+                  tripIdError={tripIdError}
+                  tripIdSubmitted={tripIdSubmitted || activeChat.tripIdSubmitted || (activeChat.tripId && activeChat.rfqFlights && activeChat.rfqFlights.length > 0) || false}
+                  rfqFlights={rfqFlights}
+                  isRfqFlightsLoading={false}
+                  selectedRfqFlightIds={selectedRfqFlightIds}
+                  rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
+                  customerEmail={(activeChat.customer as { email?: string })?.email}
+                  customerName={activeChat.customer?.name}
+                  onTripIdSubmit={handleTripIdSubmit}
+                  onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                  onViewChat={handleViewChat}
+                  onBookFlight={handleBookFlight}
+                  onGenerateProposal={handleGenerateProposal}
+                  onReviewAndBook={handleReviewAndBook}
+                />
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -1042,6 +1675,18 @@ export function ChatInterface({
             >
               Check Status
             </Button>
+            {/* View Workflow button - scrolls to workflow progress section */}
+            {activeChat.currentStep && activeChat.currentStep >= 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleViewWorkflow}
+                className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
+              >
+                <Eye className="w-3 h-3 mr-1" />
+                View Workflow
+              </Button>
+            )}
           </div>
 
           {/* Input Area */}

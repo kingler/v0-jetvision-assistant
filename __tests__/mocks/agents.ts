@@ -1,23 +1,21 @@
 /**
- * Mock Agent Factories for Integration Testing
- * 
- * Provides mock implementations of agents and their dependencies
- * for comprehensive integration testing of the agent workflow.
- * 
+ * Mock Factories for JetvisionAgent Testing
+ *
+ * Provides mock implementations for testing the JetvisionAgent
+ * and its tool integrations with MCP servers.
+ *
  * @module __tests__/mocks/agents
  */
 
-import { vi, type Mock } from 'vitest'
+import { vi, type Mock } from 'vitest';
 import type {
-  IAgent,
-  AgentConfig,
   AgentContext,
   AgentResult,
-  AgentTask,
-  AgentMetrics,
-  AgentTool,
-} from '@/agents/core/types'
-import { AgentType, AgentStatus } from '@/agents/core/types'
+  AvinodeQuote,
+  ClientProfile,
+  FlightRequest,
+  ConversationState,
+} from '../../agents/jetvision-agent/types';
 
 // ============================================================================
 // Mock Agent Context Factory
@@ -32,13 +30,14 @@ export function createMockAgentContext(
   overrides: Partial<AgentContext> = {}
 ): AgentContext {
   return {
-    requestId: `req-${Date.now()}`,
-    userId: 'user-test-123',
     sessionId: `session-${Date.now()}`,
+    userId: 'user-test-123',
+    isoAgentId: 'iso-agent-test-456',
+    requestId: undefined,
+    conversationHistory: [],
     metadata: {},
-    history: [],
     ...overrides,
-  }
+  };
 }
 
 /**
@@ -48,12 +47,12 @@ export function createMockAgentContext(
  */
 export function createMockRFPContext(
   rfpData: Partial<{
-    departure: string
-    arrival: string
-    departureDate: string
-    passengers: number
-    clientName?: string
-    returnDate?: string
+    departure: string;
+    arrival: string;
+    departureDate: string;
+    passengers: number;
+    clientName?: string;
+    returnDate?: string;
   }> = {}
 ): AgentContext {
   return createMockAgentContext({
@@ -66,74 +65,7 @@ export function createMockRFPContext(
         ...rfpData,
       },
     },
-  })
-}
-
-/**
- * Creates a mock conversational context with user message
- * @param userMessage - The user's message
- * @param sessionId - Optional session ID for conversation continuity
- * @returns AgentContext configured for conversational mode
- */
-export function createMockConversationalContext(
-  userMessage: string,
-  sessionId?: string
-): AgentContext {
-  return createMockAgentContext({
-    sessionId: sessionId || `session-${Date.now()}`,
-    metadata: {
-      userMessage,
-    },
-  })
-}
-
-// ============================================================================
-// Mock Agent Task Factory
-// ============================================================================
-
-/**
- * Creates a mock agent task
- * @param overrides - Partial task to override defaults
- * @returns Complete AgentTask for testing
- */
-export function createMockAgentTask(
-  overrides: Partial<AgentTask> = {}
-): AgentTask {
-  return {
-    id: `task-${Date.now()}`,
-    type: 'test_task',
-    payload: {},
-    priority: 'normal',
-    status: 'pending',
-    createdAt: new Date(),
-    ...overrides,
-  }
-}
-
-/**
- * Creates a flight search task
- * @param searchParams - Flight search parameters
- * @returns AgentTask configured for flight search
- */
-export function createMockFlightSearchTask(
-  searchParams: Partial<{
-    departure: string
-    arrival: string
-    departureDate: string
-    passengers: number
-  }> = {}
-): AgentTask {
-  return createMockAgentTask({
-    type: 'search_flights',
-    targetAgent: AgentType.FLIGHT_SEARCH,
-    payload: {
-      departure: 'KJFK',
-      arrival: 'KLAX',
-      departureDate: '2025-03-15',
-      passengers: 4,
-      ...searchParams,
-    },
-  })
+  });
 }
 
 // ============================================================================
@@ -143,121 +75,31 @@ export function createMockFlightSearchTask(
 /**
  * Creates a successful agent result
  * @param data - Result data
- * @param executionTime - Execution time in ms
  * @returns Successful AgentResult
  */
 export function createMockSuccessResult(
-  data: unknown = {},
-  executionTime: number = 100
+  data: AgentResult['data'] = {}
 ): AgentResult {
   return {
     success: true,
+    message: 'Operation completed successfully',
     data,
-    metadata: {
-      executionTime,
-    },
-  }
+    toolsUsed: [],
+    nextAction: 'await_user',
+  };
 }
 
 /**
  * Creates a failed agent result
- * @param error - Error object or message
- * @param executionTime - Execution time in ms
+ * @param message - Error message
  * @returns Failed AgentResult
  */
-export function createMockFailedResult(
-  error: Error | string,
-  executionTime: number = 50
-): AgentResult {
+export function createMockFailedResult(message: string): AgentResult {
   return {
     success: false,
-    error: error instanceof Error ? error : new Error(error),
-    metadata: {
-      executionTime,
-    },
-  }
-}
-
-// ============================================================================
-// Mock Agent Implementation
-// ============================================================================
-
-/**
- * Creates a mock agent implementing the IAgent interface
- * @param type - Agent type
- * @param overrides - Method overrides
- * @returns Mock agent for testing
- */
-export function createMockAgent(
-  type: AgentType = AgentType.ORCHESTRATOR,
-  overrides: Partial<{
-    id: string
-    name: string
-    status: AgentStatus
-    execute: Mock
-    initialize: Mock
-    registerTool: Mock
-    handoff: Mock
-    getMetrics: Mock
-    shutdown: Mock
-  }> = {}
-): IAgent {
-  const id = overrides.id || `agent-${type}-${Date.now()}`
-  const name = overrides.name || `Mock${type}Agent`
-  let status = overrides.status || AgentStatus.IDLE
-
-  const metrics: AgentMetrics = {
-    agentId: id,
-    totalExecutions: 0,
-    successfulExecutions: 0,
-    failedExecutions: 0,
-    averageExecutionTime: 0,
-    totalTokensUsed: 0,
-    toolCallsCount: 0,
-  }
-
-  return {
-    id,
-    type,
-    name,
-    get status() {
-      return status
-    },
-    initialize: overrides.initialize || vi.fn().mockResolvedValue(undefined),
-    execute: overrides.execute || vi.fn().mockResolvedValue(createMockSuccessResult()),
-    registerTool: overrides.registerTool || vi.fn(),
-    handoff: overrides.handoff || vi.fn().mockResolvedValue(undefined),
-    getMetrics: overrides.getMetrics || vi.fn().mockReturnValue(metrics),
-    shutdown: overrides.shutdown || vi.fn().mockResolvedValue(undefined),
-  }
-}
-
-// ============================================================================
-// Mock Tool Factory
-// ============================================================================
-
-/**
- * Creates a mock agent tool
- * @param name - Tool name
- * @param handler - Optional custom handler
- * @returns Mock AgentTool for testing
- */
-export function createMockTool(
-  name: string,
-  handler?: (params: Record<string, unknown>) => Promise<unknown>
-): AgentTool {
-  return {
-    name,
-    description: `Mock tool: ${name}`,
-    parameters: {
-      type: 'object',
-      properties: {
-        input: { type: 'string' },
-      },
-      required: [],
-    },
-    handler: handler || vi.fn().mockResolvedValue({ success: true }),
-  }
+    message,
+    toolsUsed: [],
+  };
 }
 
 // ============================================================================
@@ -268,7 +110,7 @@ export function createMockTool(
  * Mock MCP tool result
  */
 export interface MockMCPToolResult {
-  content: Array<{ type: string; text: string }>
+  content: Array<{ type: string; text: string }>;
 }
 
 /**
@@ -277,9 +119,9 @@ export interface MockMCPToolResult {
  * @returns Mock MCP client
  */
 export function createMockMCPClient(
-  tools: string[] = ['search_flights', 'create_trip', 'get_quotes']
+  tools: string[] = ['create_trip', 'get_rfq', 'get_quote', 'send_trip_message']
 ) {
-  const toolResults: Map<string, unknown> = new Map()
+  const toolResults: Map<string, unknown> = new Map();
 
   return {
     listTools: vi.fn().mockResolvedValue({
@@ -289,94 +131,165 @@ export function createMockMCPClient(
         inputSchema: { type: 'object', properties: {} },
       })),
     }),
-    callTool: vi.fn().mockImplementation(async ({ name, arguments: args }: { name: string; arguments: unknown }) => {
-      // Check if there's a custom result for this tool
-      if (toolResults.has(name)) {
-        return {
-          content: [{ type: 'text', text: JSON.stringify(toolResults.get(name)) }],
+    callTool: vi.fn().mockImplementation(
+      async ({ name, arguments: args }: { name: string; arguments: unknown }) => {
+        // Check if there's a custom result for this tool
+        if (toolResults.has(name)) {
+          return {
+            content: [{ type: 'text', text: JSON.stringify(toolResults.get(name)) }],
+          };
+        }
+
+        // Default mock responses per tool
+        switch (name) {
+          case 'create_trip':
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    trip_id: `atrip-${Date.now()}`,
+                    deep_link: 'https://avinode.test/trip/atrip-12345',
+                    rfq_id: `arfq-${Date.now()}`,
+                    status: 'trip_created',
+                    created_at: new Date().toISOString(),
+                  }),
+                },
+              ],
+            };
+          case 'get_rfq':
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    trip_id: 'atrip-12345',
+                    rfq_id: 'arfq-12345',
+                    status: 'pending',
+                    flights: [],
+                    deep_link: 'https://avinode.test/trip/atrip-12345',
+                  }),
+                },
+              ],
+            };
+          case 'get_quote':
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    quoteId: 'q-1',
+                    rfqId: 'arfq-12345',
+                    operatorId: 'op-1',
+                    operatorName: 'Elite Jets',
+                    aircraftType: 'Citation X',
+                    totalPrice: 45000,
+                    currency: 'USD',
+                    rfqStatus: 'quoted',
+                  } as AvinodeQuote),
+                },
+              ],
+            };
+          case 'send_trip_message':
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    message_id: `msg-${Date.now()}`,
+                    sent_at: new Date().toISOString(),
+                  }),
+                },
+              ],
+            };
+          case 'get_trip_messages':
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    messages: [
+                      {
+                        id: 'msg-1',
+                        threadId: 'thread-1',
+                        senderId: 'op-1',
+                        senderName: 'Elite Jets',
+                        senderType: 'seller',
+                        content: 'Aircraft confirmed available.',
+                        sentAt: new Date().toISOString(),
+                        isRead: false,
+                      },
+                    ],
+                  }),
+                },
+              ],
+            };
+          case 'get_client':
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    id: 'client-123',
+                    iso_agent_id: 'iso-agent-test-456',
+                    company_name: 'Test Corp',
+                    contact_name: 'John Doe',
+                    email: 'john@test.com',
+                    is_active: true,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  } as ClientProfile),
+                },
+              ],
+            };
+          case 'get_request':
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    id: 'req-123',
+                    iso_agent_id: 'iso-agent-test-456',
+                    departure_airport: 'KJFK',
+                    arrival_airport: 'KLAX',
+                    departure_date: '2025-03-15',
+                    passengers: 4,
+                    status: 'pending',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  } as FlightRequest),
+                },
+              ],
+            };
+          case 'send_email':
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    message_id: `msg-${Date.now()}`,
+                    thread_id: `thread-${Date.now()}`,
+                    sent_at: new Date().toISOString(),
+                  }),
+                },
+              ],
+            };
+          default:
+            return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
         }
       }
-
-      // Default mock responses per tool
-      switch (name) {
-        case 'search_flights':
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                aircraft: [
-                  { id: 'ac-1', type: 'Citation X', category: 'midsize', capacity: 8, range: 3500, speed: 550, operator: { id: 'op-1', name: 'Elite Jets', rating: 4.8 } },
-                  { id: 'ac-2', type: 'Gulfstream G450', category: 'heavy', capacity: 12, range: 4500, speed: 580, operator: { id: 'op-2', name: 'Premium Air', rating: 4.9 } },
-                ],
-                query: args,
-              }),
-            }],
-          }
-        case 'create_trip':
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                trip_id: `atrip-${Date.now()}`,
-                deep_link: 'https://avinode.test/trip/atrip-12345',
-                rfp_id: `arfq-${Date.now()}`,
-                status: 'trip_created',
-                created_at: new Date().toISOString(),
-              }),
-            }],
-          }
-        case 'get_quotes':
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                quotes: [
-                  { quote_id: 'q-1', operator_id: 'op-1', operator_name: 'Elite Jets', aircraft_type: 'Citation X', base_price: 45000 },
-                  { quote_id: 'q-2', operator_id: 'op-2', operator_name: 'Premium Air', aircraft_type: 'Gulfstream G450', base_price: 75000 },
-                ],
-              }),
-            }],
-          }
-        case 'send_trip_message':
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message_id: `msg-${Date.now()}`,
-                status: 'sent',
-                sent_at: new Date().toISOString(),
-                recipient_count: 3,
-              }),
-            }],
-          }
-        case 'get_trip_messages':
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                messages: [
-                  { message_id: 'msg-1', sender_id: 'op-1', sender_name: 'Elite Jets', sender_type: 'operator', content: 'Aircraft confirmed available.', sent_at: new Date().toISOString() },
-                ],
-                total_count: 1,
-                has_more: false,
-              }),
-            }],
-          }
-        default:
-          return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] }
-      }
-    }),
+    ),
 
     // Helper to set custom tool results for testing
     setToolResult: (toolName: string, result: unknown) => {
-      toolResults.set(toolName, result)
+      toolResults.set(toolName, result);
     },
 
     // Helper to clear custom tool results
     clearToolResults: () => {
-      toolResults.clear()
+      toolResults.clear();
     },
-  }
+  };
 }
 
 // ============================================================================
@@ -384,37 +297,25 @@ export function createMockMCPClient(
 // ============================================================================
 
 /**
- * Creates a mock conversation state for orchestrator testing
+ * Creates a mock conversation state for agent testing
  * @param overrides - State overrides
  * @returns Mock conversation state
  */
 export function createMockConversationState(
-  overrides: Partial<{
-    sessionId: string
-    userId: string
-    requestId: string
-    isComplete: boolean
-    extractedData: Record<string, unknown>
-    missingFields: string[]
-    clarificationRound: number
-    questionsAsked: string[]
-    conversationHistory: Array<{ role: string; content: string; timestamp: Date }>
-  }> = {}
-) {
+  overrides: Partial<ConversationState> = {}
+): ConversationState {
   return {
-    sessionId: overrides.sessionId || `session-${Date.now()}`,
-    userId: overrides.userId,
-    requestId: overrides.requestId,
-    isComplete: overrides.isComplete || false,
-    extractedData: overrides.extractedData || {},
-    missingFields: overrides.missingFields || ['departure', 'arrival', 'departureDate', 'passengers'],
-    intent: null,
-    clarificationRound: overrides.clarificationRound || 0,
-    questionsAsked: overrides.questionsAsked || [],
-    conversationHistory: overrides.conversationHistory || [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
+    sessionId: `session-${Date.now()}`,
+    userId: 'user-test-123',
+    history: [],
+    extractedData: {},
+    missingFields: ['departureAirport', 'arrivalAirport', 'departureDate', 'passengers'],
+    clarificationRound: 0,
+    isComplete: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
 }
 
 // ============================================================================
@@ -422,20 +323,20 @@ export function createMockConversationState(
 // ============================================================================
 
 /**
- * Creates a mock Redis conversation store for orchestrator testing
+ * Creates a mock Redis conversation store for agent testing
  * @returns Mock conversation store with in-memory storage
  */
 export function createMockConversationStore() {
-  const storage = new Map<string, unknown>()
+  const storage = new Map<string, unknown>();
 
   return {
     initialize: vi.fn().mockResolvedValue(undefined),
     get: vi.fn().mockImplementation(async (sessionId: string) => storage.get(sessionId)),
     set: vi.fn().mockImplementation(async (sessionId: string, state: unknown) => {
-      storage.set(sessionId, state)
+      storage.set(sessionId, state);
     }),
     delete: vi.fn().mockImplementation(async (sessionId: string) => {
-      storage.delete(sessionId)
+      storage.delete(sessionId);
     }),
     refreshTTL: vi.fn().mockResolvedValue(undefined),
     getHealth: vi.fn().mockResolvedValue({
@@ -444,11 +345,11 @@ export function createMockConversationStore() {
       usingFallback: false,
     }),
     close: vi.fn().mockResolvedValue(undefined),
-    
+
     // Helpers for testing
     _storage: storage,
     _clear: () => storage.clear(),
-  }
+  };
 }
 
 // ============================================================================
@@ -462,62 +363,49 @@ export function createMockConversationStore() {
  */
 export function createMockOpenAIClient(
   responses: Array<{
-    content: string
+    content: string;
     toolCalls?: Array<{
-      id: string
-      type: 'function'
-      function: { name: string; arguments: string }
-    }>
+      id: string;
+      type: 'function';
+      function: { name: string; arguments: string };
+    }>;
   }> = [{ content: 'Mock assistant response' }]
 ) {
-  let responseIndex = 0
+  let responseIndex = 0;
 
   return {
     chat: {
       completions: {
         create: vi.fn().mockImplementation(async () => {
-          const response = responses[responseIndex] || responses[responses.length - 1]
-          responseIndex++
+          const response = responses[responseIndex] || responses[responses.length - 1];
+          responseIndex++;
 
           return {
             id: `chatcmpl-${Date.now()}`,
             object: 'chat.completion',
             created: Date.now(),
             model: 'gpt-4-turbo-preview',
-            choices: [{
-              index: 0,
-              message: {
-                role: 'assistant',
-                content: response.content,
-                tool_calls: response.toolCalls,
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: 'assistant',
+                  content: response.content,
+                  tool_calls: response.toolCalls,
+                },
+                finish_reason: response.toolCalls ? 'tool_calls' : 'stop',
               },
-              finish_reason: response.toolCalls ? 'tool_calls' : 'stop',
-            }],
+            ],
             usage: {
               prompt_tokens: 100,
               completion_tokens: 50,
               total_tokens: 150,
             },
-          }
+          };
         }),
       },
     },
-    // Mock for GPT-5 Responses API (if needed)
-    responses: {
-      create: vi.fn().mockImplementation(async () => ({
-        id: `resp-${Date.now()}`,
-        object: 'response',
-        created: Date.now(),
-        model: 'gpt-5',
-        output: responses[0]?.content || 'Mock response',
-        usage: {
-          prompt_tokens: 100,
-          completion_tokens: 50,
-          total_tokens: 150,
-        },
-      })),
-    },
-  }
+  };
 }
 
 // ============================================================================
@@ -527,15 +415,10 @@ export function createMockOpenAIClient(
 export const MockFactories = {
   createMockAgentContext,
   createMockRFPContext,
-  createMockConversationalContext,
-  createMockAgentTask,
-  createMockFlightSearchTask,
   createMockSuccessResult,
   createMockFailedResult,
-  createMockAgent,
-  createMockTool,
   createMockMCPClient,
   createMockConversationState,
   createMockConversationStore,
   createMockOpenAIClient,
-}
+};
