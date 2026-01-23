@@ -56,8 +56,6 @@ export interface RFQFlightsListProps {
   onReviewAndBook?: (flightId: string) => void;
   /** Callback when "View Chat" button is clicked */
   onViewChat?: (flightId: string, quoteId?: string, messageId?: string) => void;
-  /** Callback when "Book flight" button is clicked */
-  onBookFlight?: (flightId: string, quoteId?: string) => void;
   /** Callback when "Generate flight proposal" button is clicked */
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
 }
@@ -111,7 +109,6 @@ export function RFQFlightsList({
   showBookButton = false,
   onReviewAndBook,
   onViewChat,
-  onBookFlight,
   onGenerateProposal,
 }: RFQFlightsListProps) {
   const [sortBy, setSortBy] = useState<SortOption>(initialSortBy);
@@ -331,7 +328,6 @@ export function RFQFlightsList({
                 showBookButton={showBookButton}
                 onReviewAndBook={onReviewAndBook}
                 onViewChat={onViewChat}
-                onBookFlight={onBookFlight}
                 onGenerateProposal={onGenerateProposal}
                 hasMessages={(flight as any).hasMessages ?? (flight.rfqStatus === 'quoted')}
                 hasNewMessages={(flight as any).hasNewMessages ?? false}

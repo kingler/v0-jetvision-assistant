@@ -1294,14 +1294,6 @@ export function ChatInterface({
   }
 
   /**
-   * Handle booking a flight
-   */
-  const handleBookFlight = (flightId: string, quoteId?: string) => {
-    console.log('[ChatInterface] Book flight:', { flightId, quoteId })
-    // TODO: Implement booking flow
-  }
-
-  /**
    * Handle generating proposal
    */
   const handleGenerateProposal = (flightId: string, quoteId?: string) => {
@@ -1578,7 +1570,6 @@ export function ChatInterface({
                           onTripIdSubmit={handleTripIdSubmit}
                           onRfqFlightSelectionChange={setSelectedRfqFlightIds}
                           onViewChat={handleViewChat}
-                          onBookFlight={handleBookFlight}
                           onGenerateProposal={handleGenerateProposal}
                           onReviewAndBook={handleReviewAndBook}
                         />
@@ -1656,7 +1647,6 @@ export function ChatInterface({
                     customerName={activeChat.customer?.name || ''}
                     selectedFlights={[]}
                     onViewChat={handleViewChat}
-                    onBookFlight={handleBookFlight}
                     onGenerateProposal={handleGenerateProposal}
                     showPipeline={message.showPipeline}
                     pipelineData={message.pipelineData}
@@ -1821,7 +1811,6 @@ export function ChatInterface({
                   onTripIdSubmit={handleTripIdSubmit}
                   onRfqFlightSelectionChange={setSelectedRfqFlightIds}
                   onViewChat={handleViewChat}
-                  onBookFlight={handleBookFlight}
                   onGenerateProposal={handleGenerateProposal}
                   onReviewAndBook={handleReviewAndBook}
                 />

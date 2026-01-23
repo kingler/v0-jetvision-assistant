@@ -13,7 +13,7 @@
  * - Pricing with optional breakdown
  * - Amenities indicators
  * - Prominent status badge (sent, unanswered, quoted, declined, expired)
- * - "Review and Book" button for quoted flights (triggers Step 4)
+ * - "Generate Proposal" button for quoted flights
  * - Selection checkbox for legacy proposal workflow
  */
 
@@ -33,7 +33,6 @@ import {
   HeartPulse,
   Star,
   Calendar,
-  ShoppingCart,
   MessageSquare,
   ExternalLink,
   ChevronDown,
@@ -168,8 +167,6 @@ export interface RFQFlightCardProps {
   onReviewAndBook?: (flightId: string) => void;
   /** Callback when "View Chat" button is clicked */
   onViewChat?: (flightId: string, quoteId?: string, messageId?: string) => void;
-  /** Callback when "Book flight" button is clicked */
-  onBookFlight?: (flightId: string, quoteId?: string) => void;
   /** Callback when "Generate flight proposal" button is clicked */
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
   /** Whether operator messages exist for this flight (triggers display of action buttons) */
@@ -407,7 +404,6 @@ export function RFQFlightCard({
   showBookButton = false,
   onReviewAndBook,
   onViewChat,
-  onBookFlight,
   onGenerateProposal,
   hasMessages = false,
   hasNewMessages = false,
@@ -482,13 +478,6 @@ export function RFQFlightCard({
   };
 
   /**
-   * Handles the "Book flight" button click
-   */
-  const handleBookFlight = () => {
-    onBookFlight?.(flight.id, quoteId);
-  };
-
-  /**
    * Handles the "Generate flight proposal" button click
    */
   const handleGenerateProposal = () => {
@@ -502,7 +491,7 @@ export function RFQFlightCard({
    * When rfqStatus changes to 'quoted':
    * - Operator has confirmed availability and pricing
    * - Operator's response includes a message with details
-   * - "Generate Proposal" and "Book Flight" buttons become visible
+   * - "Generate Proposal" button becomes visible
    */
   const showActionButtons = flight.rfqStatus === 'quoted';
 
@@ -681,34 +670,18 @@ export function RFQFlightCard({
                   </div>
                 )}
 
-                {/* Action Buttons: Book flight and Generate proposal (shown when status is 'quoted' and messages exist) */}
-                {showActionButtons && (
-                  <>
-                    {onBookFlight && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={handleBookFlight}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                        aria-label="Book flight"
-                      >
-                        <ShoppingCart className="h-4 w-4" />
-                        Book flight
-                      </Button>
-                    )}
-                    {onGenerateProposal && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={handleGenerateProposal}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-                        aria-label="Generate Proposal"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Generate Proposal
-                      </Button>
-                    )}
-                  </>
+                {/* Action Button: Generate proposal (shown when status is 'quoted') */}
+                {showActionButtons && onGenerateProposal && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleGenerateProposal}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                    aria-label="Generate Proposal"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Generate Proposal
+                  </Button>
                 )}
               </div>
 
@@ -908,35 +881,18 @@ export function RFQFlightCard({
                   )}
                 </div>
               )}
-              {/* Action Buttons: Book flight and Generate proposal (shown when status is 'quoted' and messages exist) */}
-              {/* Positioned after Messages button to the right in the same flex container */}
-              {showActionButtons && (
-                <>
-                  {onBookFlight && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleBookFlight}
-                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                      aria-label="Book flight"
-                    >
-                      <ShoppingCart className="h-4 w-4" />
-                      Book Flight
-                    </Button>
-                  )}
-                  {onGenerateProposal && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleGenerateProposal}
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-                      aria-label="Generate flight proposal"
-                    >
-                      <FileText className="h-4 w-4" />
-                      Generate Proposal
-                    </Button>
-                  )}
-                </>
+              {/* Action Button: Generate proposal (shown when status is 'quoted') */}
+              {showActionButtons && onGenerateProposal && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleGenerateProposal}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                  aria-label="Generate flight proposal"
+                >
+                  <FileText className="h-4 w-4" />
+                  Generate Proposal
+                </Button>
               )}
             </div>
             <div className="flex items-center gap-2">

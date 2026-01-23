@@ -426,37 +426,4 @@ describe('RFQFlightCard', () => {
     });
   });
 
-  describe('Book Flight CTA', () => {
-    it('renders Book Flight button for quoted flights and invokes callback', () => {
-      const onBookFlight = vi.fn();
-      render(
-        <RFQFlightCard
-          flight={{ ...mockFlight, rfqStatus: 'quoted' }}
-          onBookFlight={onBookFlight}
-          quoteId="test-quote-id"
-        />
-      );
-
-      const button = screen.getByRole('button', { name: /book flight/i });
-      expect(button).toBeInTheDocument();
-      expect(button).toBeEnabled();
-
-      fireEvent.click(button);
-      // onBookFlight is called with (flightId, quoteId)
-      expect(onBookFlight).toHaveBeenCalledWith(mockFlight.id, 'test-quote-id');
-    });
-
-    it('does not render Book Flight button when RFQ not quoted', () => {
-      const onBookFlight = vi.fn();
-      render(
-        <RFQFlightCard
-          flight={{ ...mockFlight, rfqStatus: 'sent' }}
-          onBookFlight={onBookFlight}
-        />
-      );
-
-      // Book Flight button should not be present when status is not 'quoted'
-      expect(screen.queryByRole('button', { name: /book flight/i })).not.toBeInTheDocument();
-    });
-  });
 });

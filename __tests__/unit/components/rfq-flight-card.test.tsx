@@ -223,48 +223,9 @@ describe('RFQFlightCard', () => {
     });
   });
 
-  describe('Book Flight button', () => {
-    it('should show Book Flight button when rfqStatus is "quoted"', () => {
-      const mockOnBookFlight = vi.fn();
-      const flight = createMockFlight({ rfqStatus: 'quoted' });
-
-      render(
-        <RFQFlightCard
-          flight={flight}
-          onBookFlight={mockOnBookFlight}
-        />
-      );
-
-      const bookButton = screen.getByRole('button', { name: /book.*flight/i });
-      expect(bookButton).toBeInTheDocument();
-    });
-
-    it('should call onBookFlight with flightId and quoteId when clicked', () => {
-      const mockOnBookFlight = vi.fn();
-      const flight = createMockFlight({
-        id: 'flight-xyz',
-        rfqStatus: 'quoted',
-      });
-
-      render(
-        <RFQFlightCard
-          flight={flight}
-          onBookFlight={mockOnBookFlight}
-          quoteId="aquote-456"
-        />
-      );
-
-      const bookButton = screen.getByRole('button', { name: /book.*flight/i });
-      fireEvent.click(bookButton);
-
-      expect(mockOnBookFlight).toHaveBeenCalledWith('flight-xyz', 'aquote-456');
-    });
-  });
-
   describe('compact view with showActionButtons', () => {
-    it('should show action buttons in compact view when rfqStatus is "quoted"', () => {
+    it('should show Generate Proposal button in compact view when rfqStatus is "quoted"', () => {
       const mockOnGenerateProposal = vi.fn();
-      const mockOnBookFlight = vi.fn();
       const flight = createMockFlight({ rfqStatus: 'quoted' });
 
       render(
@@ -272,16 +233,12 @@ describe('RFQFlightCard', () => {
           flight={flight}
           compact={true}
           onGenerateProposal={mockOnGenerateProposal}
-          onBookFlight={mockOnBookFlight}
         />
       );
 
-      // In compact view, buttons should appear when status is 'quoted'
+      // In compact view, Generate Proposal button should appear when status is 'quoted'
       const generateButton = screen.getByRole('button', { name: /generate.*proposal/i });
-      const bookButton = screen.getByRole('button', { name: /book.*flight/i });
-
       expect(generateButton).toBeInTheDocument();
-      expect(bookButton).toBeInTheDocument();
     });
   });
 });

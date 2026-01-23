@@ -122,8 +122,6 @@ export interface FlightSearchProgressProps {
   onCopyDeepLink?: () => void;
   /** Callback when View Chat is clicked for a flight */
   onViewChat?: (flightId: string, quoteId?: string, messageId?: string) => void;
-  /** Callback when "Book flight" button is clicked */
-  onBookFlight?: (flightId: string, quoteId?: string) => void;
   /** Callback when "Generate flight proposal" button is clicked */
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
   /** Callback when RFQ flight selection changes */
@@ -347,7 +345,6 @@ export function FlightSearchProgress({
   onDeepLinkClick,
   onCopyDeepLink,
   onViewChat,
-  onBookFlight,
   onGenerateProposal,
   onRfqFlightSelectionChange,
   onContinueToProposal,
@@ -915,8 +912,6 @@ export function FlightSearchProgress({
                           onSelectionChange={onRfqFlightSelectionChange}
                           onContinue={onContinueToProposal}
                           onReviewAndBook={onReviewAndBook}
-                          onViewChat={onViewChat}
-                          onBookFlight={onBookFlight}
                           onGenerateProposal={onGenerateProposal}
                         />
                       ) : (

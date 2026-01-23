@@ -123,8 +123,6 @@ export interface AgentMessageProps {
   selectedFlights?: SelectedFlight[]
   /** Callback when View Chat is clicked for a flight */
   onViewChat?: (flightId: string, quoteId?: string, messageId?: string) => void
-  /** Callback when "Book flight" button is clicked */
-  onBookFlight?: (flightId: string, quoteId?: string) => void
   /** Callback when "Generate flight proposal" button is clicked */
   onGenerateProposal?: (flightId: string, quoteId?: string) => void
   /** RFQ flights retrieved from Avinode */
@@ -229,7 +227,6 @@ export function AgentMessage({
   onCopyDeepLink,
   selectedFlights = [],
   onViewChat,
-  onBookFlight,
   onGenerateProposal,
   rfqFlights = [],
   isRfqFlightsLoading = false,
@@ -406,7 +403,6 @@ export function AgentMessage({
           onDeepLinkClick={onDeepLinkClick}
           onCopyDeepLink={onCopyDeepLink}
           onViewChat={onViewChat}
-          onBookFlight={onBookFlight}
           onGenerateProposal={onGenerateProposal}
           onRfqFlightSelectionChange={onRfqFlightSelectionChange}
           onContinueToProposal={onContinueToProposal}
