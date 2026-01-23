@@ -122,7 +122,11 @@
       "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNiemFldmF3bmpscnNqc3VldmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDkyNzEwMiwiZXhwIjoyMDc2NTAzMTAyfQ.R2TtahKp42sk11OqwB_DSn6-Uxi6flfD-_1hpm4FaEU",
       "PYTHONUNBUFFERED": "1"
     }
-  }
+    },
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]
+    }
     }
   },
   "shortcuts": {

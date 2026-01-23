@@ -664,7 +664,8 @@ export function RFQFlightCard({
                       variant="outline"
                       size="sm"
                       onClick={handleViewChat}
-                      className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                      // Use teal-tinted hover state to match "Update RFQs" primary button hue
+                      className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                       aria-label="View chat"
                     >
                       <MessageSquare className="h-4 w-4" />
@@ -682,14 +683,21 @@ export function RFQFlightCard({
                 )}
 
                 {/* Action Buttons: Book flight and Generate proposal (shown when status is 'quoted' and messages exist) */}
+                {/* 
+                  NOTE: We intentionally use the same outline styling as the Messages button here.
+                  This keeps all primary actions visually consistent and relies on the shared Button
+                  component styles (border, bg-background, hover:accent, etc.) instead of custom colors.
+                  We also apply a teal hover background and text color to align with the "Update RFQs"
+                  primary button hover state, while keeping these as outline buttons.
+                */}
                 {showActionButtons && (
                   <>
                     {onBookFlight && (
                       <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
                         onClick={handleBookFlight}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                        className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                         aria-label="Book flight"
                       >
                         <ShoppingCart className="h-4 w-4" />
@@ -698,10 +706,10 @@ export function RFQFlightCard({
                     )}
                     {onGenerateProposal && (
                       <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
                         onClick={handleGenerateProposal}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                        className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                         aria-label="Generate Proposal"
                       >
                         <FileText className="h-4 w-4" />
@@ -717,7 +725,8 @@ export function RFQFlightCard({
                 variant="ghost"
                 size="sm"
                 onClick={toggleExpanded}
-                className="flex items-center gap-1 text-sm text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100"
+                // Ghost button uses teal hover background to stay consistent with footer actions
+                className="flex items-center gap-1 text-sm text-gray-900 dark:text-gray-100 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                 aria-label={isExpanded ? 'Show less' : 'Show more'}
                 aria-expanded={isExpanded}
               >
@@ -870,15 +879,9 @@ export function RFQFlightCard({
             </div>
           </div>
 
-          {/* Bottom Action Area: Price (if not in column 3), Status Badge, View Messages, Book Flight, Generate Proposal buttons */}
+          {/* Bottom Action Area: View Messages, Book Flight, Generate Proposal buttons */}
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 pb-4">
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Price display in full view bottom row - always shows initial price */}
-              <div className="flex flex-col">
-                <p className="text-sm font-semibold text-black dark:text-white">
-                  Price: {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
-                </p>
-              </div>
               {/* 
                 Status updates automatically when operator responds:
                 - 'unanswered'/'sent' → 'quoted' when operator provides quote
@@ -892,7 +895,8 @@ export function RFQFlightCard({
                     variant="outline"
                     size="sm"
                     onClick={handleViewChat}
-                    className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100"
+                    // Apply teal hover to align with "Update RFQs" primary hover color
+                    className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                     aria-label="View chat"
                   >
                     <MessageSquare className="h-4 w-4" />
@@ -914,10 +918,10 @@ export function RFQFlightCard({
                 <>
                   {onBookFlight && (
                     <Button
-                      variant="default"
+                      variant="outline"
                       size="sm"
                       onClick={handleBookFlight}
-                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                      className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                       aria-label="Book flight"
                     >
                       <ShoppingCart className="h-4 w-4" />
@@ -926,10 +930,10 @@ export function RFQFlightCard({
                   )}
                   {onGenerateProposal && (
                     <Button
-                      variant="default"
+                      variant="outline"
                       size="sm"
                       onClick={handleGenerateProposal}
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                      className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                       aria-label="Generate flight proposal"
                     >
                       <FileText className="h-4 w-4" />
@@ -946,7 +950,8 @@ export function RFQFlightCard({
                   variant="ghost"
                   size="sm"
                   onClick={toggleExpanded}
-                  className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                  // Use teal hover to keep footer controls visually consistent
+                  className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                   aria-label="Show less"
                   aria-expanded={isExpanded}
                 >
@@ -964,7 +969,8 @@ export function RFQFlightCard({
                 variant="ghost"
                 size="sm"
                 onClick={toggleExpanded}
-                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                // Fallback "Show Less" also uses teal hover for consistency
+                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
                 aria-label="Show less"
                 aria-expanded={isExpanded}
               >
