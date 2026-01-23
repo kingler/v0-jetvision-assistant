@@ -66,6 +66,7 @@ import {
 
 // Flight request parser utility
 import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
+import { formatDate } from "@/lib/utils/format"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -156,29 +157,40 @@ export function ChatInterface({
   const routeParts = extractRouteParts(activeChat.route)
 
   /**
-   * Determine if FlightSearchProgress has already been rendered after the first user message.
-   * This prevents duplicate rendering when showing it after all messages for loaded sessions.
-   * 
-   * Per UX requirements: FlightSearchProgress should ALWAYS be visible for flight request conversations.
-   * This check is only used to prevent duplicate rendering in the messages list.
+   * Show FlightSearchProgress only after the agent has responded,
+   * so the conversation appears before the workflow UI.
    */
-  const hasFlightSearchProgressAfterFirstMessage = useMemo(() => {
-    // If no messages, definitely not rendered after first message
-    if (!activeChat.messages || activeChat.messages.length === 0) return false
-    
-    // Check if first message is user message and has workflow step
-    const firstMessage = activeChat.messages[0]
-    const hasWorkflowStep = activeChat.currentStep && activeChat.currentStep >= 1
-    
-    // Also check if this is explicitly a flight request (not general chat)
-    const isFlightRequest = activeChat.conversationType !== 'general' || 
-                           !!activeChat.route || 
-                           !!activeChat.tripId || 
-                           !!activeChat.deepLink ||
-                           !!activeChat.requestId
-    
-    return firstMessage.type === 'user' && hasWorkflowStep && isFlightRequest
-  }, [activeChat.messages, activeChat.currentStep, activeChat.conversationType, activeChat.route, activeChat.tripId, activeChat.deepLink, activeChat.requestId])
+  const shouldShowFlightSearchProgress = useMemo(() => {
+    const hasAgentMessage =
+      activeChat.messages?.some((message) => message.type === 'agent') ?? false
+
+    const hasValidRoute =
+      !!activeChat.route &&
+      activeChat.route !== 'Select route' &&
+      activeChat.route !== 'TBD' &&
+      activeChat.route.trim().length > 0
+
+    const hasValidDate =
+      !!activeChat.date &&
+      activeChat.date !== 'Select date' &&
+      activeChat.date !== 'Date TBD' &&
+      activeChat.date !== 'TBD' &&
+      activeChat.date.trim().length > 0
+
+    const hasValidPassengers = (activeChat.passengers ?? 0) > 0
+
+    const hasCompleteDetails = hasValidRoute && hasValidDate && hasValidPassengers
+
+    const hasAvinodeLink = !!activeChat.deepLink
+
+    return hasAgentMessage && hasCompleteDetails && hasAvinodeLink
+  }, [
+    activeChat.messages,
+    activeChat.route,
+    activeChat.date,
+    activeChat.passengers,
+    activeChat.deepLink,
+  ])
 
   // Convert quotes from activeChat to RFQ flights format
   const rfqFlights: RFQFlight[] = useMemo(() => {
@@ -506,7 +518,9 @@ export function ChatInterface({
       try {
         const parsedDate = new Date(parsedFlightRequest.date)
         if (!isNaN(parsedDate.getTime())) {
-          sessionUpdates.date = parsedDate.toISOString().split('T')[0]
+          sessionUpdates.date = `${parsedDate.getFullYear()}-${String(
+            parsedDate.getMonth() + 1
+          ).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
         }
       } catch {
         // If parsing fails, store as-is
@@ -893,11 +907,7 @@ export function ChatInterface({
     if (departureDate) {
       // Format date for display
       try {
-        updates.date = new Date(departureDate).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        })
+        updates.date = formatDate(departureDate)
       } catch {
         updates.date = departureDate
       }
@@ -1538,43 +1548,6 @@ export function ChatInterface({
                         <p className="text-sm leading-relaxed">{message.content}</p>
                       </div>
                     </div>
-                    {/* Render FlightSearchProgress after the FIRST user message (for new conversations) */}
-                    {/* FIXED: Added overflow-visible to ensure Step 3 content isn't clipped during scroll */}
-                    {index === 0 && (activeChat.currentStep && activeChat.currentStep >= 1) && (
-                      <div ref={workflowRef} className="mt-4" style={{ overflow: 'visible' }}>
-                        <FlightSearchProgress
-                          currentStep={activeChat.currentStep || 1}
-                          flightRequest={{
-                            // Route format is "DEPT → ARR" (with arrow character)
-                            departureAirport: activeChat.route?.split(' → ')[0]
-                              ? { icao: activeChat.route.split(' → ')[0].trim() }
-                              : { icao: 'TBD' },
-                            arrivalAirport: activeChat.route?.split(' → ')[1]
-                              ? { icao: activeChat.route.split(' → ')[1].trim() }
-                              : { icao: 'TBD' },
-                            departureDate: activeChat.date || new Date().toISOString().split('T')[0],
-                            passengers: activeChat.passengers || 1,
-                            requestId: activeChat.requestId,
-                          }}
-                          deepLink={activeChat.deepLink}
-                          tripId={activeChat.tripId}
-                          isTripIdLoading={isTripIdLoading}
-                          tripIdError={tripIdError}
-                          tripIdSubmitted={tripIdSubmitted}
-                          rfqFlights={rfqFlights}
-                          isRfqFlightsLoading={false}
-                          selectedRfqFlightIds={selectedRfqFlightIds}
-                          rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
-                          customerEmail={(activeChat.customer as { email?: string })?.email}
-                          customerName={activeChat.customer?.name}
-                          onTripIdSubmit={handleTripIdSubmit}
-                          onRfqFlightSelectionChange={setSelectedRfqFlightIds}
-                          onViewChat={handleViewChat}
-                          onGenerateProposal={handleGenerateProposal}
-                          onReviewAndBook={handleReviewAndBook}
-                        />
-                      </div>
-                    )}
                   </>
                 ) : (
                   <AgentMessage
@@ -1590,8 +1563,8 @@ export function ChatInterface({
                       deepLink: activeChat.deepLink,
                     } : undefined}
                     // Show deep link in AgentMessage - allow even when tripId exists for context
-                    // BUT don't show if FlightSearchProgress is already rendered after first user message
-                    showDeepLink={message.showDeepLink && !hasFlightSearchProgressAfterFirstMessage}
+                    // BUT don't show if FlightSearchProgress is rendered
+                    showDeepLink={message.showDeepLink && !shouldShowFlightSearchProgress}
                     deepLinkData={message.deepLinkData}
                     onTripIdSubmit={handleTripIdSubmit}
                     isTripIdLoading={isTripIdLoading}
@@ -1606,14 +1579,14 @@ export function ChatInterface({
                       const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
                       return !isInStep3Or4 && (
                         (message.showQuotes && tripIdSubmitted) ||
-                        (rfqFlights.length > 0 && !hasFlightSearchProgressAfterFirstMessage)
+                        (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
                       )
                     })()}
                     rfqFlights={(() => {
                       const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
                       const shouldShowQuotesInMessage = !isInStep3Or4 && (
                         (message.showQuotes && tripIdSubmitted) ||
-                        (rfqFlights.length > 0 && !hasFlightSearchProgressAfterFirstMessage)
+                        (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
                       )
                       return shouldShowQuotesInMessage ? rfqFlights.map((flight) => {
                       const messages = activeChat.operatorMessages?.[flight.quoteId || ''] || []
@@ -1746,16 +1719,9 @@ export function ChatInterface({
               </div>
             )}
 
-            {/* Render FlightSearchProgress for loaded chat sessions */}
-            {/* Per UX requirements section 4.3: Always show FlightSearchProgress for flight request conversations */}
-            {/* Show if this is a flight request conversation (has route, tripId, deepLink, or requestId) */}
-            {/* and it hasn't already been shown after the first user message in the messages list */}
+            {/* Render FlightSearchProgress after the agent responds so the conversation appears first */}
             {/* FIXED: Added overflow-visible to ensure Step 3 content isn't clipped during scroll */}
-            {((activeChat.conversationType !== 'general' && activeChat.route) ||
-              activeChat.tripId ||
-              activeChat.deepLink ||
-              activeChat.requestId) &&
-             !hasFlightSearchProgressAfterFirstMessage && (
+            {shouldShowFlightSearchProgress && (
               <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                 <FlightSearchProgress
                   currentStep={(() => {
@@ -1772,8 +1738,8 @@ export function ChatInterface({
                       return 4
                     }
                     
-                    // Step 3: If we have tripId but no RFQs loaded yet (or not submitted)
-                    if (activeChat.tripId && !isTripIdSubmitted) {
+                    // Step 3: If we have tripId and RFQs are not loaded yet
+                    if (activeChat.tripId && rfqFlights.length === 0) {
                       return 3
                     }
                     

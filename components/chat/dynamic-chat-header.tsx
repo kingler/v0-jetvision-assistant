@@ -7,6 +7,7 @@ import { Copy, Check, FileText } from "lucide-react"
 import { QuoteRequestList } from "./quote-request-list"
 import type { QuoteRequest } from "./quote-request-item"
 import type { ChatSession } from "../chat-sidebar"
+import { formatDate } from "@/lib/utils/format"
 
 export interface DynamicChatHeaderProps {
   /** Current active chat session */
@@ -164,14 +165,7 @@ export function DynamicChatHeader({
                   {(() => {
                     // Format ISO date (YYYY-MM-DD) or formatted date string for display
                     try {
-                      const date = new Date(activeChat.date)
-                      if (!isNaN(date.getTime())) {
-                        return date.toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      }
+                      return formatDate(activeChat.date)
                     } catch {
                       // If parsing fails, use as-is (might already be formatted)
                     }

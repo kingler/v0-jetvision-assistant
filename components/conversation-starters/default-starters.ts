@@ -1,4 +1,4 @@
-import { Plane, ListChecks, DollarSign, Flame, BarChart3 } from "lucide-react"
+import { Plane, ListChecks } from "lucide-react"
 import type { ConversationStarter } from "./types"
 
 /**
@@ -28,12 +28,6 @@ export const STARTER_PROMPTS = {
     "I'd like to create a new flight request. Use the `create_trip` tool to set up a charter flight and generate a deep link for operator selection.",
   "show-active-requests":
     "Show me my active flight requests. Fetch my pending trips from the database and use the `get_rfq` tool to retrieve RFQ details and any quotes received for each trip.",
-  "show-deals":
-    "Show me my deals. Fetch active quotes from the database and use the `get_quote` tool to display detailed pricing, operator information, and deal status for each quote.",
-  "show-hot-opportunities":
-    "Show me hot opportunities. Fetch quotes that are expiring soon or have high priority. Use the `get_quote` tool to get details on time-sensitive deals that need immediate attention.",
-  "show-pipeline":
-    "Show me my pipeline summary. Aggregate data from my trips and quotes to provide metrics including total requests, quotes received, conversion rates, and pipeline value by status.",
 } as const
 
 export const DEFAULT_STARTERS: ConversationStarter[] = [
@@ -59,43 +53,6 @@ export const DEFAULT_STARTERS: ConversationStarter[] = [
     action: "show-active-requests",
     prompt: STARTER_PROMPTS["show-active-requests"],
     priority: 2,
-  },
-
-  // Deals Category
-  {
-    id: "show-deals",
-    title: "Show My Deals",
-    description: "View all active deals with status",
-    icon: DollarSign,
-    category: "deals",
-    variant: "green",
-    action: "show-deals",
-    prompt: STARTER_PROMPTS["show-deals"],
-    priority: 1,
-  },
-  {
-    id: "hot-opportunities",
-    title: "Hot Opportunities",
-    description: "High-priority deals needing attention",
-    icon: Flame,
-    category: "deals",
-    variant: "amber",
-    action: "show-hot-opportunities",
-    prompt: STARTER_PROMPTS["show-hot-opportunities"],
-    priority: 2,
-  },
-
-  // Pipeline Category
-  {
-    id: "pipeline-summary",
-    title: "Pipeline Summary",
-    description: "Overview of request pipeline",
-    icon: BarChart3,
-    category: "pipeline",
-    variant: "blue",
-    action: "show-pipeline",
-    prompt: STARTER_PROMPTS["show-pipeline"],
-    priority: 1,
   },
 ]
 

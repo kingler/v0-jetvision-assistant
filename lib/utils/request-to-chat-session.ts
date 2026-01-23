@@ -10,6 +10,7 @@
 
 import type { Request } from '@/lib/types/database';
 import type { ChatSession } from '@/components/chat-sidebar';
+import { formatDate } from '@/lib/utils/format';
 
 /**
  * Maps database request status to ChatSession status
@@ -74,11 +75,7 @@ function generateFlightName(request: Request): string {
   const departure = request.departure_airport || 'Unknown';
   const arrival = request.arrival_airport || 'Unknown';
   const date = request.departure_date
-    ? new Date(request.departure_date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
+    ? formatDate(request.departure_date)
     : 'Unknown date';
 
   return `${departure} → ${arrival} (${date})`;
@@ -118,11 +115,7 @@ export function requestToChatSession(
 
   // Format date for display
   const date = request.departure_date
-    ? new Date(request.departure_date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
+    ? formatDate(request.departure_date)
     : 'Select date';
 
   // Map status and workflow step

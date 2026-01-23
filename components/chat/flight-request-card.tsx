@@ -23,6 +23,7 @@ import { CheckCircle, Clock, Loader2, FileText, MessageSquare, Trash2, MoreVerti
 import { cn } from "@/lib/utils"
 import { AvinodeTripBadge } from "@/components/avinode-trip-badge"
 import type { ChatSession } from "@/components/chat-sidebar"
+import { formatDate } from "@/lib/utils/format"
 
 /**
  * Workflow steps mapping for status icons
@@ -315,14 +316,7 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
               {session.passengers} passenger{session.passengers !== 1 ? 's' : ''} • {(() => {
                 // Format ISO date (YYYY-MM-DD) or formatted date string for display
                 try {
-                  const date = new Date(session.date)
-                  if (!isNaN(date.getTime())) {
-                    return date.toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })
-                  }
+                  return formatDate(session.date)
                 } catch {
                   // If parsing fails, use as-is (might already be formatted)
                 }

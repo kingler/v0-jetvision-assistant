@@ -16,6 +16,7 @@
  */
 
 import type { ChatSession } from '@/components/chat-sidebar';
+import { formatDate } from '@/lib/utils/format';
 
 /**
  * Type for chat_sessions table row with related data
@@ -133,11 +134,7 @@ function formatDateForDisplay(dateString: string | null): string {
   if (!dateString) return 'Select date';
 
   try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return formatDate(dateString);
   } catch {
     return 'Select date';
   }

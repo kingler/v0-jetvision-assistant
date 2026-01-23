@@ -162,8 +162,10 @@ function extractDepartureDate(text: string): { iso?: string; formatted?: string 
           continue
         }
 
-        // Return both ISO string and formatted string
-        const iso = date.toISOString().split('T')[0]
+        // Return both ISO date string and formatted string (avoid timezone shifts)
+        const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+          date.getDate()
+        ).padStart(2, '0')}`
         const formatted = date.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
