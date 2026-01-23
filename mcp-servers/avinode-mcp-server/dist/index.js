@@ -1982,18 +1982,38 @@ async function getRFQ(params) {
                                     latestquote: true,
                                 },
                             });
-                            // Extract quote data from response (handle nested data structures)
-                            // avinodeClient.get() already returns response.data, so we check for nested data.data
-                            // Response structure from API: { data: { data: { ...quote... } } } or { data: { ...quote... } }
-                            const quoteData = quoteResponse?.data || quoteResponse;
-                            console.log('[getRFQ] Fetched quote detail for', quoteId, ':', {
-                                hasData: !!quoteResponse?.data,
-                                hasNestedData: !!quoteResponse?.data?.data,
-                                quoteId: quoteData?.id || quoteData?.quote_id,
-                                hasSellerPrice: !!quoteData?.sellerPrice,
-                                sellerPrice: quoteData?.sellerPrice,
-                                status: quoteData?.status,
-                                keys: Object.keys(quoteData || {}),
+                            // Extract quote data from response (handle multiple nested data structures)
+                            // Avinode API response can be at different nesting levels depending on endpoint version:
+                            // - quoteResponse (if avinodeClient.get already unwrapped)
+                            // - quoteResponse.data (single level wrap)
+                            // - quoteResponse.data.data (double level wrap - seen in some API versions)
+                            let quoteData = quoteResponse;
+                            // Check for nested .data and unwrap if sellerPrice is deeper
+                            if (quoteData?.data && !quoteData?.sellerPrice) {
+                                // Check if .data has sellerPrice (single wrap)
+                                if (quoteData.data.sellerPrice) {
+                                    quoteData = quoteData.data;
+                                }
+                                // Check if .data.data has sellerPrice (double wrap)
+                                else if (quoteData.data?.data?.sellerPrice) {
+                                    quoteData = quoteData.data.data;
+                                }
+                                // Otherwise just use .data
+                                else if (typeof quoteData.data === 'object') {
+                                    quoteData = quoteData.data;
+                                }
+                            }
+                            // DEBUG: Log the extraction process
+                            console.log('[getRFQ] Quote data extraction for', quoteId, ':', {
+                                responseType: typeof quoteResponse,
+                                responseKeys: quoteResponse ? Object.keys(quoteResponse).slice(0, 10) : [],
+                                hasDataProperty: !!quoteResponse?.data,
+                                hasSellerPriceAtRoot: !!quoteResponse?.sellerPrice,
+                                hasSellerPriceInData: !!quoteResponse?.data?.sellerPrice,
+                                hasSellerPriceInDataData: !!quoteResponse?.data?.data?.sellerPrice,
+                                finalQuoteDataKeys: quoteData ? Object.keys(quoteData).slice(0, 10) : [],
+                                finalSellerPrice: quoteData?.sellerPrice,
+                                finalId: quoteData?.id,
                             });
                             return quoteData;
                         }

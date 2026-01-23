@@ -66,7 +66,7 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
 
             {/* Tagline (hidden on mobile) */}
             <div className="hidden md:block border-l border-gray-600 pl-4">
-              <p className="text-sm text-gray-300 font-medium">AI-powered Private Jet Booking</p>
+              <p className="text-sm text-gray-300 font-medium">Jetvision Group</p>
             </div>
           </div>
 
