@@ -10,9 +10,20 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { Database, User, Request } from '@/lib/types/database';
 import { getConversationForRequest, loadMessages } from '@/lib/conversation/message-persistence';
+import { AvinodeMCPServer } from '@/lib/mcp/avinode-server';
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
+
+// Singleton MCP server instance for Avinode tool calls
+let mcpServer: AvinodeMCPServer | null = null;
+
+function getMCPServer(): AvinodeMCPServer {
+  if (!mcpServer) {
+    mcpServer = new AvinodeMCPServer();
+  }
+  return mcpServer;
+}
 
 /**
  * GET /api/requests
@@ -435,8 +446,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Parse request body
-    const body = await request.json() as { id: string; action: 'cancel' | 'archive'; reason?: string };
-    const { id: requestId, action, reason } = body;
+    const body = await request.json() as { id: string; action: 'cancel' | 'archive'; reason?: string; tripId?: string; rfqId?: string };
+    const { id: requestId, action, reason, tripId: bodyTripId, rfqId: bodyRfqId } = body;
 
     // Validate request ID and action
     if (!requestId || !action) {
@@ -476,7 +487,7 @@ export async function PATCH(request: NextRequest) {
     // Verify ownership - check if request exists and belongs to user
     const { data: existingRequest, error: fetchError } = await supabaseAdmin
       .from('requests')
-      .select('id, iso_agent_id, status, avinode_trip_id, metadata')
+      .select('id, iso_agent_id, status, avinode_trip_id, avinode_rfq_id, metadata')
       .eq('id', requestId)
       .single();
 
@@ -503,29 +514,166 @@ export async function PATCH(request: NextRequest) {
 
     // Handle cancel action
     if (action === 'cancel') {
-      // Cancel trip in Avinode if tripId exists
-      if (existingRequest.avinode_trip_id) {
+      // Cancel RFQ in Avinode if an identifier exists
+      const cancelId =
+        bodyRfqId ||
+        existingRequest.avinode_rfq_id ||
+        bodyTripId ||
+        existingRequest.avinode_trip_id;
+      if (cancelId) {
+        const server = getMCPServer();
+        const isMockMode = server.isUsingMockMode();
+        const cancelReason = reason || 'Cancelled by user';
+
+        const attemptCancelIds = async (ids: string[]) => {
+          const failures: Array<{ id: string; error: unknown }> = [];
+          let successCount = 0;
+
+          for (const id of ids) {
+            try {
+              console.log('[PATCH /api/requests] Attempting Avinode cancel', { id });
+              await server.callTool('cancel_trip', { trip_id: id, reason: cancelReason });
+              successCount += 1;
+            } catch (error) {
+              console.error('[PATCH /api/requests] Avinode cancel failed', { id, error });
+              failures.push({ id, error });
+            }
+          }
+
+          return { successCount, failures };
+        };
+
+        const isFullAvinodeId = (id: string) => {
+          if (id.startsWith('arfq-') || id.startsWith('atrip-')) {
+            return true;
+          }
+
+          return /^\d+$/.test(id);
+        };
+
+        const extractRfqIds = (rfqPayload: unknown): Set<string> => {
+          const ids = new Set<string>();
+          const payloadObject = (rfqPayload && typeof rfqPayload === 'object') ? rfqPayload as {
+            rfqs?: unknown;
+            data?: unknown;
+          } : null;
+          const nested =
+            (Array.isArray(payloadObject?.rfqs) && payloadObject?.rfqs) ||
+            (Array.isArray(payloadObject?.data) && payloadObject?.data) ||
+            null;
+          const items = nested || (Array.isArray(rfqPayload) ? rfqPayload : [rfqPayload]);
+
+          for (const item of items) {
+            if (!item || typeof item !== 'object') {
+              continue;
+            }
+            const rfq = item as {
+              rfq_id?: string;
+              id?: string;
+              href?: string;
+              links?: { self?: { href?: string } };
+            };
+
+            if (rfq.rfq_id) {
+              ids.add(rfq.rfq_id);
+            }
+            if (rfq.id) {
+              ids.add(rfq.id);
+            }
+
+            const href = rfq.href || rfq.links?.self?.href;
+            if (href) {
+              const match = href.match(/\/rfqs\/([^/?#]+)/);
+              if (match?.[1]) {
+                ids.add(match[1]);
+              }
+            }
+          }
+
+          return ids;
+        };
         try {
-          // Import MCP client to call cancel_trip tool
-          // Note: This requires the MCP server to be running
-          // For now, we'll update the database and log the Avinode cancellation
           console.log('[PATCH /api/requests] Cancelling trip in Avinode:', {
-            tripId: existingRequest.avinode_trip_id,
-            reason: reason || 'Cancelled by user',
+            tripId: cancelId,
+            rfqId: existingRequest.avinode_rfq_id,
+            reason: cancelReason,
+            mockMode: isMockMode,
           });
-          
-          // TODO: Call Avinode MCP cancel_trip tool here
-          // This would require importing the MCP client and calling:
-          // await mcpClient.callTool('avinode', {
-          //   tool: 'cancel_trip',
-          //   arguments: {
-          //     trip_id: existingRequest.avinode_trip_id,
-          //     reason: reason || 'Cancelled by user',
-          //   },
-          // });
+
+          if (!isMockMode) {
+            const candidateIds: string[] = [];
+
+            if (existingRequest.avinode_rfq_id && isFullAvinodeId(existingRequest.avinode_rfq_id)) {
+              candidateIds.push(existingRequest.avinode_rfq_id);
+            }
+
+            if (bodyRfqId && isFullAvinodeId(bodyRfqId)) {
+              candidateIds.push(bodyRfqId);
+            }
+
+            if (bodyTripId || existingRequest.avinode_trip_id) {
+              const rfqResult = await server.callTool('get_rfq_raw', {
+                rfq_id: bodyTripId || existingRequest.avinode_trip_id,
+              });
+
+              const rfqIds = extractRfqIds(rfqResult);
+              if (rfqIds.size > 0) {
+                const fullIds = [...rfqIds].filter(isFullAvinodeId);
+                console.log('[PATCH /api/requests] Extracted RFQ IDs for cancel:', {
+                  tripId: bodyTripId || existingRequest.avinode_trip_id,
+                  rfqIds: fullIds,
+                });
+                candidateIds.push(...fullIds);
+              } else {
+                // No RFQs found - trip may have no active RFQs (already cancelled, expired, or never had any)
+                console.log('[PATCH /api/requests] No RFQs found for trip - skipping Avinode cancellation:', {
+                  tripId: bodyTripId || existingRequest.avinode_trip_id,
+                });
+              }
+            }
+
+            if (existingRequest.avinode_trip_id && isFullAvinodeId(existingRequest.avinode_trip_id)) {
+              candidateIds.push(existingRequest.avinode_trip_id);
+            }
+
+            // Only attempt Avinode cancellation if we have candidate IDs
+            // If no RFQs exist, we'll just update the local database status
+            if (candidateIds.length > 0 || (existingRequest.avinode_rfq_id && isFullAvinodeId(existingRequest.avinode_rfq_id))) {
+              if (cancelId && isFullAvinodeId(cancelId)) {
+                candidateIds.push(cancelId);
+              }
+
+              const uniqueCandidateIds = Array.from(new Set(candidateIds));
+              const cancelResult = await attemptCancelIds(uniqueCandidateIds);
+
+              // If all Avinode cancel attempts failed, check if we should treat this as an error
+              // If the trip had no RFQs to begin with (rfqIds.size === 0), proceed with local cancellation
+              if (cancelResult.successCount === 0 && candidateIds.length > 1) {
+                // Had multiple candidate IDs but all failed - this is a real error
+                throw new Error('Avinode cancellation failed for all RFQ identifiers.');
+              } else if (cancelResult.successCount === 0) {
+                // Only had the trip ID itself and it failed - likely no active RFQs
+                console.log('[PATCH /api/requests] Trip cancel failed but proceeding with local cancellation (no active RFQs):', {
+                  tripId: cancelId,
+                  failures: cancelResult.failures.map(f => ({ id: f.id, error: String(f.error) })),
+                });
+              }
+            } else {
+              console.log('[PATCH /api/requests] No RFQ identifiers to cancel - updating local status only:', {
+                tripId: cancelId,
+              });
+            }
+          } else {
+            console.warn('[PATCH /api/requests] Skipping Avinode cancellation in mock mode', {
+              tripId: cancelId,
+            });
+          }
         } catch (error) {
           console.error('[PATCH /api/requests] Failed to cancel trip in Avinode:', error);
-          // Continue with database update even if Avinode cancellation fails
+          return NextResponse.json(
+            { error: 'Failed to cancel RFQ in Avinode', message: 'Avinode cancellation failed. Please try again.' },
+            { status: 502 }
+          );
         }
       }
 

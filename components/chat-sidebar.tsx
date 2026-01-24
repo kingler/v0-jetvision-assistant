@@ -120,6 +120,8 @@ export interface ChatSession {
   rfqFlights?: Array<import('./avinode/rfq-flight-card').RFQFlight>
   /** Timestamp when RFQs were last fetched from Avinode */
   rfqsLastFetchedAt?: string
+  /** Timestamp when the conversation first started */
+  sessionStartedAt?: string
   /** Timestamp when messages were last read/viewed, keyed by quote ID */
   lastMessagesReadAt?: Record<string, string>
   customer?: {
@@ -224,7 +226,12 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
       <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">Open Chats</h2>
-          <Button size="sm" onClick={onNewChat} className="bg-cyan-600 hover:bg-cyan-700 text-xs sm:text-sm">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onNewChat}
+            className="bg-transparent border-cyan-600 text-cyan-600 hover:bg-cyan-50 hover:text-cyan-700 dark:border-cyan-400 dark:text-cyan-300 dark:hover:bg-cyan-900/20 text-xs sm:text-sm"
+          >
             <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             New
           </Button>

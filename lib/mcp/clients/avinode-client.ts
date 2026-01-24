@@ -17,6 +17,65 @@ interface AvinodeConfig {
 }
 
 /**
+ * Extract numeric ID from Avinode identifiers that may contain prefixes.
+ */
+function extractNumericId(id: string): string {
+  if (!id.startsWith('arfq-') && !id.startsWith('atrip-')) {
+    return id;
+  }
+
+  const match = id.match(/^(?:arfq|atrip)-(.+)$/);
+  if (!match || !match[1]) {
+    throw new Error(
+      `Failed to extract numeric ID from identifier: "${id}". Expected format: "arfq-<id>" or "atrip-<id>"`
+    );
+  }
+
+  const numericId = match[1].trim();
+  if (!numericId) {
+    throw new Error(`Extracted numeric ID is empty from identifier: "${id}".`);
+  }
+
+  if (!/\d/.test(numericId)) {
+    throw new Error(
+      `Extracted numeric ID contains no numeric characters: "${numericId}" from identifier: "${id}".`
+    );
+  }
+
+  return numericId;
+}
+
+type AvinodeCancelReason = 'BY_CLIENT' | 'CHANGED' | 'BOOKED' | 'OTHER';
+
+function normalizeCancelReason(reason?: string): AvinodeCancelReason | undefined {
+  if (!reason) {
+    return undefined;
+  }
+
+  const trimmed = reason.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const upper = trimmed.toUpperCase();
+  if (upper === 'BY_CLIENT' || upper === 'CHANGED' || upper === 'BOOKED' || upper === 'OTHER') {
+    return upper as AvinodeCancelReason;
+  }
+
+  if (upper.includes('CLIENT')) {
+    return 'BY_CLIENT';
+  }
+  if (upper.includes('BOOK')) {
+    return 'BOOKED';
+  }
+  if (upper.includes('CHANGE')) {
+    return 'CHANGED';
+  }
+
+  return 'OTHER';
+}
+
+/**
  * RFQFlight interface matching the UI component requirements
  * This is what RFQFlightCard and RFQFlightsList expect
  */
@@ -226,6 +285,74 @@ export class AvinodeClient {
       const response = await this.client.get(`/rfps/${rfpId}/quotes`);
       return response.data;
     } catch (error) {
+      throw this.sanitizeError(error);
+    }
+  }
+
+  /**
+   * Cancel an active RFQ/trip in Avinode.
+   */
+  async cancelTrip(params: { trip_id: string; reason?: string }) {
+    const apiId = extractNumericId(params.trip_id);
+    const normalizedReason = normalizeCancelReason(params.reason);
+    const messageToSeller = params.reason?.trim() || undefined;
+    try {
+      this.logger.info('Cancelling RFQ via Avinode API', {
+        trip_id: params.trip_id,
+        api_id: apiId,
+      });
+      const response = await this.client.put(`/rfqs/${apiId}/cancel`, {
+        reason: normalizedReason,
+        messageToSeller,
+      });
+      this.logger.info('Avinode cancel response received', {
+        trip_id: params.trip_id,
+        status: response.status,
+      });
+      return {
+        trip_id: params.trip_id,
+        status: 'cancelled',
+        cancelled_at: response.data?.cancelled_at || new Date().toISOString(),
+        reason: params.reason,
+      };
+    } catch (error) {
+      const axiosError = error as AxiosError | undefined;
+      const message = error instanceof Error ? error.message : '';
+      if (axiosError?.response?.status === 404 || message.toLowerCase().includes('resource not found')) {
+        try {
+          this.logger.warn('RFQ cancel not found, attempting trip cancel', {
+            trip_id: params.trip_id,
+            api_id: apiId,
+          });
+          const tripResponse = await this.client.put(`/trips/${apiId}/cancel`, {
+            reason: normalizedReason,
+            messageToSeller,
+          });
+          this.logger.info('Avinode trip cancel response received', {
+            trip_id: params.trip_id,
+            status: tripResponse.status,
+          });
+          return {
+            trip_id: params.trip_id,
+            status: 'cancelled',
+            cancelled_at: tripResponse.data?.cancelled_at || new Date().toISOString(),
+            reason: params.reason,
+          };
+        } catch (tripError) {
+          const tripAxiosError = tripError as AxiosError | undefined;
+          this.logger.error('Avinode trip cancel failed', {
+            trip_id: params.trip_id,
+            status: tripAxiosError?.response?.status,
+            data: tripAxiosError?.response?.data,
+          });
+          throw this.sanitizeError(tripError);
+        }
+      }
+      this.logger.error('Avinode cancel failed', {
+        trip_id: params.trip_id,
+        status: axiosError?.response?.status,
+        data: axiosError?.response?.data,
+      });
       throw this.sanitizeError(error);
     }
   }

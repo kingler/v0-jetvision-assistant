@@ -12,7 +12,7 @@
  * - Passengers: "10 passengers"
  * - Date: "2026-01-20"
  * - Status Badge: "Requesting Quotes"
- * - Timestamp: "Just now"
+ * - Timestamp: conversation start time (e.g., "2h ago")
  */
 
 import type { ChatSession } from '@/components/chat-sidebar';
@@ -261,6 +261,13 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
 
     // Initialize rfqFlights as empty array (will be lazy-loaded when card is clicked)
     rfqFlights: [],
+
+    // Conversation start timestamp (used for sidebar display)
+    sessionStartedAt:
+      chatSessionRow.session_started_at ||
+      chatSessionRow.created_at ||
+      request?.created_at ||
+      undefined,
 
     // Metadata from chat_session
     ...(chatSessionRow.metadata && typeof chatSessionRow.metadata === 'object'

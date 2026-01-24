@@ -195,6 +195,10 @@ export class AvinodeMCPServer extends BaseMCPServer {
         // Called when user provides a Trip ID after completing Avinode selection
         return await this.client!.getRFQFlights(params.rfq_id);
 
+      case 'get_rfq_raw':
+        // Get raw RFQ objects without transformation/validation
+        return await this.client!.getRFQ(params.rfq_id, params.options);
+
       case 'send_trip_message':
         // Send a message to operators for a trip
         return await this.client!.sendTripMessage(params);
@@ -202,6 +206,10 @@ export class AvinodeMCPServer extends BaseMCPServer {
       case 'get_trip_messages':
         // Get messages for a trip or request
         return await this.client!.getTripMessages(params);
+
+      case 'cancel_trip':
+        // Cancel an RFQ/trip in Avinode
+        return await this.client!.cancelTrip(params);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -219,6 +227,8 @@ export class AvinodeMCPServer extends BaseMCPServer {
     this.registerTool(this.createCreateTripTool());
     this.registerTool(this.createGetRFQTool());
     this.registerTool(this.createListTripsTool());
+    this.registerTool(this.createCancelTripTool());
+    this.registerTool(this.createGetRFQRawTool());
   }
 
   /**
@@ -496,6 +506,62 @@ export class AvinodeMCPServer extends BaseMCPServer {
           limit: params.limit || 20,
           status: params.status || 'all',
         });
+      },
+    };
+  }
+
+  /**
+   * Create get_rfq_raw tool - fetches raw RFQ objects without transforms
+   */
+  private createGetRFQRawTool(): MCPToolDefinition {
+    return {
+      name: 'get_rfq_raw',
+      description: 'Get raw RFQ objects for a trip or RFQ ID without transforms or validation.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          rfq_id: {
+            type: 'string',
+            description: 'The RFQ identifier (e.g., arfq-12345678) or Trip ID (e.g., atrip-12345678).',
+          },
+          options: {
+            type: 'object',
+            description: 'Optional Avinode API flags for RFQ retrieval.',
+          },
+        },
+        required: ['rfq_id'],
+      },
+      execute: async (params: any) => {
+        this.ensureClientAvailable();
+        return await this.client!.getRFQ(params.rfq_id, params.options);
+      },
+    };
+  }
+
+  /**
+   * Create cancel_trip tool - cancels an active RFQ/trip
+   */
+  private createCancelTripTool(): MCPToolDefinition {
+    return {
+      name: 'cancel_trip',
+      description: 'Cancel an active RFQ/trip in Avinode.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          trip_id: {
+            type: 'string',
+            description: 'The trip or RFQ identifier to cancel (e.g., atrip-12345678 or arfq-12345678).',
+          },
+          reason: {
+            type: 'string',
+            description: 'Optional cancellation reason.',
+          },
+        },
+        required: ['trip_id'],
+      },
+      execute: async (params: any) => {
+        this.ensureClientAvailable();
+        return await this.client!.cancelTrip(params);
       },
     };
   }

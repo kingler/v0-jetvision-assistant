@@ -146,6 +146,9 @@ export function requestToChatSession(
     // Generated name for display
     generatedName: generateFlightName(request),
 
+    // Conversation start timestamp
+    sessionStartedAt: request.created_at || undefined,
+
     // Convert loaded messages to ChatSession format
     messages: messages.map((msg) => ({
       id: msg.id,

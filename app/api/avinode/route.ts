@@ -13,7 +13,7 @@ import { AvinodeMCPServer } from '@/lib/mcp/avinode-server'
 
 // Type definitions for tool calls
 interface ToolCallRequest {
-  tool: 'search_flights' | 'create_rfp' | 'get_quote_status' | 'get_quotes' | 'search_airports' | 'send_trip_message' | 'get_trip_messages' | 'create_trip' | 'get_rfq' | 'list_trips'
+  tool: 'search_flights' | 'create_rfp' | 'get_quote_status' | 'get_quotes' | 'search_airports' | 'send_trip_message' | 'get_trip_messages' | 'create_trip' | 'get_rfq' | 'get_rfq_raw' | 'list_trips' | 'cancel_trip'
   params: Record<string, unknown>
 }
 
@@ -234,6 +234,20 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'get_rfq_raw': {
+        const params = body.params as { rfq_id: string; options?: Record<string, unknown> }
+
+        if (!params.rfq_id) {
+          return NextResponse.json(
+            { error: 'Bad Request', message: 'rfq_id is required for get_rfq_raw' },
+            { status: 400 }
+          )
+        }
+
+        result = await server.callTool('get_rfq_raw', params)
+        break
+      }
+
       case 'list_trips': {
         const params = body.params as {
           limit?: number
@@ -241,6 +255,20 @@ export async function POST(req: NextRequest) {
         }
 
         result = await server.callTool('list_trips', params)
+        break
+      }
+
+      case 'cancel_trip': {
+        const params = body.params as { trip_id: string; reason?: string }
+
+        if (!params.trip_id) {
+          return NextResponse.json(
+            { error: 'Bad Request', message: 'trip_id is required for cancel_trip' },
+            { status: 400 }
+          )
+        }
+
+        result = await server.callTool('cancel_trip', params)
         break
       }
 
@@ -292,7 +320,9 @@ export async function GET() {
         'get_trip_messages',
         'create_trip',
         'get_rfq',
+        'get_rfq_raw',
         'list_trips',
+        'cancel_trip',
       ],
     })
   } catch (error) {

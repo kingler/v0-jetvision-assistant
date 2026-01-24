@@ -231,15 +231,17 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
   }
 
   /**
-   * Get last activity time as human-readable string
+   * Get conversation start time as human-readable string
    */
   const getLastActivity = (): string => {
-    const lastMessage = session.messages[session.messages.length - 1]
-    if (!lastMessage) return "Just now"
+    const startTimestamp = session.sessionStartedAt
+      ? new Date(session.sessionStartedAt)
+      : session.messages[0]?.timestamp
+
+    if (!startTimestamp || Number.isNaN(startTimestamp.getTime())) return "Just now"
 
     const now = new Date()
-    const messageTime = new Date(lastMessage.timestamp)
-    const diffMinutes = Math.floor((now.getTime() - messageTime.getTime()) / (1000 * 60))
+    const diffMinutes = Math.floor((now.getTime() - startTimestamp.getTime()) / (1000 * 60))
 
     if (diffMinutes < 1) return "Just now"
     if (diffMinutes < 60) return `${diffMinutes}m ago`

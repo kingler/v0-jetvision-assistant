@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useCallback } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send } from "lucide-react"
@@ -95,10 +96,20 @@ export function LandingPage({ onStartChat, userName, userContext }: LandingPageP
   )
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
+    <div className="relative flex-1 flex items-center justify-center p-4 sm:p-8">
       <div className="max-w-2xl w-full space-y-6 sm:space-y-8">
         {/* Greeting */}
         <div className="text-center space-y-2">
+          <div className="flex justify-center">
+            <Image
+              src="/images/jetvision-logo.png"
+              alt="Jetvision"
+              width={280}
+              height={140}
+              priority
+              className="h-[112px] sm:h-[140px] w-auto"
+            />
+          </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
             {getGreeting()}{userName ? `, ${userName}` : ''}
           </h1>
