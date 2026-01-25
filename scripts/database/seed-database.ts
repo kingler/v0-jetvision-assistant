@@ -37,8 +37,7 @@ async function seedDatabase() {
           email: 'agent1@jetvision.ai',
           full_name: 'John Doe',
           role: 'iso_agent',
-          margin_type: 'percentage',
-          margin_value: 15.0,
+          commission_percentage: 15.0,
           is_active: true,
           metadata: {
             company: 'Jetvision West',
@@ -52,8 +51,7 @@ async function seedDatabase() {
           email: 'agent2@jetvision.ai',
           full_name: 'Jane Smith',
           role: 'iso_agent',
-          margin_type: 'fixed',
-          margin_value: 5000.0,
+          commission_percentage: 12.0,
           is_active: true,
           metadata: {
             company: 'Jetvision East',
@@ -67,8 +65,7 @@ async function seedDatabase() {
           email: 'admin@jetvision.ai',
           full_name: 'Admin User',
           role: 'admin',
-          margin_type: 'percentage',
-          margin_value: 0.0,
+          commission_percentage: 0.0,
           is_active: true,
           metadata: {
             company: 'Jetvision HQ',

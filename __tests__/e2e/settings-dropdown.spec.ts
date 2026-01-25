@@ -165,23 +165,16 @@ test.describe('Settings Dropdown Menu', () => {
       dropdownContent = await openSettingsDropdown(page)
     })
 
-    test('should interact with margin type selector', async ({ page }) => {
-      const marginTypeSelect = await findMarginTypeSelector(page)
+    test('should interact with commission percentage input', async ({ page }) => {
+      const commissionInput = await findMarginTypeSelector(page)
 
-      if (!marginTypeSelect) {
+      if (!commissionInput) {
         test.skip()
         return
       }
 
-      await marginTypeSelect.click()
-
-      // Wait for dropdown options menu to appear
-      const optionsMenu = page.locator('[role="listbox"]').first()
-      await expect(optionsMenu).toBeVisible({ timeout: 3000 })
-
-      // Close the options menu
-      await page.keyboard.press('Escape')
-      await expect(optionsMenu).toBeHidden({ timeout: 2000 })
+      // Commission percentage should be an input field
+      await expect(commissionInput).toBeVisible({ timeout: 3000 })
     })
 
     test('should toggle client pricing switch', async ({ page }) => {
@@ -292,23 +285,16 @@ test.describe('Settings Dropdown Menu', () => {
       }
     })
 
-    test('should capture margin type options', async ({ page }) => {
+    test('should capture commission settings', async ({ page }) => {
       const dropdownContent = await openSettingsDropdown(page)
-      const marginTypeSelect = await findMarginTypeSelector(page)
+      const commissionInput = await findMarginTypeSelector(page)
 
-      if (!marginTypeSelect) {
+      if (!commissionInput) {
         test.skip()
         return
       }
 
-      await marginTypeSelect.click()
-
-      const optionsMenu = page.locator('[role="listbox"]').first()
-      await expect(optionsMenu).toBeVisible({ timeout: 3000 })
-
-      await captureScreenshot(page, SCREENSHOTS_DIR, '05_margin_type_options')
-
-      await page.keyboard.press('Escape')
+      await captureScreenshot(page, SCREENSHOTS_DIR, '05_commission_settings')
     })
 
     test('should capture client pricing enabled state', async ({ page }) => {

@@ -87,8 +87,8 @@ describe('Clerk + Supabase User Synchronization', () => {
         .single()
 
       expect(user?.role).toBe('sales_rep')
-      expect(user?.margin_type).toBe('percentage')
-      expect(user?.margin_value).toBeGreaterThanOrEqual(0)
+      expect(user?.commission_percentage).toBeGreaterThanOrEqual(0)
+      expect(user?.commission_percentage).toBeLessThanOrEqual(100)
       expect(user?.is_active).toBe(true)
       expect(user?.created_at).toBeDefined()
     })

@@ -76,6 +76,8 @@ export interface ChatSession {
   route: string
   passengers: number
   date: string
+  /** ISO format date (YYYY-MM-DD) for API calls */
+  isoDate?: string
   status: "proposal_ready" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"
   currentStep: number
   totalSteps: number

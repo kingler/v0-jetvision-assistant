@@ -7,21 +7,62 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
  * - Test client creation with service role
  * - Test data cleanup
  * - Schema validation helpers
+ *
+ * IMPORTANT: Integration tests should use TEST_SUPABASE_URL env var
+ * to avoid polluting production database.
  */
 
 export type TestSupabaseClient = SupabaseClient
 
 /**
+ * Production database URLs that should NEVER be used for integration tests
+ * Add your production Supabase URL here to prevent accidental writes
+ */
+const PRODUCTION_DB_PATTERNS = [
+  'supabase.co', // All Supabase production databases
+]
+
+/**
+ * Checks if a URL appears to be a production database
+ */
+function isProductionDatabase(url: string): boolean {
+  // Allow explicit test databases
+  if (process.env.ALLOW_PRODUCTION_DB_TESTS === 'true') {
+    return false
+  }
+
+  // Check if URL matches production patterns
+  return PRODUCTION_DB_PATTERNS.some(pattern => url.includes(pattern))
+}
+
+/**
  * Creates a Supabase client with service role key for testing
  * Uses service role to bypass RLS policies during setup/teardown
+ *
+ * WARNING: Will throw if attempting to connect to production database
+ * unless ALLOW_PRODUCTION_DB_TESTS=true is set (not recommended)
  */
 export async function createTestClient(): Promise<TestSupabaseClient> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  // Prefer test-specific URL, fall back to main URL
+  const supabaseUrl = process.env.TEST_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.TEST_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !supabaseServiceKey) {
     throw new Error(
-      'Missing Supabase credentials. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY'
+      'Missing Supabase credentials. Set TEST_SUPABASE_URL and TEST_SUPABASE_SERVICE_KEY for testing, ' +
+      'or NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY'
+    )
+  }
+
+  // SAFETY CHECK: Prevent integration tests from running against production
+  if (isProductionDatabase(supabaseUrl)) {
+    throw new Error(
+      `SAFETY ERROR: Integration tests cannot run against production database (${supabaseUrl}).\n\n` +
+      'Options:\n' +
+      '1. Set TEST_SUPABASE_URL to a test/local database\n' +
+      '2. Use a local Supabase instance: npx supabase start\n' +
+      '3. Skip integration tests: npm run test:unit\n\n' +
+      'To override (NOT RECOMMENDED): set ALLOW_PRODUCTION_DB_TESTS=true'
     )
   }
 
@@ -83,12 +124,17 @@ export async function cleanupTestData(
 /**
  * Creates a test user in the database
  * Returns the created user ID
+ *
+ * Automatically tracks the user for cleanup - call cleanupAllTestData() in afterAll()
  */
 export async function createTestUser(
   supabase: TestSupabaseClient,
-  clerkUserId: string = `test_${Date.now()}`,
-  email: string = `test.${Date.now()}@example.com`
+  clerkUserId: string = `test_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  email: string = `test_${Date.now()}@test.com`
 ): Promise<string> {
+  // Track for cleanup BEFORE insert (in case of partial failure)
+  createdTestUserIds.add(clerkUserId)
+
   const { data, error } = await supabase
     .from('iso_agents')
     .insert({
@@ -96,8 +142,7 @@ export async function createTestUser(
       email,
       full_name: 'Test User',
       role: 'iso_agent',
-      margin_type: 'percentage',
-      margin_value: 10,
+      commission_percentage: 10,
       is_active: true,
     })
     .select('id')
@@ -173,4 +218,88 @@ export async function getTableCount(
   }
 
   return count || 0
+}
+
+/**
+ * Track all test clerk_user_ids created during test runs for cleanup
+ */
+const createdTestUserIds: Set<string> = new Set()
+
+/**
+ * Register a test user ID for cleanup
+ */
+export function trackTestUser(clerkUserId: string): void {
+  createdTestUserIds.add(clerkUserId)
+}
+
+/**
+ * Clean up ALL test records created during this test run
+ * Call this in afterAll() hooks
+ */
+export async function cleanupAllTestData(supabase: TestSupabaseClient): Promise<void> {
+  if (createdTestUserIds.size === 0) {
+    return
+  }
+
+  const idsToDelete = Array.from(createdTestUserIds)
+
+  // Delete in batches of 50
+  for (let i = 0; i < idsToDelete.length; i += 50) {
+    const batch = idsToDelete.slice(i, i + 50)
+    const { error } = await supabase
+      .from('iso_agents')
+      .delete()
+      .in('clerk_user_id', batch)
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error cleaning up test data:', error)
+    }
+  }
+
+  createdTestUserIds.clear()
+}
+
+/**
+ * Clean up ALL orphaned test records (emergency cleanup)
+ * Matches common test data patterns
+ */
+export async function cleanupOrphanedTestData(supabase: TestSupabaseClient): Promise<number> {
+  const patterns = [
+    'test_%',
+    'test_clerk_%',
+    'test_fk_%',
+    'test_unique_%',
+    'test_status_%',
+    'clerk_user_123',
+    'clerk_admin_123',
+  ]
+
+  let totalDeleted = 0
+
+  for (const pattern of patterns) {
+    const { count, error } = await supabase
+      .from('iso_agents')
+      .delete({ count: 'exact' })
+      .like('clerk_user_id', pattern)
+
+    if (!error && count) {
+      totalDeleted += count
+    }
+  }
+
+  // Also clean up by email patterns
+  const emailPatterns = ['%@test.com', 'test%@example.com', 'schema@test.com']
+
+  for (const pattern of emailPatterns) {
+    const { count, error } = await supabase
+      .from('iso_agents')
+      .delete({ count: 'exact' })
+      .like('email', pattern)
+
+    if (!error && count) {
+      totalDeleted += count
+    }
+  }
+
+  return totalDeleted
 }

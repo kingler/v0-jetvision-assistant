@@ -1,5 +1,11 @@
-import { describe, it, expect, beforeAll } from 'vitest'
-import { createTestClient, TestSupabaseClient, tableExists } from '@tests/utils/database'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import {
+  createTestClient,
+  TestSupabaseClient,
+  tableExists,
+  cleanupAllTestData,
+  trackTestUser,
+} from '@tests/utils/database'
 
 /**
  * Database Schema Integration Tests
@@ -12,7 +18,13 @@ import { createTestClient, TestSupabaseClient, tableExists } from '@tests/utils/
  * - Column structure and types
  * - Indexes and constraints
  * - Foreign key relationships
+ *
+ * NOTE: These tests will be SKIPPED if connecting to production database.
+ * Set TEST_SUPABASE_URL for a test database or use local Supabase.
  */
+
+// Store all test user IDs created in this file for cleanup
+const testUserIds: string[] = []
 
 describe('Database Schema - Table Existence', () => {
   let supabase: TestSupabaseClient
@@ -59,9 +71,23 @@ describe('Database Schema - Table Existence', () => {
 
 describe('Database Schema - iso_agents Table', () => {
   let supabase: TestSupabaseClient
+  const localTestIds: string[] = []
 
   beforeAll(async () => {
     supabase = await createTestClient()
+  })
+
+  // IMPORTANT: Clean up ALL test data after tests complete
+  afterAll(async () => {
+    if (supabase && localTestIds.length > 0) {
+      for (const testId of localTestIds) {
+        await supabase.from('iso_agents').delete().eq('clerk_user_id', testId)
+      }
+    }
+    // Also run global cleanup
+    if (supabase) {
+      await cleanupAllTestData(supabase)
+    }
   })
 
   it('should have correct columns in iso_agents table', async () => {
@@ -74,10 +100,14 @@ describe('Database Schema - iso_agents Table', () => {
 
     // If table is empty, insert a test row to get schema
     if (!data || data.length === 0) {
+      const testClerkId = 'test_schema_check'
+      localTestIds.push(testClerkId)
+      trackTestUser(testClerkId)
+
       const { data: inserted } = await supabase
         .from('iso_agents')
         .insert({
-          clerk_user_id: 'test_schema_check',
+          clerk_user_id: testClerkId,
           email: 'schema@test.com',
           full_name: 'Test User',
           role: 'sales_rep',
@@ -87,16 +117,16 @@ describe('Database Schema - iso_agents Table', () => {
 
       const schema = Object.keys(inserted || {})
 
-      // Clean up
-      await supabase.from('iso_agents').delete().eq('clerk_user_id', 'test_schema_check')
+      // Clean up immediately
+      await supabase.from('iso_agents').delete().eq('clerk_user_id', testClerkId)
 
       expect(schema).toContain('id')
       expect(schema).toContain('clerk_user_id')
       expect(schema).toContain('email')
       expect(schema).toContain('full_name')
       expect(schema).toContain('role')
-      expect(schema).toContain('margin_type')
-      expect(schema).toContain('margin_value')
+      expect(schema).toContain('commission_percentage')
+      expect(schema).toContain('total_commission_earned')
       expect(schema).toContain('is_active')
       expect(schema).toContain('avatar_url')
       expect(schema).toContain('phone')
@@ -115,6 +145,8 @@ describe('Database Schema - iso_agents Table', () => {
 
   it('should enforce unique constraint on clerk_user_id', async () => {
     const testId = `test_unique_${Date.now()}`
+    localTestIds.push(testId)
+    trackTestUser(testId)
 
     // Insert first record
     const { error: error1 } = await supabase
@@ -128,7 +160,7 @@ describe('Database Schema - iso_agents Table', () => {
 
     expect(error1).toBeNull()
 
-    // Try to insert duplicate clerk_user_id
+    // Try to insert duplicate clerk_user_id (should fail, so won't be inserted)
     const { error: error2 } = await supabase
       .from('iso_agents')
       .insert({
@@ -146,13 +178,19 @@ describe('Database Schema - iso_agents Table', () => {
   })
 
   it('should enforce unique constraint on email', async () => {
-    const testEmail = `test_${Date.now()}@example.com`
+    const timestamp = Date.now()
+    const testEmail = `test_${timestamp}@example.com`
+    const testId1 = `test1_${timestamp}`
+    const testId2 = `test2_${timestamp}`
+    localTestIds.push(testId1, testId2)
+    trackTestUser(testId1)
+    trackTestUser(testId2)
 
     // Insert first record
     const { error: error1 } = await supabase
       .from('iso_agents')
       .insert({
-        clerk_user_id: `test1_${Date.now()}`,
+        clerk_user_id: testId1,
         email: testEmail,
         full_name: 'Test User 1',
         role: 'sales_rep',
@@ -160,11 +198,11 @@ describe('Database Schema - iso_agents Table', () => {
 
     expect(error1).toBeNull()
 
-    // Try to insert duplicate email
+    // Try to insert duplicate email (should fail, so won't be inserted)
     const { error: error2 } = await supabase
       .from('iso_agents')
       .insert({
-        clerk_user_id: `test2_${Date.now()}`,
+        clerk_user_id: testId2,
         email: testEmail,
         full_name: 'Test User 2',
         role: 'sales_rep',
@@ -173,16 +211,28 @@ describe('Database Schema - iso_agents Table', () => {
     expect(error2).toBeDefined()
     expect(error2?.code).toBe('23505') // unique_violation
 
-    // Cleanup
-    await supabase.from('iso_agents').delete().eq('email', testEmail)
+    // Cleanup - delete by clerk_user_id since email constraint prevents second insert
+    await supabase.from('iso_agents').delete().eq('clerk_user_id', testId1)
   })
 })
 
 describe('Database Schema - client_profiles Table', () => {
   let supabase: TestSupabaseClient
+  const localTestIds: string[] = []
 
   beforeAll(async () => {
     supabase = await createTestClient()
+  })
+
+  afterAll(async () => {
+    if (supabase && localTestIds.length > 0) {
+      for (const testId of localTestIds) {
+        await supabase.from('iso_agents').delete().eq('clerk_user_id', testId)
+      }
+    }
+    if (supabase) {
+      await cleanupAllTestData(supabase)
+    }
   })
 
   it('should have correct columns in client_profiles table', async () => {
@@ -207,6 +257,8 @@ describe('Database Schema - client_profiles Table', () => {
 
   it('should have foreign key relationship to iso_agents', async () => {
     const testUserId = `test_fk_${Date.now()}`
+    localTestIds.push(testUserId)
+    trackTestUser(testUserId)
 
     // Create test user
     const { data: user } = await supabase
@@ -242,9 +294,21 @@ describe('Database Schema - client_profiles Table', () => {
 
 describe('Database Schema - requests Table', () => {
   let supabase: TestSupabaseClient
+  const localTestIds: string[] = []
 
   beforeAll(async () => {
     supabase = await createTestClient()
+  })
+
+  afterAll(async () => {
+    if (supabase && localTestIds.length > 0) {
+      for (const testId of localTestIds) {
+        await supabase.from('iso_agents').delete().eq('clerk_user_id', testId)
+      }
+    }
+    if (supabase) {
+      await cleanupAllTestData(supabase)
+    }
   })
 
   it('should have correct columns in requests table', async () => {
@@ -271,6 +335,8 @@ describe('Database Schema - requests Table', () => {
 
   it('should enforce valid status values', async () => {
     const testUserId = `test_status_${Date.now()}`
+    localTestIds.push(testUserId)
+    trackTestUser(testUserId)
 
     // Create test user
     const { data: user } = await supabase
@@ -299,8 +365,7 @@ describe('Database Schema - requests Table', () => {
     // Note: This test depends on enum constraint implementation
     // May pass if constraint isn't strict
 
-    // Cleanup
-    await supabase.from('iso_agents').delete().eq('clerk_user_id', testUserId)
+    // Cleanup handled by afterAll
   })
 })
 

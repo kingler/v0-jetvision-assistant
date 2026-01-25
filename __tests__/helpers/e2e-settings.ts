@@ -103,23 +103,30 @@ export function getExpectedDropdownSections(): string[] {
 }
 
 /**
- * Find the margin type selector in the dropdown
+ * Find the commission percentage input in the dropdown
  *
  * @param page - Playwright page instance
- * @returns Locator for the margin type selector, or null if not found
+ * @returns Locator for the commission percentage input, or null if not found
  */
-export async function findMarginTypeSelector(page: Page): Promise<Locator | null> {
-  const selector = page
-    .locator('label:has-text("Base Margin Type")')
+export async function findCommissionInput(page: Page): Promise<Locator | null> {
+  const input = page
+    .locator('label:has-text("Commission Percentage")')
     .locator('..')
-    .locator('[role="combobox"]')
+    .locator('input')
     .first()
 
-  if (await selector.isVisible({ timeout: 2000 }).catch(() => false)) {
-    return selector
+  if (await input.isVisible({ timeout: 2000 }).catch(() => false)) {
+    return input
   }
 
   return null
+}
+
+/**
+ * @deprecated Use findCommissionInput instead. Kept for backward compatibility.
+ */
+export async function findMarginTypeSelector(page: Page): Promise<Locator | null> {
+  return findCommissionInput(page)
 }
 
 /**

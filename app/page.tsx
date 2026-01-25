@@ -13,6 +13,15 @@ import type { RFQFlight } from "@/components/avinode/rfq-flight-card"
 
 type View = "landing" | "chat"
 
+/**
+ * Validates if a string is a valid UUID format
+ * Used to prevent API calls with invalid session IDs
+ */
+const isValidUUID = (id: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+};
+
 export default function JetvisionAgent() {
   const { user, isLoaded } = useUser()
   const [currentView, setCurrentView] = useState<View>("landing")
@@ -188,6 +197,21 @@ export default function JetvisionAgent() {
     // Skip loading for temporary sessions
     if (session.id.startsWith('temp-')) {
       console.log('[loadMessagesForSession] Skipping temp session:', session.id);
+      return [];
+    }
+
+    // Validate session IDs before making API calls
+    // This prevents 404 errors from querying with invalid IDs
+    const hasValidSessionId = isValidUUID(session.id);
+    const hasValidRequestId = session.requestId && isValidUUID(session.requestId);
+    const hasValidConversationId = session.conversationId && isValidUUID(session.conversationId);
+
+    if (!hasValidSessionId && !hasValidRequestId && !hasValidConversationId) {
+      console.log('[loadMessagesForSession] Skipping - no valid UUID found:', {
+        sessionId: session.id,
+        requestId: session.requestId,
+        conversationId: session.conversationId,
+      });
       return [];
     }
 

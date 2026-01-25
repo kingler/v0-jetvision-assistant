@@ -131,8 +131,7 @@ describe('Supabase MCP Tools - Integration', () => {
         email: 'mcp-test@test.com',
         full_name: 'MCP Test User',
         role: 'iso_agent' as const,
-        margin_type: 'percentage' as const,
-        margin_value: 10.0,
+        commission_percentage: 10.0,
         is_active: true,
         metadata: { test: true },
       };
@@ -219,8 +218,7 @@ describe('Supabase MCP Tools - Integration', () => {
     it('should update multiple fields', async () => {
       const updates = {
         full_name: 'Multi Update',
-        margin_type: 'fixed' as const,
-        margin_value: 500.0,
+        commission_percentage: 15.0,
       };
 
       const { data, error } = await supabase
@@ -232,8 +230,7 @@ describe('Supabase MCP Tools - Integration', () => {
 
       expect(error).toBeNull();
       expect(data?.full_name).toBe('Multi Update');
-      expect(data?.margin_type).toBe('fixed');
-      expect(data?.margin_value).toBe(500.0);
+      expect(data?.commission_percentage).toBe(15.0);
     });
 
     it('should return empty array for non-existent id', async () => {
@@ -326,7 +323,7 @@ describe('Supabase MCP Tools - Integration', () => {
     it('should verify table columns by selecting from table', async () => {
       const { data, error } = await supabase
         .from('iso_agents')
-        .select('id,clerk_user_id,email,full_name,role,margin_type,margin_value')
+        .select('id,clerk_user_id,email,full_name,role,commission_percentage')
         .limit(1);
 
       expect(error).toBeNull();
@@ -353,8 +350,7 @@ describe('Supabase MCP Tools - Integration', () => {
           email: 'mcp-test@test.com',
           full_name: 'E2E Test Agent',
           role: 'iso_agent' as const,
-          margin_type: 'percentage' as const,
-          margin_value: 15.0,
+          commission_percentage: 15.0,
         })
         .select()
         .single();

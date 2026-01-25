@@ -532,8 +532,6 @@ function getTableColumns(table: string): string[] {
       'aircraft_type',
       'price',
       'currency',
-      'margin_type',
-      'margin_value',
       'final_price',
       'valid_until',
       'status',

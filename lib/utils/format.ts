@@ -92,26 +92,83 @@ export function formatTimeAgo(date: Date): string {
 /**
  * Format a date as a short date string
  *
- * @param isoString - ISO 8601 timestamp or date string
+ * Handles both ISO date-only strings (YYYY-MM-DD) and full timestamp strings.
+ * Uses UTC date components to avoid timezone conversion issues that can shift
+ * the displayed date by one day.
+ *
+ * @param isoString - ISO 8601 timestamp or date string (e.g., '2024-01-15' or '2024-01-15T10:30:00Z')
  * @returns Formatted date string (e.g., 'Jan 15, 2024')
  *
  * @example
+ * formatDate('2024-01-15') // 'Jan 15, 2024'
  * formatDate('2024-01-15T10:30:00Z') // 'Jan 15, 2024'
+ * formatDate('2024-01-15T00:00:00-08:00') // 'Jan 15, 2024' (preserves date regardless of timezone)
  */
 export function formatDate(isoString: string): string {
+  // Handle ISO date-only format (YYYY-MM-DD)
   const dateOnlyMatch = isoString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const date = dateOnlyMatch
-    ? new Date(
+  if (dateOnlyMatch) {
+    // Use UTC date constructor to avoid timezone shifts
+    const date = new Date(
+      Date.UTC(
         Number(dateOnlyMatch[1]),
         Number(dateOnlyMatch[2]) - 1,
         Number(dateOnlyMatch[3])
       )
-    : new Date(isoString);
+    );
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC', // Use UTC to preserve the date
+    });
+  }
 
-  return date.toLocaleDateString('en-US', {
+  // Handle full timestamp strings - extract date portion and use UTC
+  const timestampMatch = isoString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (timestampMatch) {
+    // Extract date components from timestamp and create UTC date
+    const date = new Date(
+      Date.UTC(
+        Number(timestampMatch[1]),
+        Number(timestampMatch[2]) - 1,
+        Number(timestampMatch[3])
+      )
+    );
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC', // Use UTC to preserve the date
+    });
+  }
+
+  // Fallback: try parsing as-is (for already formatted dates like "Mar 25, 2026" or "March 25, 2026")
+  // If it's already formatted, return as-is to avoid double formatting
+  const alreadyFormattedMatch = isoString.match(/^(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}$/);
+  if (alreadyFormattedMatch) {
+    return isoString;
+  }
+
+  // Last resort: parse and format (may have timezone issues)
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) {
+    // Invalid date, return original string
+    return isoString;
+  }
+
+  // Use UTC components to avoid timezone shifts
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate()
+    )
+  ).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 

@@ -3,7 +3,6 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { Database, User, ClientProfile } from '@/lib/types/database';
 
@@ -13,6 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
+    console.log('[API /api/clients] Clerk userId:', userId);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
@@ -25,10 +25,12 @@ export async function GET(request: NextRequest) {
       .eq('clerk_user_id', userId)
       .single<Pick<User, 'id' | 'role'>>();
 
+    console.log('[API /api/clients] ISO agent lookup result:', { user, userError });
+
     if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    // Use correct column name: iso_agent_id (not user_id)
-    let query = supabase
+    // Use admin client to bypass RLS since we've already authenticated via Clerk
+    let query = supabaseAdmin
       .from('client_profiles')
       .select('*')
       .eq('iso_agent_id', user.id);
@@ -38,10 +40,13 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: clients, error } = await query;
+    console.log('[API /api/clients] Clients query result:', { clientsCount: clients?.length, error });
+
     if (error) return NextResponse.json({ error: 'Failed to fetch clients' }, { status: 500 });
 
     return NextResponse.json({ clients });
   } catch (error) {
+    console.error('[API /api/clients] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -66,8 +71,8 @@ export async function POST(request: NextRequest) {
 
     if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    // Use correct column name: iso_agent_id (not user_id)
-    const { data: newClient, error } = await supabase
+    // Use admin client to bypass RLS since we've already authenticated via Clerk
+    const { data: newClient, error } = await supabaseAdmin
       .from('client_profiles')
       .insert({
         iso_agent_id: user.id,
@@ -117,7 +122,8 @@ export async function PATCH(request: NextRequest) {
     if (notes !== undefined) updateData.notes = notes;
     if (is_active !== undefined) updateData.is_active = is_active;
 
-    const { data: updatedClient, error } = await supabase
+    // Use admin client to bypass RLS since we've already authenticated via Clerk
+    const { data: updatedClient, error } = await supabaseAdmin
       .from('client_profiles')
       .update(updateData)
       .eq('id', client_id)

@@ -76,8 +76,8 @@ export const mockUser = (overrides = {}) => ({
     emailNotifications: true,
     theme: 'light',
   },
-  margin_type: 'percentage' as const,
-  margin_value: 10,
+  commission_percentage: 10,
+  total_commission_earned: 0,
   is_active: true,
   last_login_at: new Date().toISOString(),
   metadata: {

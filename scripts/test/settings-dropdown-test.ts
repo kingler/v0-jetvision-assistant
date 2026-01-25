@@ -187,21 +187,14 @@ async function testSettingsDropdown() {
     console.log('\n5️⃣  Testing interactive elements...')
 
     // Test margin type selector
-    const marginTypeSelect = page.locator('label:has-text("Base Margin Type")').locator('..').locator('[role="combobox"]').first()
-    if (await marginTypeSelect.isVisible()) {
-      console.log('   ✅ Margin Type selector found')
-      await marginTypeSelect.click()
-      // Wait for the options dropdown/listbox to appear
-      const optionsMenu = page.locator('[role="listbox"], [role="option"]').first()
-      await optionsMenu.waitFor({ state: 'visible' })
-      console.log('   📸 Taking screenshot of margin type options...')
+    const commissionInput = page.locator('label:has-text("Commission Percentage")').locator('..').locator('input').first()
+    if (await commissionInput.isVisible()) {
+      console.log('   ✅ Commission Percentage input found')
+      console.log('   📸 Taking screenshot of commission settings...')
       await page.screenshot({
-        path: path.join(SCREENSHOTS_DIR, '05_margin_type_options.png'),
+        path: path.join(SCREENSHOTS_DIR, '05_commission_settings.png'),
         fullPage: false
       })
-      // Close the select and wait for options menu to be hidden
-      await page.keyboard.press('Escape')
-      await optionsMenu.waitFor({ state: 'hidden' })
     }
 
     // Test switches

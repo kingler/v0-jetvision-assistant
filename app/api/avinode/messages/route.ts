@@ -5,6 +5,9 @@
  * Fetches complete message history for a trip from Avinode API
  * Includes BOTH buyer (outbound) and seller (inbound) messages
  *
+ * IMPORTANT: Only returns messages when the RFQ has quotes with 'quoted' status.
+ * This prevents unnecessary API calls for RFQs that haven't received responses yet.
+ *
  * Query parameters:
  * - trip_id (required): Avinode trip ID
  * - request_id (optional): Specific RFQ/request ID for filtering
@@ -14,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -70,9 +74,46 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check if the RFQ has any quotes with 'quoted' status before fetching messages
+    // This prevents unnecessary API calls for RFQs that haven't received responses yet
+    const { data: request } = await supabaseAdmin
+      .from('requests')
+      .select('id, status, avinode_trip_id')
+      .eq('avinode_trip_id', tripId)
+      .maybeSingle();
+
+    if (request) {
+      // Check if there are any quotes with 'quoted' status for this request
+      const { data: quotes, error: quotesError } = await supabaseAdmin
+        .from('quotes')
+        .select('id, status')
+        .eq('request_id', request.id)
+        .in('status', ['quoted', 'accepted', 'pending']);
+
+      if (quotesError) {
+        console.warn('[GET /api/avinode/messages] Error checking quotes:', quotesError);
+      }
+
+      // If no quotes with valid status, return empty messages
+      // This avoids unnecessary Avinode API calls for RFQs without responses
+      if (!quotes || quotes.length === 0) {
+        console.log('[GET /api/avinode/messages] No quoted RFQs found for trip:', tripId);
+        return NextResponse.json({
+          tripId,
+          requestId,
+          messages: {},
+          totalCount: 0,
+          status: 'no_quotes',
+          message: 'No quoted RFQs found for this trip. Messages are only available after operators have responded.',
+        });
+      }
+    }
+
     // Call get_trip_messages MCP tool via the Avinode API endpoint
+    // Use request origin to avoid port mismatch issues (app may run on 3000, 3001, etc.)
+    const url = new URL(request.url);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : url.origin);
 
     const response = await fetch(`${baseUrl}/api/avinode`, {
       method: 'POST',

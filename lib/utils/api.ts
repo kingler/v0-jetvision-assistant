@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // =============================================================================
 // TYPES
@@ -81,7 +81,8 @@ export async function getAuthenticatedAgent(): Promise<AuthResult> {
 
   // Query iso_agents table using clerk_user_id
   // Schema: iso_agents(id UUID, clerk_user_id TEXT UNIQUE, role user_role, ...)
-  const { data: isoAgent, error } = await supabase
+  // Use supabaseAdmin to bypass RLS since we've already authenticated via Clerk
+  const { data: isoAgent, error } = await supabaseAdmin
     .from('iso_agents')
     .select('id')
     .eq('clerk_user_id', userId)
@@ -158,7 +159,8 @@ export async function getAuthenticatedUser(): Promise<UserAuthResult> {
   // Query iso_agents table using clerk_user_id
   // Schema: iso_agents(id UUID, clerk_user_id TEXT UNIQUE, role user_role, ...)
   // Select both id and role fields as required by AuthenticatedUser interface
-  const { data: isoAgent, error } = await supabase
+  // Use supabaseAdmin to bypass RLS since we've already authenticated via Clerk
+  const { data: isoAgent, error } = await supabaseAdmin
     .from('iso_agents')
     .select('id, role')
     .eq('clerk_user_id', userId)

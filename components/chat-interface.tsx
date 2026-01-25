@@ -27,6 +27,7 @@ import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
 import { FlightSearchProgress } from "./avinode/flight-search-progress"
+import { CustomerSelectionDialog, type ClientProfile } from "./customer-selection-dialog"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
 
@@ -145,6 +146,12 @@ export function ChatInterface({
 
   // Quote details map
   const [quoteDetailsMap, setQuoteDetailsMap] = useState<QuoteDetailsMap>({})
+
+  // Customer selection dialog state for proposal generation
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false)
+  const [pendingProposalFlightId, setPendingProposalFlightId] = useState<string | null>(null)
+  const [pendingProposalQuoteId, setPendingProposalQuoteId] = useState<string | undefined>(undefined)
+  const [isGeneratingProposal, setIsGeneratingProposal] = useState(false)
 
   // Sync tripIdSubmitted with activeChat
   useEffect(() => {
@@ -510,17 +517,21 @@ export function ChatInterface({
     }
 
     // Update date if parsed from message
-    // Store ISO date string (YYYY-MM-DD) for consistency with API and FlightSearchProgress
+    // Store both ISO date (for API calls) and formatted date (for display)
     if (parsedFlightRequest.departureDate) {
+      // departureDate is already in ISO format (YYYY-MM-DD)
+      sessionUpdates.isoDate = parsedFlightRequest.departureDate
       sessionUpdates.date = parsedFlightRequest.departureDate
     } else if (parsedFlightRequest.date) {
       // If only formatted date is available, try to parse it back to ISO
       try {
         const parsedDate = new Date(parsedFlightRequest.date)
         if (!isNaN(parsedDate.getTime())) {
-          sessionUpdates.date = `${parsedDate.getFullYear()}-${String(
+          const isoDateStr = `${parsedDate.getFullYear()}-${String(
             parsedDate.getMonth() + 1
           ).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
+          sessionUpdates.isoDate = isoDateStr
+          sessionUpdates.date = isoDateStr
         }
       } catch {
         // If parsing fails, store as-is
@@ -905,6 +916,9 @@ export function ChatInterface({
     }
     const departureDate = tripData?.departure_date || rfpData?.departure_date
     if (departureDate) {
+      // Store ISO date for API calls (YYYY-MM-DD format)
+      // The raw departureDate from trip/rfp data is already in ISO format
+      updates.isoDate = departureDate
       // Format date for display
       try {
         updates.date = formatDate(departureDate)
@@ -1305,10 +1319,182 @@ export function ChatInterface({
 
   /**
    * Handle generating proposal
+   * 
+   * Opens the customer selection dialog to allow the user to choose which customer
+   * the proposal is for. Once a customer is selected, the proposal generation
+   * workflow continues.
+   * 
+   * @param flightId - ID of the flight to generate proposal for
+   * @param quoteId - Optional quote ID associated with the flight
    */
   const handleGenerateProposal = (flightId: string, quoteId?: string) => {
-    console.log('[ChatInterface] Generate proposal:', { flightId, quoteId })
-    // TODO: Implement proposal generation
+    console.log('[ChatInterface] Generate proposal clicked:', { flightId, quoteId })
+    
+    // Store the flight and quote IDs for when customer is selected
+    setPendingProposalFlightId(flightId)
+    setPendingProposalQuoteId(quoteId)
+    
+    // Open the customer selection dialog
+    setIsCustomerDialogOpen(true)
+  }
+
+  /**
+   * Handle customer selection from dialog
+   * 
+   * Called when a customer is selected in the CustomerSelectionDialog.
+   * Fetches the selected flight data, constructs trip details, and calls
+   * the proposal generation API with 30% profit margin.
+   * 
+   * @param customer - Selected customer profile from client_profiles table
+   */
+  const handleCustomerSelected = async (customer: ClientProfile) => {
+    if (!pendingProposalFlightId) {
+      console.error('[ChatInterface] No pending flight ID for proposal generation')
+      return
+    }
+
+    setIsGeneratingProposal(true)
+    setIsCustomerDialogOpen(false)
+
+    try {
+      // Find the selected flight from rfqFlights
+      const selectedFlight = rfqFlights.find((f) => f.id === pendingProposalFlightId)
+      
+      if (!selectedFlight) {
+        throw new Error('Selected flight not found')
+      }
+
+      // Parse route to get departure and arrival airports
+      const routeParts = extractRouteParts(activeChat.route)
+      const departureIcao = routeParts.departure?.icao || activeChat.route?.split(' → ')[0]?.trim() || ''
+      const arrivalIcao = routeParts.arrival?.icao || activeChat.route?.split(' → ')[1]?.trim() || ''
+
+      if (!departureIcao || !arrivalIcao) {
+        throw new Error('Invalid route: missing departure or arrival airport')
+      }
+
+      // Prepare trip details from activeChat
+      // Use isoDate (YYYY-MM-DD format) for API calls, fall back to parsing date or today
+      const getIsoDate = (): string => {
+        // Prefer isoDate if available (already in YYYY-MM-DD format)
+        if (activeChat.isoDate) {
+          return activeChat.isoDate
+        }
+        // Try to parse the formatted display date
+        if (activeChat.date) {
+          try {
+            const parsed = new Date(activeChat.date)
+            if (!isNaN(parsed.getTime())) {
+              return parsed.toISOString().split('T')[0]
+            }
+          } catch {
+            // Fall through to default
+          }
+        }
+        // Default to today
+        return new Date().toISOString().split('T')[0]
+      }
+
+      const tripDetails = {
+        departureAirport: {
+          icao: departureIcao,
+          name: routeParts.departure?.name,
+          city: routeParts.departure?.city,
+        },
+        arrivalAirport: {
+          icao: arrivalIcao,
+          name: routeParts.arrival?.name,
+          city: routeParts.arrival?.city,
+        },
+        departureDate: getIsoDate(),
+        passengers: activeChat.passengers || 1,
+        tripId: activeChat.tripId,
+      }
+
+      // Prepare customer data from selected client profile
+      const customerData = {
+        name: customer.contact_name,
+        email: customer.email,
+        company: customer.company_name,
+        phone: customer.phone || undefined,
+      }
+
+      console.log('[ChatInterface] Generating proposal with:', {
+        customer: customerData,
+        tripDetails,
+        flight: {
+          id: selectedFlight.id,
+          quoteId: selectedFlight.quoteId,
+          operatorName: selectedFlight.operatorName,
+          totalPrice: selectedFlight.totalPrice,
+        },
+        margin: '30%',
+      })
+
+      // Call the proposal generation API with 30% profit margin
+      const response = await fetch('/api/proposal/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer: customerData,
+          tripDetails,
+          selectedFlights: [selectedFlight],
+          jetvisionFeePercentage: 30, // 30% profit margin as specified
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `Failed to generate proposal: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate proposal')
+      }
+
+      console.log('[ChatInterface] Proposal generated successfully:', {
+        proposalId: result.proposalId,
+        fileName: result.fileName,
+        pricing: result.pricing,
+      })
+
+      // Create a blob from the base64 PDF and open it in a new tab
+      if (result.pdfBase64) {
+        const pdfBlob = new Blob(
+          [Uint8Array.from(atob(result.pdfBase64), (c) => c.charCodeAt(0))],
+          { type: 'application/pdf' }
+        )
+        const pdfUrl = URL.createObjectURL(pdfBlob)
+        
+        // Open PDF in new tab
+        window.open(pdfUrl, '_blank')
+        
+        // Also trigger download
+        const link = document.createElement('a')
+        link.href = pdfUrl
+        link.download = result.fileName || 'proposal.pdf'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+        // Clean up the blob URL after a delay
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000)
+      }
+
+      // Show success message (you could add a toast notification here)
+      alert(`Proposal generated successfully!\n\nProposal ID: ${result.proposalId}\nTotal: ${result.pricing?.currency || 'USD'} ${result.pricing?.total?.toLocaleString() || 'N/A'}\n\nThe PDF has been opened in a new tab and downloaded.`)
+    } catch (error) {
+      console.error('[ChatInterface] Error generating proposal:', error)
+      alert(`Failed to generate proposal: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsGeneratingProposal(false)
+      setPendingProposalFlightId(null)
+      setPendingProposalQuoteId(undefined)
+    }
   }
 
   /**
@@ -1539,135 +1725,207 @@ export function ChatInterface({
                 return acc
               }, [] as Array<{ message: typeof activeChat.messages[0], index: number }>)
               
-              return deduplicatedMessages.map(({ message, index }) => (
-              <div key={message.id || index}>
-                {message.type === "user" ? (
-                  <>
-                    <div className="flex justify-end">
-                      <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
-                        <p className="text-sm leading-relaxed">{message.content}</p>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <AgentMessage
-                    content={stripMarkdown(message.content)}
-                    timestamp={message.timestamp}
-                    // Show workflow status on agent messages during processing
-                    showWorkflow={message.showWorkflow}
-                    workflowProps={message.showWorkflow ? {
-                      isProcessing: activeChat.status !== "proposal_ready",
-                      currentStep: activeChat.currentStep || 1,
-                      status: activeChat.status || "understanding_request",
-                      tripId: activeChat.tripId,
-                      deepLink: activeChat.deepLink,
-                    } : undefined}
-                    // Show deep link in AgentMessage - allow even when tripId exists for context
-                    // BUT don't show if FlightSearchProgress is rendered
-                    showDeepLink={message.showDeepLink && !shouldShowFlightSearchProgress}
-                    deepLinkData={message.deepLinkData}
-                    onTripIdSubmit={handleTripIdSubmit}
-                    isTripIdLoading={isTripIdLoading}
-                    tripIdError={tripIdError}
-                    tripIdSubmitted={tripIdSubmitted}
-                    // Show quotes when we have rfqFlights data
-                    // BUT don't show them if they're already displayed in Step 3 via FlightSearchProgress
-                    // This prevents duplicate RFQ displays - RFQs should only appear in Step 3, not in agent messages
-                    // FlightSearchProgress shows RFQs in Step 3 when tripIdSubmitted is true and currentStep >= 3
-                    // Only show quotes in agent message if we're NOT in Step 3/4 (where FlightSearchProgress handles RFQ display)
-                    showQuotes={(() => {
-                      const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
-                      return !isInStep3Or4 && (
-                        (message.showQuotes && tripIdSubmitted) ||
-                        (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
-                      )
-                    })()}
-                    rfqFlights={(() => {
-                      const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
-                      const shouldShowQuotesInMessage = !isInStep3Or4 && (
-                        (message.showQuotes && tripIdSubmitted) ||
-                        (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
-                      )
-                      return shouldShowQuotesInMessage ? rfqFlights.map((flight) => {
-                      const messages = activeChat.operatorMessages?.[flight.quoteId || ''] || []
-                      const hasMessages = messages.length > 0
-                      const latestMessage = hasMessages ? messages.reduce((latest, msg) => {
-                        if (!latest) return msg
-                        const latestTime = new Date(latest.timestamp).getTime()
-                        const msgTime = new Date(msg.timestamp).getTime()
-                        return msgTime > latestTime ? msg : latest
-                      }, null as OperatorMessage | null) : null
+              // Find the first user message and first agent message to determine where to insert FlightSearchProgress
+              const firstUserMessageIndex = deduplicatedMessages.findIndex(({ message }) => message.type === 'user')
+              const firstAgentMessageIndex = deduplicatedMessages.findIndex(({ message }) => message.type === 'agent')
+              const shouldInsertProgressAfterFirstAgent = shouldShowFlightSearchProgress && 
+                                                          firstUserMessageIndex !== -1 && 
+                                                          firstAgentMessageIndex !== -1 &&
+                                                          firstAgentMessageIndex > firstUserMessageIndex
+              
+              return deduplicatedMessages.map(({ message, index }, mapIndex) => {
+                const isFirstAgentMessage = mapIndex === firstAgentMessageIndex
+                const shouldShowProgressAfterThis = shouldInsertProgressAfterFirstAgent && isFirstAgentMessage
+                
+                return (
+                  <React.Fragment key={message.id || index}>
+                    {message.type === "user" ? (
+                      <>
+                        <div className="flex justify-end">
+                          <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
+                            <p className="text-sm leading-relaxed">{message.content}</p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <AgentMessage
+                        content={stripMarkdown(message.content)}
+                        timestamp={message.timestamp}
+                        // CRITICAL: Disable internal FlightSearchProgress in AgentMessage when showing externally
+                        // This ensures agent commentary appears first, then FlightSearchProgress follows
+                        // AgentMessage shows FlightSearchProgress if showDeepLink OR showTripIdInput OR showWorkflow is true
+                        // We disable all of these to prevent internal rendering, so the external one appears after commentary
+                        showDeepLink={false} // Disable to prevent internal FlightSearchProgress
+                        showTripIdInput={false} // Disable to prevent internal FlightSearchProgress
+                        showWorkflow={false} // Disable to prevent internal FlightSearchProgress
+                        workflowProps={undefined} // Disable workflow props to prevent internal FlightSearchProgress
+                        deepLinkData={undefined} // Disable deepLinkData to prevent internal FlightSearchProgress
+                        onTripIdSubmit={handleTripIdSubmit}
+                        isTripIdLoading={isTripIdLoading}
+                        tripIdError={tripIdError}
+                        tripIdSubmitted={tripIdSubmitted}
+                        // Show quotes when we have rfqFlights data
+                        // BUT don't show them if they're already displayed in Step 3 via FlightSearchProgress
+                        // This prevents duplicate RFQ displays - RFQs should only appear in Step 3, not in agent messages
+                        // FlightSearchProgress shows RFQs in Step 3 when tripIdSubmitted is true and currentStep >= 3
+                        // Only show quotes in agent message if we're NOT in Step 3/4 (where FlightSearchProgress handles RFQ display)
+                        showQuotes={(() => {
+                          const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
+                          return !isInStep3Or4 && (
+                            (message.showQuotes && tripIdSubmitted) ||
+                            (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
+                          )
+                        })()}
+                        rfqFlights={(() => {
+                          const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
+                          const shouldShowQuotesInMessage = !isInStep3Or4 && (
+                            (message.showQuotes && tripIdSubmitted) ||
+                            (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
+                          )
+                          return shouldShowQuotesInMessage ? rfqFlights.map((flight) => {
+                          const messages = activeChat.operatorMessages?.[flight.quoteId || ''] || []
+                          const hasMessages = messages.length > 0
+                          const latestMessage = hasMessages ? messages.reduce((latest, msg) => {
+                            if (!latest) return msg
+                            const latestTime = new Date(latest.timestamp).getTime()
+                            const msgTime = new Date(msg.timestamp).getTime()
+                            return msgTime > latestTime ? msg : latest
+                          }, null as OperatorMessage | null) : null
 
-                      const lastReadAt = activeChat.lastMessagesReadAt?.[flight.quoteId || '']
-                      const hasNewMessages = hasMessages && messages.some((msg) => {
-                        if (!lastReadAt) return true
-                        return new Date(msg.timestamp).getTime() > new Date(lastReadAt).getTime()
-                      })
+                          const lastReadAt = activeChat.lastMessagesReadAt?.[flight.quoteId || '']
+                          const hasNewMessages = hasMessages && messages.some((msg) => {
+                            if (!lastReadAt) return true
+                            return new Date(msg.timestamp).getTime() > new Date(lastReadAt).getTime()
+                          })
 
-                      return {
-                        ...flight,
-                        hasMessages,
-                        hasNewMessages,
-                        sellerMessage: latestMessage?.content || flight.sellerMessage,
-                      }
-                      }) : []
-                    })()}
-                    selectedRfqFlightIds={selectedRfqFlightIds}
-                    rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
-                    onRfqFlightSelectionChange={setSelectedRfqFlightIds}
-                    onReviewAndBook={handleReviewAndBook}
-                    customerEmail={activeChat.customer?.name ? `${activeChat.customer.name.toLowerCase().replace(/\s+/g, '.')}@example.com` : ''}
-                    customerName={activeChat.customer?.name || ''}
-                    selectedFlights={[]}
-                    onViewChat={handleViewChat}
-                    onGenerateProposal={handleGenerateProposal}
-                    showPipeline={message.showPipeline}
-                    pipelineData={message.pipelineData}
-                    onViewRequest={(requestId) => {
-                      console.log('[Pipeline] View request:', requestId)
-                    }}
-                    onRefreshPipeline={() => {
-                      setInputValue("show my pipeline")
-                      setTimeout(() => {
-                        handleSendMessage()
-                      }, 100)
-                    }}
-                    showOperatorMessages={!!activeChat.operatorMessages && Object.keys(activeChat.operatorMessages).length > 0}
-                    operatorMessages={activeChat.operatorMessages}
-                    operatorFlightContext={(() => {
-                      // Build flight context map from rfqFlights
-                      const contextMap: Record<string, { quoteId: string; operatorName: string; aircraftType?: string; departureAirport?: string; arrivalAirport?: string; price?: number; currency?: string }> = {}
-                      for (const flight of rfqFlights) {
-                        if (flight.quoteId) {
-                          contextMap[flight.quoteId] = {
-                            quoteId: flight.quoteId,
-                            operatorName: flight.operatorName,
-                            aircraftType: flight.aircraftType,
-                            departureAirport: flight.departureAirport.icao,
-                            arrivalAirport: flight.arrivalAirport.icao,
-                            price: flight.totalPrice,
-                            currency: flight.currency,
+                          return {
+                            ...flight,
+                            hasMessages,
+                            hasNewMessages,
+                            sellerMessage: latestMessage?.content || flight.sellerMessage,
                           }
-                        }
-                      }
-                      return contextMap
-                    })()}
-                    onViewOperatorThread={(quoteId) => {
-                      const flight = rfqFlights.find(f => f.quoteId === quoteId)
-                      if (flight) {
-                        handleViewChat(flight.id, quoteId)
-                      }
-                    }}
-                    onReplyToOperator={(quoteId) => {
-                      const flight = rfqFlights.find(f => f.quoteId === quoteId)
-                      if (flight) {
-                        handleViewChat(flight.id, quoteId)
-                      }
-                    }}
-                  />
-                )}
-              </div>
-              ))
+                          }) : []
+                        })()}
+                        selectedRfqFlightIds={selectedRfqFlightIds}
+                        rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
+                        onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                        onReviewAndBook={handleReviewAndBook}
+                        customerEmail={activeChat.customer?.name ? `${activeChat.customer.name.toLowerCase().replace(/\s+/g, '.')}@example.com` : ''}
+                        customerName={activeChat.customer?.name || ''}
+                        selectedFlights={[]}
+                        onViewChat={handleViewChat}
+                        onGenerateProposal={handleGenerateProposal}
+                        showPipeline={message.showPipeline}
+                        pipelineData={message.pipelineData}
+                        onViewRequest={(requestId) => {
+                          console.log('[Pipeline] View request:', requestId)
+                        }}
+                        onRefreshPipeline={() => {
+                          setInputValue("show my pipeline")
+                          setTimeout(() => {
+                            handleSendMessage()
+                          }, 100)
+                        }}
+                        showOperatorMessages={!!activeChat.operatorMessages && Object.keys(activeChat.operatorMessages).length > 0}
+                        operatorMessages={activeChat.operatorMessages}
+                        operatorFlightContext={(() => {
+                          // Build flight context map from rfqFlights
+                          const contextMap: Record<string, { quoteId: string; operatorName: string; aircraftType?: string; departureAirport?: string; arrivalAirport?: string; price?: number; currency?: string }> = {}
+                          for (const flight of rfqFlights) {
+                            if (flight.quoteId) {
+                              contextMap[flight.quoteId] = {
+                                quoteId: flight.quoteId,
+                                operatorName: flight.operatorName,
+                                aircraftType: flight.aircraftType,
+                                departureAirport: flight.departureAirport.icao,
+                                arrivalAirport: flight.arrivalAirport.icao,
+                                price: flight.totalPrice,
+                                currency: flight.currency,
+                              }
+                            }
+                          }
+                          return contextMap
+                        })()}
+                        onViewOperatorThread={(quoteId) => {
+                          const flight = rfqFlights.find(f => f.quoteId === quoteId)
+                          if (flight) {
+                            handleViewChat(flight.id, quoteId)
+                          }
+                        }}
+                        onReplyToOperator={(quoteId) => {
+                          const flight = rfqFlights.find(f => f.quoteId === quoteId)
+                          if (flight) {
+                            handleViewChat(flight.id, quoteId)
+                          }
+                        }}
+                      />
+                    )}
+                    
+                    {/* Insert FlightSearchProgress after the first agent message (which follows the initial request) */}
+                    {shouldShowProgressAfterThis && (
+                      <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
+                        <FlightSearchProgress
+                          currentStep={(() => {
+                            // Calculate proper step based on state per UX requirements:
+                            // Step 1: Request Created (has route/request)
+                            // Step 2: Select in Avinode (has deepLink)
+                            // Step 3: Enter TripID (has tripId but no RFQs yet)
+                            // Step 4: Review Quotes (has tripId and RFQ flights)
+                            // Use activeChat.tripIdSubmitted to check actual chat state, not just local state
+                            const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
+                            
+                            // Step 4: If we have RFQ flights and tripId is submitted
+                            if (rfqFlights.length > 0 && isTripIdSubmitted) {
+                              return 4
+                            }
+                            
+                            // Step 3: If we have tripId and RFQs are not loaded yet
+                            if (activeChat.tripId && rfqFlights.length === 0) {
+                              return 3
+                            }
+                            
+                            // Step 2: If we have deepLink (means request created, ready to select in Avinode)
+                            if (activeChat.deepLink) {
+                              return 2
+                            }
+                            
+                            // Step 1: Default (request created)
+                            return activeChat.currentStep || 1
+                          })()}
+                          flightRequest={{
+                            // Route format is "DEPT → ARR" (with arrow character)
+                            departureAirport: activeChat.route?.split(' → ')[0]
+                              ? { icao: activeChat.route.split(' → ')[0].trim() }
+                              : { icao: 'TBD' },
+                            arrivalAirport: activeChat.route?.split(' → ')[1]
+                              ? { icao: activeChat.route.split(' → ')[1].trim() }
+                              : { icao: 'TBD' },
+                            departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
+                            passengers: activeChat.passengers || 1,
+                            requestId: activeChat.requestId,
+                          }}
+                          deepLink={activeChat.deepLink}
+                          tripId={activeChat.tripId}
+                          isTripIdLoading={isTripIdLoading}
+                          tripIdError={tripIdError}
+                          tripIdSubmitted={tripIdSubmitted || activeChat.tripIdSubmitted || (activeChat.tripId && activeChat.rfqFlights && activeChat.rfqFlights.length > 0) || false}
+                          rfqFlights={rfqFlights}
+                          isRfqFlightsLoading={false}
+                          selectedRfqFlightIds={selectedRfqFlightIds}
+                          rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
+                          customerEmail={(activeChat.customer as { email?: string })?.email}
+                          customerName={activeChat.customer?.name}
+                          onTripIdSubmit={handleTripIdSubmit}
+                          onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                          onViewChat={handleViewChat}
+                          onGenerateProposal={handleGenerateProposal}
+                          onReviewAndBook={handleReviewAndBook}
+                        />
+                      </div>
+                    )}
+                  </React.Fragment>
+                )
+              })
             })()}
 
             {/* Streaming Response / Typing Indicator */}
@@ -1719,69 +1977,6 @@ export function ChatInterface({
               </div>
             )}
 
-            {/* Render FlightSearchProgress after the agent responds so the conversation appears first */}
-            {/* FIXED: Added overflow-visible to ensure Step 3 content isn't clipped during scroll */}
-            {shouldShowFlightSearchProgress && (
-              <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
-                <FlightSearchProgress
-                  currentStep={(() => {
-                    // Calculate proper step based on state per UX requirements:
-                    // Step 1: Request Created (has route/request)
-                    // Step 2: Select in Avinode (has deepLink)
-                    // Step 3: Enter TripID (has tripId but no RFQs yet)
-                    // Step 4: Review Quotes (has tripId and RFQ flights)
-                    // Use activeChat.tripIdSubmitted to check actual chat state, not just local state
-                    const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
-                    
-                    // Step 4: If we have RFQ flights and tripId is submitted
-                    if (rfqFlights.length > 0 && isTripIdSubmitted) {
-                      return 4
-                    }
-                    
-                    // Step 3: If we have tripId and RFQs are not loaded yet
-                    if (activeChat.tripId && rfqFlights.length === 0) {
-                      return 3
-                    }
-                    
-                    // Step 2: If we have deepLink (means request created, ready to select in Avinode)
-                    if (activeChat.deepLink) {
-                      return 2
-                    }
-                    
-                    // Step 1: Default (request created)
-                    return activeChat.currentStep || 1
-                  })()}
-                  flightRequest={{
-                    // Route format is "DEPT → ARR" (with arrow character)
-                    departureAirport: activeChat.route?.split(' → ')[0]
-                      ? { icao: activeChat.route.split(' → ')[0].trim() }
-                      : { icao: 'TBD' },
-                    arrivalAirport: activeChat.route?.split(' → ')[1]
-                      ? { icao: activeChat.route.split(' → ')[1].trim() }
-                      : { icao: 'TBD' },
-                    departureDate: activeChat.date || new Date().toISOString().split('T')[0],
-                    passengers: activeChat.passengers || 1,
-                    requestId: activeChat.requestId,
-                  }}
-                  deepLink={activeChat.deepLink}
-                  tripId={activeChat.tripId}
-                  isTripIdLoading={isTripIdLoading}
-                  tripIdError={tripIdError}
-                  tripIdSubmitted={tripIdSubmitted || activeChat.tripIdSubmitted || (activeChat.tripId && activeChat.rfqFlights && activeChat.rfqFlights.length > 0) || false}
-                  rfqFlights={rfqFlights}
-                  isRfqFlightsLoading={false}
-                  selectedRfqFlightIds={selectedRfqFlightIds}
-                  rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
-                  customerEmail={(activeChat.customer as { email?: string })?.email}
-                  customerName={activeChat.customer?.name}
-                  onTripIdSubmit={handleTripIdSubmit}
-                  onRfqFlightSelectionChange={setSelectedRfqFlightIds}
-                  onViewChat={handleViewChat}
-                  onGenerateProposal={handleGenerateProposal}
-                  onReviewAndBook={handleReviewAndBook}
-                />
-              </div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>
@@ -1878,6 +2073,29 @@ export function ChatInterface({
         flightId={messageThreadFlightId}
         operatorName={messageThreadOperatorName}
       />
+
+      {/* Customer Selection Dialog for Proposal Generation */}
+      <CustomerSelectionDialog
+        open={isCustomerDialogOpen}
+        onClose={() => {
+          setIsCustomerDialogOpen(false)
+          setPendingProposalFlightId(null)
+          setPendingProposalQuoteId(undefined)
+        }}
+        onSelect={handleCustomerSelected}
+      />
+
+      {/* Loading overlay when generating proposal */}
+      {isGeneratingProposal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <span className="text-lg font-medium">Generating proposal...</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

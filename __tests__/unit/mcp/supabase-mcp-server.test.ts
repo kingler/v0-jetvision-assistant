@@ -448,8 +448,7 @@ describe('Supabase MCP Server', () => {
         email: 'test@test.com',
         full_name: 'Test User',
         role: 'iso_agent' as const,
-        margin_type: 'percentage' as const,
-        margin_value: 15.0,
+        commission_percentage: 15.0,
       };
 
       expect(() => mockSupabase.from('iso_agents').insert(validAgent)).not.toThrow();

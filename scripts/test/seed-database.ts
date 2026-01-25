@@ -46,8 +46,7 @@ const TEST_USERS = [
     full_name: 'Test Admin',
     role: 'admin' as const,
     is_active: true,
-    margin_type: 'percentage' as const,
-    margin_value: 15,
+    commission_percentage: 15,
   },
   {
     clerk_user_id: 'test_sales_001',
@@ -55,8 +54,7 @@ const TEST_USERS = [
     full_name: 'Test Sales Rep',
     role: 'sales_rep' as const,
     is_active: true,
-    margin_type: 'percentage' as const,
-    margin_value: 12,
+    commission_percentage: 12,
   },
   {
     clerk_user_id: 'test_operator_001',

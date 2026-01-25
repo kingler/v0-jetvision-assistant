@@ -309,50 +309,50 @@ export type Database = {
       iso_agents: {
         Row: {
           clerk_user_id: string
+          commission_percentage: number | null
           created_at: string | null
           email: string
           full_name: string
           id: string
           is_active: boolean | null
           last_seen_at: string | null
-          margin_type: Database["public"]["Enums"]["margin_type"] | null
-          margin_value: number | null
           metadata: Json | null
           notification_preferences: Json | null
           online_status: string | null
           role: Database["public"]["Enums"]["user_role"]
+          total_commission_earned: number | null
           updated_at: string | null
         }
         Insert: {
           clerk_user_id: string
+          commission_percentage?: number | null
           created_at?: string | null
           email: string
           full_name: string
           id?: string
           is_active?: boolean | null
           last_seen_at?: string | null
-          margin_type?: Database["public"]["Enums"]["margin_type"] | null
-          margin_value?: number | null
           metadata?: Json | null
           notification_preferences?: Json | null
           online_status?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          total_commission_earned?: number | null
           updated_at?: string | null
         }
         Update: {
           clerk_user_id?: string
+          commission_percentage?: number | null
           created_at?: string | null
           email?: string
           full_name?: string
           id?: string
           is_active?: boolean | null
           last_seen_at?: string | null
-          margin_type?: Database["public"]["Enums"]["margin_type"] | null
-          margin_value?: number | null
           metadata?: Json | null
           notification_preferences?: Json | null
           online_status?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          total_commission_earned?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1335,7 +1335,6 @@ export type Database = {
         | "completed"
         | "failed"
         | "timeout"
-      margin_type: "percentage" | "fixed"
       message_content_type:
         | "text"
         | "quote_shared"
@@ -1574,7 +1573,6 @@ export const Constants = {
         "failed",
         "timeout",
       ],
-      margin_type: ["percentage", "fixed"],
       message_content_type: [
         "text",
         "quote_shared",

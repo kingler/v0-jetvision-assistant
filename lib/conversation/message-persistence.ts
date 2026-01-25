@@ -279,7 +279,7 @@ export async function loadMessages(
     throw new Error(`Failed to load messages: ${error.message}`);
   }
 
-  return (messages || []).map((msg) => ({
+  const mappedMessages = (messages || []).map((msg) => ({
     id: msg.id,
     requestId: msg.request_id || '',
     quoteId: msg.quote_id,
@@ -291,6 +291,39 @@ export async function loadMessages(
     createdAt: msg.created_at || '',
     metadata: msg.metadata as Record<string, unknown> | null,
   }));
+
+  // Filter out operator messages that were created before the first user (iso_agent) message
+  // 
+  // This handles edge cases where operator messages can predate the initial request:
+  // 1. Data import/backfill: Trip created in Avinode first, operators responded, then request imported later
+  // 2. Webhook timestamps: Operator messages from webhooks use original Avinode timestamps (message.sentAt)
+  //    which may predate when the request was created in our system
+  //
+  // In normal flow, operators shouldn't be able to message before a request exists, but we filter
+  // to ensure the user's initial request always appears first in the conversation UI.
+  const firstUserMessage = mappedMessages.find(
+    (msg) => msg.senderType === 'iso_agent'
+  );
+
+  if (firstUserMessage) {
+    const firstUserMessageTime = new Date(firstUserMessage.createdAt).getTime();
+    
+    // Filter out operator messages created before the first user message
+    // Keep all other messages (ai_assistant, system, etc.)
+    return mappedMessages.filter((msg) => {
+      if (msg.senderType === 'operator') {
+        const msgTime = new Date(msg.createdAt).getTime();
+        // Only include operator messages that were created after the first user message
+        // This ensures proper conversation flow: user request → operator responses
+        return msgTime >= firstUserMessageTime;
+      }
+      // Keep all non-operator messages
+      return true;
+    });
+  }
+
+  // If no user message found, return all messages as-is
+  return mappedMessages;
 }
 
 /**
@@ -409,6 +442,8 @@ export async function getOperatorThreads(
 export async function getIsoAgentIdFromClerkUserId(
   clerkUserId: string
 ): Promise<string | null> {
+  console.log('[Message Persistence] Looking up ISO agent for Clerk user:', clerkUserId);
+
   // First, try to find existing user
   const { data, error } = await supabaseAdmin
     .from('iso_agents')
@@ -417,8 +452,11 @@ export async function getIsoAgentIdFromClerkUserId(
     .single();
 
   if (data) {
+    console.log('[Message Persistence] ✅ Found existing ISO agent:', data.id);
     return data.id;
   }
+
+  console.log('[Message Persistence] User lookup result:', { data, error: error?.code, errorMessage: error?.message });
 
   // User not found - attempt auto-sync from Clerk
   if (error?.code === 'PGRST116') {
@@ -472,6 +510,22 @@ export async function getIsoAgentIdFromClerkUserId(
         .single();
 
       if (insertError) {
+        // Handle race condition: another request may have created the user
+        // PostgreSQL error code 23505 = unique_violation (duplicate key)
+        if (insertError.code === '23505') {
+          console.log('[Message Persistence] Race condition detected - user created by another request, retrying query');
+          const { data: existingUser, error: retryError } = await supabaseAdmin
+            .from('iso_agents')
+            .select('id')
+            .eq('clerk_user_id', clerkUserId)
+            .single();
+
+          if (existingUser && !retryError) {
+            console.log('[Message Persistence] ✅ Found user after race condition retry:', existingUser.id);
+            return existingUser.id;
+          }
+        }
+
         console.error('[Message Persistence] Error auto-creating user:', insertError);
         return null;
       }

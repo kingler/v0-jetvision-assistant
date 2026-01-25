@@ -19,7 +19,7 @@ import { ToolExecutor, createToolExecutor } from './tool-executor';
 // CONFIGURATION
 // =============================================================================
 
-const DEFAULT_MODEL = 'gpt-4o';
+const DEFAULT_MODEL = 'gpt-5.2';
 
 // =============================================================================
 // SYSTEM PROMPT
@@ -150,7 +150,7 @@ export class JetvisionAgent {
       messages,
       tools: ALL_TOOLS as OpenAI.ChatCompletionTool[],
       tool_choice: toolChoice,
-      temperature: 0.7,
+      temperature: 0,
     });
 
     const choice = response.choices[0];
@@ -220,7 +220,7 @@ export class JetvisionAgent {
     const finalResponse = await this.openai.chat.completions.create({
       model: DEFAULT_MODEL,
       messages: [...messages, ...toolMessages],
-      temperature: 0.7,
+      temperature: 0,
     });
 
     const finalMessage = finalResponse.choices[0].message.content || '';

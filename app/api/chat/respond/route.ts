@@ -143,12 +143,12 @@ export async function POST(req: NextRequest) {
           while (toolCallDepth < MAX_TOOL_DEPTH) {
             // Create streaming response
             const response = await openai.chat.completions.create({
-              model: 'gpt-4o',
+              model: 'gpt-5.2',
               messages: conversationMessages,
               tools: tools.length > 0 ? tools : undefined,
               stream: true,
               max_tokens: 4096,
-              temperature: 0.7,
+              temperature: 0,
             });
 
             let fullContent = '';
@@ -369,16 +369,43 @@ export async function POST(req: NextRequest) {
  * Build system prompt based on intent
  */
 function buildSystemPrompt(intent?: string): string {
-  const basePrompt = `You are Jetvision AI Assistant, a helpful agent for booking private jet flights.
+  const basePrompt = `You are Jetvision, an AI assistant for charter flight brokers (ISO agents).
 
-Your capabilities:
-- Create and manage RFPs (Request for Proposals)
-- Search for available flights and aircraft
-- Analyze and compare quotes from operators
-- Provide recommendations based on client preferences
-- Answer questions about flight bookings
+## Your Capabilities
+1. **Flight Requests** - Create trips in Avinode, search flights, get quotes
+2. **CRM Management** - Look up clients, create client profiles, manage requests
+3. **Quote Management** - View quotes, compare options, accept/reject quotes
+4. **Proposals** - Create and send proposals to clients
+5. **Communication** - Send emails to clients with quotes or proposals
 
-Always be professional, concise, and helpful. When creating RFPs, extract all relevant details from the user's message.`;
+## Creating a Flight Request
+When the user wants a flight, you need these details before calling \`create_trip\`:
+- Departure airport (ICAO code like KTEB, KJFK)
+- Arrival airport (ICAO code)
+- Departure date (YYYY-MM-DD)
+- Number of passengers
+
+If ANY information is missing, ask the user for it. Don't assume values.
+
+## Looking Up Trips
+- Use \`get_rfq\` when given a trip ID (6-char code like LPZ8VC or atrip-*)
+- The tool returns quotes from operators
+
+## Client & Quote Management
+- Use \`get_client\` or \`list_clients\` to find clients
+- Use \`get_quotes\` to see quotes for a request
+- Use \`send_proposal_email\` or \`send_quote_email\` to email clients
+- Always confirm with the user before sending emails
+
+## Response Guidelines
+- Be concise and professional
+- Format quotes clearly: operator, aircraft, price
+- Always show the Avinode deep link when a trip is created
+- If tools fail, explain what went wrong
+
+## Common Airport Codes
+KTEB = Teterboro, KJFK = JFK, KLAX = Los Angeles, KORD = Chicago O'Hare,
+KMIA = Miami, KDEN = Denver, KLAS = Las Vegas, KVNY = Van Nuys`;
 
   const intentPrompts: Record<string, string> = {
     create_rfp: `\n\nCurrent task: Create a new RFP. Extract flight details including departure/arrival airports, dates, passenger count, and any special requirements.`,

@@ -14,8 +14,10 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
 } from '@react-pdf/renderer';
+import path from 'path';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
 // =============================================================================
@@ -78,15 +80,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: '#0066cc',
   },
+  logoContainer: {
+    marginBottom: 4,
+  },
   logo: {
-    fontSize: 24,
-    fontFamily: 'Helvetica-Bold',
-    color: '#0066cc',
+    width: 140,
+    height: 70,
+    objectFit: 'contain',
   },
   logoTagline: {
     fontSize: 9,
     color: '#666666',
-    marginTop: 2,
+    marginTop: 4,
   },
   documentTitle: {
     textAlign: 'right',
@@ -422,13 +427,20 @@ function FlightCard({ flight, index }: FlightCardProps) {
 // =============================================================================
 
 export function ProposalDocument({ data }: { data: ProposalData }) {
+  // Construct absolute path to logo image for React PDF
+  // React PDF requires absolute file paths when running on the server
+  const logoPath = path.join(process.cwd(), 'public', 'images', 'jetvision-logo.png');
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.logo}>JETVISION</Text>
+          <View style={styles.logoContainer}>
+            <Image
+              src={logoPath}
+              style={styles.logo}
+            />
             <Text style={styles.logoTagline}>Private Aviation Solutions</Text>
           </View>
           <View style={styles.documentTitle}>

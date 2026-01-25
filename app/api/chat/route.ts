@@ -133,11 +133,21 @@ export async function POST(req: NextRequest) {
     const { message, conversationHistory, context, skipMessagePersistence, tripId: requestTripId } = validation.data;
 
     // 3. Get ISO agent ID
+    console.log('[Chat API] Looking up ISO agent for Clerk user:', userId);
     const isoAgentId = await getIsoAgentIdFromClerkUserId(userId);
     if (!isoAgentId) {
-      console.warn('[Chat API] No ISO agent ID for user:', userId);
-      return Response.json({ error: 'User not found' }, { status: 404 });
+      console.error('[Chat API] ❌ No ISO agent ID for user:', {
+        clerkUserId: userId,
+        message: 'User needs to be synced to iso_agents table',
+      });
+      return Response.json({
+        error: 'User not found',
+        code: 'ISO_AGENT_NOT_SYNCED',
+        message: 'Your account is not synced to the database. Please try refreshing the page or contact support.',
+        details: { clerkUserId: userId },
+      }, { status: 404 });
     }
+    console.log('[Chat API] ✅ Found ISO agent:', { clerkUserId: userId, isoAgentId });
 
     // 4. Get or create conversation
     const conversationType = classifyConversationType(message);

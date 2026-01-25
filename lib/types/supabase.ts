@@ -454,55 +454,55 @@ export type Database = {
         Row: {
           avatar_url: string | null
           clerk_user_id: string
+          commission_percentage: number | null
           created_at: string | null
           email: string
           full_name: string
           id: string
           is_active: boolean | null
           last_login_at: string | null
-          margin_type: Database["public"]["Enums"]["margin_type"] | null
-          margin_value: number | null
           metadata: Json | null
           phone: string | null
           preferences: Json | null
           role: Database["public"]["Enums"]["user_role"]
           timezone: string | null
+          total_commission_earned: number | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
           clerk_user_id: string
+          commission_percentage?: number | null
           created_at?: string | null
           email: string
           full_name: string
           id?: string
           is_active?: boolean | null
           last_login_at?: string | null
-          margin_type?: Database["public"]["Enums"]["margin_type"] | null
-          margin_value?: number | null
           metadata?: Json | null
           phone?: string | null
           preferences?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           timezone?: string | null
+          total_commission_earned?: number | null
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
           clerk_user_id?: string
+          commission_percentage?: number | null
           created_at?: string | null
           email?: string
           full_name?: string
           id?: string
           is_active?: boolean | null
           last_login_at?: string | null
-          margin_type?: Database["public"]["Enums"]["margin_type"] | null
-          margin_value?: number | null
           metadata?: Json | null
           phone?: string | null
           preferences?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           timezone?: string | null
+          total_commission_earned?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -698,7 +698,6 @@ export type Database = {
         | "completed"
         | "failed"
         | "timeout"
-      margin_type: "percentage" | "fixed"
       proposal_status:
         | "draft"
         | "generated"
@@ -874,7 +873,6 @@ export const Constants = {
         "failed",
         "timeout",
       ],
-      margin_type: ["percentage", "fixed"],
       proposal_status: [
         "draft",
         "generated",
