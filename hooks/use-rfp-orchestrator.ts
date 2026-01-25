@@ -13,7 +13,14 @@ import {
   RFPWorkflowStatus,
   type RFPWorkflowState,
 } from '@/lib/services/rfp-orchestrator-service';
-import type { AgentResult } from '@/agents/jetvision-agent/types';
+// Import AgentResult from the service's local type since it's a stub
+// The service returns a simplified AgentResult without the message field
+type AgentResult = {
+  success: boolean;
+  error?: Error;
+  message?: string;
+  data?: unknown;
+};
 
 export interface UseRFPOrchestratorOptions {
   sessionId: string;

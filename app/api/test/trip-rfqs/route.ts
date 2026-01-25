@@ -86,11 +86,22 @@ export async function GET(request: NextRequest) {
           console.error(`[GET /api/test/trip-rfqs] Error fetching webhook events for trip ${tripId}:`, webhookError.message)
         }
 
-        // Count RFQs (webhook events of type TripRequestSellerResponse)
-        const rfqEvents = webhookEvents?.filter(e => e.event_type === 'TripRequestSellerResponse') || []
-        const operatorMessageEvents = webhookEvents?.filter(e => 
-          e.event_type === 'TripChatSeller' || e.event_type === 'TripChatMine'
-        ) || []
+        // Count RFQs (webhook events of type quote_received, which maps to TripRequestSellerResponse)
+        // The database stores enum values, but we check raw_payload for the actual Avinode event type
+        const rfqEvents = webhookEvents?.filter(e => {
+          if (e.event_type === 'quote_received') return true;
+          // Check raw_payload for actual Avinode event type (cast to access raw_payload)
+          const eventWithPayload = e as { raw_payload?: Record<string, unknown> | null };
+          const rawPayload = eventWithPayload.raw_payload;
+          return rawPayload && (rawPayload.event === 'TripRequestSellerResponse' || rawPayload.type === 'rfqs');
+        }) || []
+        const operatorMessageEvents = webhookEvents?.filter(e => {
+          if (e.event_type === 'message_received') return true;
+          // Check raw_payload for actual Avinode event type (cast to access raw_payload)
+          const eventWithPayload = e as { raw_payload?: Record<string, unknown> | null };
+          const rawPayload = eventWithPayload.raw_payload;
+          return rawPayload && (rawPayload.event === 'TripChatSeller' || rawPayload.event === 'TripChatMine' || rawPayload.type === 'tripmsgs');
+        }) || []
 
         // Build quote details
         const quoteDetails = (quotes || []).map(quote => ({
@@ -99,7 +110,7 @@ export async function GET(request: NextRequest) {
           totalPrice: quote.total_price || 0,
           status: quote.status || 'unknown',
           hasMessage: !!quote.message_content,
-          avinodeQuoteId: quote.avinode_quote_id,
+          avinodeQuoteId: (quote as { avinode_quote_id?: string }).avinode_quote_id,
           createdAt: quote.created_at,
         }))
 
@@ -109,7 +120,7 @@ export async function GET(request: NextRequest) {
           senderType: msg.sender_type,
           content: (msg.content || '').substring(0, 200),
           createdAt: msg.created_at,
-          quoteId: msg.quote_id,
+          quoteId: (msg as { quote_id?: string }).quote_id,
         }))
 
         // Build webhook event summary

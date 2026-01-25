@@ -51,7 +51,7 @@ interface AvinodeMessage {
   quoteId?: string;
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     // Authenticate user
     const { userId } = await auth();
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get query parameters
-    const { searchParams } = new URL(request.url);
+    const searchParams = new URL(req.url).searchParams;
     const tripId = searchParams.get('trip_id');
     const requestId = searchParams.get('request_id');
 
@@ -76,19 +76,19 @@ export async function GET(request: NextRequest) {
 
     // Check if the RFQ has any quotes with 'quoted' status before fetching messages
     // This prevents unnecessary API calls for RFQs that haven't received responses yet
-    const { data: request } = await supabaseAdmin
+    const { data: requestData } = await supabaseAdmin
       .from('requests')
       .select('id, status, avinode_trip_id')
       .eq('avinode_trip_id', tripId)
       .maybeSingle();
 
-    if (request) {
+    if (requestData) {
       // Check if there are any quotes with 'quoted' status for this request
       const { data: quotes, error: quotesError } = await supabaseAdmin
         .from('quotes')
         .select('id, status')
-        .eq('request_id', request.id)
-        .in('status', ['quoted', 'accepted', 'pending']);
+        .eq('request_id', requestData.id)
+        .in('status', ['quoted', 'accepted', 'pending'] as readonly ('pending' | 'accepted' | 'rejected' | 'expired' | 'received' | 'analyzed')[]);
 
       if (quotesError) {
         console.warn('[GET /api/avinode/messages] Error checking quotes:', quotesError);
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
 
     // Call get_trip_messages MCP tool via the Avinode API endpoint
     // Use request origin to avoid port mismatch issues (app may run on 3000, 3001, etc.)
-    const url = new URL(request.url);
+    const url = new URL(req.url);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
                     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : url.origin);
 
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         // Forward auth cookies for internal API call
-        'Cookie': request.headers.get('cookie') || '',
+        'Cookie': req.headers.get('cookie') || '',
       },
       body: JSON.stringify({
         tool: 'get_trip_messages',

@@ -104,7 +104,7 @@ export class StreamingJetvisionAgent {
   /**
    * Set the Gmail MCP server instance
    */
-  setGmailMCP(mcp: { sendEmail: (params: { to: string; subject: string; body: string; cc?: string[]; isHtml?: boolean }) => Promise<{ messageId: string; threadId: string }> }): void {
+  setGmailMCP(mcp: { sendEmail: (params: { to: string; subject: string; body_html: string; body_text?: string; cc?: string[]; bcc?: string[] }) => Promise<{ messageId: string; threadId: string }> }): void {
     this.toolExecutor.setGmailMCP(mcp);
   }
 

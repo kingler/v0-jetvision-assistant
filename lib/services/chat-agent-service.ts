@@ -15,7 +15,14 @@ import type {
   IntentClassificationResult,
   ExtractedEntities,
 } from '@/lib/types/chat-agent'
-import { AgentType } from '@/agents/core/types'
+// Stub AgentType enum - agents/core/types doesn't exist in current architecture
+enum AgentType {
+  ORCHESTRATOR = 'orchestrator',
+  CLIENT_DATA = 'client_data',
+  FLIGHT_SEARCH = 'flight_search',
+  PROPOSAL_ANALYSIS = 'proposal_analysis',
+  COMMUNICATION = 'communication',
+}
 import { getArchivedRFPs, getArchivedRFPDetail, type ArchivedRFPFilters } from '@/lib/services/supabase-queries'
 
 /**

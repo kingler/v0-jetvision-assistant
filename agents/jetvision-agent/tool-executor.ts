@@ -222,11 +222,14 @@ export class ToolExecutor {
     // Filter by search term if provided
     if (search && typeof search === 'string') {
       const searchLower = search.toLowerCase();
-      clients = clients.filter((c: Record<string, unknown>) =>
-        (c.company_name as string)?.toLowerCase().includes(searchLower) ||
-        (c.contact_name as string)?.toLowerCase().includes(searchLower) ||
-        (c.email as string)?.toLowerCase().includes(searchLower)
-      );
+      clients = (clients as unknown[]).filter((c): c is Record<string, unknown> => {
+        const client = c as Record<string, unknown>;
+        return (
+          (client.company_name as string)?.toLowerCase().includes(searchLower) ||
+          (client.contact_name as string)?.toLowerCase().includes(searchLower) ||
+          (client.email as string)?.toLowerCase().includes(searchLower)
+        );
+      });
     }
 
     // Get count

@@ -1365,9 +1365,10 @@ export function ChatInterface({
       }
 
       // Parse route to get departure and arrival airports
+      // extractRouteParts returns a tuple [departure, arrival]
       const routeParts = extractRouteParts(activeChat.route)
-      const departureIcao = routeParts.departure?.icao || activeChat.route?.split(' → ')[0]?.trim() || ''
-      const arrivalIcao = routeParts.arrival?.icao || activeChat.route?.split(' → ')[1]?.trim() || ''
+      const departureIcao = routeParts[0] || activeChat.route?.split(' → ')[0]?.trim() || ''
+      const arrivalIcao = routeParts[1] || activeChat.route?.split(' → ')[1]?.trim() || ''
 
       if (!departureIcao || !arrivalIcao) {
         throw new Error('Invalid route: missing departure or arrival airport')
@@ -1398,13 +1399,13 @@ export function ChatInterface({
       const tripDetails = {
         departureAirport: {
           icao: departureIcao,
-          name: routeParts.departure?.name,
-          city: routeParts.departure?.city,
+          name: departureIcao, // RouteParts is just [string, string], no name/city info
+          city: '',
         },
         arrivalAirport: {
           icao: arrivalIcao,
-          name: routeParts.arrival?.name,
-          city: routeParts.arrival?.city,
+          name: arrivalIcao, // RouteParts is just [string, string], no name/city info
+          city: '',
         },
         departureDate: getIsoDate(),
         passengers: activeChat.passengers || 1,

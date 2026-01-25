@@ -51,12 +51,14 @@ interface TripRFQStatus {
     totalPrice: number
     status: string
     hasMessage: boolean
+    avinodeQuoteId?: string
   }>
   messages: Array<{
     id: string
     senderType: string
     content: string
     createdAt: string
+    quoteId?: string
   }>
   webhookEvents: Array<{
     eventType: string
@@ -162,23 +164,29 @@ async function testTripRFQs() {
       ) || []
 
       // Build quote details with message status
-      const quoteDetails = (quotes || []).map(quote => ({
-        id: quote.id,
-        operatorName: quote.operator_name || 'Unknown',
-        totalPrice: quote.total_price || 0,
-        status: quote.status || 'unknown',
-        hasMessage: !!quote.message_content,
-        avinodeQuoteId: quote.avinode_quote_id,
-      }))
+      const quoteDetails = (quotes || []).map(quote => {
+        const quoteWithId = quote as { avinode_quote_id?: string };
+        return {
+          id: quote.id,
+          operatorName: quote.operator_name || 'Unknown',
+          totalPrice: quote.total_price || 0,
+          status: quote.status || 'unknown',
+          hasMessage: !!quote.message_content,
+          avinodeQuoteId: quoteWithId.avinode_quote_id,
+        };
+      })
 
       // Build message details
-      const messageDetails = (messages || []).map(msg => ({
-        id: msg.id,
-        senderType: msg.sender_type,
-        content: (msg.content || '').substring(0, 100) + (msg.content && msg.content.length > 100 ? '...' : ''),
-        createdAt: msg.created_at,
-        quoteId: msg.quote_id,
-      }))
+      const messageDetails = (messages || []).map(msg => {
+        const msgWithQuoteId = msg as { quote_id?: string };
+        return {
+          id: msg.id,
+          senderType: msg.sender_type,
+          content: (msg.content || '').substring(0, 100) + (msg.content && msg.content.length > 100 ? '...' : ''),
+          createdAt: msg.created_at,
+          quoteId: msgWithQuoteId.quote_id,
+        };
+      })
 
       // Build webhook event details
       const webhookEventDetails = (webhookEvents || []).map(evt => ({

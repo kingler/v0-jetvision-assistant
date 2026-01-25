@@ -18,7 +18,8 @@
  */
 
 import Redis, { type RedisOptions } from 'ioredis';
-import type { ConversationState } from '@/agents/tools/types';
+// Import ConversationState from jetvision-agent types
+import type { ConversationState } from '@/agents/jetvision-agent/types';
 
 /**
  * Redis connection configuration
