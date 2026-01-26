@@ -1,7 +1,7 @@
 /**
  * Field Validator
  *
- * Validates extracted RFP data fields for correctness and completeness.
+ * Validates extracted RFQ data fields for correctness and completeness.
  * Provides helpful error messages and suggestions.
  */
 

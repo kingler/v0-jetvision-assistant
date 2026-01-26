@@ -2,7 +2,7 @@
  * Intent Extractor
  *
  * Extracts structured data from natural language user input.
- * Handles various phrasings and formats for RFP data fields.
+ * Handles various phrasings and formats for RFQ data fields.
  */
 
 import { RFPData } from './rfp-flow';

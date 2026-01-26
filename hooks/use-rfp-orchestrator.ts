@@ -1,7 +1,7 @@
 /**
  * useRFPOrchestrator Hook
  *
- * Combines RFP flow with OrchestratorAgent execution.
+ * Combines RFQ flow with OrchestratorAgent execution.
  * Handles the complete workflow from data collection to agent coordination.
  */
 
@@ -32,7 +32,7 @@ export interface UseRFPOrchestratorOptions {
 }
 
 export interface UseRFPOrchestratorReturn {
-  // RFP Flow
+  // RFQ Flow
   rfpFlow: UseRFPFlowReturn;
 
   // Workflow State
@@ -50,14 +50,14 @@ export interface UseRFPOrchestratorReturn {
 }
 
 /**
- * Hook for managing RFP flow and orchestrator execution
+ * Hook for managing RFQ flow and orchestrator execution
  */
 export function useRFPOrchestrator(
   options: UseRFPOrchestratorOptions
 ): UseRFPOrchestratorReturn {
   const { sessionId, userId, autoStart = false, onWorkflowComplete, onWorkflowError, onStatusChange } = options;
 
-  // Initialize RFP flow
+  // Initialize RFQ flow
   const rfpFlow = useRFPFlow(autoStart);
   useRFPFlowPersistence(sessionId, rfpFlow);
 
@@ -83,17 +83,17 @@ export function useRFPOrchestrator(
     }
   }, [autoStart, workflowState, startWorkflow]);
 
-  // Execute orchestrator when RFP is complete
+  // Execute orchestrator when RFQ is complete
   const executeOrchestrator = useCallback(async () => {
     if (!rfpFlow.state.isComplete) {
-      throw new Error('RFP flow is not complete');
+      throw new Error('RFQ flow is not complete');
     }
 
     setIsExecuting(true);
     setError(undefined);
 
     try {
-      // Export RFP data
+      // Export RFQ data
       const rfpData = rfpFlow.exportData();
 
       // Execute orchestrator
@@ -111,7 +111,7 @@ export function useRFPOrchestrator(
         setError(result.error);
       }
 
-      // Deactivate RFP flow
+      // Deactivate RFQ flow
       rfpFlow.deactivate();
     } catch (err) {
       const error = err as Error;
@@ -129,7 +129,7 @@ export function useRFPOrchestrator(
     }
   }, [rfpFlow, service, sessionId, userId, onWorkflowComplete, onWorkflowError]);
 
-  // Auto-execute when RFP is complete
+  // Auto-execute when RFQ is complete
   useEffect(() => {
     if (rfpFlow.state.isComplete && rfpFlow.state.isActive && !isExecuting && !workflowState?.agentResult) {
       executeOrchestrator();
@@ -152,7 +152,7 @@ export function useRFPOrchestrator(
     setError(undefined);
   }, [rfpFlow, service, sessionId]);
 
-  // Can execute if RFP is complete and not already executing
+  // Can execute if RFQ is complete and not already executing
   const canExecute = rfpFlow.state.isComplete && !isExecuting;
 
   return {
@@ -194,11 +194,11 @@ export function useWorkflowStatusMonitor(sessionId: string) {
 export function getStatusMessage(status: RFPWorkflowStatus): string {
   switch (status) {
     case RFPWorkflowStatus.COLLECTING:
-      return 'Collecting RFP information...';
+      return 'Collecting RFQ information...';
     case RFPWorkflowStatus.VALIDATING:
-      return 'Validating RFP data...';
+      return 'Validating RFQ data...';
     case RFPWorkflowStatus.PROCESSING:
-      return 'Processing RFP with OrchestratorAgent...';
+      return 'Processing RFQ with OrchestratorAgent...';
     case RFPWorkflowStatus.SEARCHING:
       return 'Searching for available flights...';
     case RFPWorkflowStatus.AWAITING_QUOTES:

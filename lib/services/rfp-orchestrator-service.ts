@@ -1,5 +1,5 @@
 /**
- * RFP Orchestrator Service
+ * RFQ Orchestrator Service
  *
  * DEPRECATED: This service used the old multi-agent infrastructure which has been removed.
  * The new architecture uses JetvisionAgent directly via /api/chat.
@@ -17,10 +17,10 @@ interface AgentResult {
 }
 
 /**
- * RFP workflow status
+ * RFQ workflow status
  */
 export enum RFPWorkflowStatus {
-  COLLECTING = 'collecting',           // Gathering RFP data through conversation
+  COLLECTING = 'collecting',           // Gathering RFQ data through conversation
   VALIDATING = 'validating',           // Validating collected data
   PROCESSING = 'processing',           // OrchestratorAgent processing
   SEARCHING = 'searching',             // FlightSearchAgent searching
@@ -32,7 +32,7 @@ export enum RFPWorkflowStatus {
 }
 
 /**
- * RFP workflow state
+ * RFQ workflow state
  */
 export interface RFPWorkflowState {
   status: RFPWorkflowStatus;
@@ -46,7 +46,7 @@ export interface RFPWorkflowState {
 }
 
 /**
- * Service for coordinating RFP flow with OrchestratorAgent
+ * Service for coordinating RFQ flow with OrchestratorAgent
  * DEPRECATED: Stubbed implementation - use JetvisionAgent via /api/chat instead
  */
 export class RFPOrchestratorService {
@@ -57,7 +57,7 @@ export class RFPOrchestratorService {
   }
 
   /**
-   * Start a new RFP workflow
+   * Start a new RFQ workflow
    */
   startWorkflow(sessionId: string): RFPWorkflowState {
     const workflow: RFPWorkflowState = {
@@ -91,7 +91,7 @@ export class RFPOrchestratorService {
   }
 
   /**
-   * Execute OrchestratorAgent with RFP data
+   * Execute OrchestratorAgent with RFQ data
    * DEPRECATED: This method is stubbed. Use JetvisionAgent via /api/chat instead.
    */
   async executeWithRFPData(
@@ -117,7 +117,7 @@ export class RFPOrchestratorService {
   }
 
   /**
-   * Validate RFP data before sending to orchestrator
+   * Validate RFQ data before sending to orchestrator
    */
   private validateRFPData(rfpData: RFPData): void {
     const missingFields: string[] = [];
@@ -129,7 +129,7 @@ export class RFPOrchestratorService {
 
     if (missingFields.length > 0) {
       throw new Error(
-        `RFP data validation failed. Missing required fields: ${missingFields.join(', ')}`
+        `RFQ data validation failed. Missing required fields: ${missingFields.join(', ')}`
       );
     }
 
@@ -223,7 +223,7 @@ export class RFPOrchestratorService {
 let serviceInstance: RFPOrchestratorService | null = null;
 
 /**
- * Get RFP orchestrator service instance
+ * Get RFQ orchestrator service instance
  */
 export function getRFPOrchestratorService(): RFPOrchestratorService {
   if (!serviceInstance) {

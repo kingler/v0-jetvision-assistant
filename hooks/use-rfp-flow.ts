@@ -1,7 +1,7 @@
 /**
  * useRFPFlow Hook
  *
- * React hook for managing conversational RFP gathering flow in the chat interface.
+ * React hook for managing conversational RFQ gathering flow in the chat interface.
  * Integrates RFPFlow, IntentExtractor, and FieldValidator with React state management.
  */
 
@@ -32,7 +32,7 @@ export interface UseRFPFlowReturn {
 }
 
 /**
- * Hook for managing RFP conversational flow
+ * Hook for managing RFQ conversational flow
  */
 export function useRFPFlow(autoActivate = false): UseRFPFlowReturn {
   const flowRef = useRef<RFPFlow>(new RFPFlow());
@@ -94,7 +94,7 @@ export function useRFPFlow(autoActivate = false): UseRFPFlowReturn {
     setIsActive(false);
   }, []);
 
-  // Export RFP data
+  // Export RFQ data
   const exportData = useCallback((): RFPData => {
     return flowRef.current.exportRFPData();
   }, []);
@@ -124,13 +124,13 @@ export function useRFPFlow(autoActivate = false): UseRFPFlowReturn {
 }
 
 /**
- * Hook for persisting RFP flow state to session storage
+ * Hook for persisting RFQ flow state to session storage
  */
 export function useRFPFlowPersistence(
   sessionId: string,
   rfpFlow: UseRFPFlowReturn
 ) {
-  const storageKey = `rfp-flow-${sessionId}`;
+  const storageKey = `rfq-flow-${sessionId}`;
 
   // Load from storage on mount
   useEffect(() => {
@@ -139,7 +139,7 @@ export function useRFPFlowPersistence(
       try {
         rfpFlow.restore(stored);
       } catch (error) {
-        console.error('Failed to restore RFP flow from storage:', error);
+        console.error('Failed to restore RFQ flow from storage:', error);
         sessionStorage.removeItem(storageKey);
       }
     }
@@ -152,7 +152,7 @@ export function useRFPFlowPersistence(
         const serialized = rfpFlow.serialize();
         sessionStorage.setItem(storageKey, serialized);
       } catch (error) {
-        console.error('Failed to save RFP flow to storage:', error);
+        console.error('Failed to save RFQ flow to storage:', error);
       }
     }
   }, [rfpFlow.state.data, rfpFlow.state.isComplete, storageKey]);

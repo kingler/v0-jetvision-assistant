@@ -1,7 +1,7 @@
 /**
  * Conversation Module
  *
- * Progressive disclosure conversational RFP gathering flow.
+ * Progressive disclosure conversational RFQ gathering flow.
  * Exports all components for easy importing.
  */
 

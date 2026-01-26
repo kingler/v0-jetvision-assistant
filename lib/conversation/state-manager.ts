@@ -1,7 +1,7 @@
 /**
  * Conversation State Manager
  *
- * Manages persistent conversation state for RFP flow using Supabase.
+ * Manages persistent conversation state for RFQ flow using Supabase.
  * Handles state creation, retrieval, updates, field tracking, and cleanup.
  */
 
@@ -9,8 +9,8 @@ import { supabase } from '@/lib/supabase/client';
 import type { RFPStep } from './rfp-flow';
 
 /**
- * RFP Data Interface
- * Matches the RFPData from rfp-flow.ts
+ * RFQ Data Interface
+ * Matches the RFPData from rfq-flow.ts
  */
 export interface RFPData {
   departure?: string;
