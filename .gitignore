@@ -70,3 +70,6 @@ build-output.log
 stories/
 storybook-static/
 test-output/
+
+# Google OAuth credentials
+client_secret*.json
