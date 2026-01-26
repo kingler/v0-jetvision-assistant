@@ -28,7 +28,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Search, X } from 'lucide-react';
 
 // =============================================================================
 // TYPES
@@ -87,6 +88,8 @@ export function CustomerSelectionDialog({
   const [isLoading, setIsLoading] = useState(false);
   // State for error messages
   const [error, setError] = useState<string | null>(null);
+  // State for search query
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   /**
    * Fetch client profiles from the API when dialog opens
@@ -151,8 +154,22 @@ export function CustomerSelectionDialog({
   const handleClose = () => {
     setSelectedClientId(initialCustomerId || '');
     setError(null);
+    setSearchQuery('');
     onClose();
   };
+
+  /**
+   * Filter clients based on search query
+   */
+  const filteredClients = clients.filter((client) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      client.company_name.toLowerCase().includes(query) ||
+      client.contact_name.toLowerCase().includes(query) ||
+      client.email.toLowerCase().includes(query)
+    );
+  });
 
   /**
    * Get the selected client object
@@ -190,45 +207,82 @@ export function CustomerSelectionDialog({
 
           {/* Client selection dropdown */}
           {!isLoading && !error && (
-            <div className="space-y-2">
-              <label
-                htmlFor="customer-select"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Customer <span className="text-red-500">*</span>
-              </label>
-              <Select
-                value={selectedClientId}
-                onValueChange={(value) => {
-                  setSelectedClientId(value);
-                  setError(null);
-                }}
-              >
-                <SelectTrigger id="customer-select" className="w-full">
-                  <SelectValue placeholder="Select a customer..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.length === 0 ? (
-                    <div className="px-2 py-6 text-center text-sm text-gray-500">
-                      No customers found. Please add customers in your client
-                      profiles.
-                    </div>
-                  ) : (
-                    clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {client.company_name}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {client.contact_name} • {client.email}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))
+            <div className="space-y-4">
+              {/* Search input */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="customer-search"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Search Customers
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    id="customer-search"
+                    type="text"
+                    placeholder="Search by name, company, or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   )}
-                </SelectContent>
-              </Select>
+                </div>
+              </div>
+
+              {/* Customer dropdown */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="customer-select"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Customer <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={selectedClientId}
+                  onValueChange={(value) => {
+                    setSelectedClientId(value);
+                    setError(null);
+                  }}
+                >
+                  <SelectTrigger id="customer-select" className="w-full">
+                    <SelectValue placeholder="Select a customer..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.length === 0 ? (
+                      <div className="px-2 py-6 text-center text-sm text-gray-500">
+                        No customers found. Please add customers in your client
+                        profiles.
+                      </div>
+                    ) : filteredClients.length === 0 ? (
+                      <div className="px-2 py-6 text-center text-sm text-gray-500">
+                        No customers match "{searchQuery}"
+                      </div>
+                    ) : (
+                      filteredClients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {client.company_name}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {client.contact_name} • {client.email}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Selected customer details preview */}
               {selectedClient && (

@@ -32,6 +32,7 @@
     "agents:list": "tsx scripts/agents/list-agents.ts",
     "mcp:create": "tsx scripts/mcp/create-mcp-server.ts",
     "mcp:test": "tsx scripts/mcp/test-mcp-connection.ts",
+    "gmail:setup": "tsx scripts/get-google-refresh-token.ts",
     "mcp:list-tools": "tsx scripts/mcp/list-tools.ts",
     "mcp:avinode": "tsx mcp-servers/avinode/index.ts",
     "clerk:test-webhook": "tsx scripts/clerk/test-webhook.ts",

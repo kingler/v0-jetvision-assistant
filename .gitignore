@@ -69,3 +69,4 @@ build-output.log
 .storybook/
 stories/
 storybook-static/
+test-output/

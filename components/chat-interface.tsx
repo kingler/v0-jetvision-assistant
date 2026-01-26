@@ -63,6 +63,7 @@ import {
   type Quote,
   type QuoteDetailsMap,
   type SSEParseResult,
+  type PipelineData,
 } from "@/lib/chat"
 
 // Flight request parser utility
@@ -1432,8 +1433,8 @@ export function ChatInterface({
         margin: '30%',
       })
 
-      // Call the proposal generation API with 30% profit margin
-      const response = await fetch('/api/proposal/generate', {
+      // Call the proposal send API which generates PDF AND sends email to customer
+      const response = await fetch('/api/proposal/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1448,32 +1449,33 @@ export function ChatInterface({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || `Failed to generate proposal: ${response.statusText}`)
+        throw new Error(errorData.error || `Failed to send proposal: ${response.statusText}`)
       }
 
       const result = await response.json()
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to generate proposal')
+        throw new Error(result.error || 'Failed to send proposal')
       }
 
-      console.log('[ChatInterface] Proposal generated successfully:', {
+      console.log('[ChatInterface] Proposal sent successfully:', {
         proposalId: result.proposalId,
-        fileName: result.fileName,
+        emailSent: result.emailSent,
+        messageId: result.messageId,
         pricing: result.pricing,
       })
 
-      // Create a blob from the base64 PDF and open it in a new tab
+      // Open the PDF in a new tab and trigger download
       if (result.pdfBase64) {
         const pdfBlob = new Blob(
           [Uint8Array.from(atob(result.pdfBase64), (c) => c.charCodeAt(0))],
           { type: 'application/pdf' }
         )
         const pdfUrl = URL.createObjectURL(pdfBlob)
-        
+
         // Open PDF in new tab
         window.open(pdfUrl, '_blank')
-        
+
         // Also trigger download
         const link = document.createElement('a')
         link.href = pdfUrl
@@ -1481,13 +1483,17 @@ export function ChatInterface({
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
-        
+
         // Clean up the blob URL after a delay
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000)
       }
 
-      // Show success message (you could add a toast notification here)
-      alert(`Proposal generated successfully!\n\nProposal ID: ${result.proposalId}\nTotal: ${result.pricing?.currency || 'USD'} ${result.pricing?.total?.toLocaleString() || 'N/A'}\n\nThe PDF has been opened in a new tab and downloaded.`)
+      // Show success message with email status
+      const emailStatus = result.emailSent
+        ? `\n\n✅ Email sent to ${customer.email}`
+        : '\n\n⚠️ Email could not be sent (check Gmail configuration)'
+
+      alert(`Proposal sent successfully!\n\nProposal ID: ${result.proposalId}\nTotal: ${result.pricing?.currency || 'USD'} ${result.pricing?.total?.toLocaleString() || 'N/A'}${emailStatus}\n\nThe PDF has been opened in a new tab and downloaded.`)
     } catch (error) {
       console.error('[ChatInterface] Error generating proposal:', error)
       alert(`Failed to generate proposal: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -1673,15 +1679,75 @@ export function ChatInterface({
           <div className="space-y-4">
 
             {(() => {
+              // CRITICAL: Create unified message array combining agent messages and operator messages
+              // This enables a chronological timeline view where all messages appear in order
+
+              type UnifiedMessage = {
+                id: string
+                type: 'user' | 'agent' | 'operator'
+                content: string
+                timestamp: Date
+                // Agent message properties
+                showWorkflow?: boolean
+                showProposal?: boolean
+                showQuoteStatus?: boolean
+                showCustomerPreferences?: boolean
+                showQuotes?: boolean
+                showDeepLink?: boolean
+                deepLinkData?: { tripId?: string; deepLink?: string }
+                showPipeline?: boolean
+                pipelineData?: PipelineData
+                // Operator message properties
+                operatorName?: string
+                operatorQuoteId?: string
+                operatorMessageType?: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
+              }
+
+              // Flatten operator messages from Record<quoteId, messages[]> to array with context
+              const flatOperatorMessages: UnifiedMessage[] = Object.entries(activeChat.operatorMessages || {})
+                .flatMap(([quoteId, messages]) => {
+                  const flight = rfqFlights.find(f => f.quoteId === quoteId)
+                  return (messages || []).map(msg => ({
+                    id: msg.id || `op-${quoteId}-${msg.timestamp}`,
+                    type: 'operator' as const,
+                    content: msg.content,
+                    timestamp: new Date(msg.timestamp),
+                    operatorName: msg.sender || flight?.operatorName || 'Operator',
+                    operatorQuoteId: quoteId,
+                    operatorMessageType: msg.type,
+                  }))
+                })
+
+              // Convert agent/user messages to unified format
+              const chatMessages: UnifiedMessage[] = (activeChat.messages || []).map(msg => ({
+                id: msg.id,
+                type: msg.type,
+                content: msg.content,
+                timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+                showWorkflow: msg.showWorkflow,
+                showProposal: msg.showProposal,
+                showQuoteStatus: msg.showQuoteStatus,
+                showCustomerPreferences: msg.showCustomerPreferences,
+                showQuotes: msg.showQuotes,
+                showDeepLink: msg.showDeepLink,
+                deepLinkData: msg.deepLinkData,
+                showPipeline: msg.showPipeline,
+                pipelineData: msg.pipelineData,
+              }))
+
+              // Merge and sort by timestamp (chronological order)
+              const allMessages = [...chatMessages, ...flatOperatorMessages]
+                .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+
               // CRITICAL: Deduplicate RFQ messages before rendering
               // Filter out duplicate agent messages with RFQ/quote content
-              const deduplicatedMessages = (activeChat.messages || []).reduce((acc, message, index) => {
-                // Always keep user messages
-                if (message.type === 'user') {
+              const deduplicatedMessages = allMessages.reduce((acc, message, index) => {
+                // Always keep user messages and operator messages
+                if (message.type === 'user' || message.type === 'operator') {
                   acc.push({ message, index })
                   return acc
                 }
-                
+
                 // For agent messages, check if it's an RFQ-related message
                 const messageContent = (message.content || '').trim().toLowerCase()
                 const isRfqMessage = messageContent.includes('rfq') ||
@@ -1692,15 +1758,12 @@ export function ChatInterface({
                                     messageContent.includes('here are') ||
                                     messageContent.includes('flight quotes') ||
                                     (messageContent.includes('tist') && messageContent.includes('kopf'))
-                
+
                 // If it's an RFQ message, check if we already have ANY RFQ message
-                // CRITICAL: Only keep the FIRST RFQ message, skip ALL subsequent ones
                 if (isRfqMessage) {
-                  // Check if we already have ANY RFQ message
                   const hasAnyRfqMessage = acc.some(({ message: existingMsg }) => {
                     if (existingMsg.type !== 'agent') return false
                     const existingContent = (existingMsg.content || '').trim().toLowerCase()
-                    // Check if existing message is also an RFQ message
                     return existingContent.includes('rfq') ||
                            existingContent.includes('quote') ||
                            existingContent.includes('quotes') ||
@@ -1709,67 +1772,91 @@ export function ChatInterface({
                            existingContent.includes('here are') ||
                            existingContent.includes('flight quotes')
                   })
-                  
-                  // Skip ALL subsequent RFQ messages - only keep the first one
+
                   if (hasAnyRfqMessage) {
                     console.log('[ChatInterface] 🚫 Skipping duplicate RFQ message in render:', {
                       messageId: message.id,
                       contentPreview: messageContent.substring(0, 50),
-                      totalMessagesProcessed: acc.length,
                     })
                     return acc
                   }
                 }
-                
-                // Keep non-RFQ messages or first RFQ message
+
                 acc.push({ message, index })
                 return acc
-              }, [] as Array<{ message: typeof activeChat.messages[0], index: number }>)
-              
-              // Find the first user message and first agent message to determine where to insert FlightSearchProgress
+              }, [] as Array<{ message: UnifiedMessage, index: number }>)
+
+              // FlightSearchProgress should appear IMMEDIATELY after the user's flight request
               const firstUserMessageIndex = deduplicatedMessages.findIndex(({ message }) => message.type === 'user')
-              const firstAgentMessageIndex = deduplicatedMessages.findIndex(({ message }) => message.type === 'agent')
-              const shouldInsertProgressAfterFirstAgent = shouldShowFlightSearchProgress && 
-                                                          firstUserMessageIndex !== -1 && 
-                                                          firstAgentMessageIndex !== -1 &&
-                                                          firstAgentMessageIndex > firstUserMessageIndex
-              
+              const shouldInsertProgressAfterFirstUser = shouldShowFlightSearchProgress && firstUserMessageIndex !== -1
+
               return deduplicatedMessages.map(({ message, index }, mapIndex) => {
-                const isFirstAgentMessage = mapIndex === firstAgentMessageIndex
-                const shouldShowProgressAfterThis = shouldInsertProgressAfterFirstAgent && isFirstAgentMessage
-                
+                const isFirstUserMessage = mapIndex === firstUserMessageIndex
+                const shouldShowProgressAfterThis = shouldInsertProgressAfterFirstUser && isFirstUserMessage
+
                 return (
-                  <React.Fragment key={message.id || index}>
-                    {message.type === "user" ? (
-                      <>
-                        <div className="flex justify-end">
-                          <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
-                            <p className="text-sm leading-relaxed">{message.content}</p>
+                  <React.Fragment key={message.id || `msg-${index}`}>
+                    {message.type === 'user' ? (
+                      // User message - blue bubble on the right
+                      <div className="flex justify-end">
+                        <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
+                          <p className="text-sm leading-relaxed">{message.content}</p>
+                        </div>
+                      </div>
+                    ) : message.type === 'operator' ? (
+                      // Operator message - distinct styling with operator name badge
+                      <div className="flex justify-start">
+                        <div className="max-w-[85%] bg-amber-50 dark:bg-amber-900/30 text-gray-900 dark:text-gray-100 rounded-2xl px-4 py-3 border border-amber-200 dark:border-amber-700 shadow-sm">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+                              <span className="text-xs font-bold text-white">
+                                {(message.operatorName || 'O')[0].toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                              {message.operatorName || 'Operator'}
+                            </span>
+                            {message.operatorMessageType === 'RESPONSE' && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full">
+                                Quote Response
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm leading-relaxed">{message.content}</p>
+                          <div className="mt-1 flex items-center justify-between">
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {message.operatorQuoteId && (
+                              <button
+                                onClick={() => {
+                                  const flight = rfqFlights.find(f => f.quoteId === message.operatorQuoteId)
+                                  if (flight) {
+                                    handleViewChat(flight.id, message.operatorQuoteId)
+                                  }
+                                }}
+                                className="text-[10px] text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 underline"
+                              >
+                                View Thread
+                              </button>
+                            )}
                           </div>
                         </div>
-                      </>
+                      </div>
                     ) : (
+                      // Agent message - existing AgentMessage component
                       <AgentMessage
                         content={stripMarkdown(message.content)}
                         timestamp={message.timestamp}
-                        // CRITICAL: Disable internal FlightSearchProgress in AgentMessage when showing externally
-                        // This ensures agent commentary appears first, then FlightSearchProgress follows
-                        // AgentMessage shows FlightSearchProgress if showDeepLink OR showTripIdInput OR showWorkflow is true
-                        // We disable all of these to prevent internal rendering, so the external one appears after commentary
-                        showDeepLink={false} // Disable to prevent internal FlightSearchProgress
-                        showTripIdInput={false} // Disable to prevent internal FlightSearchProgress
-                        showWorkflow={false} // Disable to prevent internal FlightSearchProgress
-                        workflowProps={undefined} // Disable workflow props to prevent internal FlightSearchProgress
-                        deepLinkData={undefined} // Disable deepLinkData to prevent internal FlightSearchProgress
+                        showDeepLink={false}
+                        showTripIdInput={false}
+                        showWorkflow={false}
+                        workflowProps={undefined}
+                        deepLinkData={undefined}
                         onTripIdSubmit={handleTripIdSubmit}
                         isTripIdLoading={isTripIdLoading}
                         tripIdError={tripIdError}
                         tripIdSubmitted={tripIdSubmitted}
-                        // Show quotes when we have rfqFlights data
-                        // BUT don't show them if they're already displayed in Step 3 via FlightSearchProgress
-                        // This prevents duplicate RFQ displays - RFQs should only appear in Step 3, not in agent messages
-                        // FlightSearchProgress shows RFQs in Step 3 when tripIdSubmitted is true and currentStep >= 3
-                        // Only show quotes in agent message if we're NOT in Step 3/4 (where FlightSearchProgress handles RFQ display)
                         showQuotes={(() => {
                           const isInStep3Or4 = (activeChat.currentStep || 0) >= 3
                           return !isInStep3Or4 && (
@@ -1784,27 +1871,27 @@ export function ChatInterface({
                             (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
                           )
                           return shouldShowQuotesInMessage ? rfqFlights.map((flight) => {
-                          const messages = activeChat.operatorMessages?.[flight.quoteId || ''] || []
-                          const hasMessages = messages.length > 0
-                          const latestMessage = hasMessages ? messages.reduce((latest, msg) => {
-                            if (!latest) return msg
-                            const latestTime = new Date(latest.timestamp).getTime()
-                            const msgTime = new Date(msg.timestamp).getTime()
-                            return msgTime > latestTime ? msg : latest
-                          }, null as OperatorMessage | null) : null
+                            const messages = activeChat.operatorMessages?.[flight.quoteId || ''] || []
+                            const hasMessages = messages.length > 0
+                            const latestMessage = hasMessages ? messages.reduce((latest, msg) => {
+                              if (!latest) return msg
+                              const latestTime = new Date(latest.timestamp).getTime()
+                              const msgTime = new Date(msg.timestamp).getTime()
+                              return msgTime > latestTime ? msg : latest
+                            }, null as OperatorMessage | null) : null
 
-                          const lastReadAt = activeChat.lastMessagesReadAt?.[flight.quoteId || '']
-                          const hasNewMessages = hasMessages && messages.some((msg) => {
-                            if (!lastReadAt) return true
-                            return new Date(msg.timestamp).getTime() > new Date(lastReadAt).getTime()
-                          })
+                            const lastReadAt = activeChat.lastMessagesReadAt?.[flight.quoteId || '']
+                            const hasNewMessages = hasMessages && messages.some((msg) => {
+                              if (!lastReadAt) return true
+                              return new Date(msg.timestamp).getTime() > new Date(lastReadAt).getTime()
+                            })
 
-                          return {
-                            ...flight,
-                            hasMessages,
-                            hasNewMessages,
-                            sellerMessage: latestMessage?.content || flight.sellerMessage,
-                          }
+                            return {
+                              ...flight,
+                              hasMessages,
+                              hasNewMessages,
+                              sellerMessage: latestMessage?.content || flight.sellerMessage,
+                            }
                           }) : []
                         })()}
                         selectedRfqFlightIds={selectedRfqFlightIds}
@@ -1827,42 +1914,15 @@ export function ChatInterface({
                             handleSendMessage()
                           }, 100)
                         }}
-                        showOperatorMessages={!!activeChat.operatorMessages && Object.keys(activeChat.operatorMessages).length > 0}
-                        operatorMessages={activeChat.operatorMessages}
-                        operatorFlightContext={(() => {
-                          // Build flight context map from rfqFlights
-                          const contextMap: Record<string, { quoteId: string; operatorName: string; aircraftType?: string; departureAirport?: string; arrivalAirport?: string; price?: number; currency?: string }> = {}
-                          for (const flight of rfqFlights) {
-                            if (flight.quoteId) {
-                              contextMap[flight.quoteId] = {
-                                quoteId: flight.quoteId,
-                                operatorName: flight.operatorName,
-                                aircraftType: flight.aircraftType,
-                                departureAirport: flight.departureAirport.icao,
-                                arrivalAirport: flight.arrivalAirport.icao,
-                                price: flight.totalPrice,
-                                currency: flight.currency,
-                              }
-                            }
-                          }
-                          return contextMap
-                        })()}
-                        onViewOperatorThread={(quoteId) => {
-                          const flight = rfqFlights.find(f => f.quoteId === quoteId)
-                          if (flight) {
-                            handleViewChat(flight.id, quoteId)
-                          }
-                        }}
-                        onReplyToOperator={(quoteId) => {
-                          const flight = rfqFlights.find(f => f.quoteId === quoteId)
-                          if (flight) {
-                            handleViewChat(flight.id, quoteId)
-                          }
-                        }}
+                        showOperatorMessages={false}
+                        operatorMessages={undefined}
+                        operatorFlightContext={undefined}
+                        onViewOperatorThread={undefined}
+                        onReplyToOperator={undefined}
                       />
                     )}
-                    
-                    {/* Insert FlightSearchProgress after the first agent message (which follows the initial request) */}
+
+                    {/* Insert FlightSearchProgress immediately after the first user message */}
                     {shouldShowProgressAfterThis && (
                       <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                         <FlightSearchProgress
@@ -1872,29 +1932,27 @@ export function ChatInterface({
                             // Step 2: Select in Avinode (has deepLink)
                             // Step 3: Enter TripID (has tripId but no RFQs yet)
                             // Step 4: Review Quotes (has tripId and RFQ flights)
-                            // Use activeChat.tripIdSubmitted to check actual chat state, not just local state
                             const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
-                            
+
                             // Step 4: If we have RFQ flights and tripId is submitted
                             if (rfqFlights.length > 0 && isTripIdSubmitted) {
                               return 4
                             }
-                            
+
                             // Step 3: If we have tripId and RFQs are not loaded yet
                             if (activeChat.tripId && rfqFlights.length === 0) {
                               return 3
                             }
-                            
+
                             // Step 2: If we have deepLink (means request created, ready to select in Avinode)
                             if (activeChat.deepLink) {
                               return 2
                             }
-                            
+
                             // Step 1: Default (request created)
                             return activeChat.currentStep || 1
                           })()}
                           flightRequest={{
-                            // Route format is "DEPT → ARR" (with arrow character)
                             departureAirport: activeChat.route?.split(' → ')[0]
                               ? { icao: activeChat.route.split(' → ')[0].trim() }
                               : { icao: 'TBD' },

@@ -72,6 +72,8 @@ interface SendProposalResponse {
     total: number;
     currency: string;
   };
+  pdfBase64?: string;
+  fileName?: string;
   error?: string;
 }
 
@@ -282,7 +284,7 @@ export async function POST(
       );
     }
 
-    // Return success response
+    // Return success response with PDF for preview
     return NextResponse.json({
       success: true,
       proposalId: proposalResult.proposalId,
@@ -290,6 +292,8 @@ export async function POST(
       messageId: emailResult.messageId,
       sentAt: new Date().toISOString(),
       pricing: proposalResult.pricing,
+      pdfBase64: proposalResult.pdfBase64,
+      fileName: proposalResult.fileName,
     });
   } catch (error) {
     console.error('Error sending proposal:', error);
