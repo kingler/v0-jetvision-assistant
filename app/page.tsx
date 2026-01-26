@@ -991,35 +991,22 @@ export default function JetvisionAgent() {
       return;
     }
 
-    // Track what needs to be loaded
-    // Always try to load messages to ensure we have the latest data from database
-    // This fixes the issue where messages might not be loaded correctly
-    const needsMessages = !session.messages || session.messages.length === 0;
-    const needsRFQFlights = session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0);
-    const needsOperatorThreads = session.tripId && (!session.operatorThreads || Object.keys(session.operatorThreads).length === 0);
-    // Check if session needs trip details (route is empty but tripId exists)
-    const needsTripDetails = session.tripId && (!session.route || session.route === 'Select route' || session.route === ' → ');
-
     console.log('[handleSelectChat] Loading data for session:', {
       chatId,
       requestId: session.requestId,
       tripId: session.tripId,
-      needsMessages,
-      needsRFQFlights,
-      needsOperatorThreads,
-      needsTripDetails,
-      currentRoute: session.route,
       currentMessageCount: session.messages?.length || 0,
       currentRFQFlightCount: session.rfqFlights?.length || 0,
       currentOperatorThreadCount: session.operatorThreads ? Object.keys(session.operatorThreads).length : 0,
     });
 
-    // Phase 1: Load messages from database
+    // Load messages from database
     let messages = (session.requestId || session.conversationId)
       ? await loadMessagesForSession(session)
       : (session.messages || []);
 
-    // Phase 2: If tripId exists but no data from database, fetch from Avinode API
+    // Only fetch from Avinode API if RFQ data is completely missing (fallback/recovery)
+    // With the fix to /api/chat-sessions, rfqFlights should already be loaded from database
     let rfqFlights: RFQFlight[] = session.rfqFlights || [];
     let tripDetails: {
       departureAirport: string | null;
@@ -1029,25 +1016,19 @@ export default function JetvisionAgent() {
       deepLink: string | null;
     } | null = null;
 
-    // Fetch from Avinode API when:
-    // 1. Session has tripId but no messages in DB (reconstruction needed)
-    // 2. Session has tripId but route info is missing
-    // 3. Session needs RFQ flights
-    if (session.tripId && (needsTripDetails || (needsMessages && messages.length === 0) || needsRFQFlights)) {
-      console.log('[handleSelectChat] 🔄 Fetching trip details from Avinode API (database data missing)');
+    if (session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0)) {
+      console.warn('[handleSelectChat] ⚠️ RFQ data missing from DB (unexpected), fetching from Avinode API as fallback');
       const avinodeData = await fetchTripDetailsFromAvinode(session.tripId);
 
       if (avinodeData) {
         tripDetails = avinodeData;
         rfqFlights = avinodeData.rfqFlights;
-        console.log('[handleSelectChat] ✅ Loaded trip details from Avinode API');
+        console.log('[handleSelectChat] ✅ Loaded trip details from Avinode API (fallback)');
       }
-    } else if (needsRFQFlights && session.tripId) {
-      // Just load RFQ flights if that's all we need
-      rfqFlights = await loadRFQFlightsForSession(session.tripId);
     }
 
-    // Phase 3: Load operator threads with RFQ flights data for initialization
+    // Load operator threads if needed
+    const needsOperatorThreads = session.tripId && (!session.operatorThreads || Object.keys(session.operatorThreads).length === 0);
     const effectiveRfqFlights = rfqFlights.length > 0 ? rfqFlights : (session.rfqFlights || []);
     const operatorThreads = needsOperatorThreads && session.tripId
       ? await loadOperatorThreadsForSession(session.tripId, effectiveRfqFlights)
@@ -1072,7 +1053,8 @@ export default function JetvisionAgent() {
             }
           }
 
-          if (needsRFQFlights && rfqFlights.length > 0) {
+          // Update RFQ flights if we fetched them from Avinode API (fallback scenario)
+          if (rfqFlights.length > 0 && (!s.rfqFlights || s.rfqFlights.length === 0)) {
             updates.rfqFlights = rfqFlights;
             // Update quote counts
             const quotedCount = rfqFlights.filter(f => f.rfqStatus === 'quoted').length;

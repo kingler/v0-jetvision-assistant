@@ -25,6 +25,29 @@ import { getIsoAgentIdFromClerkUserId } from '@/lib/conversation/message-persist
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
+/**
+ * Map database quote status to RFQFlight status enum
+ * Used to transform persisted quote data to frontend format
+ */
+function mapQuoteStatusToRFQStatus(
+  status: string
+): 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired' {
+  switch (status) {
+    case 'received':
+      return 'quoted';
+    case 'declined':
+    case 'rejected':
+      return 'declined';
+    case 'expired':
+      return 'expired';
+    case 'pending':
+      return 'unanswered';
+    case 'sent':
+    default:
+      return 'sent';
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
@@ -57,6 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Build query for requests with session fields (consolidated schema)
     // This replaces the old chat_sessions + conversations join
+    // Now includes quotes LEFT JOIN for immediate RFQ flight data
     let query = supabaseAdmin
       .from('requests')
       .select(`
@@ -96,7 +120,24 @@ export async function GET(request: NextRequest) {
         unread_count_iso,
         unread_count_operator,
         is_priority,
-        is_pinned
+        is_pinned,
+        quotes:quotes(
+          id,
+          avinode_quote_id,
+          operator_id,
+          operator_name,
+          aircraft_type,
+          aircraft_tail_number,
+          base_price,
+          total_price,
+          status,
+          schedule,
+          availability,
+          metadata,
+          created_at,
+          valid_until,
+          decline_reason
+        )
       `)
       .eq('iso_agent_id', agent.id)
       .order('last_activity_at', { ascending: false, nullsFirst: false });
@@ -186,6 +227,27 @@ export async function GET(request: NextRequest) {
         last_message_at: req.last_message_at,
         message_count: req.message_count || 0,
       },
+
+      // RFQ flights (quotes) transformed to frontend format
+      // This eliminates the need for separate API calls when chat is selected
+      rfqFlights: ((req as any).quotes || []).map((quote: any) => ({
+        id: quote.id,
+        quoteId: quote.avinode_quote_id,
+        operatorId: quote.operator_id,
+        operatorName: quote.operator_name,
+        aircraftType: quote.aircraft_type,
+        aircraftTailNumber: quote.aircraft_tail_number,
+        totalPrice: quote.total_price,
+        basePrice: quote.base_price,
+        rfqStatus: mapQuoteStatusToRFQStatus(quote.status),
+        schedule: quote.schedule,
+        availability: quote.availability,
+        validUntil: quote.valid_until,
+        declineReason: quote.decline_reason,
+        createdAt: quote.created_at,
+        // Merge any additional fields from metadata
+        ...(quote.metadata || {}),
+      })),
     }));
 
     return NextResponse.json({
