@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, X, Check, ChevronDown } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Loader2, Search, X, Check, ChevronDown, Plus, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
@@ -87,6 +88,17 @@ export function CustomerSelectionDialog({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   // State for highlighted index (keyboard navigation)
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  // State for mode: 'select' or 'create'
+  const [mode, setMode] = useState<'select' | 'create'>('select');
+  // State for new customer form
+  const [newCustomerForm, setNewCustomerForm] = useState({
+    company_name: '',
+    contact_name: '',
+    email: '',
+    phone: '',
+  });
+  // State for form submission
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Refs
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -276,6 +288,13 @@ export function CustomerSelectionDialog({
     setSearchQuery('');
     setIsDropdownOpen(false);
     setHighlightedIndex(-1);
+    setMode('select');
+    setNewCustomerForm({
+      company_name: '',
+      contact_name: '',
+      email: '',
+      phone: '',
+    });
     onClose();
   };
 
@@ -291,14 +310,127 @@ export function CustomerSelectionDialog({
     input?.focus();
   };
 
+  /**
+   * Switch to create mode
+   */
+  const handleSwitchToCreate = () => {
+    setMode('create');
+    setIsDropdownOpen(false);
+    setError(null);
+  };
+
+  /**
+   * Switch back to select mode
+   */
+  const handleSwitchToSelect = () => {
+    setMode('select');
+    setNewCustomerForm({
+      company_name: '',
+      contact_name: '',
+      email: '',
+      phone: '',
+    });
+    setError(null);
+  };
+
+  /**
+   * Handle new customer form field change
+   */
+  const handleFormChange = (field: keyof typeof newCustomerForm, value: string) => {
+    setNewCustomerForm((prev) => ({ ...prev, [field]: value }));
+    setError(null);
+  };
+
+  /**
+   * Validate email format
+   */
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  /**
+   * Handle new customer creation
+   */
+  const handleCreateCustomer = async () => {
+    // Validate required fields
+    if (!newCustomerForm.company_name.trim()) {
+      setError('Company name is required');
+      return;
+    }
+    if (!newCustomerForm.contact_name.trim()) {
+      setError('Contact name is required');
+      return;
+    }
+    if (!newCustomerForm.email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    if (!isValidEmail(newCustomerForm.email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          company_name: newCustomerForm.company_name.trim(),
+          contact_name: newCustomerForm.contact_name.trim(),
+          email: newCustomerForm.email.trim(),
+          phone: newCustomerForm.phone.trim() || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to create customer');
+      }
+
+      const { client: newClient } = await response.json();
+
+      // Add new client to the list
+      setClients((prev) => [newClient, ...prev]);
+
+      // Auto-select the new customer
+      setSelectedClient(newClient);
+      setSearchQuery(newClient.company_name);
+
+      // Reset form and switch back to select mode
+      setNewCustomerForm({
+        company_name: '',
+        contact_name: '',
+        email: '',
+        phone: '',
+      });
+      setMode('select');
+    } catch (err) {
+      console.error('[CustomerSelectionDialog] Error creating customer:', err);
+      setError(
+        err instanceof Error ? err.message : 'Failed to create customer'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Select Customer for Proposal</DialogTitle>
+          <DialogTitle>
+            {mode === 'select' ? 'Select Customer for Proposal' : 'Create New Customer'}
+          </DialogTitle>
           <DialogDescription>
-            Choose the customer this proposal is for. Customer information will
-            be retrieved from your client profiles.
+            {mode === 'select'
+              ? 'Choose the customer this proposal is for. Customer information will be retrieved from your client profiles.'
+              : 'Enter the details for the new customer. They will be added to your client profiles.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -320,8 +452,8 @@ export function CustomerSelectionDialog({
             </div>
           )}
 
-          {/* Typeahead search */}
-          {!isLoading && (
+          {/* Typeahead search - Select Mode */}
+          {!isLoading && mode === 'select' && (
             <div className="space-y-2">
               <label
                 htmlFor="customer-typeahead"
@@ -380,6 +512,15 @@ export function CustomerSelectionDialog({
                 {/* Dropdown list */}
                 {isDropdownOpen && (
                   <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                    {/* Create New Customer button */}
+                    <button
+                      type="button"
+                      onClick={handleSwitchToCreate}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b border-gray-200 dark:border-gray-700"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Create New Customer</span>
+                    </button>
                     <ul
                       ref={listRef}
                       className="max-h-60 overflow-auto py-1"
@@ -387,8 +528,7 @@ export function CustomerSelectionDialog({
                     >
                       {clients.length === 0 ? (
                         <li className="px-3 py-6 text-center text-sm text-gray-500">
-                          No customers found. Please add customers in your
-                          client profiles.
+                          No customers found. Click above to create one.
                         </li>
                       ) : filteredClients.length === 0 ? (
                         <li className="px-3 py-6 text-center text-sm text-gray-500">
@@ -456,18 +596,122 @@ export function CustomerSelectionDialog({
               )}
             </div>
           )}
+
+          {/* Create New Customer Form - Create Mode */}
+          {!isLoading && mode === 'create' && (
+            <div className="space-y-4">
+              {/* Back button */}
+              <button
+                type="button"
+                onClick={handleSwitchToSelect}
+                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to customer list</span>
+              </button>
+
+              <div className="rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-3">
+                <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
+                  Create New Customer
+                </p>
+                <p className="text-xs text-orange-700 dark:text-orange-400 mt-1">
+                  Fill in the details below to add a new customer to your client profiles.
+                </p>
+              </div>
+
+              {/* Form fields */}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="company_name">
+                    Company Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="company_name"
+                    type="text"
+                    placeholder="Enter company name"
+                    value={newCustomerForm.company_name}
+                    onChange={(e) => handleFormChange('company_name', e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="contact_name">
+                    Contact Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="contact_name"
+                    type="text"
+                    placeholder="Enter contact name"
+                    value={newCustomerForm.contact_name}
+                    onChange={(e) => handleFormChange('contact_name', e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="email">
+                    Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter email address"
+                    value={newCustomerForm.email}
+                    onChange={(e) => handleFormChange('email', e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="phone">Phone (optional)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter phone number"
+                    value={newCustomerForm.phone}
+                    onChange={(e) => handleFormChange('phone', e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!selectedClient || isLoading || clients.length === 0}
-          >
-            Generate Proposal
-          </Button>
+          {mode === 'select' ? (
+            <>
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirm}
+                disabled={!selectedClient || isLoading}
+              >
+                Generate Proposal
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleSwitchToSelect}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateCustomer}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create & Select'
+                )}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
