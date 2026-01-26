@@ -6,7 +6,11 @@
  * Generates a PDF proposal from selected RFQ flights.
  * Used in Step 4 of the RFP workflow for previewing proposals.
  *
+ * Optionally creates a draft proposal record in the database if
+ * tripId is provided and the request can be resolved.
+ *
  * @see lib/pdf/proposal-generator.ts
+ * @see lib/services/proposal-service.ts
  * @see components/avinode/send-proposal-step.tsx
  */
 
@@ -15,10 +19,12 @@ import { generateProposal } from '@/lib/pdf';
 import {
   getAuthenticatedAgent,
   isErrorNextResponse,
-  ErrorResponses,
   parseJsonBody,
   type ErrorResponse,
 } from '@/lib/utils/api';
+import {
+  createProposalWithResolution,
+} from '@/lib/services/proposal-service';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
 // Force dynamic rendering - API routes should not be statically generated
@@ -53,11 +59,18 @@ interface GenerateProposalRequest {
   };
   selectedFlights: RFQFlight[];
   jetvisionFeePercentage?: number;
+  /** If true, creates a draft proposal record in the database */
+  saveDraft?: boolean;
 }
 
 interface GenerateProposalResponse {
   success: boolean;
+  /** Local proposal ID (e.g., 'JV-ABC123-XYZ') */
   proposalId?: string;
+  /** Database proposal UUID (if draft was saved) */
+  dbProposalId?: string;
+  /** Database proposal number (e.g., 'PROP-2025-001') */
+  proposalNumber?: string;
   fileName?: string;
   pdfBase64?: string;
   generatedAt?: string;
@@ -129,6 +142,9 @@ function validateRequest(body: GenerateProposalRequest): string | null {
  *
  * Generate a PDF proposal from selected RFQ flights.
  * Returns base64-encoded PDF for client-side preview/download.
+ *
+ * If saveDraft=true and tripId is provided, creates a draft proposal
+ * record in the database for tracking purposes.
  */
 export async function POST(
   request: NextRequest
@@ -166,15 +182,68 @@ export async function POST(
       jetvisionFeePercentage: body.jetvisionFeePercentage ?? 10,
     });
 
-    // Return success response with PDF data
-    return NextResponse.json({
+    // Prepare response
+    const response: GenerateProposalResponse = {
       success: true,
       proposalId: result.proposalId,
       fileName: result.fileName,
       pdfBase64: result.pdfBase64,
       generatedAt: result.generatedAt,
       pricing: result.pricing,
-    });
+    };
+
+    // Optionally create a draft proposal record in the database
+    if (body.saveDraft && body.tripDetails.tripId) {
+      try {
+        // Build proposal title
+        const title = `Flight Proposal: ${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`;
+        const description = `Proposal for ${body.customer.name} - ${body.tripDetails.departureDate}`;
+
+        // Extract quote_id from first selected flight if available
+        const quoteId = body.selectedFlights[0]?.quoteId;
+
+        // Create draft proposal with automatic request/client resolution
+        const draftResult = await createProposalWithResolution(
+          {
+            iso_agent_id: authResult.id,
+            quote_id: quoteId,
+            title,
+            description,
+            total_amount: result.pricing.subtotal,
+            margin_applied: body.jetvisionFeePercentage ?? 10,
+            final_amount: result.pricing.total,
+            file_name: result.fileName,
+            // File URL is placeholder until actual upload happens in /send
+            file_url: '',
+            metadata: {
+              localProposalId: result.proposalId,
+              generatedAt: result.generatedAt,
+              pricing: result.pricing,
+              flightCount: body.selectedFlights.length,
+            },
+          },
+          body.tripDetails.tripId,
+          body.customer.email
+        );
+
+        if (draftResult) {
+          response.dbProposalId = draftResult.id;
+          response.proposalNumber = draftResult.proposal_number;
+          console.log('[Generate] Created draft proposal record:', {
+            dbId: draftResult.id,
+            proposalNumber: draftResult.proposal_number,
+          });
+        } else {
+          console.warn('[Generate] Could not create draft proposal - request not found for tripId:', body.tripDetails.tripId);
+        }
+      } catch (draftError) {
+        // Log error but don't fail the request - draft saving is optional
+        console.error('[Generate] Error creating draft proposal:', draftError);
+      }
+    }
+
+    // Return success response with PDF data
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error generating proposal:', error);
 

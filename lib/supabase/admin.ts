@@ -623,22 +623,36 @@ export async function searchUserTripsByTripId(
 const PROPOSALS_BUCKET = 'proposals';
 
 /**
+ * Upload result from PDF storage
+ */
+export interface UploadProposalPdfResult {
+  success: boolean;
+  publicUrl?: string;
+  filePath?: string;
+  fileSizeBytes?: number;
+  error?: string;
+}
+
+/**
  * Upload a PDF proposal to Supabase storage
  *
  * @param pdfBuffer - The PDF file as a Buffer
  * @param fileName - The filename for the PDF
  * @param isoAgentId - The user's iso_agent_id for organizing files
- * @returns Object with success status and public URL or error
+ * @returns Object with success status, public URL, file path, size, or error
  */
 export async function uploadProposalPdf(
   pdfBuffer: Buffer,
   fileName: string,
   isoAgentId: string
-): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
+): Promise<UploadProposalPdfResult> {
   try {
     // Create a unique path: proposals/{iso_agent_id}/{timestamp}_{filename}
     const timestamp = Date.now();
     const filePath = `${isoAgentId}/${timestamp}_${fileName}`;
+
+    // Calculate file size from buffer
+    const fileSizeBytes = pdfBuffer.length;
 
     // Upload to Supabase storage
     const { data, error } = await supabaseAdmin.storage
@@ -666,9 +680,15 @@ export async function uploadProposalPdf(
     console.log('[Storage] PDF uploaded successfully:', {
       path: filePath,
       publicUrl: urlData.publicUrl,
+      sizeBytes: fileSizeBytes,
     });
 
-    return { success: true, publicUrl: urlData.publicUrl };
+    return {
+      success: true,
+      publicUrl: urlData.publicUrl,
+      filePath,
+      fileSizeBytes,
+    };
   } catch (error) {
     console.error('[Storage] Unexpected error uploading PDF:', error);
     return {

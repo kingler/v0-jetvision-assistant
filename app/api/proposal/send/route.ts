@@ -3,11 +3,18 @@
  *
  * POST /api/proposal/send
  *
- * Generates a PDF proposal and sends it via email to the customer.
+ * Generates a PDF proposal, stores it, and sends it via email to the customer.
+ * Creates and updates proposal records in the database for tracking.
  * Used in Step 4 of the RFP workflow.
+ *
+ * Database Integration:
+ * 1. Creates proposal record with status='generated' after PDF generation
+ * 2. Updates with file metadata after storage upload
+ * 3. Updates with email tracking data and status='sent' after email send
  *
  * @see lib/pdf/proposal-generator.ts
  * @see lib/services/email-service.ts
+ * @see lib/services/proposal-service.ts
  * @see components/avinode/send-proposal-step.tsx
  */
 
@@ -20,6 +27,12 @@ import {
   isErrorResponse,
   parseJsonBody,
 } from '@/lib/utils/api';
+import {
+  createProposalWithResolution,
+  updateProposalGenerated,
+  updateProposalSent,
+  updateProposalStatus,
+} from '@/lib/services/proposal-service';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 import type { Passenger } from '@/lib/types/quotes';
 
@@ -62,7 +75,12 @@ interface SendProposalRequest {
 
 interface SendProposalResponse {
   success: boolean;
+  /** Local proposal ID (e.g., 'JV-ABC123-XYZ') */
   proposalId?: string;
+  /** Database proposal UUID */
+  dbProposalId?: string;
+  /** Database proposal number (e.g., 'PROP-2025-001') */
+  proposalNumber?: string;
   emailSent: boolean;
   messageId?: string;
   sentAt?: string;
@@ -191,11 +209,23 @@ function validateRequest(body: SendProposalRequest): string | null {
 /**
  * POST /api/proposal/send
  *
- * Generate a PDF proposal and send it to the customer via email.
+ * Generate a PDF proposal, store it, and send it to the customer via email.
+ *
+ * Database Integration Flow:
+ * 1. Generate PDF proposal
+ * 2. Resolve foreign keys (request_id, client_profile_id, quote_id)
+ * 3. Create proposal record (status='draft')
+ * 4. Upload PDF to storage
+ * 5. Update proposal (status='generated', file metadata)
+ * 6. Send email
+ * 7. Update proposal (status='sent', email tracking)
  */
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<SendProposalResponse>> {
+  let dbProposalId: string | undefined;
+  let proposalNumber: string | undefined;
+
   try {
     // Authenticate user
     const authResult = await getAuthenticatedAgent();
@@ -263,12 +293,86 @@ export async function POST(
       // Continue with email sending even if upload fails
     }
 
+    // Create proposal record in database (if tripId is available)
+    if (body.tripDetails.tripId) {
+      try {
+        // Build proposal title
+        const title = `Flight Proposal: ${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`;
+        const description = `Proposal for ${body.customer.name} - ${body.tripDetails.departureDate}`;
+
+        // Extract quote_id from first selected flight if available
+        const quoteId = body.selectedFlights[0]?.quoteId;
+
+        // Create proposal with automatic request/client resolution
+        const createResult = await createProposalWithResolution(
+          {
+            iso_agent_id: authResult.id,
+            quote_id: quoteId,
+            title,
+            description,
+            total_amount: proposalResult.pricing.subtotal,
+            margin_applied: body.jetvisionFeePercentage ?? 10,
+            final_amount: proposalResult.pricing.total,
+            file_name: proposalResult.fileName,
+            file_url: uploadResult.publicUrl ?? '',
+            file_path: uploadResult.filePath,
+            file_size_bytes: uploadResult.fileSizeBytes,
+            metadata: {
+              localProposalId: proposalResult.proposalId,
+              generatedAt: proposalResult.generatedAt,
+              pricing: proposalResult.pricing,
+              flightCount: body.selectedFlights.length,
+              selectedFlights: body.selectedFlights.map(f => ({
+                aircraftType: f.aircraftType,
+                operatorName: f.operatorName,
+                totalPrice: f.totalPrice,
+                currency: f.currency,
+              })),
+            },
+          },
+          body.tripDetails.tripId,
+          body.customer.email
+        );
+
+        if (createResult) {
+          dbProposalId = createResult.id;
+          proposalNumber = createResult.proposal_number;
+
+          // Update to 'generated' status if upload succeeded
+          if (uploadResult.success && uploadResult.publicUrl && uploadResult.filePath) {
+            await updateProposalGenerated(dbProposalId, {
+              file_name: proposalResult.fileName,
+              file_url: uploadResult.publicUrl,
+              file_path: uploadResult.filePath,
+              file_size_bytes: uploadResult.fileSizeBytes ?? proposalResult.pdfBuffer.length,
+            });
+          }
+
+          console.log('[Send] Created proposal record:', {
+            dbId: dbProposalId,
+            proposalNumber,
+            tripId: body.tripDetails.tripId,
+          });
+        } else {
+          console.warn('[Send] Could not create proposal record - request not found for tripId:', body.tripDetails.tripId);
+        }
+      } catch (dbError) {
+        // Log error but don't fail the request - DB tracking is secondary
+        console.error('[Send] Error creating proposal record:', dbError);
+      }
+    }
+
+    // Build email subject and body
+    const emailSubject = body.emailSubject ||
+      `Your Flight Proposal: ${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`;
+    const emailBody = body.emailMessage || '';
+
     // Send email with PDF attachment
     const emailResult = await sendProposalEmail({
       to: body.customer.email,
       customerName: body.customer.name,
-      subject: body.emailSubject,
-      body: body.emailMessage,
+      subject: emailSubject,
+      body: emailBody,
       proposalId: proposalResult.proposalId,
       pdfBase64: proposalResult.pdfBase64,
       pdfFilename: proposalResult.fileName,
@@ -285,10 +389,17 @@ export async function POST(
 
     // Handle email sending failure
     if (!emailResult.success) {
+      // If we have a DB record, it stays at 'generated' status
+      if (dbProposalId) {
+        console.warn('[Send] Email failed, proposal stays at generated status:', dbProposalId);
+      }
+
       return NextResponse.json(
         {
           success: false,
           proposalId: proposalResult.proposalId,
+          dbProposalId,
+          proposalNumber,
           emailSent: false,
           pricing: proposalResult.pricing,
           pdfUrl: uploadResult.publicUrl,
@@ -299,10 +410,29 @@ export async function POST(
       );
     }
 
+    // Update proposal record with email tracking data
+    if (dbProposalId) {
+      try {
+        await updateProposalSent(dbProposalId, {
+          sent_to_email: body.customer.email,
+          sent_to_name: body.customer.name,
+          email_subject: emailSubject,
+          email_body: emailBody,
+          email_message_id: emailResult.messageId,
+        });
+        console.log('[Send] Updated proposal to sent status:', dbProposalId);
+      } catch (updateError) {
+        // Log error but don't fail - email was sent successfully
+        console.error('[Send] Error updating proposal sent status:', updateError);
+      }
+    }
+
     // Return success response with PDF URL for browser viewing
     return NextResponse.json({
       success: true,
       proposalId: proposalResult.proposalId,
+      dbProposalId,
+      proposalNumber,
       emailSent: true,
       messageId: emailResult.messageId,
       sentAt: new Date().toISOString(),
@@ -313,10 +443,21 @@ export async function POST(
   } catch (error) {
     console.error('Error sending proposal:', error);
 
+    // If we have a DB record, try to update status
+    if (dbProposalId) {
+      try {
+        await updateProposalStatus(dbProposalId, 'draft');
+      } catch {
+        // Ignore errors in error handler
+      }
+    }
+
     return NextResponse.json(
       {
         success: false,
         emailSent: false,
+        dbProposalId,
+        proposalNumber,
         error: 'Failed to send proposal',
       },
       { status: 500 }
