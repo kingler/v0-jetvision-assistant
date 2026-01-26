@@ -615,3 +615,94 @@ export async function searchUserTripsByTripId(
 
   return data ?? [];
 }
+
+// ============================================================================
+// STORAGE HELPERS
+// ============================================================================
+
+const PROPOSALS_BUCKET = 'proposals';
+
+/**
+ * Upload a PDF proposal to Supabase storage
+ *
+ * @param pdfBuffer - The PDF file as a Buffer
+ * @param fileName - The filename for the PDF
+ * @param isoAgentId - The user's iso_agent_id for organizing files
+ * @returns Object with success status and public URL or error
+ */
+export async function uploadProposalPdf(
+  pdfBuffer: Buffer,
+  fileName: string,
+  isoAgentId: string
+): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
+  try {
+    // Create a unique path: proposals/{iso_agent_id}/{timestamp}_{filename}
+    const timestamp = Date.now();
+    const filePath = `${isoAgentId}/${timestamp}_${fileName}`;
+
+    // Upload to Supabase storage
+    const { data, error } = await supabaseAdmin.storage
+      .from(PROPOSALS_BUCKET)
+      .upload(filePath, pdfBuffer, {
+        contentType: 'application/pdf',
+        cacheControl: '3600', // Cache for 1 hour
+        upsert: false, // Don't overwrite existing files
+      });
+
+    if (error) {
+      console.error('[Storage] Error uploading PDF:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Get the public URL for the uploaded file
+    const { data: urlData } = supabaseAdmin.storage
+      .from(PROPOSALS_BUCKET)
+      .getPublicUrl(filePath);
+
+    if (!urlData?.publicUrl) {
+      return { success: false, error: 'Failed to get public URL for uploaded PDF' };
+    }
+
+    console.log('[Storage] PDF uploaded successfully:', {
+      path: filePath,
+      publicUrl: urlData.publicUrl,
+    });
+
+    return { success: true, publicUrl: urlData.publicUrl };
+  } catch (error) {
+    console.error('[Storage] Unexpected error uploading PDF:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error uploading PDF',
+    };
+  }
+}
+
+/**
+ * Delete a proposal PDF from Supabase storage
+ *
+ * @param filePath - The full path of the file to delete
+ * @returns Object with success status or error
+ */
+export async function deleteProposalPdf(
+  filePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin.storage
+      .from(PROPOSALS_BUCKET)
+      .remove([filePath]);
+
+    if (error) {
+      console.error('[Storage] Error deleting PDF:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Storage] Unexpected error deleting PDF:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error deleting PDF',
+    };
+  }
+}

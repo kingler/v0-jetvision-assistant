@@ -4,14 +4,14 @@
  * Customer Selection Dialog Component
  *
  * Dialog component for selecting a customer from the client_profiles database
- * when generating a proposal. Displays a list of available clients and allows
- * the user to select one.
+ * when generating a proposal. Uses a typeahead search component for quick
+ * customer lookup.
  *
  * @see app/api/clients/route.ts - Client profiles API
  * @see components/chat-interface.tsx - Proposal generation workflow
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,16 +20,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, X } from 'lucide-react';
+import { Loader2, Search, X, Check, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // =============================================================================
 // TYPES
@@ -69,8 +63,9 @@ export interface CustomerSelectionDialogProps {
 /**
  * Customer Selection Dialog
  *
- * Fetches client profiles from the API and displays them in a select dropdown.
- * When a customer is selected and confirmed, calls the onSelect callback.
+ * Fetches client profiles from the API and displays them in a typeahead
+ * search component. When a customer is selected and confirmed, calls the
+ * onSelect callback.
  */
 export function CustomerSelectionDialog({
   open,
@@ -80,16 +75,22 @@ export function CustomerSelectionDialog({
 }: CustomerSelectionDialogProps) {
   // State for client profiles list
   const [clients, setClients] = useState<ClientProfile[]>([]);
-  // State for selected client ID
-  const [selectedClientId, setSelectedClientId] = useState<string>(
-    initialCustomerId || ''
-  );
+  // State for selected client
+  const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
   // State for loading status
   const [isLoading, setIsLoading] = useState(false);
   // State for error messages
   const [error, setError] = useState<string | null>(null);
   // State for search query
   const [searchQuery, setSearchQuery] = useState<string>('');
+  // State for dropdown visibility
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // State for highlighted index (keyboard navigation)
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+
+  // Refs
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   /**
    * Fetch client profiles from the API when dialog opens
@@ -108,11 +109,18 @@ export function CustomerSelectionDialog({
         }
 
         const data = await response.json();
-        setClients(data.clients || []);
+        const clientList = data.clients || [];
+        setClients(clientList);
 
         // Pre-select initial customer if provided
         if (initialCustomerId) {
-          setSelectedClientId(initialCustomerId);
+          const initialClient = clientList.find(
+            (c: ClientProfile) => c.id === initialCustomerId
+          );
+          if (initialClient) {
+            setSelectedClient(initialClient);
+            setSearchQuery(initialClient.company_name);
+          }
         }
       } catch (err) {
         console.error('[CustomerSelectionDialog] Error fetching clients:', err);
@@ -128,37 +136,6 @@ export function CustomerSelectionDialog({
   }, [open, initialCustomerId]);
 
   /**
-   * Handle customer selection confirmation
-   */
-  const handleConfirm = () => {
-    if (!selectedClientId) {
-      setError('Please select a customer');
-      return;
-    }
-
-    const selectedClient = clients.find((c) => c.id === selectedClientId);
-    if (!selectedClient) {
-      setError('Selected customer not found');
-      return;
-    }
-
-    // Call the onSelect callback with the selected customer
-    onSelect(selectedClient);
-    // Close the dialog
-    onClose();
-  };
-
-  /**
-   * Handle dialog close
-   */
-  const handleClose = () => {
-    setSelectedClientId(initialCustomerId || '');
-    setError(null);
-    setSearchQuery('');
-    onClose();
-  };
-
-  /**
    * Filter clients based on search query
    */
   const filteredClients = clients.filter((client) => {
@@ -172,9 +149,147 @@ export function CustomerSelectionDialog({
   });
 
   /**
-   * Get the selected client object
+   * Handle customer selection from dropdown
    */
-  const selectedClient = clients.find((c) => c.id === selectedClientId);
+  const handleSelectClient = useCallback((client: ClientProfile) => {
+    setSelectedClient(client);
+    setSearchQuery(client.company_name);
+    setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
+    setError(null);
+  }, []);
+
+  /**
+   * Handle input change
+   */
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setIsDropdownOpen(true);
+    setHighlightedIndex(-1);
+
+    // Clear selection if input doesn't match selected client
+    if (selectedClient && value !== selectedClient.company_name) {
+      setSelectedClient(null);
+    }
+  };
+
+  /**
+   * Handle input focus
+   */
+  const handleInputFocus = () => {
+    setIsDropdownOpen(true);
+  };
+
+  /**
+   * Handle keyboard navigation
+   */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isDropdownOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        setIsDropdownOpen(true);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex((prev) =>
+          prev < filteredClients.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedIndex >= 0 && filteredClients[highlightedIndex]) {
+          handleSelectClient(filteredClients[highlightedIndex]);
+        }
+        break;
+      case 'Escape':
+        setIsDropdownOpen(false);
+        setHighlightedIndex(-1);
+        break;
+      case 'Tab':
+        setIsDropdownOpen(false);
+        setHighlightedIndex(-1);
+        break;
+    }
+  };
+
+  /**
+   * Scroll highlighted item into view
+   */
+  useEffect(() => {
+    if (highlightedIndex >= 0 && listRef.current) {
+      const items = listRef.current.querySelectorAll('[data-item]');
+      const highlightedItem = items[highlightedIndex] as HTMLElement;
+      if (highlightedItem && typeof highlightedItem.scrollIntoView === 'function') {
+        highlightedItem.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [highlightedIndex]);
+
+  /**
+   * Close dropdown when clicking outside
+   */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+        setHighlightedIndex(-1);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  /**
+   * Handle customer selection confirmation
+   */
+  const handleConfirm = () => {
+    if (!selectedClient) {
+      setError('Please select a customer');
+      return;
+    }
+
+    // Call the onSelect callback with the selected customer
+    onSelect(selectedClient);
+    // Close the dialog
+    onClose();
+  };
+
+  /**
+   * Handle dialog close
+   */
+  const handleClose = () => {
+    setSelectedClient(null);
+    setError(null);
+    setSearchQuery('');
+    setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
+    onClose();
+  };
+
+  /**
+   * Clear selection
+   */
+  const handleClear = () => {
+    setSelectedClient(null);
+    setSearchQuery('');
+    setIsDropdownOpen(true);
+    // Focus the input after clearing
+    const input = document.getElementById('customer-typeahead');
+    input?.focus();
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -205,83 +320,116 @@ export function CustomerSelectionDialog({
             </div>
           )}
 
-          {/* Client selection dropdown */}
-          {!isLoading && !error && (
-            <div className="space-y-4">
-              {/* Search input */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="customer-search"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Search Customers
-                </label>
+          {/* Typeahead search */}
+          {!isLoading && (
+            <div className="space-y-2">
+              <label
+                htmlFor="customer-typeahead"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Customer <span className="text-red-500">*</span>
+              </label>
+
+              <div className="relative" ref={dropdownRef}>
+                {/* Input field */}
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   <Input
-                    id="customer-search"
+                    id="customer-typeahead"
                     type="text"
                     placeholder="Search by name, company, or email..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-9"
+                    onChange={handleInputChange}
+                    onFocus={handleInputFocus}
+                    onKeyDown={handleKeyDown}
+                    className={cn(
+                      'pl-9 pr-16',
+                      selectedClient &&
+                        'border-green-500 dark:border-green-600 focus-visible:ring-green-500/50'
+                    )}
+                    autoComplete="off"
                   />
-                  {searchQuery && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    {selectedClient && (
+                      <Check className="h-4 w-4 text-green-500" />
+                    )}
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={handleClear}
+                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     >
-                      <X className="h-4 w-4" />
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 transition-transform',
+                          isDropdownOpen && 'rotate-180'
+                        )}
+                      />
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Customer dropdown */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="customer-select"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Customer <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  value={selectedClientId}
-                  onValueChange={(value) => {
-                    setSelectedClientId(value);
-                    setError(null);
-                  }}
-                >
-                  <SelectTrigger id="customer-select" className="w-full">
-                    <SelectValue placeholder="Select a customer..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.length === 0 ? (
-                      <div className="px-2 py-6 text-center text-sm text-gray-500">
-                        No customers found. Please add customers in your client
-                        profiles.
-                      </div>
-                    ) : filteredClients.length === 0 ? (
-                      <div className="px-2 py-6 text-center text-sm text-gray-500">
-                        No customers match "{searchQuery}"
-                      </div>
-                    ) : (
-                      filteredClients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {client.company_name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {client.contact_name} • {client.email}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                {/* Dropdown list */}
+                {isDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                    <ul
+                      ref={listRef}
+                      className="max-h-60 overflow-auto py-1"
+                      role="listbox"
+                    >
+                      {clients.length === 0 ? (
+                        <li className="px-3 py-6 text-center text-sm text-gray-500">
+                          No customers found. Please add customers in your
+                          client profiles.
+                        </li>
+                      ) : filteredClients.length === 0 ? (
+                        <li className="px-3 py-6 text-center text-sm text-gray-500">
+                          No customers match "{searchQuery}"
+                        </li>
+                      ) : (
+                        filteredClients.map((client, index) => (
+                          <li
+                            key={client.id}
+                            data-item
+                            role="option"
+                            aria-selected={selectedClient?.id === client.id}
+                            className={cn(
+                              'cursor-pointer px-3 py-2 transition-colors',
+                              highlightedIndex === index &&
+                                'bg-gray-100 dark:bg-gray-800',
+                              selectedClient?.id === client.id &&
+                                'bg-orange-50 dark:bg-orange-900/20'
+                            )}
+                            onClick={() => handleSelectClient(client)}
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                  {client.company_name}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {client.contact_name} • {client.email}
+                                </span>
+                              </div>
+                              {selectedClient?.id === client.id && (
+                                <Check className="h-4 w-4 text-orange-500" />
+                              )}
+                            </div>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {/* Selected customer details preview */}
@@ -316,7 +464,7 @@ export function CustomerSelectionDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedClientId || isLoading || clients.length === 0}
+            disabled={!selectedClient || isLoading || clients.length === 0}
           >
             Generate Proposal
           </Button>

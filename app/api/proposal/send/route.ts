@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateProposal } from '@/lib/pdf';
 import { sendProposalEmail } from '@/lib/services/email-service';
+import { uploadProposalPdf } from '@/lib/supabase/admin';
 import {
   getAuthenticatedAgent,
   isErrorResponse,
@@ -72,7 +73,7 @@ interface SendProposalResponse {
     total: number;
     currency: string;
   };
-  pdfBase64?: string;
+  pdfUrl?: string;
   fileName?: string;
   error?: string;
 }
@@ -250,6 +251,18 @@ export async function POST(
       );
     }
 
+    // Upload PDF to Supabase storage for viewing in browser
+    const uploadResult = await uploadProposalPdf(
+      proposalResult.pdfBuffer,
+      proposalResult.fileName,
+      authResult.id
+    );
+
+    if (!uploadResult.success) {
+      console.error('Error uploading PDF to storage:', uploadResult.error);
+      // Continue with email sending even if upload fails
+    }
+
     // Send email with PDF attachment
     const emailResult = await sendProposalEmail({
       to: body.customer.email,
@@ -278,13 +291,15 @@ export async function POST(
           proposalId: proposalResult.proposalId,
           emailSent: false,
           pricing: proposalResult.pricing,
+          pdfUrl: uploadResult.publicUrl,
+          fileName: proposalResult.fileName,
           error: emailResult.error || 'Failed to send email',
         },
         { status: 500 }
       );
     }
 
-    // Return success response with PDF for preview
+    // Return success response with PDF URL for browser viewing
     return NextResponse.json({
       success: true,
       proposalId: proposalResult.proposalId,
@@ -292,7 +307,7 @@ export async function POST(
       messageId: emailResult.messageId,
       sentAt: new Date().toISOString(),
       pricing: proposalResult.pricing,
-      pdfBase64: proposalResult.pdfBase64,
+      pdfUrl: uploadResult.publicUrl,
       fileName: proposalResult.fileName,
     });
   } catch (error) {

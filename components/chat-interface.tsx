@@ -1465,27 +1465,19 @@ export function ChatInterface({
         pricing: result.pricing,
       })
 
-      // Open the PDF in a new tab and trigger download
-      if (result.pdfBase64) {
-        const pdfBlob = new Blob(
-          [Uint8Array.from(atob(result.pdfBase64), (c) => c.charCodeAt(0))],
-          { type: 'application/pdf' }
-        )
-        const pdfUrl = URL.createObjectURL(pdfBlob)
-
-        // Open PDF in new tab
-        window.open(pdfUrl, '_blank')
+      // Open the PDF in a new tab using Supabase storage URL
+      if (result.pdfUrl) {
+        // Open PDF in new tab using the public storage URL
+        window.open(result.pdfUrl, '_blank')
 
         // Also trigger download
         const link = document.createElement('a')
-        link.href = pdfUrl
+        link.href = result.pdfUrl
         link.download = result.fileName || 'proposal.pdf'
+        link.target = '_blank'
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
-
-        // Clean up the blob URL after a delay
-        setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000)
       }
 
       // Show success message with email status
