@@ -9,7 +9,7 @@ import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { Database, User, Request } from '@/lib/types/database';
-import { getConversationForRequest, loadMessages } from '@/lib/conversation/message-persistence';
+import { loadMessages } from '@/lib/conversation/message-persistence';
 import { AvinodeMCPServer } from '@/lib/mcp/avinode-server';
 
 // Force dynamic rendering - API routes should not be statically generated
@@ -112,15 +112,25 @@ export async function GET(request: NextRequest) {
             return { request, messages: [] };
           }
 
-          // Get conversation for this request
-          const conversationId = await getConversationForRequest(request.id);
-          
-          if (!conversationId) {
-            return { request, messages: [] };
-          }
-
-          // Load messages from database
-          const dbMessages = await loadMessages(conversationId, { limit: 100 });
+          // In the consolidated schema, conversationId IS the requestId
+          // Messages are saved with request_id = request.id, so load directly
+          // Load messages from database using request.id as the request_id
+          console.log('[GET /api/requests] Loading messages for request:', {
+            requestId: request.id,
+            requestStatus: request.status,
+            createdAt: request.created_at,
+          });
+          const dbMessages = await loadMessages(request.id, { limit: 100 });
+          console.log('[GET /api/requests] Loaded messages:', {
+            requestId: request.id,
+            messageCount: dbMessages.length,
+            firstMessage: dbMessages[0] ? {
+              id: dbMessages[0].id,
+              senderType: dbMessages[0].senderType,
+              contentPreview: dbMessages[0].content.substring(0, 50),
+              createdAt: dbMessages[0].createdAt,
+            } : null,
+          });
 
           // Convert to API response format
           const messages = dbMessages.map((msg) => ({

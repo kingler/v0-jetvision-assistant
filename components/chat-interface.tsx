@@ -165,18 +165,19 @@ export function ChatInterface({
   const routeParts = extractRouteParts(activeChat.route)
 
   /**
-   * Show FlightSearchProgress only after the agent has responded,
-   * so the conversation appears before the workflow UI.
+   * Show FlightSearchProgress when the user has provided complete trip information.
+   * The component should appear immediately after the user message that contains
+   * all required parameters (route, date, passengers), and all subsequent messages
+   * should appear below it.
    */
   const shouldShowFlightSearchProgress = useMemo(() => {
-    const hasAgentMessage =
-      activeChat.messages?.some((message) => message.type === 'agent') ?? false
-
+    // Check if we have all required trip information in the chat session
     const hasValidRoute =
       !!activeChat.route &&
       activeChat.route !== 'Select route' &&
       activeChat.route !== 'TBD' &&
-      activeChat.route.trim().length > 0
+      activeChat.route.trim().length > 0 &&
+      activeChat.route.includes('→') // Must have both departure and arrival
 
     const hasValidDate =
       !!activeChat.date &&
@@ -187,17 +188,13 @@ export function ChatInterface({
 
     const hasValidPassengers = (activeChat.passengers ?? 0) > 0
 
-    const hasCompleteDetails = hasValidRoute && hasValidDate && hasValidPassengers
-
-    const hasAvinodeLink = !!activeChat.deepLink
-
-    return hasAgentMessage && hasCompleteDetails && hasAvinodeLink
+    // Show FlightSearchProgress when all required info is present
+    // This will appear after the user message that completes the request
+    return hasValidRoute && hasValidDate && hasValidPassengers
   }, [
-    activeChat.messages,
     activeChat.route,
     activeChat.date,
     activeChat.passengers,
-    activeChat.deepLink,
   ])
 
   // Convert quotes from activeChat to RFQ flights format
@@ -1778,13 +1775,30 @@ export function ChatInterface({
                 return acc
               }, [] as Array<{ message: UnifiedMessage, index: number }>)
 
-              // FlightSearchProgress should appear IMMEDIATELY after the user's flight request
-              const firstUserMessageIndex = deduplicatedMessages.findIndex(({ message }) => message.type === 'user')
-              const shouldInsertProgressAfterFirstUser = shouldShowFlightSearchProgress && firstUserMessageIndex !== -1
+              // FlightSearchProgress should appear immediately after the FIRST user message
+              // that contains complete trip information (route, date, passengers).
+              // All subsequent messages (both user and agent) will appear below it.
+              
+              // Find the first user message that has complete trip information
+              // We check if the chat session has complete info, and if so, find the first user message
+              // This handles both cases:
+              // 1. User provides all info in first message -> show after that message
+              // 2. User provides info across multiple messages -> show after first user message once session has all info
+              let completeRequestMessageIndex = -1
+              if (shouldShowFlightSearchProgress) {
+                // Find the first user message - FlightSearchProgress will appear after it
+                completeRequestMessageIndex = deduplicatedMessages.findIndex(
+                  ({ message }) => message.type === 'user'
+                )
+              }
+              
+              const shouldInsertProgressAfterCompleteRequest = shouldShowFlightSearchProgress && completeRequestMessageIndex !== -1
 
               return deduplicatedMessages.map(({ message, index }, mapIndex) => {
-                const isFirstUserMessage = mapIndex === firstUserMessageIndex
-                const shouldShowProgressAfterThis = shouldInsertProgressAfterFirstUser && isFirstUserMessage
+                // Check if this is the first user message (when session has complete info)
+                const isCompleteRequestMessage = mapIndex === completeRequestMessageIndex
+                // Show FlightSearchProgress immediately after the first user message when session has complete info
+                const shouldShowProgressAfterThis = shouldInsertProgressAfterCompleteRequest && isCompleteRequestMessage
 
                 return (
                   <React.Fragment key={message.id || `msg-${index}`}>
@@ -1837,14 +1851,25 @@ export function ChatInterface({
                       </div>
                     ) : (
                       // Agent message - existing AgentMessage component
+                      // CRITICAL: Prevent AgentMessage from rendering FlightSearchProgress when we're already showing it after the user message
+                      // This fixes the duplicate FlightSearchProgress UI issue
                       <AgentMessage
                         content={stripMarkdown(message.content)}
                         timestamp={message.timestamp}
-                        showDeepLink={false}
-                        showTripIdInput={false}
-                        showWorkflow={false}
-                        workflowProps={undefined}
-                        deepLinkData={undefined}
+                        // Only show deep link/workflow in AgentMessage if FlightSearchProgress is NOT shown after user message
+                        // This prevents duplicate FlightSearchProgress components
+                        showDeepLink={shouldShowFlightSearchProgress ? false : (message.showDeepLink || false)}
+                        showTripIdInput={shouldShowFlightSearchProgress ? false : (message.showDeepLink || false)}
+                        showWorkflow={shouldShowFlightSearchProgress ? false : (message.showWorkflow || false)}
+                        workflowProps={shouldShowFlightSearchProgress ? undefined : (message.showWorkflow ? {
+                          isProcessing,
+                          currentStep: activeChat.currentStep || 1,
+                          status: activeChat.status || 'pending',
+                          tripId: activeChat.tripId,
+                          deepLink: activeChat.deepLink,
+                        } : undefined)}
+                        // Only pass deepLinkData if we're NOT showing FlightSearchProgress after user message
+                        deepLinkData={shouldShowFlightSearchProgress ? undefined : message.deepLinkData}
                         onTripIdSubmit={handleTripIdSubmit}
                         isTripIdLoading={isTripIdLoading}
                         tripIdError={tripIdError}
@@ -1914,7 +1939,8 @@ export function ChatInterface({
                       />
                     )}
 
-                    {/* Insert FlightSearchProgress immediately after the first user message */}
+                    {/* Insert FlightSearchProgress after the agent message that completes trip creation */}
+                    {/* This ensures it appears AFTER all Q&A messages, and all subsequent messages appear below it */}
                     {shouldShowProgressAfterThis && (
                       <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                         <FlightSearchProgress

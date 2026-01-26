@@ -165,12 +165,21 @@ export async function POST(req: NextRequest) {
     // 5. Save user message (skip if explicitly requested for background operations like get_rfq)
     // This prevents cluttering conversation history with technical tool calls
     if (!skipMessagePersistence) {
-      await saveMessage({
+      console.log('[Chat API] Saving user message:', {
+        conversationId,
+        isoAgentId,
+        messagePreview: message.slice(0, 50),
+      });
+      const userMessageId = await saveMessage({
         conversationId,
         senderType: 'iso_agent',
         senderIsoAgentId: isoAgentId,
         content: message,
         contentType: 'text',
+      });
+      console.log('[Chat API] ✅ User message saved:', {
+        messageId: userMessageId,
+        conversationId,
       });
     } else {
       console.log('[Chat API] Skipping message persistence for:', { conversationId, messagePreview: message.slice(0, 50) });
@@ -195,7 +204,12 @@ export async function POST(req: NextRequest) {
     const result = await agent.execute(message, conversationHistory);
 
     // 7. Save assistant response
-    await saveMessage({
+    console.log('[Chat API] Saving assistant response:', {
+      conversationId,
+      messagePreview: result.message.slice(0, 50),
+      hasTripId: !!result.tripId,
+    });
+    const assistantMessageId = await saveMessage({
       conversationId,
       senderType: 'ai_assistant',
       content: result.message,
@@ -205,6 +219,10 @@ export async function POST(req: NextRequest) {
         tripId: result.tripId,
         deepLink: result.deepLink,
       },
+    });
+    console.log('[Chat API] ✅ Assistant message saved:', {
+      messageId: assistantMessageId,
+      conversationId,
     });
 
     // 8. Update request with trip info and flight details if created
