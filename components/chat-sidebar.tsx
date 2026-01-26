@@ -78,7 +78,7 @@ export interface ChatSession {
   date: string
   /** ISO format date (YYYY-MM-DD) for API calls */
   isoDate?: string
-  status: "proposal_ready" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"
+  status: "proposal_ready" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options" | "generating_proposal" | "proposal_sent"
   currentStep: number
   totalSteps: number
   aircraft?: string
@@ -155,6 +155,30 @@ export interface ChatSession {
     showPipeline?: boolean
     /** Pipeline data for inline deals/requests view */
     pipelineData?: PipelineData
+    /** Persisted proposal data from database (for sent proposals) */
+    proposalData?: {
+      id: string
+      title: string
+      flightDetails: {
+        route: string
+        date: string
+        passengers: number
+      }
+      selectedQuote: {
+        operatorName: string
+        aircraftType: string
+        price: number
+      }
+      pdfUrl?: string
+      emailSent?: boolean
+      sentTo?: string
+      sentAt?: string
+      summary?: string
+    }
+    /** Rich content from database */
+    richContent?: Record<string, unknown>
+    /** Content type from database */
+    contentType?: string
   }>
   /** Flag to indicate this chat needs an initial API call (set when created from landing page) */
   needsInitialApiCall?: boolean

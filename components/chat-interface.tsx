@@ -1354,6 +1354,13 @@ export function ChatInterface({
     setIsGeneratingProposal(true)
     setIsCustomerDialogOpen(false)
 
+    // Update status to generating_proposal
+    onUpdateChat(activeChat.id, {
+      status: 'generating_proposal',
+      currentStep: 6,
+      totalSteps: 7,
+    })
+
     try {
       // Find the selected flight from rfqFlights
       const selectedFlight = rfqFlights.find((f) => f.id === pendingProposalFlightId)
@@ -1439,6 +1446,7 @@ export function ChatInterface({
         body: JSON.stringify({
           customer: customerData,
           tripDetails,
+          requestId: activeChat.requestId || activeChat.id, // Pass requestId for message persistence
           selectedFlights: [selectedFlight],
           jetvisionFeePercentage: 30, // 30% profit margin as specified
         }),
@@ -1482,9 +1490,47 @@ export function ChatInterface({
         ? `\n\n✅ Email sent to ${customer.email}`
         : '\n\n⚠️ Email could not be sent (check Gmail configuration)'
 
+      // Add proposal message to chat UI for immediate display
+      const proposalMessage = {
+        id: `proposal-${result.proposalId}`,
+        type: 'agent' as const,
+        content: `Proposal sent successfully to ${customer.email}`,
+        timestamp: new Date(),
+        showProposal: true,
+        proposalData: {
+          id: result.proposalId,
+          title: `Flight Proposal - ${tripDetails.departureAirport.icao} to ${tripDetails.arrivalAirport.icao}`,
+          flightDetails: {
+            route: `${tripDetails.departureAirport.icao} → ${tripDetails.arrivalAirport.icao}`,
+            date: tripDetails.departureDate,
+            passengers: tripDetails.passengers,
+          },
+          selectedQuote: {
+            operatorName: selectedFlight.operatorName || 'Operator',
+            aircraftType: selectedFlight.aircraftType || 'Aircraft',
+            price: result.pricing?.total || 0,
+          },
+          pdfUrl: result.pdfUrl,
+          emailSent: result.emailSent,
+          sentTo: customer.email,
+          sentAt: result.sentAt,
+        },
+      }
+
+      onUpdateChat(activeChat.id, {
+        messages: [...activeChat.messages, proposalMessage],
+        status: 'proposal_sent',
+        currentStep: 7,
+      })
+
       alert(`Proposal sent successfully!\n\nProposal ID: ${result.proposalId}\nTotal: ${result.pricing?.currency || 'USD'} ${result.pricing?.total?.toLocaleString() || 'N/A'}${emailStatus}\n\nThe PDF has been opened in a new tab and downloaded.`)
     } catch (error) {
       console.error('[ChatInterface] Error generating proposal:', error)
+      // Revert status on error
+      onUpdateChat(activeChat.id, {
+        status: 'proposal_ready',
+        currentStep: 5,
+      })
       alert(`Failed to generate proposal: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsGeneratingProposal(false)
@@ -1686,6 +1732,18 @@ export function ChatInterface({
                 deepLinkData?: { tripId?: string; deepLink?: string }
                 showPipeline?: boolean
                 pipelineData?: PipelineData
+                // Persisted proposal data from database
+                proposalData?: {
+                  id: string
+                  title: string
+                  flightDetails: { route: string; date: string; passengers: number }
+                  selectedQuote: { operatorName: string; aircraftType: string; price: number }
+                  pdfUrl?: string
+                  emailSent?: boolean
+                  sentTo?: string
+                  sentAt?: string
+                  summary?: string
+                }
                 // Operator message properties
                 operatorName?: string
                 operatorQuoteId?: string
@@ -1722,6 +1780,7 @@ export function ChatInterface({
                 deepLinkData: msg.deepLinkData,
                 showPipeline: msg.showPipeline,
                 pipelineData: msg.pipelineData,
+                proposalData: (msg as { proposalData?: UnifiedMessage['proposalData'] }).proposalData,
               }))
 
               // Merge and sort by timestamp (chronological order)
@@ -1922,6 +1981,7 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         showPipeline={message.showPipeline}
                         pipelineData={message.pipelineData}
+                        proposalData={message.proposalData}
                         onViewRequest={(requestId) => {
                           console.log('[Pipeline] View request:', requestId)
                         }}

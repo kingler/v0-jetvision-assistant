@@ -11,6 +11,8 @@ export const WorkflowStatus = {
   REQUESTING_QUOTES: 'requesting_quotes',
   ANALYZING_OPTIONS: 'analyzing_options',
   PROPOSAL_READY: 'proposal_ready',
+  GENERATING_PROPOSAL: 'generating_proposal',
+  PROPOSAL_SENT: 'proposal_sent',
 } as const;
 
 export type WorkflowStatusType = typeof WorkflowStatus[keyof typeof WorkflowStatus];
@@ -68,6 +70,8 @@ export const WorkflowStep = {
   REQUESTING_QUOTES: 3,
   ANALYZING: 4,
   PROPOSAL: 5,
+  GENERATING_PROPOSAL: 6,
+  PROPOSAL_SENT: 7,
 } as const;
 
 /**
@@ -79,6 +83,8 @@ export const StatusToStep: Record<WorkflowStatusType, number> = {
   [WorkflowStatus.REQUESTING_QUOTES]: WorkflowStep.REQUESTING_QUOTES,
   [WorkflowStatus.ANALYZING_OPTIONS]: WorkflowStep.ANALYZING,
   [WorkflowStatus.PROPOSAL_READY]: WorkflowStep.PROPOSAL,
+  [WorkflowStatus.GENERATING_PROPOSAL]: WorkflowStep.GENERATING_PROPOSAL,
+  [WorkflowStatus.PROPOSAL_SENT]: WorkflowStep.PROPOSAL_SENT,
 };
 
 /**

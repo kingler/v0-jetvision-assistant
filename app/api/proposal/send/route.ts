@@ -20,6 +20,7 @@ import {
   isErrorResponse,
   parseJsonBody,
 } from '@/lib/utils/api';
+import { saveMessage } from '@/lib/conversation/message-persistence';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 import type { Passenger } from '@/lib/types/quotes';
 
@@ -54,6 +55,8 @@ interface SendProposalRequest {
     passengers: number | Passenger[];
     tripId?: string;
   };
+  /** Request ID for message persistence - links proposal to chat session */
+  requestId?: string;
   selectedFlights: RFQFlight[];
   jetvisionFeePercentage?: number;
   emailSubject?: string;
@@ -299,13 +302,60 @@ export async function POST(
       );
     }
 
+    const sentAt = new Date().toISOString();
+
+    // Save proposal message to chat session for persistence
+    if (body.requestId) {
+      try {
+        await saveMessage({
+          requestId: body.requestId,
+          senderType: 'ai_assistant',
+          content: `Proposal ${proposalResult.proposalId} sent successfully to ${body.customer.email}`,
+          contentType: 'proposal',
+          richContent: {
+            type: 'proposal_preview',
+            proposal: {
+              id: proposalResult.proposalId,
+              title: `Flight Proposal - ${body.tripDetails.departureAirport.icao} to ${body.tripDetails.arrivalAirport.icao}`,
+              flightDetails: {
+                route: `${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`,
+                date: body.tripDetails.departureDate,
+                passengers: passengersCount,
+              },
+              selectedQuote: {
+                operatorName: body.selectedFlights[0]?.operatorName || 'Operator',
+                aircraftType: body.selectedFlights[0]?.aircraftType || 'Aircraft',
+                price: proposalResult.pricing.total,
+              },
+              pdfUrl: uploadResult.publicUrl,
+              emailSent: true,
+              sentTo: body.customer.email,
+              sentAt: sentAt,
+            },
+          },
+          metadata: {
+            proposalId: proposalResult.proposalId,
+            emailMessageId: emailResult.messageId,
+            pdfUrl: uploadResult.publicUrl,
+            pricing: proposalResult.pricing,
+          },
+        });
+        console.log('[Proposal Send] Message saved to chat session:', body.requestId);
+      } catch (saveError) {
+        console.error('[Proposal Send] Error saving proposal message:', saveError);
+        // Don't fail the request if message save fails - proposal was still sent successfully
+      }
+    } else {
+      console.warn('[Proposal Send] No requestId provided - proposal message not persisted to chat');
+    }
+
     // Return success response with PDF URL for browser viewing
     return NextResponse.json({
       success: true,
       proposalId: proposalResult.proposalId,
       emailSent: true,
       messageId: emailResult.messageId,
-      sentAt: new Date().toISOString(),
+      sentAt: sentAt,
       pricing: proposalResult.pricing,
       pdfUrl: uploadResult.publicUrl,
       fileName: proposalResult.fileName,

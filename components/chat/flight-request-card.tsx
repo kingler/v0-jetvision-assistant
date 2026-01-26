@@ -33,7 +33,9 @@ const workflowSteps = {
   2: { title: "Searching Aircraft", icon: Clock },
   3: { title: "Requesting Quotes", icon: Loader2 },
   4: { title: "Analyzing Options", icon: Clock },
-  5: { title: "Generating Proposal", icon: FileText },
+  5: { title: "Ready for Proposal", icon: FileText },
+  6: { title: "Generating Proposal", icon: Loader2 },
+  7: { title: "Proposal Sent", icon: CheckCircle },
 }
 
 interface FlightRequestCardProps {
@@ -200,6 +202,10 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
         return 4
       case "proposal_ready":
         return 5
+      case "generating_proposal":
+        return 6
+      case "proposal_sent":
+        return 7
       default:
         return 1
     }
@@ -209,7 +215,20 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
    * Get status badge component
    */
   const getStatusBadge = () => {
-    if (session.status === "proposal_ready") {
+    if (session.status === "proposal_sent") {
+      return (
+        <Badge variant="default" className="bg-emerald-600 text-xs">
+          Proposal Sent
+        </Badge>
+      )
+    } else if (session.status === "generating_proposal") {
+      return (
+        <Badge variant="default" className="bg-orange-500 text-xs flex items-center gap-1">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Generating...
+        </Badge>
+      )
+    } else if (session.status === "proposal_ready") {
       return (
         <Badge variant="default" className="bg-green-500 text-xs">
           Proposal Ready

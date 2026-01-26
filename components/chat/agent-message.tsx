@@ -1,9 +1,10 @@
 "use client"
 
 import React from "react"
-import { FileText } from "lucide-react"
+import { FileText, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProposalPreview } from "../proposal-preview"
+import { ProposalPreview as PersistedProposalPreview } from "../message-components/proposal-preview"
 import {
   FlightSearchProgress,
   type SelectedFlight,
@@ -109,6 +110,26 @@ export interface AgentMessageProps {
   showProposal?: boolean
   /** Chat data for proposal preview */
   chatData?: ChatSession
+  /** Persisted proposal data from database (richContent) - for sent proposals loaded from DB */
+  proposalData?: {
+    id: string
+    title: string
+    flightDetails: {
+      route: string
+      date: string
+      passengers: number
+    }
+    selectedQuote: {
+      operatorName: string
+      aircraftType: string
+      price: number
+    }
+    pdfUrl?: string
+    emailSent?: boolean
+    sentTo?: string
+    sentAt?: string
+    summary?: string
+  }
   /** Whether to show customer preferences */
   showCustomerPreferences?: boolean
   /** Customer data */
@@ -220,6 +241,7 @@ export function AgentMessage({
   quotes = [],
   showProposal,
   chatData,
+  proposalData,
   showCustomerPreferences,
   customer,
   onSelectQuote,
@@ -428,6 +450,40 @@ export function AgentMessage({
             quotes={sortedQuotes}
             onSelectQuote={onSelectQuote}
           />
+        </div>
+      )}
+
+      {/* Persisted Proposal from Database - shows confirmation card for sent proposals */}
+      {proposalData && (
+        <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+          <PersistedProposalPreview
+            proposal={proposalData}
+            onView={(id) => {
+              if (proposalData.pdfUrl) {
+                window.open(proposalData.pdfUrl, '_blank')
+              }
+            }}
+            onDownload={(id) => {
+              if (proposalData.pdfUrl) {
+                const link = document.createElement('a')
+                link.href = proposalData.pdfUrl
+                link.download = `proposal-${id}.pdf`
+                link.click()
+              }
+            }}
+          />
+          {/* Show email confirmation badge */}
+          {proposalData.emailSent && proposalData.sentTo && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+              <CheckCircle className="h-4 w-4" />
+              <span>Email sent to {proposalData.sentTo}</span>
+              {proposalData.sentAt && (
+                <span className="text-gray-500 dark:text-gray-400">
+                  on {new Date(proposalData.sentAt).toLocaleString()}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

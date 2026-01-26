@@ -98,6 +98,7 @@ export default function JetvisionAgent() {
           content: string;
           contentType: string;
           richContent: Record<string, unknown> | null;
+          metadata: Record<string, unknown> | null;
           createdAt: string;
         }>> = {}
 
@@ -128,12 +129,41 @@ export default function JetvisionAgent() {
 
           return {
             ...session,
-            messages: messages.map((msg) => ({
-              id: msg.id,
-              type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
-              content: msg.content,
-              timestamp: new Date(msg.createdAt),
-            })),
+            messages: messages.map((msg) => {
+              // Check if this is a proposal message with richContent
+              const isProposal = msg.contentType === 'proposal' ||
+                (msg.richContent && typeof msg.richContent === 'object' &&
+                 'type' in msg.richContent && msg.richContent.type === 'proposal_preview')
+
+              // Extract proposal data from richContent if available
+              const proposalData = isProposal && msg.richContent &&
+                typeof msg.richContent === 'object' && 'proposal' in msg.richContent
+                ? (msg.richContent as { proposal: Record<string, unknown> }).proposal as {
+                    id: string
+                    title: string
+                    flightDetails: { route: string; date: string; passengers: number }
+                    selectedQuote: { operatorName: string; aircraftType: string; price: number }
+                    pdfUrl?: string
+                    emailSent?: boolean
+                    sentTo?: string
+                    sentAt?: string
+                    summary?: string
+                  }
+                : undefined
+
+              return {
+                id: msg.id,
+                type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
+                content: msg.content,
+                timestamp: new Date(msg.createdAt),
+                // Add rich content support for proposals
+                showProposal: isProposal,
+                proposalData,
+                // Preserve metadata for other rich content types
+                richContent: msg.richContent,
+                contentType: msg.contentType,
+              }
+            }),
           }
         })
 
