@@ -5,8 +5,9 @@
  * Fetches complete message history for a trip from Avinode API
  * Includes BOTH buyer (outbound) and seller (inbound) messages
  *
- * IMPORTANT: Only returns messages when the RFQ has quotes with 'quoted' status.
+ * IMPORTANT: Only returns messages when the RFQ has quotes with response status.
  * This prevents unnecessary API calls for RFQs that haven't received responses yet.
+ * Note: Database uses 'received' status (not 'quoted') for operator responses.
  *
  * Query parameters:
  * - trip_id (required): Avinode trip ID
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Check if the RFQ has any quotes with 'quoted' status before fetching messages
+    // Check if the RFQ has any quotes with response status before fetching messages
     // This prevents unnecessary API calls for RFQs that haven't received responses yet
     const { data: requestData } = await supabaseAdmin
       .from('requests')
@@ -83,12 +84,13 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (requestData) {
-      // Check if there are any quotes with 'quoted' status for this request
+      // Check if there are any quotes with response status for this request
+      // Note: Database uses 'received' (not 'quoted') for operator responses
       const { data: quotes, error: quotesError } = await supabaseAdmin
         .from('quotes')
         .select('id, status')
         .eq('request_id', requestData.id)
-        .in('status', ['quoted', 'accepted', 'pending'] as readonly ('pending' | 'accepted' | 'rejected' | 'expired' | 'received' | 'analyzed')[]);
+        .in('status', ['received', 'accepted', 'pending', 'analyzed'] as const);
 
       if (quotesError) {
         console.warn('[GET /api/avinode/messages] Error checking quotes:', quotesError);
@@ -97,14 +99,14 @@ export async function GET(req: NextRequest) {
       // If no quotes with valid status, return empty messages
       // This avoids unnecessary Avinode API calls for RFQs without responses
       if (!quotes || quotes.length === 0) {
-        console.log('[GET /api/avinode/messages] No quoted RFQs found for trip:', tripId);
+        console.log('[GET /api/avinode/messages] No RFQs with responses found for trip:', tripId);
         return NextResponse.json({
           tripId,
           requestId,
           messages: {},
           totalCount: 0,
           status: 'no_quotes',
-          message: 'No quoted RFQs found for this trip. Messages are only available after operators have responded.',
+          message: 'No RFQs with responses found for this trip. Messages are only available after operators have responded.',
         });
       }
     }
