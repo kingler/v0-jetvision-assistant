@@ -561,8 +561,12 @@ export function ChatInterface({
         body: JSON.stringify({
           message,
           tripId: activeChat.tripId,
-          requestId: activeChat.requestId,
-          rfqId: activeChat.rfqId,
+          // Send conversationId in context object (API expects context.conversationId, not top-level requestId)
+          // This ensures all messages in a conversation are saved to the same request ID
+          context: {
+            conversationId: activeChat.conversationId || activeChat.requestId,
+            tripId: activeChat.tripId,
+          },
           conversationHistory: existingMessages.map((m) => ({
             role: m.type === "user" ? "user" : "assistant",
             content: m.content,
