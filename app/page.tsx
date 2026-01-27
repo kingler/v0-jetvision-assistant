@@ -9,6 +9,7 @@ import { LandingPage } from "@/components/landing-page"
 import { AppHeader } from "@/components/app-header"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { chatSessionsToUIFormat } from "@/lib/utils/chat-session-to-ui"
+import { mapDbMessageToChatMessage, type DbMessageLike } from "@/lib/utils/map-db-message-to-ui"
 import type { RFQFlight } from "@/components/avinode/rfq-flight-card"
 
 type View = "landing" | "chat"
@@ -90,6 +91,15 @@ export default function JetvisionAgent() {
         const dbSessions = data.sessions || []
         const sessions = chatSessionsToUIFormat(dbSessions)
 
+        // DEBUG: Log sessions with requestId info to trace persistence issues
+        console.log('[JetvisionAgent] 🔍 Sessions loaded with requestId:', sessions.map(s => ({
+          id: s.id,
+          tripId: s.tripId,
+          requestId: s.requestId,
+          conversationId: s.conversationId,
+          hasValidRequestId: s.requestId ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.requestId) : false,
+        })));
+
         // Load messages for sessions with request IDs
         let messagesByRequestId: Record<string, Array<{
           id: string;
@@ -126,14 +136,11 @@ export default function JetvisionAgent() {
           const messages = messagesMap.get(session.requestId)
           if (!messages || messages.length === 0) return session
 
+          const transformedMessages = messages.map((msg: DbMessageLike) => mapDbMessageToChatMessage(msg))
+
           return {
             ...session,
-            messages: messages.map((msg) => ({
-              id: msg.id,
-              type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
-              content: msg.content,
-              timestamp: new Date(msg.createdAt),
-            })),
+            messages: transformedMessages,
           }
         })
 
@@ -188,12 +195,7 @@ export default function JetvisionAgent() {
    * @param session - The chat session to load messages for (needs conversationId or requestId)
    * @returns The loaded messages or empty array if failed
    */
-  const loadMessagesForSession = async (session: ChatSession): Promise<Array<{
-    id: string;
-    type: 'user' | 'agent';
-    content: string;
-    timestamp: Date;
-  }>> => {
+  const loadMessagesForSession = async (session: ChatSession): Promise<ChatSession['messages']> => {
     // Skip loading for temporary sessions
     if (session.id.startsWith('temp-')) {
       console.log('[loadMessagesForSession] Skipping temp session:', session.id);
@@ -216,7 +218,7 @@ export default function JetvisionAgent() {
     }
 
     try {
-      let messages: Array<{ id: string; type: 'user' | 'agent'; content: string; timestamp: string }> = [];
+      let messages: DbMessageLike[] = [];
 
       console.log('[loadMessagesForSession] Loading messages for session:', {
         sessionId: session.id,
@@ -238,16 +240,27 @@ export default function JetvisionAgent() {
             const requestMessages = requestsData.messages?.[session.requestId] || [];
             
             if (requestMessages.length > 0) {
-              messages = requestMessages.map((msg: any) => ({
+              messages = requestMessages.map((msg: { id: string; senderType?: string; content: string; createdAt: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
                 id: msg.id,
-                type: (msg.senderType === 'iso_agent' ? 'user' : 'agent') as 'user' | 'agent',
+                senderType: msg.senderType,
                 content: msg.content,
-                timestamp: msg.createdAt,
+                createdAt: msg.createdAt,
+                contentType: msg.contentType,
+                richContent: msg.richContent ?? null,
               }));
+              // DEBUG: Log proposal_shared messages specifically
+              const proposalMessages = messages.filter((m: any) => m.contentType === 'proposal_shared');
               console.log('[loadMessagesForSession] ✅ Loaded messages via requests API:', {
                 requestId: session.requestId,
                 messageCount: messages.length,
                 firstMessage: messages[0]?.content?.substring(0, 50),
+                proposalMessageCount: proposalMessages.length,
+                proposalMessages: proposalMessages.map((m: any) => ({
+                  id: m.id,
+                  contentType: m.contentType,
+                  hasRichContent: !!m.richContent,
+                  richContentKeys: m.richContent ? Object.keys(m.richContent) : [],
+                })),
               });
             } else {
               console.warn('[loadMessagesForSession] ⚠️ No messages found in requests API for requestId:', session.requestId);
@@ -276,7 +289,16 @@ export default function JetvisionAgent() {
 
           if (response.ok) {
             const data = await response.json();
-            messages = data.messages || [];
+            messages = (data.messages || []).map((m: { id: string; type?: string; content: string; timestamp?: string; senderType?: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
+              id: m.id,
+              type: m.type as 'user' | 'agent' | undefined,
+              senderType: m.senderType,
+              content: m.content,
+              timestamp: m.timestamp,
+              createdAt: m.timestamp,
+              contentType: m.contentType,
+              richContent: m.richContent ?? null,
+            }));
             console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions API:', {
               conversationId: session.conversationId,
               messageCount: messages.length,
@@ -305,7 +327,16 @@ export default function JetvisionAgent() {
 
           if (response.ok) {
             const data = await response.json();
-            messages = data.messages || [];
+            messages = (data.messages || []).map((m: { id: string; type?: string; content: string; timestamp?: string; senderType?: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
+              id: m.id,
+              type: m.type as 'user' | 'agent' | undefined,
+              senderType: m.senderType,
+              content: m.content,
+              timestamp: m.timestamp,
+              createdAt: m.timestamp,
+              contentType: m.contentType,
+              richContent: m.richContent ?? null,
+            }));
             console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions API (fallback):', {
               sessionId: session.id,
               messageCount: messages.length,
@@ -316,20 +347,7 @@ export default function JetvisionAgent() {
         }
       }
 
-      // Convert timestamps to Date objects
-      const result = messages.map((msg: { id: string; type: 'user' | 'agent'; content: string; timestamp: string }) => ({
-        id: msg.id,
-        type: msg.type,
-        content: msg.content,
-        timestamp: new Date(msg.timestamp),
-      }));
-
-      console.log('[loadMessagesForSession] Final result:', {
-        sessionId: session.id,
-        requestId: session.requestId,
-        messageCount: result.length,
-        hasMessages: result.length > 0,
-      });
+      const result = messages.map((msg) => mapDbMessageToChatMessage(msg));
 
       return result;
     } catch (error) {
@@ -991,10 +1009,16 @@ export default function JetvisionAgent() {
       return;
     }
 
-    console.log('[handleSelectChat] Loading data for session:', {
+    // UUID validation for debugging proposal persistence
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    console.log('[handleSelectChat] 🎯 Loading data for session:', {
       chatId,
       requestId: session.requestId,
+      conversationId: session.conversationId,
       tripId: session.tripId,
+      hasValidRequestIdUUID: session.requestId ? uuidRegex.test(session.requestId) : false,
+      hasValidConversationIdUUID: session.conversationId ? uuidRegex.test(session.conversationId) : false,
+      hasValidIdUUID: session.id ? uuidRegex.test(session.id) : false,
       currentMessageCount: session.messages?.length || 0,
       currentRFQFlightCount: session.rfqFlights?.length || 0,
       currentOperatorThreadCount: session.operatorThreads ? Object.keys(session.operatorThreads).length : 0,
@@ -1108,12 +1132,24 @@ export default function JetvisionAgent() {
             updates.messages = messages;
           }
 
-          return { ...s, ...updates };
+          const updatedSession = { ...s, ...updates };
+          // Log requestId preservation for debugging proposal persistence
+          console.log('[handleSelectChat] 🔒 Session requestId after update:', {
+            chatId,
+            originalRequestId: s.requestId,
+            updatedRequestId: updatedSession.requestId,
+            originalConversationId: s.conversationId,
+            updatedConversationId: updatedSession.conversationId,
+            requestIdPreserved: s.requestId === updatedSession.requestId,
+          });
+          return updatedSession;
         })
       );
 
       console.log('[handleSelectChat] ✅ Loaded and updated session data:', {
         chatId,
+        requestId: session.requestId,
+        conversationId: session.conversationId,
         messageCount: messages.length,
         messageSample: messages.length > 0 ? {
           firstMessage: messages[0]?.content?.substring(0, 50),

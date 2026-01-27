@@ -165,13 +165,24 @@ export function ChatInterface({
   const routeParts = extractRouteParts(activeChat.route)
 
   /**
-   * Show FlightSearchProgress when the user has provided complete trip information.
-   * The component should appear immediately after the user message that contains
-   * all required parameters (route, date, passengers), and all subsequent messages
+   * Show FlightSearchProgress ONLY when a trip has been successfully created.
+   * The component should appear immediately after the agent message that confirms
+   * trip creation (when we have a tripId or deepLink), and all subsequent messages
    * should appear below it.
+   * 
+   * CRITICAL: Do NOT show this component until a trip is actually created.
+   * Just having route/date/passengers is not enough - we need confirmation that
+   * create_trip was called successfully (indicated by tripId or deepLink).
    */
   const shouldShowFlightSearchProgress = useMemo(() => {
-    // Check if we have all required trip information in the chat session
+    // CRITICAL: Only show when trip is successfully created
+    // A trip is considered created when we have either:
+    // 1. A tripId (from create_trip tool response)
+    // 2. A deepLink (from create_trip tool response)
+    // 3. A requestId (from database after trip creation)
+    const hasTripCreated = !!(activeChat.tripId || activeChat.deepLink || activeChat.requestId)
+    
+    // Also verify we have the basic trip information for display
     const hasValidRoute =
       !!activeChat.route &&
       activeChat.route !== 'Select route' &&
@@ -188,10 +199,13 @@ export function ChatInterface({
 
     const hasValidPassengers = (activeChat.passengers ?? 0) > 0
 
-    // Show FlightSearchProgress when all required info is present
-    // This will appear after the user message that completes the request
-    return hasValidRoute && hasValidDate && hasValidPassengers
+    // Show FlightSearchProgress ONLY when trip is created AND we have display data
+    // This ensures the component appears after successful trip creation, not just when info is collected
+    return hasTripCreated && hasValidRoute && hasValidDate && hasValidPassengers
   }, [
+    activeChat.tripId,
+    activeChat.deepLink,
+    activeChat.requestId,
     activeChat.route,
     activeChat.date,
     activeChat.passengers,
@@ -1240,14 +1254,31 @@ export function ChatInterface({
         // Update status based on whether we have quotes
         status: quotedCount > 0 ? 'analyzing_options' as const : 'requesting_quotes' as const,
         currentStep: newRfqFlights.length > 0 ? 4 : 3,
+        // Sync session IDs from API response (same as sendMessageWithStreaming)
+        // This ensures the frontend has the correct database IDs for proposal persistence
+        // IMPORTANT: Preserve existing requestId if API doesn't return one
+        ...(result.conversationId ? {
+          conversationId: result.conversationId,
+          requestId: result.conversationId,
+        } : {
+          // Ensure existing requestId is explicitly preserved (defensive coding)
+          // This handles cases where the session already has a valid requestId from sidebar load
+          ...(activeChat.requestId ? { requestId: activeChat.requestId } : {}),
+          ...(activeChat.conversationId ? { conversationId: activeChat.conversationId } : {}),
+        }),
       }
-      
+
       console.log('[ChatInterface] 📊 Updating chat with RFQ data:', {
         tripId,
         rfqFlightsCount: newRfqFlights.length,
         quotedCount,
         status: updates.status,
         currentStep: updates.currentStep,
+        conversationId: result.conversationId || 'not returned',
+        requestIdSynced: !!result.conversationId,
+        existingRequestId: activeChat.requestId || 'none',
+        existingConversationId: activeChat.conversationId || 'none',
+        finalRequestId: updates.requestId || 'not set',
       })
       
       onUpdateChat(activeChat.id, updates)
@@ -1430,6 +1461,45 @@ export function ChatInterface({
         margin: '30%',
       })
 
+      // Resolve requestId (UUID) for persistence; server persists confirmation when provided
+      // Priority: requestId > conversationId > id (all must be valid UUIDs)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+      // Try to find a valid UUID from session identifiers
+      let requestIdForSave: string | null = null;
+
+      if (activeChat.requestId && uuidRegex.test(activeChat.requestId)) {
+        requestIdForSave = activeChat.requestId;
+      } else if (activeChat.conversationId && uuidRegex.test(activeChat.conversationId)) {
+        requestIdForSave = activeChat.conversationId;
+      } else if (activeChat.id && uuidRegex.test(activeChat.id)) {
+        requestIdForSave = activeChat.id;
+      }
+
+      // Enhanced debug logging to diagnose persistence issues
+      console.log('[ChatInterface] 🔍 Proposal persistence debug:', {
+        requestIdForSave,
+        'activeChat.requestId': activeChat.requestId,
+        'activeChat.conversationId': activeChat.conversationId,
+        'activeChat.id': activeChat.id,
+        'activeChat.tripId': activeChat.tripId,
+        'isValidUUID(requestId)': activeChat.requestId ? uuidRegex.test(activeChat.requestId) : null,
+        'isValidUUID(conversationId)': activeChat.conversationId ? uuidRegex.test(activeChat.conversationId) : null,
+        'isValidUUID(id)': activeChat.id ? uuidRegex.test(activeChat.id) : null,
+        'activeChat keys': Object.keys(activeChat),
+      })
+
+      // Warn loudly if we can't find a valid requestId for a session that has a tripId
+      if (!requestIdForSave && activeChat.tripId) {
+        console.error('[ChatInterface] ⚠️ CRITICAL: Cannot persist proposal - no valid requestId found!', {
+          tripId: activeChat.tripId,
+          sessionId: activeChat.id,
+          'activeChat.requestId': activeChat.requestId,
+          'activeChat.conversationId': activeChat.conversationId,
+          hint: 'Session may have been created as temp session or requestId not synced from API',
+        });
+      }
+
       // Call the proposal send API which generates PDF AND sends email to customer
       const response = await fetch('/api/proposal/send', {
         method: 'POST',
@@ -1441,6 +1511,7 @@ export function ChatInterface({
           tripDetails,
           selectedFlights: [selectedFlight],
           jetvisionFeePercentage: 30, // 30% profit margin as specified
+          ...(requestIdForSave ? { requestId: requestIdForSave } : {}),
         }),
       })
 
@@ -1477,12 +1548,70 @@ export function ChatInterface({
         document.body.removeChild(link)
       }
 
-      // Show success message with email status
-      const emailStatus = result.emailSent
-        ? `\n\n✅ Email sent to ${customer.email}`
-        : '\n\n⚠️ Email could not be sent (check Gmail configuration)'
+      // Build data for ProposalSentConfirmation (inline in chat thread)
+      const proposalSentData = {
+        flightDetails: {
+          departureAirport: departureIcao,
+          arrivalAirport: arrivalIcao,
+          departureDate: tripDetails.departureDate,
+        },
+        client: { name: customerData.name, email: customerData.email },
+        pdfUrl: result.pdfUrl ?? '',
+        fileName: result.fileName,
+        proposalId: result.proposalId,
+        pricing: result.pricing
+          ? { total: result.pricing.total, currency: result.pricing.currency }
+          : undefined,
+      }
 
-      alert(`Proposal sent successfully!\n\nProposal ID: ${result.proposalId}\nTotal: ${result.pricing?.currency || 'USD'} ${result.pricing?.total?.toLocaleString() || 'N/A'}${emailStatus}\n\nThe PDF has been opened in a new tab and downloaded.`)
+      const confirmationContent = result.emailSent
+        ? `The proposal for ${departureIcao} → ${arrivalIcao} was sent to ${customerData.name} at ${customerData.email}.`
+        : `The proposal for ${departureIcao} → ${arrivalIcao} was generated. Email could not be sent (check Gmail configuration).`
+
+      // Use server-persisted message id when available (proposal/send persists when requestId provided)
+      let savedMessageId: string | null =
+        (typeof result.savedMessageId === 'string' && result.savedMessageId.trim() !== ''
+          ? result.savedMessageId
+          : null) ?? null
+
+      // Fallback: persist client-side if server did not persist (e.g. no requestId sent or save failed)
+      if (!savedMessageId && requestIdForSave) {
+        try {
+          const saveRes = await fetch('/api/messages/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestId: requestIdForSave,
+              content: confirmationContent,
+              contentType: 'proposal_shared',
+              richContent: { proposalSent: proposalSentData },
+            }),
+          })
+          const saveJson = await saveRes.json().catch(() => ({}))
+          if (saveRes.ok && saveJson.success && saveJson.messageId) {
+            savedMessageId = saveJson.messageId
+          }
+        } catch (saveErr) {
+          console.warn('[ChatInterface] Failed to persist proposal-sent message (fallback):', saveErr)
+        }
+      }
+      if (!savedMessageId && !requestIdForSave) {
+        console.warn(
+          '[ChatInterface] Proposal confirmation will not survive refresh: no valid requestId (session may be temp or missing requestId/conversationId).',
+          { requestId: activeChat.requestId, conversationId: activeChat.conversationId, id: activeChat.id }
+        )
+      }
+
+      const confirmationMessage = {
+        id: savedMessageId ?? `agent-proposal-sent-${Date.now()}`,
+        type: 'agent' as const,
+        content: confirmationContent,
+        timestamp: new Date(),
+        showProposalSentConfirmation: true,
+        proposalSentData,
+      }
+      const updatedMessages = [...(activeChat.messages || []), confirmationMessage]
+      onUpdateChat(activeChat.id, { messages: updatedMessages })
     } catch (error) {
       console.error('[ChatInterface] Error generating proposal:', error)
       alert(`Failed to generate proposal: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -1686,6 +1815,8 @@ export function ChatInterface({
                 deepLinkData?: { tripId?: string; deepLink?: string }
                 showPipeline?: boolean
                 pipelineData?: PipelineData
+                showProposalSentConfirmation?: boolean
+                proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
                 // Operator message properties
                 operatorName?: string
                 operatorQuoteId?: string
@@ -1722,6 +1853,8 @@ export function ChatInterface({
                 deepLinkData: msg.deepLinkData,
                 showPipeline: msg.showPipeline,
                 pipelineData: msg.pipelineData,
+                showProposalSentConfirmation: msg.showProposalSentConfirmation,
+                proposalSentData: msg.proposalSentData,
               }))
 
               // Merge and sort by timestamp (chronological order)
@@ -1733,6 +1866,12 @@ export function ChatInterface({
               const deduplicatedMessages = allMessages.reduce((acc, message, index) => {
                 // Always keep user messages and operator messages
                 if (message.type === 'user' || message.type === 'operator') {
+                  acc.push({ message, index })
+                  return acc
+                }
+
+                // Always keep proposal-sent confirmation messages (inline UI)
+                if (message.showProposalSentConfirmation && message.proposalSentData) {
                   acc.push({ message, index })
                   return acc
                 }
@@ -1922,6 +2061,8 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         showPipeline={message.showPipeline}
                         pipelineData={message.pipelineData}
+                        showProposalSentConfirmation={message.showProposalSentConfirmation}
+                        proposalSentData={message.proposalSentData}
                         onViewRequest={(requestId) => {
                           console.log('[Pipeline] View request:', requestId)
                         }}
