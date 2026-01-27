@@ -174,17 +174,29 @@ export async function POST(req: NextRequest) {
         isoAgentId,
         messagePreview: message.slice(0, 50),
       });
-      const userMessageId = await saveMessage({
-        conversationId,
-        senderType: 'iso_agent',
-        senderIsoAgentId: isoAgentId,
-        content: message,
-        contentType: 'text',
-      });
-      console.log('[Chat API] ✅ User message saved:', {
-        messageId: userMessageId,
-        conversationId,
-      });
+      try {
+        // CRITICAL: Use requestId (which is the same as conversationId) to ensure messages are linked correctly
+        // In the consolidated schema, conversationId IS the requestId
+        const userMessageId = await saveMessage({
+          requestId: conversationId, // Use requestId explicitly to match database schema
+          senderType: 'iso_agent',
+          senderIsoAgentId: isoAgentId,
+          content: message,
+          contentType: 'text',
+        });
+        console.log('[Chat API] ✅ User message saved:', {
+          messageId: userMessageId,
+          conversationId,
+          requestId: conversationId,
+        });
+      } catch (error) {
+        // Log error but don't fail the request - message persistence is important but shouldn't block chat
+        console.error('[Chat API] ❌ Failed to save user message:', {
+          conversationId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
     } else {
       console.log('[Chat API] Skipping message persistence for:', { conversationId, messagePreview: message.slice(0, 50) });
     }
@@ -213,21 +225,33 @@ export async function POST(req: NextRequest) {
       messagePreview: result.message.slice(0, 50),
       hasTripId: !!result.tripId,
     });
-    const assistantMessageId = await saveMessage({
-      conversationId,
-      senderType: 'ai_assistant',
-      content: result.message,
-      contentType: 'text',
-      metadata: {
-        toolResults: result.toolResults,
-        tripId: result.tripId,
-        deepLink: result.deepLink,
-      },
-    });
-    console.log('[Chat API] ✅ Assistant message saved:', {
-      messageId: assistantMessageId,
-      conversationId,
-    });
+    try {
+      // CRITICAL: Use requestId (which is the same as conversationId) to ensure messages are linked correctly
+      // In the consolidated schema, conversationId IS the requestId
+      const assistantMessageId = await saveMessage({
+        requestId: conversationId, // Use requestId explicitly to match database schema
+        senderType: 'ai_assistant',
+        content: result.message,
+        contentType: 'text',
+        metadata: {
+          toolResults: result.toolResults,
+          tripId: result.tripId,
+          deepLink: result.deepLink,
+        },
+      });
+      console.log('[Chat API] ✅ Assistant message saved:', {
+        messageId: assistantMessageId,
+        conversationId,
+        requestId: conversationId,
+      });
+    } catch (error) {
+      // Log error but don't fail the request - message persistence is important but shouldn't block chat
+      console.error('[Chat API] ❌ Failed to save assistant message:', {
+        conversationId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+    }
 
     // 8. Update request with trip info and flight details if created
     if (result.tripId || result.rfpData) {

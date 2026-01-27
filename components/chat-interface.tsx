@@ -1937,30 +1937,19 @@ export function ChatInterface({
                 return acc
               }, [] as Array<{ message: UnifiedMessage, index: number }>)
 
-              // FlightSearchProgress should appear immediately after the FIRST user message
-              // that contains complete trip information (route, date, passengers).
-              // All subsequent messages (both user and agent) will appear below it.
+              // FlightSearchProgress should appear AFTER ALL dialogue messages in chronological order
+              // This ensures the conversation flow is: User messages -> Agent responses -> FlightSearchProgress
+              // The component will be inserted at the end of the message list, after all conversation messages
               
-              // Find the first user message that has complete trip information
-              // We check if the chat session has complete info, and if so, find the first user message
-              // This handles both cases:
-              // 1. User provides all info in first message -> show after that message
-              // 2. User provides info across multiple messages -> show after first user message once session has all info
-              let completeRequestMessageIndex = -1
-              if (shouldShowFlightSearchProgress) {
-                // Find the first user message - FlightSearchProgress will appear after it
-                completeRequestMessageIndex = deduplicatedMessages.findIndex(
-                  ({ message }) => message.type === 'user'
-                )
-              }
-              
-              const shouldInsertProgressAfterCompleteRequest = shouldShowFlightSearchProgress && completeRequestMessageIndex !== -1
+              // Determine if we should show FlightSearchProgress (trip is created and we have valid data)
+              const shouldInsertProgressAtEnd = shouldShowFlightSearchProgress
 
               return deduplicatedMessages.map(({ message, index }, mapIndex) => {
-                // Check if this is the first user message (when session has complete info)
-                const isCompleteRequestMessage = mapIndex === completeRequestMessageIndex
-                // Show FlightSearchProgress immediately after the first user message when session has complete info
-                const shouldShowProgressAfterThis = shouldInsertProgressAfterCompleteRequest && isCompleteRequestMessage
+                // Check if this is the last message in the list
+                // FlightSearchProgress will appear after the last message
+                const isLastMessage = mapIndex === deduplicatedMessages.length - 1
+                // Show FlightSearchProgress after the last message when trip is created
+                const shouldShowProgressAfterThis = shouldInsertProgressAtEnd && isLastMessage
 
                 return (
                   <React.Fragment key={message.id || `msg-${index}`}>
@@ -2103,8 +2092,8 @@ export function ChatInterface({
                       />
                     )}
 
-                    {/* Insert FlightSearchProgress after the agent message that completes trip creation */}
-                    {/* This ensures it appears AFTER all Q&A messages, and all subsequent messages appear below it */}
+                    {/* Insert FlightSearchProgress after ALL dialogue messages in chronological order */}
+                    {/* This ensures it appears AFTER the complete conversation, maintaining proper message flow */}
                     {shouldShowProgressAfterThis && (
                       <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                         <FlightSearchProgress
@@ -2161,6 +2150,9 @@ export function ChatInterface({
                           onViewChat={handleViewChat}
                           onGenerateProposal={handleGenerateProposal}
                           onReviewAndBook={handleReviewAndBook}
+                          // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
+                          // This prevents cards from appearing during clarification dialogue before trip creation
+                          isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
                         />
                       </div>
                     )}

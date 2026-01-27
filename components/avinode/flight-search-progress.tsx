@@ -100,6 +100,10 @@ export interface FlightSearchProgressProps {
   tripIdError?: string;
   /** Whether Trip ID has been successfully submitted */
   tripIdSubmitted?: boolean;
+  /** Whether the Avinode trip has been successfully created (has avinode_trip_id) */
+  /** This determines if the 3 step cards should be displayed */
+  /** Cards should only render when trip creation is complete, not during clarification dialogue */
+  isTripCreated?: boolean;
   /** Selected flights sent to operators (legacy) */
   selectedFlights?: SelectedFlight[];
   /** RFQ flights retrieved from Avinode (new Step 3) */
@@ -353,6 +357,7 @@ export function FlightSearchProgress({
   onSendProposal,
   onGoBackFromProposal,
   className,
+  isTripCreated = false,
 }: FlightSearchProgressProps) {
   const [copied, setCopied] = useState(false);
 
@@ -527,7 +532,9 @@ export function FlightSearchProgress({
         {/* Step Content */}
         <div className="space-y-4">
           {/* Step 1: Trip Request Created */}
-          {currentStep >= 1 && (
+          {/* CRITICAL: Only render step cards when trip is actually created (has avinode_trip_id) */}
+          {/* This prevents cards from appearing during clarification dialogue before trip creation */}
+          {currentStep >= 1 && isTripCreated && (
             <div
               data-testid="step-1-content"
               className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
@@ -646,7 +653,8 @@ export function FlightSearchProgress({
 
           {/* Step 2: Select Flight & RFQ */}
           {/* Show Step 2 if we're at step 2 or beyond, and we have either a deepLink or tripId (indicates deep link was created) */}
-          {currentStep >= 2 && (deepLink || tripId) && (
+          {/* CRITICAL: Only render when trip is actually created (has avinode_trip_id) */}
+          {currentStep >= 2 && isTripCreated && (deepLink || tripId) && (
             <div
               data-testid="step-2-content"
               className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
@@ -712,7 +720,8 @@ export function FlightSearchProgress({
 
           {/* Step 3: Enter Trip ID & View RFQ Flights */}
           {/* FIXED: Added explicit display and width to prevent layout cutoff when RFQs load */}
-          {currentStep >= 3 && (
+          {/* CRITICAL: Only render when trip is actually created (has avinode_trip_id) */}
+          {currentStep >= 3 && isTripCreated && (
             <div
               data-testid="step-3-content"
               className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 mb-6"
