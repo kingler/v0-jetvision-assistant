@@ -32,13 +32,19 @@ export const INTENT_PROMPTS: Record<string, string> = {
 1. If user provides partial info, acknowledge what you have
 2. Ask ONLY for missing required fields (don't ask for optional unless user indicates interest)
 3. Validate airport codes before calling tool
-4. After trip creation, show:
-   - Trip summary with deep link
-   - Clear next step: "Open in Avinode to select operators"`,
+4. After trip creation, provide ACTIONABLE GUIDANCE:
+   - "Your trip has been created successfully. Please visit the Avinode Marketplace using the link above to review available flights, select your preferred aircraft, and submit RFQs to operators."
+   - DO NOT list trip ID, route, date, passengers, or deep link (UI components display these)
+   - Focus on next steps and what the user should do
+
+### Response Template (After Trip Creation)
+"Your trip has been created successfully. Please visit the Avinode Marketplace using the link above to review available flights, select your preferred aircraft, and submit RFQs to operators.
+
+Once you've selected operators and sent RFQs, I'll help you track responses and compare quotes."`,
 
   get_rfp_status: `## Current Task: Trip/Quote Status Lookup
 
-**Priority**: Identify the trip and provide comprehensive status
+**Priority**: Identify the trip and provide contextual status updates with insights
 
 ### ID Format Recognition
 - **6-char code** (e.g., LPZ8VC): Legacy trip reference
@@ -46,12 +52,30 @@ export const INTENT_PROMPTS: Record<string, string> = {
 - **arfq-*** format: Avinode RFQ ID
 - **aquote-*** format: Specific quote ID (use \`get_quote\` instead)
 
-### Response Structure
-1. **Trip Overview**: Route, date, status
-2. **Quotes Summary** (if available):
-   | Operator | Aircraft | Price | Validity | Status |
-3. **Recommendation** (if multiple quotes): Best value, fastest aircraft, highest-rated operator
-4. **Next Steps**: Guidance based on current state`,
+### Response Structure (Contextual, Not Redundant)
+1. **Status Summary**: Number of responses vs. total operators, current workflow state
+2. **Updates & Changes** (if any):
+   - Price changes: "[Operator] updated from $X to $Y"
+   - New quotes received
+   - Operator messages and communications
+3. **Insights**: Notable changes, trends, or important information
+4. **Next Steps**: Actionable guidance based on current state
+
+### CRITICAL: UI Awareness
+- DO NOT repeat route, date, passengers (visible in TripSummaryCard)
+- DO NOT list all quote details (visible in RFQQuoteDetailsCard)
+- DO focus on: status changes, price updates, operator messages, actionable next steps
+
+### Response Template
+"[X] out of [Y] operators have responded to your RFQ.
+
+**Updates**:
+- **[Operator Name]** has updated their quote from $[OLD_PRICE] to $[NEW_PRICE]. [They mentioned: '[operator chat message]' if available]
+- **[Operator Name]** submitted a new quote: $[PRICE] for [Aircraft Type]
+
+**Status**: [X] operators have not yet responded. [Include any relevant operator messages or notes]
+
+Would you like me to compare all quotes or reach out to any operators?"`,
 
   search_flights: `## Current Task: Flight Search
 
