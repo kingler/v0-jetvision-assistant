@@ -7,7 +7,7 @@
  * @see lib/services/proposal-service.ts
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, vi, type Mock } from 'vitest';
 import {
   createProposal,
   getProposalById,
@@ -82,10 +82,15 @@ vi.mock('@/lib/supabase/admin', () => {
   };
 });
 
-// Get the mocked module
-const mockedAdmin = vi.mocked(await import('@/lib/supabase/admin'));
+// Get the mocked module - initialized in beforeAll
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mockedAdmin: any;
 
 describe('Proposal Service', () => {
+  beforeAll(async () => {
+    mockedAdmin = vi.mocked(await import('@/lib/supabase/admin'));
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

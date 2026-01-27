@@ -232,7 +232,7 @@ export function RFPFlowCard({
               <div className="text-xs text-amber-700 dark:text-amber-300">
                 <p className="font-medium mb-1">Required Information Missing</p>
                 <p className="text-amber-600 dark:text-amber-400">
-                  {missingFields.map((field) => field.replace(/([A-Z])/g, ' $1')).join(', ')}
+                  {missingFields.map((field: string) => field.replace(/([A-Z])/g, ' $1')).join(', ')}
                 </p>
               </div>
             </div>
