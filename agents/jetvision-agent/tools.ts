@@ -36,9 +36,17 @@ export const AVINODE_TOOLS: OpenAIToolDefinition[] = [
             type: 'number',
             description: 'Number of passengers',
           },
+          departure_time: {
+            type: 'string',
+            description: 'Departure time in HH:MM format (24-hour). Convert user times: "4:00pm" → "16:00", "10am" → "10:00". Default to "10:00" if not specified.',
+          },
           return_date: {
             type: 'string',
             description: 'Return date in YYYY-MM-DD format (optional, for round trips)',
+          },
+          return_time: {
+            type: 'string',
+            description: 'Return departure time in HH:MM format (optional, for round trips)',
           },
           special_requirements: {
             type: 'string',

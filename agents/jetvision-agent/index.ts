@@ -17,7 +17,8 @@ import { ToolExecutor, createToolExecutor } from './tool-executor';
 import {
   buildCompleteSystemPrompt,
   detectForcedTool,
-  detectIntent,
+  detectForcedToolFromContext,
+  detectIntentWithHistory,
   getIntentPrompt,
 } from '@/lib/prompts';
 
@@ -87,8 +88,9 @@ export class JetvisionAgent {
       special_requirements?: string;
     };
   }> {
-    // Detect intent and build enhanced system prompt
-    const intent = detectIntent(userMessage);
+    // Detect intent from message AND conversation history
+    // This fixes the multi-turn bug where clarification responses lose context
+    const intent = detectIntentWithHistory(userMessage, conversationHistory);
     let systemPrompt = buildCompleteSystemPrompt();
 
     // Append intent-specific instructions if detected
@@ -107,14 +109,20 @@ export class JetvisionAgent {
       { role: 'user', content: userMessage },
     ];
 
-    // Detect forced tool from message patterns (using centralized detection)
-    // Force tool_choice when message matches known patterns to ensure reliable tool invocation
+    // Detect forced tool: message patterns first, then context (e.g. airport clarification follow-up)
     let toolChoice: 'auto' | { type: 'function'; function: { name: string } } = 'auto';
-    const forcedTool = detectForcedTool(userMessage);
-
+    const forcedFromMessage = detectForcedTool(userMessage);
+    let forcedTool = forcedFromMessage;
+    if (!forcedTool && conversationHistory.length > 0) {
+      forcedTool = detectForcedToolFromContext(conversationHistory, userMessage) ?? null;
+    }
     if (forcedTool) {
       toolChoice = { type: 'function', function: { name: forcedTool } };
-      console.log(`[JetvisionAgent] Forcing ${forcedTool} tool call based on message pattern`);
+      console.log(
+        forcedFromMessage
+          ? `[JetvisionAgent] Forcing ${forcedTool} tool call based on message pattern`
+          : `[JetvisionAgent] Forcing ${forcedTool} from context (airport clarification follow-up)`
+      );
     }
 
     // First call - use forced tool_choice if pattern matched, otherwise let OpenAI decide

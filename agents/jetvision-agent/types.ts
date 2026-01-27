@@ -25,7 +25,9 @@ export interface AvinodeTools {
       arrival_airport: string;
       departure_date: string;
       passengers: number;
+      departure_time?: string;
       return_date?: string;
+      return_time?: string;
       special_requirements?: string;
     };
     result: {

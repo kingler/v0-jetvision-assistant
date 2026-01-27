@@ -11,6 +11,7 @@ export {
   buildCompleteSystemPrompt,
   buildSystemPromptWithIntent as buildSystemPromptWithIntentBase,
   detectForcedTool,
+  detectForcedToolFromContext,
   FORCED_TOOL_PATTERNS,
   PROMPT_SECTIONS,
   IDENTITY,
@@ -27,6 +28,7 @@ export {
   INTENT_PROMPTS,
   INTENT_PATTERNS,
   detectIntent,
+  detectIntentWithHistory,
   getIntentPrompt,
   listIntents,
 } from './intent-prompts';

@@ -22,8 +22,12 @@ export const INTENT_PROMPTS: Record<string, string> = {
 - [ ] Departure date (YYYY-MM-DD)
 - [ ] Number of passengers
 
+### Optional but Recommended
+- [ ] Departure time (HH:MM, 24-hour) - ask if not provided
+- [ ] Trip type (one-way or round-trip)
+
 ### Optional Information
-- Return date (for round trips)
+- Return date and time (for round trips)
 - Special requirements (pets, catering, medical, etc.)
 - Preferred aircraft category
 - Client reference (if known)
@@ -31,11 +35,30 @@ export const INTENT_PROMPTS: Record<string, string> = {
 ### Conversation Flow
 1. If user provides partial info, acknowledge what you have
 2. Ask ONLY for missing required fields (don't ask for optional unless user indicates interest)
-3. Validate airport codes before calling tool
-4. After trip creation, provide ACTIONABLE GUIDANCE:
+3. If time is not provided, ask: "What time would you like to depart?"
+4. If trip type is unclear, ask: "Is this a one-way flight or round trip?"
+5. Validate airport codes before calling tool
+6. After trip creation, provide ACTIONABLE GUIDANCE:
    - "Your trip has been created successfully. Please visit the Avinode Marketplace using the link above to review available flights, select your preferred aircraft, and submit RFQs to operators."
    - DO NOT list trip ID, route, date, passengers, or deep link (UI components display these)
    - Focus on next steps and what the user should do
+
+### Multi-Turn Parameter Extraction
+When user provides clarification (e.g., airport codes after you asked for them):
+- **SCAN THE ENTIRE CONVERSATION** to build complete \`create_trip\` parameters
+- Airports: From the clarification message (e.g., "KTEB to KMCI")
+- Date: From earlier message (e.g., "May 3, 2026" → "2026-05-03")
+- Time: From earlier message (e.g., "4:00pm EST" → "16:00", "morning" → "09:00")
+- Passengers: From earlier message (e.g., "4 passengers" → 4)
+- Trip type: From earlier message (e.g., "one way" → no return_date, "round trip" → ask for return_date)
+- NEVER call \`create_trip\` with missing required params - extract them from history first
+
+### Time Conversion
+- "4:00pm" or "4pm" → "16:00"
+- "10am" → "10:00"
+- "morning" → "09:00" (confirm with user)
+- "afternoon" → "14:00" (confirm with user)
+- Ignore timezone mentions - Avinode uses local airport time
 
 ### Response Template (After Trip Creation)
 "Your trip has been created successfully. Please visit the Avinode Marketplace using the link above to review available flights, select your preferred aircraft, and submit RFQs to operators.
@@ -149,6 +172,50 @@ Empty legs are positioning flights offered at 25-50% discount.
 - Phone: [Phone]
 - Requests: [N]"`,
 
+  generate_proposal: `## Current Task: Generate Proposal Document
+
+**Priority**: Create professional proposal from selected quote
+
+### Required Information
+1. **Quote Selection**: Which quote to use (if multiple available)
+2. **Request Context**: Trip details for proposal content
+3. **Client Info**: Name and email for personalization (optional but recommended)
+
+### Generation Flow
+\`\`\`
+START
+  |
+  v
+Check: Has quote_id or request_id?
+  |-- No --> Ask: "Which quote would you like to create a proposal for?"
+  |-- Yes --> Validate quote exists and has pricing
+               |
+               v
+             Check: Client info available?
+               |-- No --> Ask for client email (optional)
+               |-- Yes --> Include personalization
+               |
+               v
+             Call: \`create_proposal\` with:
+               - request_id (or resolve from trip_id)
+               - quote_id
+               - title (auto-generate or ask)
+               - customer_email (for client resolution)
+               |
+               v
+             Report: "Proposal created successfully"
+             Next step: "Ready to send to client?"
+\`\`\`
+
+### Response Template
+"I've created your proposal:
+**Proposal**: [Number] - [Title]
+- Based on: [Operator] quote for $[Amount]
+- Route: [Departure] → [Arrival]
+- Date: [Date]
+
+Would you like me to send this to the client?"`,
+
   send_proposal: `## Current Task: Send Proposal to Client
 
 **Priority**: Confirm all details before sending
@@ -244,6 +311,13 @@ export const INTENT_PATTERNS: Record<string, RegExp[]> = {
     /(?:who\s+is|client\s+profile)/i,
     /(?:add|create|new)\s+(?:a\s+)?client/i,
   ],
+  generate_proposal: [
+    /(?:create|generate|make|build)\s+(?:a\s+)?proposal/i,
+    /(?:prepare|draft)\s+(?:a\s+)?proposal/i,
+    /proposal\s+(?:for|from)\s+(?:this|that|the)\s+quote/i,
+    /(?:turn|convert)\s+(?:this|that|the)\s+quote\s+(?:into|to)\s+(?:a\s+)?proposal/i,
+    /(?:i\s+)?(?:want|need)\s+(?:a\s+)?proposal/i,
+  ],
   send_proposal: [
     /send\s+(?:the\s+)?(?:proposal|quote)/i,
     /email\s+(?:the\s+)?(?:client|proposal|quote)/i,
@@ -274,6 +348,94 @@ export function detectIntent(message: string): string | null {
       }
     }
   }
+  return null;
+}
+
+/**
+ * Check if a message looks like an airport clarification response
+ * (contains ICAO codes or airport names in a pattern suggesting a route)
+ */
+function isAirportClarificationResponse(message: string): boolean {
+  // Pattern: Contains ICAO airport codes (K followed by 3 letters) with "to" or arrow
+  const hasIcaoCodePair = /\bK[A-Z]{3}\b.*?(?:to|→|->|–)\s*\bK?[A-Z]{3,4}\b/i.test(message);
+
+  // Pattern: Contains airport name with parenthetical code
+  const hasAirportWithCode = /\([A-Z]{3,4}\).*?(?:to|→|->)\s*.*?\([A-Z]{3,4}\)/i.test(message);
+
+  // Pattern: Simple ICAO code pair like "KTEB KMCI" or "KTEB to KMCI"
+  const hasSimpleCodePair = /^[A-Z]{4}\s*(?:to|→|->|–|\s)\s*[A-Z]{4}/i.test(message.trim());
+
+  return hasIcaoCodePair || hasAirportWithCode || hasSimpleCodePair;
+}
+
+/**
+ * Check if assistant message is asking for clarification about airports or trip details
+ */
+function isAskingForTripClarification(content: string): boolean {
+  const lower = content.toLowerCase();
+  return (
+    lower.includes('which airport') ||
+    lower.includes('departure airport') ||
+    lower.includes('arrival airport') ||
+    lower.includes('i still need') ||
+    lower.includes('icao') ||
+    lower.includes('airport code') ||
+    lower.includes('please tell me which') ||
+    lower.includes('confirm the time') ||
+    lower.includes('which one did you mean') ||
+    (lower.includes('new jersey') && lower.includes('kansas city')) ||
+    /kteb|kewr|kmmu|kcdw|kmci|kmkc/i.test(content)
+  );
+}
+
+/**
+ * Detect intent from message WITH conversation history context.
+ * This fixes the multi-turn conversation bug where clarification responses
+ * don't match intent patterns and cause the agent to lose context.
+ *
+ * @param currentMessage Current user message
+ * @param conversationHistory Previous conversation turns
+ * @returns Detected intent key or null
+ */
+export function detectIntentWithHistory(
+  currentMessage: string,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+): string | null {
+  // First, try to detect intent from current message (existing behavior)
+  const currentIntent = detectIntent(currentMessage);
+  if (currentIntent) {
+    return currentIntent;
+  }
+
+  // If no intent detected and message looks like airport clarification,
+  // check if we're in the middle of a trip creation flow
+  if (isAirportClarificationResponse(currentMessage)) {
+    // Check if the last assistant message was asking for airport clarification
+    const lastAssistantMsg = [...conversationHistory]
+      .reverse()
+      .find(m => m.role === 'assistant');
+
+    if (lastAssistantMsg && isAskingForTripClarification(lastAssistantMsg.content)) {
+      return 'create_rfp';
+    }
+  }
+
+  // Scan conversation history for a previous create_rfp intent that we should maintain
+  for (let i = conversationHistory.length - 1; i >= 0; i--) {
+    const msg = conversationHistory[i];
+    if (msg.role === 'user') {
+      const historicalIntent = detectIntent(msg.content);
+      if (historicalIntent === 'create_rfp') {
+        // Found a previous create_rfp intent - check if assistant was asking for clarification
+        const nextMsg = conversationHistory[i + 1];
+        if (nextMsg?.role === 'assistant' && isAskingForTripClarification(nextMsg.content)) {
+          // User is responding to clarification, maintain the intent
+          return 'create_rfp';
+        }
+      }
+    }
+  }
+
   return null;
 }
 

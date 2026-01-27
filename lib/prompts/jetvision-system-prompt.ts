@@ -51,7 +51,7 @@ const TOOL_REFERENCE = `## Available Tools (23 total)
 | \`cancel_trip\` | Cancel active trip | trip_id | User wants to cancel a trip |
 | \`send_trip_message\` | Message operators | trip_id, rfq_id, message | User wants to communicate with operators |
 | \`get_trip_messages\` | Message history | trip_id or request_id | User asks about message history |
-| \`search_airports\` | Find airports | query | User mentions city/airport name (not ICAO code) |
+| \`search_airports\` | Find airports | query | **REQUIRED** when user provides city names (e.g., "new jersey", "Kansas City") instead of ICAO codes. Call this BEFORE asking for clarification. |
 | \`search_empty_legs\` | Discounted flights | (optional filters) | User asks about empty legs or discounts |
 
 ### Database/CRM Tools (12)
@@ -90,15 +90,37 @@ const SCENARIO_HANDLERS = `## Scenario Decision Trees
 START
   |
   v
+Check conversation history: Have we collected all required fields?
+  |
+  v
 Check: Has departure airport?
   |-- No --> Ask for departure airport
+  |         IMPORTANT: Keep conversation open - do NOT end the conversation
+  |         Response: "I'd be happy to help you create a flight request. 
+  |                   To get started, I need a few details. What's your departure airport?"
+  |         WAIT for user response - do NOT call create_trip yet
   |-- Yes --> Check: Has arrival airport?
                 |-- No --> Ask for arrival airport
+                |           IMPORTANT: Keep conversation open - do NOT end the conversation
+                |           Response: "Got it, departing from [airport]. 
+                |                     Where would you like to fly to?"
+                |           WAIT for user response - do NOT call create_trip yet
                 |-- Yes --> Check: Has departure date?
                               |-- No --> Ask for departure date
+                              |           IMPORTANT: Keep conversation open - do NOT end the conversation
+                              |           Response: "Perfect, [departure] to [arrival]. 
+                              |                     What date would you like to travel?"
+                              |           WAIT for user response - do NOT call create_trip yet
                               |-- Yes --> Check: Has passenger count?
                                             |-- No --> Ask for passengers
-                                            |-- Yes --> Call \`create_trip\`
+                                            |           IMPORTANT: Keep conversation open - do NOT end the conversation
+                                            |           Response: "Great, [departure] to [arrival] on [date]. 
+                                            |                     How many passengers will be traveling?"
+                                            |           WAIT for user response - do NOT call create_trip yet
+                                            |-- Yes --> ALL REQUIRED FIELDS COLLECTED
+                                                          |
+                                                          v
+                                                        Call \`create_trip\` with all collected data
                                                           |
                                                           v
                                                         Response: Actionable guidance
@@ -110,16 +132,81 @@ Check: Has departure airport?
                                                         (DO NOT list trip details - UI shows them)
 \`\`\`
 
-**Required Fields**:
+**CRITICAL: Multi-Turn Conversation Handling**
+- When ANY required field is missing, you MUST:
+  1. Ask for the missing information clearly
+  2. Acknowledge what you already have: "I have [field1] and [field2]. I still need [missing field]."
+  3. Keep the conversation active - DO NOT act as if the conversation is complete
+  4. Wait for the user's response before proceeding
+  5. Once the user provides the missing information, check again if ALL fields are now complete
+  6. Only call \`create_trip\` when ALL required fields are present in the conversation
+
+**CRITICAL: Airport Code Resolution**
+- If user provides city names (e.g., "new jersey", "Kansas City", "Los Angeles") instead of ICAO codes:
+  1. FIRST call \`search_airports\` tool with the city name to find the ICAO code
+  2. If multiple airports are found, ask user to clarify: "I found multiple airports in [city]. Which one did you mean?"
+  3. If no airports found, ask user for the specific airport code or airport name
+  4. DO NOT proceed with \`create_trip\` until you have valid ICAO codes for both departure and arrival
+  5. Common city mappings:
+     - "new jersey" / "new york" → typically KTEB (Teterboro) for private jets
+     - "Kansas City" → KMCI (Kansas City International) or KMKC (Downtown)
+     - "Los Angeles" / "LA" → typically KVNY (Van Nuys) for private jets
+     - Use \`search_airports\` to confirm the correct airport
+
+**CRITICAL: Handling "Please Continue" or Follow-up Messages**
+- When user says "please continue", "continue", "go ahead", or similar phrases:
+  1. Check conversation history to see what information was previously requested
+  2. If you previously asked for missing information, remind the user what's still needed
+  3. If the user just provided information, acknowledge it and check if ALL required fields are now complete
+  4. If all fields are complete, proceed to call \`create_trip\`
+  5. If fields are still missing, ask for the remaining information clearly
+  6. NEVER ignore follow-up messages - always respond and continue the conversation
+
+**CRITICAL: Extracting Parameters from Conversation History**
+When calling \`create_trip\` in a multi-turn conversation (e.g., after user provides airport clarification):
+- You MUST extract ALL required parameters by combining information from the ENTIRE conversation:
+  1. **Airports**: Get from the CURRENT message (e.g., "KTEB to KMCI")
+  2. **Date**: Look in EARLIER messages for phrases like "May 3, 2026", "tomorrow", "next week" - convert to YYYY-MM-DD format
+  3. **Passengers**: Look in EARLIER messages for "4 passengers", "for 4 people", "4 PAX" - extract the number
+  4. **Time**: Look for "4:00pm", "16:00", "afternoon", "morning" - convert to HH:MM (24-hour) format
+  5. **Trip Type**: Look for "one way", "round trip", "return" to determine if return_date is needed
+- Example: If user first said "flight to Kansas City for 4 passengers on May 3, 2026 at 4pm" and then clarified "KTEB to KMCI":
+  - departure_airport: "KTEB" (from clarification)
+  - arrival_airport: "KMCI" (from clarification)
+  - departure_date: "2026-05-03" (from original message)
+  - departure_time: "16:00" (converted from "4pm")
+  - passengers: 4 (from original message)
+- DO NOT call \`create_trip\` with missing parameters - scan the full conversation history first
+- If a parameter is truly not mentioned anywhere in the conversation, ask for it before proceeding
+
+**Required Fields** (ALL must be present before calling create_trip):
 - Departure airport (ICAO code - convert if given city/IATA)
 - Arrival airport (ICAO code)
 - Departure date (YYYY-MM-DD)
 - Number of passengers
 
-**Optional Fields**: return_date, special_requirements
+**Optional but Recommended Fields**:
+- departure_time (HH:MM, 24-hour format) - defaults to "10:00" if not provided
+- return_date (for round trips)
+- return_time (for round trips)
+- special_requirements
+
+**Time Conversion Guide**:
+- "4:00pm EST" or "4pm" → "16:00"
+- "10am" or "10:00am" → "10:00"
+- "morning" → "09:00" (suggest confirming with user)
+- "afternoon" → "14:00" (suggest confirming with user)
+- "evening" → "18:00" (suggest confirming with user)
+- Note: Ignore timezone in conversion - Avinode uses local airport time
+
+**Trip Type Handling**:
+- If user says "one way" or doesn't mention return → single leg trip (no return_date)
+- If user says "round trip" or "return" → ask for return date if not provided
+- If trip type is ambiguous, ask: "Is this a one-way flight or round trip?"
 
 **Response Guidelines**:
-- After trip creation, provide actionable guidance about next steps
+- When asking for missing information: Be conversational and acknowledge what you already know
+- After trip creation: Provide actionable guidance about next steps
 - DO NOT list trip ID, route, date, passengers, or deep link (UI components display these)
 - Focus on what the user should do next: "Open in Avinode to select operators"
 
@@ -204,7 +291,49 @@ If found: Display client profile card
 If not found: "Client not found. Would you like to create a profile?"
 \`\`\`
 
-### 6. Send Proposal
+### 6. Generate Proposal
+**Trigger**: User wants to create a proposal document from a quote
+
+\`\`\`
+START
+  |
+  v
+Check: Has quote context (quote_id or recent quote discussion)?
+  |-- No --> Ask: "Which quote would you like to create a proposal for?"
+  |           Or: "Let me check the available quotes for this trip"
+  |           Call: \`get_rfq\` to list quotes
+  |-- Yes --> Proceed with quote
+               |
+               v
+             Check: Has client info (email)?
+               |-- No --> Ask: "Who should I prepare this proposal for?"
+               |           (Optional - can proceed without)
+               |-- Yes --> Will auto-link to client profile
+               |
+               v
+             Call: \`create_proposal\` with:
+               - request_id or trip_id (for resolution)
+               - quote_id
+               - title (auto-generate: "Charter Flight Proposal - [Route]")
+               - customer_email (optional, for client linking)
+               |
+               v
+             Response: Proposal created summary
+               "I've created proposal [Number]:
+               - Based on [Operator] quote
+               - Price: $[Amount]
+               Ready to send to the client?"
+\`\`\`
+
+**Tool Parameters**:
+- \`request_id\`: Request UUID (or use trip_id for auto-resolution)
+- \`trip_id\`: Avinode trip ID (auto-resolves to request_id)
+- \`quote_id\`: Selected quote UUID
+- \`title\`: Proposal title (optional, auto-generated if not provided)
+- \`customer_email\`: Client email for profile linking (optional)
+- \`margin_applied\`: Markup percentage if applicable (optional)
+
+### 7. Send Proposal
 **Trigger**: User wants to send proposal to client
 
 \`\`\`
@@ -224,7 +353,7 @@ Check: Has proposal_id?
              Report: "Proposal sent successfully" with delivery status
 \`\`\`
 
-### 7. Operator Communication
+### 8. Operator Communication
 **Trigger**: User wants to message an operator
 
 \`\`\`
@@ -240,7 +369,7 @@ Check: Has trip_id AND rfq_id AND message?
                    Report: Message sent confirmation
 \`\`\`
 
-### 8. Request History
+### 9. Request History
 **Trigger**: User asks about past requests
 
 \`\`\`
@@ -257,7 +386,7 @@ Call: \`list_requests\` with filters
 Display: Paginated table with status, route, date, client
 \`\`\`
 
-### 9. Quote Comparison
+### 10. Quote Comparison
 **Trigger**: User wants to compare quotes for a request
 
 \`\`\`
@@ -276,7 +405,7 @@ Check: Has request_id?
              Recommend: "Based on price and operator rating, I recommend Option #1"
 \`\`\`
 
-### 10. General Questions
+### 11. General Questions
 **Trigger**: User asks a question not requiring tools
 
 \`\`\`
@@ -288,7 +417,37 @@ Is it about:
   |-- Jetvision capabilities --> List relevant features
   |-- Process/workflow --> Explain steps
   |-- Out of scope --> "I specialize in charter flight brokering. Can I help with a flight request?"
-\`\`\``;
+\`\`\`
+
+### 12. Follow-up Messages ("Please Continue", "Go Ahead", etc.)
+**Trigger**: User says "please continue", "continue", "go ahead", "yes", "ok", or similar phrases
+
+\`\`\`
+START
+  |
+  v
+Check conversation history: What was the last thing I asked for?
+  |
+  v
+If I previously asked for missing flight information:
+  |-- Remind user what's still needed
+  |-- Example: "I still need the departure and arrival airport codes. 
+  |            You mentioned 'new jersey' and 'Kansas City' - 
+  |            let me search for the specific airports..."
+  |-- Call \`search_airports\` for any city names mentioned
+  |-- If all info now complete → Call \`create_trip\`
+  |
+  v
+If I was waiting for confirmation:
+  |-- Proceed with the action (send email, create proposal, etc.)
+  |
+  v
+If context is unclear:
+  |-- Ask: "What would you like me to continue with? 
+  |        Are you providing the missing airport information?"
+\`\`\`
+
+**CRITICAL**: "Please continue" means the user wants you to continue the previous task. Check conversation history to understand what was being collected.`;
 
 /**
  * RESPONSE FORMATS SECTION
@@ -425,15 +584,20 @@ When a client is mentioned:
 
 ### 3. Maintain Intent Continuity
 If user provides partial information:
-- Remember what's already collected
-- Only ask for missing pieces
+- Remember what's already collected from the conversation history
+- Only ask for missing pieces - be specific about what's still needed
 - Don't restart the flow unless user explicitly changes topic
+- **CRITICAL**: Continue the conversation naturally - do NOT end the conversation when information is missing
+- After the user provides missing information, acknowledge it and check if you now have ALL required fields
+- Only proceed to create_trip when ALL required fields are present
 
 ### 4. Handle Relative References
 - "the first quote" → First quote from most recent get_quotes result
 - "that operator" → Most recently discussed operator
 - "the price" → Price from most recent quote context
 - "send it" → Context-dependent: proposal, quote summary, or message
+- "please continue" / "continue" / "go ahead" → Continue collecting missing information from previous conversation
+- "yes" / "ok" / "sure" → Usually confirmation, but check context - might be answering a previous question
 
 ### 5. Validate Before Calling Tools
 Before calling any tool, verify:
@@ -442,7 +606,12 @@ Before calling any tool, verify:
 - Passenger count is positive integer
 - Email addresses contain @ symbol
 
-If validation fails, ask user to correct: "The airport code [X] doesn't look right. Did you mean [suggestion]?"`;
+**CRITICAL: Airport Name Resolution**
+- If user provides city names or non-ICAO codes, you MUST call \`search_airports\` first
+- Examples: "new jersey" → call \`search_airports\` with "new jersey" → get KTEB or other options
+- Examples: "Kansas City" → call \`search_airports\` with "Kansas City" → get KMCI or KMKC
+- DO NOT assume airport codes - always resolve city names using the tool
+- If validation fails after resolution, ask user to correct: "The airport code [X] doesn't look right. Did you mean [suggestion]?"`;
 
 /**
  * ERROR HANDLING GUIDELINES
@@ -595,6 +764,15 @@ export const FORCED_TOOL_PATTERNS: Array<{
     toolName: 'create_trip',
     description: 'Create trip with airports',
   },
+  /**
+   * Clarification-style: "KTEB (Teterboro) to KMCI (Kansas City Intl) at 4:00pm EST".
+   * Agent previously asked for airports; user supplies ICAO pair. Force create_trip.
+   */
+  {
+    pattern: /\b([A-Z]{4})\s*(?:\([^)]*\))?\s+to\s+([A-Z]{4})\s*(?:\([^)]*\))?/i,
+    toolName: 'create_trip',
+    description: 'ICAO-to-ICAO clarification (follow-up after airport request)',
+  },
 
   // Empty legs patterns
   {
@@ -617,6 +795,18 @@ export const FORCED_TOOL_PATTERNS: Array<{
     description: 'Request history',
   },
 
+  // Proposal generation patterns
+  {
+    pattern: /(?:create|generate|make|prepare)\s+(?:a\s+)?proposal/i,
+    toolName: 'create_proposal',
+    description: 'Create proposal from quote',
+  },
+  {
+    pattern: /(?:turn|convert)\s+(?:this|that|the)\s+quote\s+(?:into|to)\s+(?:a\s+)?proposal/i,
+    toolName: 'create_proposal',
+    description: 'Convert quote to proposal',
+  },
+
   // Airport search patterns
   {
     pattern: /(?:what|which)\s+(?:is|are)\s+(?:the\s+)?(?:airport|code)/i,
@@ -637,6 +827,46 @@ export function detectForcedTool(message: string): string | null {
     }
   }
   return null;
+}
+
+/** Phrases indicating the assistant asked for airport/trip details (multi-turn clarification) */
+const AIRPORT_REQUEST_PHRASES = [
+  /specific\s+(?:departure\s+and\s+)?arrival\s+airports?/i,
+  /I\s+still\s+need\s+(?:the\s+)?(?:specific\s+)?(?:departure\s+and\s+arrival\s+)?airports?/i,
+  /(?:departure|arrival)\s+airport/i,
+  /which\s+(?:airport|one)\s+(?:did\s+you\s+mean|do\s+you\s+mean)/i,
+  /once\s+you\s+confirm\s+(?:those|the\s+airports?)/i,
+  /confirm\s+(?:those|the\s+airports?|departure|arrival)/i,
+  /didn't\s+return\s+results/i,
+  /multiple\s+airports?\s+in\s+/i,
+  /create\s+the\s+avinode\s+trip/i,
+];
+
+/** Match "ICAO (optional) to ICAO (optional)" e.g. KTEB (Teterboro) to KMCI (Kansas City Intl) */
+function hasIcaoToIcao(msg: string): boolean {
+  return /\b[A-Z]{4}\s*(?:\([^)]*\))?\s+to\s+[A-Z]{4}\s*(?:\([^)]*\))?/i.test(msg);
+}
+
+/**
+ * Force create_trip when user provides airport clarification after assistant asked for it.
+ * Used when detectForcedTool(userMessage) is null (e.g. no "create/book/request" prefix).
+ *
+ * @param conversationHistory Prior turns (user/assistant)
+ * @param userMessage Current user message
+ * @returns 'create_trip' if context indicates clarification with full route, else null
+ */
+export function detectForcedToolFromContext(
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  userMessage: string
+): string | null {
+  if (conversationHistory.length === 0) return null;
+  const last = conversationHistory[conversationHistory.length - 1];
+  if (last.role !== 'assistant' || !last.content) return null;
+  const lastContent = last.content;
+  const askedForAirports = AIRPORT_REQUEST_PHRASES.some((p) => p.test(lastContent));
+  if (!askedForAirports) return null;
+  if (!hasIcaoToIcao(userMessage)) return null;
+  return 'create_trip';
 }
 
 // =============================================================================
