@@ -38,7 +38,9 @@ const ChatRequestSchema = z.object({
     tripId: z.string().optional(),
   }).optional(),
   skipMessagePersistence: z.boolean().optional().default(false),
-  tripId: z.string().optional(), // Allow tripId at top level for convenience
+  tripId: z.string().optional(),
+  /** Fallback for context.conversationId; ensures same request used when client sends requestId. */
+  requestId: z.string().optional(),
 });
 
 // =============================================================================
@@ -130,7 +132,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: validation.error.message }, { status: 400 });
     }
 
-    const { message, conversationHistory, context, skipMessagePersistence, tripId: requestTripId } = validation.data;
+    const { message, conversationHistory, context, skipMessagePersistence, tripId: requestTripId, requestId: topLevelRequestId } = validation.data;
 
     // 3. Get ISO agent ID
     console.log('[Chat API] Looking up ISO agent for Clerk user:', userId);
@@ -151,15 +153,17 @@ export async function POST(req: NextRequest) {
 
     // 4. Get or create conversation
     const conversationType = classifyConversationType(message);
-    let conversationId = context?.conversationId;
+    let conversationId = context?.conversationId ?? topLevelRequestId;
 
     if (!conversationId || conversationId.startsWith('temp-')) {
-      // Create new conversation
       conversationId = await getOrCreateConversation({
         userId: isoAgentId,
         subject: message.slice(0, 100),
         type: conversationType === 'flight_request' ? 'rfp_negotiation' : 'general_inquiry',
       });
+      console.log('[Chat API] Created new request:', { conversationId, historyLength: conversationHistory?.length ?? 0 });
+    } else {
+      console.log('[Chat API] Reusing request:', { conversationId, historyLength: conversationHistory?.length ?? 0 });
     }
 
     // 5. Save user message (skip if explicitly requested for background operations like get_rfq)

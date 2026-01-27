@@ -132,8 +132,9 @@ export default function JetvisionAgent() {
         )
 
         const sessionsWithMessages = sessions.map((session) => {
-          if (!session.requestId) return session
-          const messages = messagesMap.get(session.requestId)
+          const requestKey = session.requestId || session.conversationId
+          if (!requestKey) return session
+          const messages = messagesMap.get(requestKey)
           if (!messages || messages.length === 0) return session
 
           const transformedMessages = messages.map((msg: DbMessageLike) => mapDbMessageToChatMessage(msg))
@@ -226,10 +227,11 @@ export default function JetvisionAgent() {
         conversationId: session.conversationId,
       });
 
-      // PRIORITY 1: Use requestId via /api/requests (most reliable for flight requests)
-      if (session.requestId) {
+      // PRIORITY 1: Use requestId (or conversationId as fallback) via /api/requests
+      const requestKey = session.requestId || session.conversationId;
+      if (requestKey) {
         try {
-          console.log('[loadMessagesForSession] Attempting to load via requests API with requestId:', session.requestId);
+          console.log('[loadMessagesForSession] Attempting to load via requests API with requestKey:', requestKey);
           const requestsResponse = await fetch(`/api/requests?limit=50`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -237,7 +239,7 @@ export default function JetvisionAgent() {
 
           if (requestsResponse.ok) {
             const requestsData = await requestsResponse.json();
-            const requestMessages = requestsData.messages?.[session.requestId] || [];
+            const requestMessages = requestsData.messages?.[requestKey] || [];
             
             if (requestMessages.length > 0) {
               messages = requestMessages.map((msg: { id: string; senderType?: string; content: string; createdAt: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
@@ -251,7 +253,7 @@ export default function JetvisionAgent() {
               // DEBUG: Log proposal_shared messages specifically
               const proposalMessages = messages.filter((m: any) => m.contentType === 'proposal_shared');
               console.log('[loadMessagesForSession] ✅ Loaded messages via requests API:', {
-                requestId: session.requestId,
+                requestKey,
                 messageCount: messages.length,
                 firstMessage: messages[0]?.content?.substring(0, 50),
                 proposalMessageCount: proposalMessages.length,
@@ -263,11 +265,11 @@ export default function JetvisionAgent() {
                 })),
               });
             } else {
-              console.warn('[loadMessagesForSession] ⚠️ No messages found in requests API for requestId:', session.requestId);
+              console.warn('[loadMessagesForSession] ⚠️ No messages found in requests API for requestKey:', requestKey);
             }
           } else {
             console.warn('[loadMessagesForSession] ⚠️ Requests API failed:', {
-              requestId: session.requestId,
+              requestKey,
               status: requestsResponse.status,
             });
           }

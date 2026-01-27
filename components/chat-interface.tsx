@@ -551,6 +551,24 @@ export function ChatInterface({
       }
     }
 
+    // CRITICAL: Prevent creating a new request when continuing a conversation.
+    // If we have prior messages but no conversationId/requestId, the API would create a new
+    // request and subsequent messages would be saved there—so the original request would
+    // contain only the first exchange, and we'd "lose" it after refresh.
+    const conversationIdOrRequestId = activeChat.conversationId || activeChat.requestId
+    const hasPriorMessages = existingMessages.length > 0
+    if (hasPriorMessages && !conversationIdOrRequestId) {
+      console.error('[ChatInterface] Blocking send: prior messages exist but no conversationId/requestId', {
+        existingCount: existingMessages.length,
+        activeChatId: activeChat.id,
+      })
+      setStreamError('Session link missing. Please refresh the page and try again.')
+      setIsTyping(false)
+      onProcessingChange(false)
+      abortControllerRef.current = null
+      return
+    }
+
     // Update chat session immediately with parsed flight details
     onUpdateChat(activeChat.id, sessionUpdates)
 
@@ -561,10 +579,11 @@ export function ChatInterface({
         body: JSON.stringify({
           message,
           tripId: activeChat.tripId,
-          // Send conversationId in context object (API expects context.conversationId, not top-level requestId)
-          // This ensures all messages in a conversation are saved to the same request ID
+          requestId: conversationIdOrRequestId ?? undefined,
+          // Send conversationId in context (API expects context.conversationId).
+          // Ensures all messages in a conversation are saved to the same request ID.
           context: {
-            conversationId: activeChat.conversationId || activeChat.requestId,
+            conversationId: conversationIdOrRequestId ?? undefined,
             tripId: activeChat.tripId,
           },
           conversationHistory: existingMessages.map((m) => ({
@@ -1099,20 +1118,20 @@ export function ChatInterface({
         historyLength: conversationHistory.length,
       })
 
+      const convOrReqId = activeChat.conversationId || activeChat.requestId
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Use direct instruction format - agent's system prompt says: "Use `get_rfq` when given a trip ID"
-          // Trip IDs can be 6-char codes (like R4QFRX, 5F463X) or atrip-* format
           message: `Get RFQs for Trip ID ${tripId}`,
           tripId,
           conversationHistory,
+          requestId: convOrReqId ?? undefined,
           context: {
-            conversationId: activeChat.conversationId || activeChat.requestId,
+            conversationId: convOrReqId ?? undefined,
             tripId,
           },
-          skipMessagePersistence: true, // Skip saving this technical tool call to conversation history
+          skipMessagePersistence: true,
         }),
       })
 
