@@ -490,7 +490,7 @@ aria-live={role === 'agent' ? 'polite' : undefined}
 ### 9.1 Automated Tests to Add
 
 ```typescript
-// __tests__/e2e/chat-rfp-flow.spec.ts
+// __tests__/e2e/chat-rfq-flow.spec.ts
 test.describe('RFP User Flow', () => {
   test('complete flight request flow', async ({ page }) => {
     await page.goto('/');

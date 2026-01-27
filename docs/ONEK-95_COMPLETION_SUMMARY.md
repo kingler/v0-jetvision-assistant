@@ -17,7 +17,7 @@ Successfully implemented a production-ready conversational RFP gathering system 
 
 **Location:** `lib/conversation/`
 
-#### RFPFlow (`rfp-flow.ts`)
+#### RFPFlow (`rfq-flow.ts`)
 - Progressive disclosure state machine (5 steps)
 - Step transitions with history tracking
 - Navigation support (go back, skip optional)
@@ -44,7 +44,7 @@ Successfully implemented a production-ready conversational RFP gathering system 
 
 **Location:** `hooks/`
 
-#### useRFPFlow Hook (`use-rfp-flow.ts`)
+#### useRFPFlow Hook (`use-rfq-flow.ts`)
 - React state management for RFP flow
 - Auto re-rendering on state changes
 - Lifecycle methods (activate, deactivate, reset)
@@ -56,7 +56,7 @@ Successfully implemented a production-ready conversational RFP gathering system 
 - Auto-save on changes
 - Auto-restore on mount
 - Cleanup on reset
-- **Part of use-rfp-flow.ts**
+- **Part of use-rfq-flow.ts**
 
 #### useRFPOrchestrator Hook (`use-rfp-orchestrator.ts`)
 - Combined RFP flow + orchestrator execution
@@ -69,7 +69,7 @@ Successfully implemented a production-ready conversational RFP gathering system 
 
 **Location:** `components/`
 
-#### RFPFlowCard (`rfp-flow-card.tsx`)
+#### RFPFlowCard (`rfq-flow-card.tsx`)
 - Progress bar (0-100%)
 - Step indicators (5 steps)
 - Current question display
@@ -96,13 +96,13 @@ Successfully implemented a production-ready conversational RFP gathering system 
 **Location:** `__tests__/`
 
 #### Unit Tests
-- `rfp-flow.test.ts` - 31 tests
+- `rfq-flow.test.ts` - 31 tests
 - `intent-extractor.test.ts` - 19 tests
 - `field-validator.test.ts` - 17 tests
 - **Total: 67 unit tests (100% passing)**
 
 #### Integration Tests
-- `rfp-flow.integration.test.ts` - 26 tests
+- `rfq-flow.integration.test.ts` - 26 tests
   - Complete happy path flows
   - Error recovery scenarios
   - Navigation and state management
@@ -269,7 +269,7 @@ Supports multiple phrasings for each field:
 ### Unit Tests (67 tests)
 
 ```
-rfp-flow.test.ts
+rfq-flow.test.ts
   ✓ Initialization (3 tests)
   ✓ Step Progression (3 tests)
   ✓ Field Extraction (6 tests)
@@ -299,7 +299,7 @@ Result: 67/67 PASSING (100%)
 ### Integration Tests (26 tests)
 
 ```
-rfp-flow.integration.test.ts
+rfq-flow.integration.test.ts
   ✓ Complete Happy Path Flow (3 tests)
   ✓ Error Recovery and Validation (5 tests)
   ✓ Navigation and State Management (3 tests)
@@ -349,7 +349,7 @@ Result: 26/26 PASSING (100%)
 1. **Merge to Main**
    ```bash
    git checkout main
-   git merge feat/ONEK-95-conversational-rfp-flow
+   git merge feat/ONEK-95-conversational-rfq-flow
    git push origin main
    ```
 
@@ -460,24 +460,24 @@ Replace in-memory conversation state:
 ## Files Created
 
 ### Core Module (855 lines)
-- `lib/conversation/rfp-flow.ts` (266 lines)
+- `lib/conversation/rfq-flow.ts` (266 lines)
 - `lib/conversation/intent-extractor.ts` (429 lines)
 - `lib/conversation/field-validator.ts` (148 lines)
 - `lib/conversation/index.ts` (12 lines)
 
 ### Integration Layer (635 lines)
-- `hooks/use-rfp-flow.ts` (160 lines)
+- `hooks/use-rfq-flow.ts` (160 lines)
 - `hooks/use-rfp-orchestrator.ts` (215 lines)
-- `components/rfp-flow-card.tsx` (280 lines)
+- `components/rfq-flow-card.tsx` (280 lines)
 
 ### Service Layer (260 lines)
 - `lib/services/rfp-orchestrator-service.ts` (260 lines)
 
 ### Tests (1,200+ lines)
-- `__tests__/unit/conversation/rfp-flow.test.ts` (~400 lines)
+- `__tests__/unit/conversation/rfq-flow.test.ts` (~400 lines)
 - `__tests__/unit/conversation/intent-extractor.test.ts` (~300 lines)
 - `__tests__/unit/conversation/field-validator.test.ts` (~250 lines)
-- `__tests__/integration/conversation/rfp-flow.integration.test.ts` (~550 lines)
+- `__tests__/integration/conversation/rfq-flow.integration.test.ts` (~550 lines)
 
 ### Documentation (925 lines)
 - `docs/RFP_FLOW_INTEGRATION.md` (282 lines)

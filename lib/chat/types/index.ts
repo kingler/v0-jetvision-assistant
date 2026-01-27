@@ -120,6 +120,15 @@ export interface Quote {
     price: number;
     currency: string;
   };
+  // FIX: Initial RFQ submission price (for Unanswered status before operators respond)
+  estimatedPrice?: {
+    amount: number;
+    currency: string;
+  };
+  estimated_price?: {
+    amount: number;
+    currency: string;
+  };
   total_price?: number;
   price?: number;
   totalPrice?: { amount?: number; currency?: string };

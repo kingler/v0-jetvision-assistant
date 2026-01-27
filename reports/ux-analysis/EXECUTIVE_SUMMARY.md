@@ -207,13 +207,13 @@ After implementing fixes:
 
 1. `reports/ux-analysis/COMPREHENSIVE_UX_AUDIT_REPORT.md` - Full analysis
 2. `reports/ux-analysis/EXECUTIVE_SUMMARY.md` - This summary
-3. `__tests__/e2e/chat-rfp-flow.spec.ts` - Automated test suite
+3. `__tests__/e2e/chat-rfq-flow.spec.ts` - Automated test suite
 
 ## Running Tests
 
 ```bash
 # Run UX E2E tests
-npx playwright test __tests__/e2e/chat-rfp-flow.spec.ts
+npx playwright test __tests__/e2e/chat-rfq-flow.spec.ts
 
 # Run with UI mode
 npx playwright test --ui

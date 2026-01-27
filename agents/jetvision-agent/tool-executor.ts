@@ -20,6 +20,15 @@ import {
   type QueryOptions,
 } from '@/lib/supabase/mcp-helpers';
 
+// Import Proposal Service for rich proposal operations
+import {
+  createProposalWithResolution,
+  getProposalById,
+  getProposalsByRequest,
+  updateProposalSent,
+  updateProposalStatus,
+} from '@/lib/services/proposal-service';
+
 // =============================================================================
 // MCP SERVER INTERFACES
 // =============================================================================
@@ -369,40 +378,47 @@ export class ToolExecutor {
   }
 
   private async createProposal(params: Record<string, unknown>): Promise<unknown> {
-    const { request_id, quote_id, title, margin_applied } = params;
+    const { request_id, quote_id, title, margin_applied, trip_id, customer_email } = params;
 
-    // Generate proposal number
-    const proposalNumber = `PRO-${Date.now().toString(36).toUpperCase()}`;
+    // Use proposal-service with automatic resolution of trip_id and customer_email
+    const result = await createProposalWithResolution(
+      {
+        request_id: request_id as string | undefined,
+        quote_id: quote_id as string | undefined,
+        iso_agent_id: this.context.isoAgentId,
+        title: (title as string) || 'Charter Flight Proposal',
+        margin_applied: margin_applied as number | undefined,
+        file_name: '', // Will be set when PDF is generated
+        file_url: '',
+      },
+      trip_id as string | undefined,
+      customer_email as string | undefined
+    );
 
-    const result = await insertRow('proposals', {
-      request_id,
-      quote_id,
-      iso_agent_id: this.context.isoAgentId,
-      proposal_number: proposalNumber,
-      title,
-      margin_applied,
-      status: 'draft',
-      file_name: `${proposalNumber}.pdf`,
-      file_url: '',
-    });
+    if (!result) {
+      throw new Error('Failed to create proposal - could not resolve request from trip_id');
+    }
 
-    if (result.error) throw new Error(result.error);
-    return result.data;
+    console.log('[ToolExecutor] Created proposal via proposal-service:', result);
+    return result;
   }
 
   private async getProposal(params: Record<string, unknown>): Promise<unknown> {
-    const { proposal_id } = params;
+    const { proposal_id, request_id } = params;
 
-    const result = await queryTable('proposals', {
-      filter: {
-        id: proposal_id,
-        iso_agent_id: this.context.isoAgentId,
-      },
-      limit: 1,
-    });
+    // Get by proposal ID
+    if (proposal_id) {
+      const proposal = await getProposalById(proposal_id as string);
+      return proposal;
+    }
 
-    if (result.error) throw new Error(result.error);
-    return result.data?.[0] || null;
+    // Get all proposals for a request
+    if (request_id) {
+      const proposals = await getProposalsByRequest(request_id as string);
+      return proposals;
+    }
+
+    throw new Error('Either proposal_id or request_id is required');
   }
 
   // ===========================================================================
@@ -453,11 +469,12 @@ export class ToolExecutor {
     message_id: string;
     proposal_url: string;
     sent_at: string;
+    proposal_number: string;
   }> {
     const { proposal_id, to_email, to_name, custom_message } = params;
 
-    // Get proposal details
-    const proposal = await this.getProposal({ proposal_id }) as Record<string, unknown> | null;
+    // Get proposal details using proposal-service
+    const proposal = await getProposalById(proposal_id as string);
     if (!proposal) {
       throw new Error(`Proposal not found: ${proposal_id}`);
     }
@@ -466,8 +483,13 @@ export class ToolExecutor {
     const request = await this.getRequest({ request_id: proposal.request_id }) as Record<string, unknown> | null;
 
     // Build email content
-    const subject = `Charter Flight Proposal: ${proposal.title}`;
-    const body = this.buildProposalEmailBody(proposal, request, to_name as string, custom_message as string);
+    const subject = `Charter Flight Proposal: ${proposal.title || proposal.proposal_number}`;
+    const body = this.buildProposalEmailBody(
+      proposal as unknown as Record<string, unknown>,
+      request,
+      to_name as string,
+      custom_message as string
+    );
 
     // Send email
     const emailResult = await this.sendEmail({
@@ -476,22 +498,22 @@ export class ToolExecutor {
       body_html: body,
     });
 
-    // Update proposal status
-    await updateRow(
-      'proposals',
-      { id: proposal_id },
-      {
-        status: 'sent',
-        sent_at: new Date().toISOString(),
-        sent_to_email: to_email,
-        sent_to_name: to_name,
-      }
-    );
+    // Update proposal status using proposal-service with full email metadata
+    const updateResult = await updateProposalSent(proposal_id as string, {
+      sent_to_email: to_email as string,
+      sent_to_name: (to_name as string) || 'Customer',
+      email_subject: subject,
+      email_body: body,
+      email_message_id: emailResult.message_id,
+    });
+
+    console.log('[ToolExecutor] Proposal sent via proposal-service:', updateResult);
 
     return {
       message_id: emailResult.message_id,
-      proposal_url: proposal.file_url as string,
-      sent_at: emailResult.sent_at,
+      proposal_url: proposal.file_url || '',
+      sent_at: updateResult.sent_at || emailResult.sent_at,
+      proposal_number: updateResult.proposal_number,
     };
   }
 

@@ -113,7 +113,7 @@ Per [Avinode Create Trip Documentation](https://developer.avinodegroup.com/refer
 
 The original implementation used the wrong endpoint:
 
-**❌ Original**: `POST /rfps`  
+**❌ Original**: `POST /rfqs`  
 **✅ Correct**: `POST /rfqs`
 
 **Reference**: [Create RFQ Documentation](https://developer.avinodegroup.com/reference/createrfq_1)
@@ -299,7 +299,7 @@ Ensure the response handler correctly extracts:
 
 - [x] Authentication headers match API specification
 - [x] Create Trip request body format corrected
-- [x] Create RFQ endpoint corrected (`/rfqs` not `/rfps`)
+- [x] Create RFQ endpoint corrected (`/rfqs` not `/rfqs`)
 - [x] Read RFQ endpoint and query parameters verified
 - [x] Response format handling updated for nested `data` structure
 - [x] Message endpoints verified

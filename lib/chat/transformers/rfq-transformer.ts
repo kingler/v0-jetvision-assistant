@@ -50,68 +50,174 @@ export function extractRouteParts(route?: string): RouteParts {
  * Priority: sellerPrice.price > pricing.total > pricing.amount > totalPrice > total_price > price > totalPrice?.amount
  */
 export function extractPrice(quote: Quote): { price: number; currency: string } {
+  // === DIAGNOSTIC LOGGING (Phase 1: Gather Evidence) ===
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPrice] === PRICE EXTRACTION DEBUG ===');
+    console.log('[extractPrice] Quote ID:', quote.quote_id || quote.quoteId || quote.id);
+    console.log('[extractPrice] Input structure:', {
+      hasSellerPrice: !!quote.sellerPrice,
+      sellerPrice_price: quote.sellerPrice?.price,
+      sellerPrice_currency: quote.sellerPrice?.currency,
+      hasPricing: !!quote.pricing,
+      pricing_total: quote.pricing?.total,
+      pricing_amount: quote.pricing?.amount,
+      pricing_base: quote.pricing?.base,
+      pricing_currency: quote.pricing?.currency,
+      totalPrice_number: typeof (quote as any).totalPrice === 'number' ? (quote as any).totalPrice : 'NOT_NUMBER',
+      totalPrice_object_amount: (quote as any).totalPrice?.amount,
+      total_price: (quote as any).total_price,
+      price: (quote as any).price,
+      // FIX: Added estimatedPrice logging for Unanswered RFQs
+      hasEstimatedPrice: !!(quote as any).estimatedPrice || !!(quote as any).estimated_price,
+      estimatedPrice_amount: (quote as any).estimatedPrice?.amount || (quote as any).estimated_price?.amount,
+      estimatedPrice_currency: (quote as any).estimatedPrice?.currency || (quote as any).estimated_price?.currency,
+    });
+  }
+
   // PRIMARY: sellerPrice (from Avinode API)
   if (quote.sellerPrice?.price && quote.sellerPrice.price > 0) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[extractPrice] ✅ MATCH: sellerPrice.price =', quote.sellerPrice.price);
+    }
     return {
       price: quote.sellerPrice.price,
       currency: quote.sellerPrice.currency || 'USD',
     };
   }
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPrice] ⏭️  SKIP: sellerPrice.price', {
+      exists: !!quote.sellerPrice?.price,
+      value: quote.sellerPrice?.price,
+      isPositive: quote.sellerPrice?.price ? quote.sellerPrice.price > 0 : false,
+    });
+  }
 
   // FALLBACK: pricing object
   if (quote.pricing) {
     const pricingTotal = quote.pricing.total || quote.pricing.amount || quote.pricing.base;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[extractPrice] Pricing chain:', {
+        total: quote.pricing.total,
+        amount: quote.pricing.amount,
+        base: quote.pricing.base,
+        selected: pricingTotal,
+        willReturn: pricingTotal && pricingTotal > 0,
+      });
+    }
     if (pricingTotal && pricingTotal > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[extractPrice] ✅ MATCH: pricing.* =', pricingTotal);
+      }
       return {
         price: pricingTotal,
         currency: quote.pricing.currency || 'USD',
       };
     }
   }
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPrice] ⏭️  SKIP: pricing object');
+  }
 
   // FALLBACK: totalPrice field (direct number, not object)
   // This is a common pattern where the price is stored as totalPrice directly
-  if (typeof (quote as any).totalPrice === 'number' && (quote as any).totalPrice > 0) {
-    return {
-      price: (quote as any).totalPrice,
-      currency: quote.currency || 'USD',
-    };
+  if (typeof (quote as any).totalPrice === 'number') {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[extractPrice] totalPrice (number):', (quote as any).totalPrice, 'valid?', (quote as any).totalPrice > 0);
+    }
+    if ((quote as any).totalPrice > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[extractPrice] ✅ MATCH: totalPrice (number) =', (quote as any).totalPrice);
+      }
+      return {
+        price: (quote as any).totalPrice,
+        currency: quote.currency || 'USD',
+      };
+    }
+  }
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPrice] ⏭️  SKIP: totalPrice (number)');
   }
 
   // FALLBACK: direct price fields
   const directPrice = quote.total_price || quote.price;
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPrice] Direct price fields:', {
+      total_price: quote.total_price,
+      price: (quote as any).price,
+      selected: directPrice,
+      willReturn: directPrice && directPrice > 0,
+    });
+  }
   if (directPrice && directPrice > 0) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[extractPrice] ✅ MATCH: direct price field =', directPrice);
+    }
     return {
       price: directPrice,
       currency: quote.currency || 'USD',
     };
   }
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPrice] ⏭️  SKIP: direct price fields');
+  }
 
   // FALLBACK: totalPrice object
   if (quote.totalPrice && typeof quote.totalPrice === 'object') {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[extractPrice] totalPrice (object):', {
+        amount: quote.totalPrice.amount,
+        currency: quote.totalPrice.currency,
+        willReturn: quote.totalPrice.amount && quote.totalPrice.amount > 0,
+      });
+    }
     if (quote.totalPrice.amount && quote.totalPrice.amount > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[extractPrice] ✅ MATCH: totalPrice.amount =', quote.totalPrice.amount);
+      }
       return {
         price: quote.totalPrice.amount,
         currency: quote.totalPrice.currency || 'USD',
       };
     }
   }
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPrice] ⏭️  SKIP: totalPrice object');
+  }
+
+  // FIX: FALLBACK for estimatedPrice (initial RFQ submission price for Unanswered status)
+  // This is the marketplace/estimated price returned by Avinode before operators respond
+  const estimatedPrice = (quote as any).estimatedPrice || (quote as any).estimated_price;
+  if (estimatedPrice) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[extractPrice] estimatedPrice (initial RFQ price):', {
+        amount: estimatedPrice.amount,
+        currency: estimatedPrice.currency,
+        willReturn: estimatedPrice.amount && estimatedPrice.amount > 0,
+      });
+    }
+    if (estimatedPrice.amount && estimatedPrice.amount > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[extractPrice] ✅ MATCH: estimatedPrice.amount =', estimatedPrice.amount);
+      }
+      return {
+        price: estimatedPrice.amount,
+        currency: estimatedPrice.currency || 'USD',
+      };
+    }
+  }
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPrice] ⏭️  SKIP: estimatedPrice');
+  }
 
   // CRITICAL: Log when price extraction fails for debugging
   if (process.env.NODE_ENV === 'development') {
-    console.warn('[extractPrice] ⚠️ No price found in quote:', {
-      quoteId: quote.quote_id || quote.quoteId || quote.id,
-      availableFields: Object.keys(quote).filter(key => 
-        key.toLowerCase().includes('price') || 
-        key.toLowerCase().includes('amount') ||
-        key.toLowerCase().includes('total')
-      ),
-      sellerPrice: quote.sellerPrice,
-      pricing: quote.pricing,
-      totalPrice: (quote as any).totalPrice,
-      total_price: (quote as any).total_price,
-      price: (quote as any).price,
-    });
+    console.error('[extractPrice] ❌ NO PRICE FOUND - All fallbacks failed');
+    console.error('[extractPrice] Available fields:', Object.keys(quote).filter(key =>
+      key.toLowerCase().includes('price') ||
+      key.toLowerCase().includes('amount') ||
+      key.toLowerCase().includes('total')
+    ));
+    console.error('[extractPrice] Full quote structure:', JSON.stringify(quote, null, 2));
   }
 
   return { price: 0, currency: quote.currency || 'USD' };

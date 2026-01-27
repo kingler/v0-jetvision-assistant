@@ -263,7 +263,7 @@ describe('Avinode MCP Server', () => {
       mockAxiosInstance.post.mockResolvedValue({ data: mockResponse });
 
       // Act
-      const response = await mockAxiosInstance.post('/v1/rfps', rfpParams);
+      const response = await mockAxiosInstance.post('/v1/rfqs', rfpParams);
 
       // Assert
       expect(response.data.rfp_id).toBe('rfp_abc123');
@@ -321,7 +321,7 @@ describe('Avinode MCP Server', () => {
       mockAxiosInstance.get.mockResolvedValue({ data: mockResponse });
 
       // Act
-      const response = await mockAxiosInstance.get('/v1/rfps/rfp_abc123');
+      const response = await mockAxiosInstance.get('/v1/rfqs/rfp_abc123');
 
       // Assert
       expect(response.data.quotes_received).toBe(2);

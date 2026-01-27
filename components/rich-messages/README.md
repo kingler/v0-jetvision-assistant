@@ -168,7 +168,7 @@ See `components/message-components/types.ts` for full type definitions.
 
 ```tsx
 import { MessageList, Message } from '@/components/rich-messages';
-import { useRFPFlow } from '@/hooks/use-rfp-flow';
+import { useRFPFlow } from '@/hooks/use-rfq-flow';
 
 function ChatInterface() {
   const { state, sendMessage } = useRFPFlow();
@@ -243,8 +243,8 @@ All components follow WCAG 2.1 AA guidelines:
 ## Related Components
 
 - `components/message-components/` - Individual message component types
-- `components/rfp-flow-card.tsx` - RFP progress card
-- `hooks/use-rfp-flow.ts` - RFP conversation hook
+- `components/rfq-flow-card.tsx` - RFP progress card
+- `hooks/use-rfq-flow.ts` - RFP conversation hook
 
 ---
 

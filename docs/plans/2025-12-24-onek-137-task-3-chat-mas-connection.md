@@ -301,7 +301,7 @@ const handleStreamData = (data: AgentStreamResponse) => {
 - `chat-interface-agent.test.ts` - Frontend handles agent responses
 
 ### E2E Tests
-- `chat-rfp-flow.spec.ts` - Full RFP conversation flow
+- `chat-rfq-flow.spec.ts` - Full RFP conversation flow
 
 ---
 

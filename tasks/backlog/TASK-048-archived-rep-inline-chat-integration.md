@@ -215,7 +215,7 @@ export interface ArchivedRFPFilters {
 export async function getArchivedRFPs(
   userId: string,
   filters: ArchivedRFPFilters = {}
-): Promise<{ rfps: ArchivedRFPSummary[]; totalCount: number; hasMore: boolean }> {
+): Promise<{ rfqs: ArchivedRFPSummary[]; totalCount: number; hasMore: boolean }> {
   const supabase = await createClient()
 
   const {
@@ -277,7 +277,7 @@ export async function getArchivedRFPs(
   }
 
   // Transform to ArchivedRFPSummary
-  const rfps: ArchivedRFPSummary[] = (data || []).map((row: any) => {
+  const rfqs: ArchivedRFPSummary[] = (data || []).map((row: any) => {
     // Find selected/accepted quote
     const selectedQuote = row.quotes?.find((q: any) =>
       q.status === 'accepted' || q.ranking === 1
@@ -307,7 +307,7 @@ export async function getArchivedRFPs(
   })
 
   return {
-    rfps,
+    rfqs,
     totalCount: count || 0,
     hasMore: (offset + limit) < (count || 0),
   }
@@ -492,14 +492,14 @@ private async handleListArchivedRFPs(
     }
 
     // Query database
-    const { rfps, totalCount, hasMore } = await getArchivedRFPs(userId, filters)
+    const { rfqs, totalCount, hasMore } = await getArchivedRFPs(userId, filters)
 
     // Generate response message
     let content = ''
-    if (rfps.length === 0) {
+    if (rfqs.length === 0) {
       content = 'You don\'t have any archived REPs yet. Completed, cancelled, or failed requests will appear here.'
     } else {
-      content = `I found ${rfps.length} archived REP${rfps.length !== 1 ? 's' : ''}${totalCount > rfps.length ? ` (showing first ${rfps.length} of ${totalCount})` : ''}.`
+      content = `I found ${rfqs.length} archived REP${rfqs.length !== 1 ? 's' : ''}${totalCount > rfqs.length ? ` (showing first ${rfqs.length} of ${totalCount})` : ''}.`
     }
 
     return {
@@ -508,11 +508,11 @@ private async handleListArchivedRFPs(
       intent: ChatIntent.LIST_ARCHIVED_RFPS,
       responseType: ChatResponseType.ARCHIVED_RFPS_LIST,
       data: {
-        archivedRfps: rfps,
+        archivedRfps: rfqs,
         totalCount,
         hasMore,
       },
-      suggestedActions: rfps.length > 0 ? [
+      suggestedActions: rfqs.length > 0 ? [
         {
           id: 'view-details',
           label: 'View Details',
@@ -528,7 +528,7 @@ private async handleListArchivedRFPs(
           action: 'load_more_archived_rfps',
           icon: '⬇️',
           intent: ChatIntent.LIST_ARCHIVED_RFPS,
-          parameters: { offset: rfps.length },
+          parameters: { offset: rfqs.length },
         } : null,
       ].filter(Boolean) : [],
       metadata: {
@@ -761,7 +761,7 @@ interface ArchivedREPDisplayProps {
 
 export function ArchivedREPDisplay({ mode, data, onViewDetail }: ArchivedREPDisplayProps) {
   if (mode === 'list') {
-    return <ArchivedREPListView rfps={data as ArchivedRFPSummary[]} onViewDetail={onViewDetail} />
+    return <ArchivedREPListView rfqs={data as ArchivedRFPSummary[]} onViewDetail={onViewDetail} />
   } else {
     return <ArchivedREPDetailView detail={data as ArchivedRFPDetail} />
   }
@@ -772,13 +772,13 @@ export function ArchivedREPDisplay({ mode, data, onViewDetail }: ArchivedREPDisp
  * Shows card-based summaries
  */
 function ArchivedREPListView({
-  rfps,
+  rfqs,
   onViewDetail
 }: {
-  rfps: ArchivedRFPSummary[]
+  rfqs: ArchivedRFPSummary[]
   onViewDetail?: (rfpId: string) => void
 }) {
-  if (rfps.length === 0) {
+  if (rfqs.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Plane className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -789,7 +789,7 @@ function ArchivedREPListView({
 
   return (
     <div className="space-y-3">
-      {rfps.map((rfp) => (
+      {rfqs.map((rfp) => (
         <Card key={rfp.id} className="hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             <div className="flex items-start justify-between">

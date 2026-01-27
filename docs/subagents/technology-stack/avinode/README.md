@@ -200,7 +200,7 @@ const flights = await avinodeClient.post('/v1/flights/search', {
 
 ### 3. Create RFP (Request for Proposal)
 
-**Endpoint**: `POST /v1/rfps`
+**Endpoint**: `POST /v1/rfqs`
 
 Create an RFP and send to selected operators.
 
@@ -219,7 +219,7 @@ interface CreateRFPRequest {
 #### Example
 
 ```typescript
-const rfp = await avinodeClient.post('/v1/rfps', {
+const rfp = await avinodeClient.post('/v1/rfqs', {
   flight_details: {
     departure: {
       airport: 'KTEB',
@@ -255,14 +255,14 @@ const rfp = await avinodeClient.post('/v1/rfps', {
 
 ### 4. Get RFP Status & Quotes
 
-**Endpoint**: `GET /v1/rfps/{rfp_id}`
+**Endpoint**: `GET /v1/rfqs/{rfp_id}`
 
 Check RFP status and retrieve quotes.
 
 #### Example
 
 ```typescript
-const rfpStatus = await avinodeClient.get('/v1/rfps/rfp_abc123')
+const rfpStatus = await avinodeClient.get('/v1/rfqs/rfp_abc123')
 ```
 
 #### Response

@@ -30,7 +30,7 @@ export class MockAvinodeClient {
         if (endpoint === '/v1/emptyLeg/search') {
             return this.mockEmptyLegSearch(data);
         }
-        if (endpoint === '/v1/rfps') {
+        if (endpoint === '/v1/rfqs') {
             return this.mockCreateRFP(data);
         }
         if (endpoint === '/v1/watches') {
@@ -52,7 +52,7 @@ export class MockAvinodeClient {
      */
     async get(endpoint, config) {
         await this.delay(200, 500);
-        if (endpoint.startsWith('/v1/rfps/')) {
+        if (endpoint.startsWith('/v1/rfqs/')) {
             const rfpId = endpoint.split('/').pop();
             return this.mockGetRFPStatus(rfpId);
         }

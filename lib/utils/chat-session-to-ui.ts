@@ -194,12 +194,32 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
   const currentStep = getWorkflowStepFromCurrentStep(chatSessionRow.current_step);
 
   // Build ChatSession object for sidebar display
+  // DEBUG: Log raw data to trace requestId issues
+  const resolvedId = chatSessionRow.request_id || chatSessionRow.id;
+  const resolvedConversationId = (chatSessionRow.conversation?.id || chatSessionRow.conversation_id) ?? undefined;
+  const resolvedRequestId = chatSessionRow.request_id || chatSessionRow.request?.id || undefined;
+
+  // Log sessions with tripId to help debug proposal persistence issues
+  if (chatSessionRow.avinode_trip_id || chatSessionRow.request?.avinode_trip_id) {
+    console.log('[chatSessionToUIFormat] 🔍 Session with tripId:', {
+      tripId: chatSessionRow.avinode_trip_id || chatSessionRow.request?.avinode_trip_id,
+      resolvedId,
+      resolvedConversationId,
+      resolvedRequestId,
+      'raw.request_id': chatSessionRow.request_id,
+      'raw.id': chatSessionRow.id,
+      'raw.conversation?.id': chatSessionRow.conversation?.id,
+      'raw.conversation_id': chatSessionRow.conversation_id,
+      'raw.request?.id': chatSessionRow.request?.id,
+    });
+  }
+
   const chatSession: ChatSession = {
     // Use request ID as primary ID (for consistency with request-based sessions)
     // Fall back to chat_session ID if no request_id exists
-    id: chatSessionRow.request_id || chatSessionRow.id,
-    conversationId: (chatSessionRow.conversation?.id || chatSessionRow.conversation_id) ?? undefined,
-    requestId: chatSessionRow.request_id || chatSessionRow.request?.id || undefined,
+    id: resolvedId,
+    conversationId: resolvedConversationId,
+    requestId: resolvedRequestId,
 
     // Set conversation type based on whether request exists
     // Flight requests have a request_id, general chats don't

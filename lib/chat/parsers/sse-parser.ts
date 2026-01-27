@@ -149,6 +149,19 @@ function processSSEData(
     logger.debug('RFP data received', { tripId: data.rfp_data.trip_id });
   }
 
+  // Extract session info from ALL events (sent with initial content, not just done)
+  // This ensures the frontend can update session state with the database ID
+  if (data.conversation_id) {
+    result.conversationId = data.conversation_id;
+    logger.debug('Conversation ID received', { conversationId: data.conversation_id });
+  }
+  if (data.chat_session_id) {
+    result.chatSessionId = data.chat_session_id;
+  }
+  if (data.conversation_type) {
+    result.conversationType = data.conversation_type;
+  }
+
   // Handle completion
   if (data.done) {
     result.done = true;
@@ -201,17 +214,8 @@ function processSSEData(
       result.quotes = data.quotes;
     }
 
-    // Extract session info for frontend state sync
-    // This ensures the frontend can update session state with the database ID
-    if (data.conversation_id) {
-      result.conversationId = data.conversation_id;
-    }
-    if (data.chat_session_id) {
-      result.chatSessionId = data.chat_session_id;
-    }
-    if (data.conversation_type) {
-      result.conversationType = data.conversation_type;
-    }
+    // Note: conversation_id, chat_session_id, and conversation_type are now
+    // extracted from ALL events (above), not just the done event
 
     handlers.onDone?.(result);
     return true; // Signal to stop processing

@@ -258,7 +258,7 @@ export class AvinodeClient {
    */
   async createRFP(params: any) {
     try {
-      const response = await this.client.post('/rfps', params);
+      const response = await this.client.post('/rfqs', params);
       return response.data;
     } catch (error) {
       throw this.sanitizeError(error);
@@ -270,7 +270,7 @@ export class AvinodeClient {
    */
   async getQuoteStatus(rfpId: string) {
     try {
-      const response = await this.client.get(`/rfps/${rfpId}/status`);
+      const response = await this.client.get(`/rfqs/${rfpId}/status`);
       return response.data;
     } catch (error) {
       throw this.sanitizeError(error);
@@ -282,7 +282,7 @@ export class AvinodeClient {
    */
   async getQuotes(rfpId: string) {
     try {
-      const response = await this.client.get(`/rfps/${rfpId}/quotes`);
+      const response = await this.client.get(`/rfqs/${rfpId}/quotes`);
       return response.data;
     } catch (error) {
       throw this.sanitizeError(error);

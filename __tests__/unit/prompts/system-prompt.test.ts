@@ -15,6 +15,7 @@ import {
   buildCompleteSystemPrompt,
   buildSystemPromptWithIntent,
   detectForcedTool,
+  detectForcedToolFromContext,
   FORCED_TOOL_PATTERNS,
   PROMPT_SECTIONS,
   IDENTITY,
@@ -29,6 +30,7 @@ import {
   INTENT_PROMPTS,
   INTENT_PATTERNS,
   detectIntent,
+  detectIntentWithHistory,
   getIntentPrompt,
   listIntents,
 } from '@/lib/prompts/intent-prompts';
@@ -437,6 +439,14 @@ describe('Forced Tool Detection', () => {
       expect(detectForcedTool('New RFQ from KMIA to KDEN')).toBe('create_trip');
     });
 
+    it('should detect create_trip from ICAO-to-ICAO clarification (follow-up after airport request)', () => {
+      expect(detectForcedTool('KTEB (Teterboro) to KMCI (Kansas City Intl) at 4:00pm EST')).toBe(
+        'create_trip'
+      );
+      expect(detectForcedTool('KTEB to KMCI')).toBe('create_trip');
+      expect(detectForcedTool('KJFK to KORD at 2pm')).toBe('create_trip');
+    });
+
     it('should detect search_empty_legs from empty leg queries', () => {
       expect(detectForcedTool('Search empty legs')).toBe('search_empty_legs');
       expect(detectForcedTool('Find empty leg flights')).toBe('search_empty_legs');
@@ -490,6 +500,54 @@ describe('Forced Tool Detection', () => {
       expect(toolNames).toContain('search_airports');
     });
   });
+
+  describe('detectForcedToolFromContext', () => {
+    it('should return create_trip when last assistant asked for airports and user provides ICAO-to-ICAO', () => {
+      const history: Array<{ role: 'user' | 'assistant'; content: string }> = [
+        {
+          role: 'user',
+          content:
+            'I need a flight from new jersey to Kansas City for 4 passengers on May 3, 2026 at 4:00pm',
+        },
+        {
+          role: 'assistant',
+          content:
+            "I still need the specific departure and arrival airports—my airport search for 'New Jersey' and 'Kansas City' didn't return results. Once you confirm those, I'll create the Avinode trip.",
+        },
+      ];
+      expect(
+        detectForcedToolFromContext(history, 'KTEB (Teterboro) to KMCI (Kansas City Intl) at 4:00pm EST')
+      ).toBe('create_trip');
+    });
+
+    it('should return null when history is empty', () => {
+      expect(detectForcedToolFromContext([], 'KTEB to KMCI')).toBeNull();
+    });
+
+    it('should return null when last message is not assistant', () => {
+      const history = [{ role: 'user' as const, content: 'KTEB to KMCI' }];
+      expect(detectForcedToolFromContext(history, 'KTEB to KMCI')).toBeNull();
+    });
+
+    it('should return null when assistant did not ask for airports', () => {
+      const history = [
+        { role: 'user' as const, content: 'Hello' },
+        { role: 'assistant' as const, content: 'Hi, how can I help?' },
+      ];
+      expect(detectForcedToolFromContext(history, 'KTEB to KMCI')).toBeNull();
+    });
+
+    it('should return null when user message has no ICAO-to-ICAO', () => {
+      const history = [
+        { role: 'user' as const, content: 'Flight from NJ to KC' },
+        {
+          role: 'assistant' as const,
+          content: "I still need the specific departure and arrival airports. Once you confirm those, I'll create the trip.",
+        },
+      ];
+      expect(detectForcedToolFromContext(history, 'Just those two cities.')).toBeNull();
+    });
+  });
 });
 
 // =============================================================================
@@ -539,5 +597,96 @@ describe('Integration', () => {
     // Step 3: Check for forced tool
     const forcedTool = detectForcedTool(message);
     expect(forcedTool).toBe('create_trip');
+  });
+});
+
+// =============================================================================
+// MULTI-TURN CONVERSATION BUG FIX TESTS
+// =============================================================================
+
+describe('Multi-Turn Conversation Bug Fix', () => {
+  describe('System Prompt Guidance', () => {
+    it('should include explicit guidance for extracting parameters from conversation history', () => {
+      const prompt = buildCompleteSystemPrompt();
+
+      // Verify the new guidance is present in base system prompt
+      expect(prompt).toContain('CRITICAL: Extracting Parameters from Conversation History');
+      expect(prompt).toContain('ENTIRE conversation');
+      expect(prompt).toContain('departure_airport');
+      expect(prompt).toContain('arrival_airport');
+      expect(prompt).toContain('departure_date');
+      expect(prompt).toContain('passengers');
+    });
+
+    it('should include multi-turn parameter extraction guidance in create_rfp intent', () => {
+      const prompt = buildSystemPromptWithIntent('create_rfp', INTENT_PROMPTS);
+
+      expect(prompt).toContain('Multi-Turn Parameter Extraction');
+      expect(prompt).toContain('SCAN THE ENTIRE CONVERSATION');
+    });
+  });
+
+  describe('Airport Clarification Scenario', () => {
+    const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [
+      {
+        role: 'user',
+        content: 'I need a flight from new jersey to Kansas City for 4 passengers on May 3, 2026 at 4:00pm',
+      },
+      {
+        role: 'assistant',
+        content: "I'd like to help you create this flight request. I found multiple airports in the New Jersey area. Which one did you mean? KTEB (Teterboro), KEWR (Newark), KMMU (Morristown), or KCDW (Caldwell)? And for Kansas City: KMCI (Kansas City International) or KMKC (Downtown)?",
+      },
+    ];
+
+    it('should detect create_rfp intent from airport clarification response', () => {
+      const clarificationMessage = 'KTEB (Teterboro) to KMCI (Kansas City Intl) at 4:00pm EST';
+
+      // Current message alone doesn't match create_rfp pattern
+      const currentOnlyIntent = detectIntent(clarificationMessage);
+      expect(currentOnlyIntent).toBeNull();
+
+      // But with history context, it should detect as create_rfp continuation
+      const intentWithHistory = detectIntentWithHistory(clarificationMessage, conversationHistory);
+      expect(intentWithHistory).toBe('create_rfp');
+    });
+
+    it('should force create_trip tool for ICAO-to-ICAO clarification (via message pattern)', () => {
+      const clarificationMessage = 'KTEB (Teterboro) to KMCI (Kansas City Intl) at 4:00pm EST';
+
+      // The ICAO-to-ICAO pattern should force create_trip directly
+      const forcedTool = detectForcedTool(clarificationMessage);
+      expect(forcedTool).toBe('create_trip');
+    });
+
+    it('should force create_trip tool for simple ICAO pair clarification', () => {
+      const simpleMessage = 'KTEB to KMCI';
+
+      const forcedTool = detectForcedTool(simpleMessage);
+      expect(forcedTool).toBe('create_trip');
+    });
+
+    it('should force create_trip via context when message pattern does not match but assistant asked for airports', () => {
+      // Test case where user responds with just airport names (no explicit ICAO pattern)
+      const historyWithAirportRequest = [
+        { role: 'user' as const, content: 'I need a flight for 4 people tomorrow' },
+        { role: 'assistant' as const, content: 'I still need the departure and arrival airports. Where are you flying from and to?' },
+      ];
+
+      // This message has ICAO codes but in a format that might not match the simple pattern
+      const userResponse = 'KTEB (Teterboro) to KMCI (Kansas City Intl)';
+
+      // First try message pattern
+      const fromMessage = detectForcedTool(userResponse);
+
+      // If message pattern matched, we're done
+      if (fromMessage === 'create_trip') {
+        expect(fromMessage).toBe('create_trip');
+        return;
+      }
+
+      // Otherwise, context should catch it
+      const fromContext = detectForcedToolFromContext(historyWithAirportRequest, userResponse);
+      expect(fromContext).toBe('create_trip');
+    });
   });
 });

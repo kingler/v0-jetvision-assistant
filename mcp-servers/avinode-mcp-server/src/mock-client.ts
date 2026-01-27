@@ -95,7 +95,7 @@ export class MockAvinodeClient {
       return this.mockEmptyLegSearch(data) as T;
     }
 
-    if (endpoint === '/v1/rfps') {
+    if (endpoint === '/v1/rfqs') {
       return this.mockCreateRFP(data) as T;
     }
 
@@ -123,7 +123,7 @@ export class MockAvinodeClient {
   async get<T = any>(endpoint: string, config?: any): Promise<T> {
     await this.delay(200, 500);
 
-    if (endpoint.startsWith('/v1/rfps/')) {
+    if (endpoint.startsWith('/v1/rfqs/')) {
       const rfpId = endpoint.split('/').pop();
       return this.mockGetRFPStatus(rfpId!) as T;
     }

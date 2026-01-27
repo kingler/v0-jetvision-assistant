@@ -150,11 +150,11 @@ Implement progressive disclosure RFP gathering flow where agent asks one questio
 9. Add error handling for invalid inputs
 
 **Files to Create/Modify**:
-- `lib/conversation/rfp-flow.ts` (new)
+- `lib/conversation/rfq-flow.ts` (new)
 - `lib/conversation/intent-extractor.ts` (new)
 - `lib/conversation/field-validator.ts` (new)
 - `components/chat-interface.tsx` (modify)
-- `__tests__/integration/rfp-flow.test.ts` (new)
+- `__tests__/integration/rfq-flow.test.ts` (new)
 
 **Dependencies**: DES-121, DES-122
 
@@ -536,7 +536,7 @@ Create comprehensive E2E tests for unified chat interface covering RFP creation,
 8. Generate coverage report
 
 **Files to Create/Modify**:
-- `__tests__/e2e/chat-rfp-flow.spec.ts` (new)
+- `__tests__/e2e/chat-rfq-flow.spec.ts` (new)
 - `__tests__/e2e/chat-quote-selection.spec.ts` (new)
 - `__tests__/e2e/chat-proposal.spec.ts` (new)
 - `__tests__/e2e/chat-accessibility.spec.ts` (new)

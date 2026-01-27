@@ -852,7 +852,7 @@ async function searchEmptyLegs(params) {
  * Create an RFQ (Request for Quote)
  *
  * @see https://developer.avinodegroup.com/reference/createrfq_1
- * Endpoint: POST /api/rfqs (not /rfps)
+ * Endpoint: POST /api/rfqs (not /rfqs)
  */
 async function createRFP(params) {
     // Use correct endpoint per Avinode API documentation
@@ -1483,11 +1483,14 @@ function transformToRFQFlights(rfqData, tripId) {
         // CRITICAL: After merging quote details into sellerLift, sellerPrice is at the top level
         // Check sellerPrice first (from merged quote details), then fallbacks
         // IMPORTANT: ALWAYS try to extract price (don't gate on hasQuote) - if price exists, it's a quote
+        // FIX: Added estimatedPrice fallback for "Unanswered" RFQs (initial RFQ submission price)
         let totalPrice = quote.sellerPrice?.price || // PRIMARY: From fetched quote details (merged at top level)
             quote.sellerPriceWithoutCommission?.price || // Fallback: Price without commission
             quote.totalPrice?.amount || // Fallback: Structured price object (if available)
             quote.quote?.sellerPrice?.price || // Fallback: Nested quote.sellerPrice
             quote.quote?.totalPrice?.amount || // Fallback: Nested quote object
+            quote.estimatedPrice?.amount || // FIX: Initial RFQ submission price (for Unanswered status)
+            quote.estimated_price?.amount || // FIX: Snake_case variant
             quote.price || // Fallback: Direct price from sellerLift (if available)
             quote.pricing?.total || // Fallback: Pricing breakdown total
             0;
@@ -1496,6 +1499,8 @@ function transformToRFQFlights(rfqData, tripId) {
             quote.totalPrice?.currency || // Fallback: Structured price object (if available)
             quote.quote?.sellerPrice?.currency || // Fallback: Nested quote.sellerPrice
             quote.quote?.totalPrice?.currency || // Fallback: Nested quote object
+            quote.estimatedPrice?.currency || // FIX: Initial RFQ submission currency (for Unanswered status)
+            quote.estimated_price?.currency || // FIX: Snake_case variant
             quote.currency || // Fallback: Direct currency from sellerLift (if available)
             quote.pricing?.currency || // Fallback: Pricing breakdown currency
             'USD';

@@ -790,17 +790,17 @@ export class AvinodeClient {
   }
 
   async createRFP(params: any) {
-    const response = await this.client.post('/rfps', params)
+    const response = await this.client.post('/rfqs', params)
     return response.data
   }
 
   async getQuoteStatus(rfpId: string) {
-    const response = await this.client.get(`/rfps/${rfpId}/status`)
+    const response = await this.client.get(`/rfqs/${rfpId}/status`)
     return response.data
   }
 
   async getQuotes(rfpId: string) {
-    const response = await this.client.get(`/rfps/${rfpId}/quotes`)
+    const response = await this.client.get(`/rfqs/${rfpId}/quotes`)
     return response.data
   }
 }

@@ -155,6 +155,10 @@ export interface ChatSession {
     showPipeline?: boolean
     /** Pipeline data for inline deals/requests view */
     pipelineData?: PipelineData
+    /** Whether to show proposal-sent confirmation card inline (after proposal sent) */
+    showProposalSentConfirmation?: boolean
+    /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */
+    proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
   }>
   /** Flag to indicate this chat needs an initial API call (set when created from landing page) */
   needsInitialApiCall?: boolean

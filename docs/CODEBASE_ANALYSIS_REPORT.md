@@ -67,7 +67,7 @@
 
 - `lib/types/chat-agent.ts` (lines 309-329)
 - `lib/chat/types/index.ts` (lines 56-58)
-- Referenced in: `agents/implementations/orchestrator-agent.ts`, `agents/implementations/communication-agent.ts`, `lib/conversation/state-manager.ts`, `lib/conversation/rfp-flow.ts`
+- Referenced in: `agents/implementations/orchestrator-agent.ts`, `agents/implementations/communication-agent.ts`, `lib/conversation/state-manager.ts`, `lib/conversation/rfq-flow.ts`
 
 ### Recommendation
 

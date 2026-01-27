@@ -563,7 +563,7 @@ export function ChatInterface({
           tripId: activeChat.tripId,
           requestId: activeChat.requestId,
           rfqId: activeChat.rfqId,
-          conversationHistory: currentMessages.map((m) => ({
+          conversationHistory: existingMessages.map((m) => ({
             role: m.type === "user" ? "user" : "assistant",
             content: m.content,
           })),

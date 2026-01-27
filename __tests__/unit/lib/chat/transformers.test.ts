@@ -81,6 +81,22 @@ describe('extractPrice', () => {
     expect(result).toEqual({ price: 30000, currency: 'CHF' });
   });
 
+  it('should fallback to estimatedPrice.amount (initial RFQ price for Unanswered)', () => {
+    const quote: Quote = {
+      estimatedPrice: { amount: 45000, currency: 'USD' },
+    };
+    const result = extractPrice(quote);
+    expect(result).toEqual({ price: 45000, currency: 'USD' });
+  });
+
+  it('should fallback to estimated_price.amount (snake_case variant)', () => {
+    const quote: Quote = {
+      estimated_price: { amount: 42000, currency: 'EUR' },
+    };
+    const result = extractPrice(quote);
+    expect(result).toEqual({ price: 42000, currency: 'EUR' });
+  });
+
   it('should return 0 for quote without price', () => {
     const quote: Quote = {};
     const result = extractPrice(quote);

@@ -26,7 +26,7 @@
 | **LOCAL BRANCHES** |
 | feat/ONEK-53-streaming-response-hook | ✅ Clean | 17 | 1 | Dec 13 |
 | feat/ONEK-94-action-buttons | ✅ Clean | 10 | 6 | Dec 13 |
-| feat/ONEK-95-conversational-rfp-flow | ✅ Clean | 10 | 9 | Dec 13 |
+| feat/ONEK-95-conversational-rfq-flow | ✅ Clean | 10 | 9 | Dec 13 |
 | feat/ONEK-96-rich-message-renderer | ✅ Clean | 22 | 3 | Nov 15 |
 | feat/ONEK-99-conversation-state | ✅ Clean | 5 | 1 | Dec 13 |
 | feat/chatkit-chat-page-and-tests | ⚠️ **10 CONFLICTS** | 171 | 27 | Oct 22 |
@@ -40,7 +40,7 @@
 | origin/feat/ONEK-30-flight-search-agent-avinode | ⚠️ **1 CONFLICT** | 25 | 1 | Nov 14 |
 | origin/feat/ONEK-53-streaming-response-hook | ✅ Clean | 17 | 1 | Dec 13 |
 | origin/feat/ONEK-94-action-buttons | ✅ Clean | 10 | 6 | Dec 13 |
-| origin/feat/ONEK-95-conversational-rfp-flow | ✅ Clean | 10 | 9 | Dec 13 |
+| origin/feat/ONEK-95-conversational-rfq-flow | ✅ Clean | 10 | 9 | Dec 13 |
 | origin/feat/ONEK-96-rich-message-renderer | ✅ Clean | 22 | 2 | Nov 15 |
 | origin/feat/ONEK-98-orchestrator-conversational | ✅ Clean | 23 | 3 | Nov 14 |
 | **THIRD-PARTY** |
@@ -194,7 +194,7 @@ Latest migrations:
 |-------|--------|--------|
 | feat/ONEK-53-streaming-response-hook | origin/feat/ONEK-53-streaming-response-hook | ✅ Identical |
 | feat/ONEK-94-action-buttons | origin/feat/ONEK-94-action-buttons | ✅ Identical |
-| feat/ONEK-95-conversational-rfp-flow | origin/feat/ONEK-95-conversational-rfp-flow | ✅ Identical |
+| feat/ONEK-95-conversational-rfq-flow | origin/feat/ONEK-95-conversational-rfq-flow | ✅ Identical |
 
 ### Diverged Pair
 
@@ -229,7 +229,7 @@ Latest migrations:
 ```
 7. origin/feat/ONEK-98-orchestrator-conversational   (23 behind, extends orchestrator)
 8. origin/feat/ONEK-117-avinode-trip-display         (19 behind, extends flight-search)
-9. feat/ONEK-95-conversational-rfp-flow              (10 behind, service layer)
+9. feat/ONEK-95-conversational-rfq-flow              (10 behind, service layer)
 ```
 
 ### Phase 4: Requires Conflict Resolution
@@ -289,7 +289,7 @@ git branch -D feat/chatkit-chat-page-and-tests
 # Delete synced local branches (keep remote)
 git branch -D feat/ONEK-53-streaming-response-hook
 git branch -D feat/ONEK-94-action-buttons
-git branch -D feat/ONEK-95-conversational-rfp-flow
+git branch -D feat/ONEK-95-conversational-rfq-flow
 
 # Prune remote tracking branches
 git remote prune origin

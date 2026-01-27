@@ -786,17 +786,17 @@ I'm now searching for available aircraft and requesting quotes from operators. T
       }
 
       // Query database
-      const { rfps, totalCount, hasMore } = await getArchivedRFPs(userId, filters)
+      const { rfqs, totalCount, hasMore } = await getArchivedRFPs(userId, filters)
 
       // Generate response message
       let content = ''
-      if (rfps.length === 0) {
+      if (rfqs.length === 0) {
         content = 'You don\'t have any archived REPs yet. Completed, cancelled, or failed requests will appear here.'
       } else {
         const statusText = filters.statusFilter
           ? ` ${filters.statusFilter.join(', ')} `
           : ' '
-        content = `I found ${rfps.length}${statusText}archived REP${rfps.length !== 1 ? 's' : ''}${totalCount > rfps.length ? ` (showing first ${rfps.length} of ${totalCount})` : ''}.`
+        content = `I found ${rfqs.length}${statusText}archived REP${rfqs.length !== 1 ? 's' : ''}${totalCount > rfqs.length ? ` (showing first ${rfqs.length} of ${totalCount})` : ''}.`
       }
 
       return {
@@ -805,11 +805,11 @@ I'm now searching for available aircraft and requesting quotes from operators. T
         intent: ChatIntent.LIST_ARCHIVED_RFPS,
         responseType: ChatResponseType.ARCHIVED_RFPS_LIST,
         data: {
-          archivedRfps: rfps,
+          archivedRfps: rfqs,
           totalCount,
           hasMore,
         },
-        suggestedActions: rfps.length > 0 ? [
+        suggestedActions: rfqs.length > 0 ? [
           {
             id: 'view-details',
             label: 'View Details',
@@ -825,7 +825,7 @@ I'm now searching for available aircraft and requesting quotes from operators. T
             action: 'load_more_archived_rfps',
             icon: '⬇️',
             intent: ChatIntent.LIST_ARCHIVED_RFPS,
-            parameters: { offset: rfps.length },
+            parameters: { offset: rfqs.length },
           } : null,
         ].filter((action): action is NonNullable<typeof action> => action !== null) : [],
         metadata: {

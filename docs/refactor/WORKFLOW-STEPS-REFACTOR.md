@@ -13,7 +13,7 @@ Refactor the monolithic `WorkflowVisualization` component into independent, prop
 | Component | Location | Lines | Purpose |
 |-----------|----------|-------|---------|
 | `WorkflowVisualization` | `components/workflow-visualization.tsx` | 527 | Full 5-step workflow display |
-| `RFPFlowCard` | `components/rfp-flow-card.tsx` | 245 | RFP information gathering progress |
+| `RFPFlowCard` | `components/rfq-flow-card.tsx` | 245 | RFP information gathering progress |
 
 ### Problems
 
@@ -253,7 +253,7 @@ import { validateAndFixAvinodeUrl } from '@/lib/utils/avinode-url';
 
 Reference these existing components for consistency:
 - `components/workflow-visualization.tsx` - Original step rendering logic
-- `components/rfp-flow-card.tsx` - Step indicator pattern
+- `components/rfq-flow-card.tsx` - Step indicator pattern
 - `components/message-components/workflow-status.tsx` - Status badge pattern
 - `components/avinode/trip-summary-card.tsx` - Card layout pattern
 
@@ -329,7 +329,7 @@ Location: `__tests__/integration/message-renderer/`
 | File | Purpose |
 |------|---------|
 | `components/workflow-visualization.tsx` | Original monolithic component |
-| `components/rfp-flow-card.tsx` | RFP flow progress (reference) |
+| `components/rfq-flow-card.tsx` | RFP flow progress (reference) |
 | `components/message-components/types.ts` | Message type definitions |
 | `components/message-components/message-renderer.tsx` | Component routing |
 | `lib/utils/avinode-url.ts` | Deep link URL validation |

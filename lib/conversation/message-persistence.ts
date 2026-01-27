@@ -12,7 +12,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 type MessageSenderType = 'iso_agent' | 'operator' | 'ai_assistant' | 'system';
-type MessageContentType = 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal';
+type MessageContentType = 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal_shared';
 
 /**
  * Interface for saving a message (consolidated schema)
@@ -183,8 +183,7 @@ export async function saveMessage(
     throw new Error('senderOperatorId is required for operator sender type');
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const insertData: any = {
+  const insertData = {
     request_id: requestId,
     quote_id: quoteId || null,
     sender_type: params.senderType as 'iso_agent' | 'operator' | 'ai_assistant' | 'system',
@@ -192,13 +191,14 @@ export async function saveMessage(
     sender_operator_id: params.senderOperatorId || null,
     sender_name: params.senderName || null,
     content: params.content,
-    content_type: (params.contentType || 'text') as 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal',
+    content_type: (params.contentType || 'text') as 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal_shared',
     rich_content: params.richContent as Record<string, unknown> | null || null,
     status: 'sent' as 'draft' | 'sent' | 'delivered' | 'read' | 'failed',
     metadata: params.metadata as Record<string, unknown> || {},
   };
   const { data: message, error } = await supabaseAdmin
     .from('messages')
+    // @ts-expect-error - insertData matches schema but TypeScript inference is incomplete
     .insert(insertData)
     .select('id')
     .single();
@@ -582,8 +582,8 @@ export async function markMessagesAsRead(
 ): Promise<void> {
   // Use the database function if available
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.rpc as any)('mark_request_messages_read', {
+    // @ts-expect-error - RPC function types not fully generated
+    await supabaseAdmin.rpc('mark_request_messages_read', {
       p_request_id: requestId,
       p_reader_type: userType,
       p_reader_id: userId,

@@ -120,7 +120,7 @@ The RFP Orchestrator Agent is the brain of the Jetvision system. It analyzes inc
 __tests__/unit/agents/rfp-orchestrator.test.ts
 __tests__/unit/agents/workflow-state-machine.test.ts
 __tests__/integration/agents/rfp-workflow.test.ts
-__tests__/e2e/complete-rfp-flow.test.ts
+__tests__/e2e/complete-rfq-flow.test.ts
 ```
 
 **Example Test (Write This First)**:

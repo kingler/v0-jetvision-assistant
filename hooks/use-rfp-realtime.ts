@@ -79,7 +79,7 @@ export function useRFPRealtime(requestId?: string) {
       } else {
         // Subscribe to all RFPs
         channel = supabase
-          .channel('all-rfps')
+          .channel('all-rfqs')
           .on(
             'postgres_changes',
             {

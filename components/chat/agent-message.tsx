@@ -14,6 +14,7 @@ import type { RFQFlight as AvinodeRFQFlight } from "@/lib/mcp/clients/avinode-cl
 import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "../chat-sidebar"
 import { PipelineDashboard } from "../message-components/pipeline-dashboard"
+import { ProposalSentConfirmation } from "@/components/proposal/proposal-sent-confirmation"
 import {
   OperatorChatsInline,
   type FlightContext,
@@ -198,6 +199,10 @@ export interface AgentMessageProps {
   onViewOperatorThread?: (quoteId: string) => void
   /** Callback when "Reply" is clicked for operator messages */
   onReplyToOperator?: (quoteId: string) => void
+  /** Whether to show proposal-sent confirmation card inline (after proposal sent) */
+  showProposalSentConfirmation?: boolean
+  /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */
+  proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
 }
 
 /**
@@ -249,6 +254,8 @@ export function AgentMessage({
   operatorFlightContext,
   onViewOperatorThread,
   onReplyToOperator,
+  showProposalSentConfirmation,
+  proposalSentData,
 }: AgentMessageProps) {
   const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
 
@@ -467,6 +474,13 @@ export function AgentMessage({
       {showProposal && chatData && !onContinueToProposal && (
         <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <ProposalPreview embedded={true} chatData={chatData} />
+        </div>
+      )}
+
+      {/* Proposal Sent Confirmation - inline after proposal is sent */}
+      {showProposalSentConfirmation && proposalSentData && (
+        <div className="mt-4">
+          <ProposalSentConfirmation {...proposalSentData} />
         </div>
       )}
 

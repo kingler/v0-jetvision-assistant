@@ -9,7 +9,7 @@ Complete example showing how to integrate the RFP conversational flow with the O
 
 import { useState } from 'react';
 import { useRFPOrchestrator, getStatusMessage } from '@/hooks/use-rfp-orchestrator';
-import { RFPFlowCard } from '@/components/rfp-flow-card';
+import { RFPFlowCard } from '@/components/rfq-flow-card';
 import { RFPWorkflowStatus } from '@/lib/services/rfp-orchestrator-service';
 import type { AgentResult } from '@agents/core/types';
 

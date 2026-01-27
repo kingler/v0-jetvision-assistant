@@ -6,12 +6,12 @@ This guide explains how to integrate the conversational RFP flow into the chat i
 
 ### 1. Hook: `useRFPFlow`
 
-Located in `hooks/use-rfp-flow.ts`
+Located in `hooks/use-rfq-flow.ts`
 
 Manages RFP flow state and provides methods for interaction:
 
 ```typescript
-import { useRFPFlow, useRFPFlowPersistence } from '@/hooks/use-rfp-flow';
+import { useRFPFlow, useRFPFlowPersistence } from '@/hooks/use-rfq-flow';
 
 function MyComponent() {
   const rfpFlow = useRFPFlow(autoActivate);
@@ -42,12 +42,12 @@ function MyComponent() {
 
 ### 2. UI Component: `RFPFlowCard`
 
-Located in `components/rfp-flow-card.tsx`
+Located in `components/rfq-flow-card.tsx`
 
 Displays RFP gathering progress and contextual questions:
 
 ```typescript
-import { RFPFlowCard } from '@/components/rfp-flow-card';
+import { RFPFlowCard } from '@/components/rfq-flow-card';
 
 <RFPFlowCard
   state={rfpFlow.state}
@@ -72,8 +72,8 @@ Features:
 ```typescript
 // components/chat-interface.tsx
 
-import { useRFPFlow, useRFPFlowPersistence } from '@/hooks/use-rfp-flow';
-import { RFPFlowCard } from '@/components/rfp-flow-card';
+import { useRFPFlow, useRFPFlowPersistence } from '@/hooks/use-rfq-flow';
+import { RFPFlowCard } from '@/components/rfq-flow-card';
 
 export function ChatInterface({ activeChat, ... }: ChatInterfaceProps) {
   // Initialize RFP flow
@@ -241,7 +241,7 @@ if (!result.valid) {
 ## Testing Integration
 
 ```typescript
-// __tests__/integration/chat-rfp-flow.test.tsx
+// __tests__/integration/chat-rfq-flow.test.tsx
 
 describe('Chat RFP Flow Integration', () => {
   it('should activate RFP flow on trigger phrase', () => {

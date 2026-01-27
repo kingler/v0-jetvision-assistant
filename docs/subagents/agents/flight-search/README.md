@@ -85,7 +85,7 @@ sequenceDiagram
     MCP-->>Agent: Structured flight data
     Agent->>Agent: Analyze & filter results
     Agent->>MCP: create_rfp(operators)
-    MCP->>Avinode: POST /rfps
+    MCP->>Avinode: POST /rfqs
     Avinode-->>MCP: RFP created
     MCP-->>Agent: RFP ID & status
     Agent->>DB: Save RFP details
@@ -557,7 +557,7 @@ Please provide your best quote including all fees and taxes.
     requestId: string,
     rfp: RFPResponse
   ): Promise<void> {
-    await this.supabase.from('rfps').insert({
+    await this.supabase.from('rfqs').insert({
       id: rfp.rfpId,
       request_id: requestId,
       status: rfp.status,

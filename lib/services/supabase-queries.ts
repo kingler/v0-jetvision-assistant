@@ -27,7 +27,7 @@ export interface ArchivedRFPFilters {
 export async function getArchivedRFPs(
   userId: string,
   filters: ArchivedRFPFilters = {}
-): Promise<{ rfps: ArchivedRFPSummary[]; totalCount: number; hasMore: boolean }> {
+): Promise<{ rfqs: ArchivedRFPSummary[]; totalCount: number; hasMore: boolean }> {
   const supabase = await createClient()
 
   const {
@@ -89,7 +89,7 @@ export async function getArchivedRFPs(
   }
 
   // Transform to ArchivedRFPSummary
-  const rfps: ArchivedRFPSummary[] = (data || []).map((row: any) => {
+  const rfqs: ArchivedRFPSummary[] = (data || []).map((row: any) => {
     // Find selected/accepted quote
     const selectedQuote = row.quotes?.find((q: any) =>
       q.status === 'accepted' || q.ranking === 1
@@ -119,7 +119,7 @@ export async function getArchivedRFPs(
   })
 
   return {
-    rfps,
+    rfqs,
     totalCount: count || 0,
     hasMore: (offset + limit) < (count || 0),
   }

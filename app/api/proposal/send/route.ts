@@ -33,6 +33,7 @@ import {
   updateProposalSent,
   updateProposalStatus,
 } from '@/lib/services/proposal-service';
+import { saveMessage } from '@/lib/conversation/message-persistence';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 import type { Passenger } from '@/lib/types/quotes';
 
@@ -71,6 +72,12 @@ interface SendProposalRequest {
   jetvisionFeePercentage?: number;
   emailSubject?: string;
   emailMessage?: string;
+  /**
+   * Request ID (UUID) for the chat session.
+   * When provided, the API persists the proposal-sent confirmation message to the DB
+   * so it survives browser refresh. Must be a valid UUID.
+   */
+  requestId?: string;
 }
 
 interface SendProposalResponse {
@@ -93,6 +100,12 @@ interface SendProposalResponse {
   };
   pdfUrl?: string;
   fileName?: string;
+  /**
+   * ID of the persisted proposal-sent confirmation message (messages table).
+   * Present when requestId was provided and persistence succeeded.
+   * Client uses this for the confirmation message id so it matches DB on reload.
+   */
+  savedMessageId?: string;
   error?: string;
 }
 
@@ -427,6 +440,72 @@ export async function POST(
       }
     }
 
+    // Persist proposal-sent confirmation message so it survives browser refresh.
+    // When requestId (UUID) is provided, save to messages table with contentType 'proposal_shared'
+    // and richContent.proposalSent; map-db-message-to-ui restores it on load.
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const hasValidRequestId =
+      typeof body.requestId === 'string' &&
+      body.requestId.trim() !== '' &&
+      uuidRegex.test(body.requestId);
+    let savedMessageId: string | undefined;
+
+    // authResult.id from getAuthenticatedAgent() is already the iso_agent UUID
+    // (it queries iso_agents by clerk_user_id and returns the id)
+    const isoAgentId = authResult.id;
+
+    console.log('[Send] Persistence check:', {
+      'body.requestId': body.requestId,
+      hasValidRequestId,
+      isoAgentId,
+    });
+
+    if (hasValidRequestId && body.requestId) {
+      try {
+        if (isoAgentId) {
+          const dep = body.tripDetails.departureAirport.icao;
+          const arr = body.tripDetails.arrivalAirport.icao;
+          const confirmationContent = emailResult.success
+            ? `The proposal for ${dep} → ${arr} was sent to ${body.customer.name} at ${body.customer.email}.`
+            : `The proposal for ${dep} → ${arr} was generated. Email could not be sent (check Gmail configuration).`;
+          const proposalSentData = {
+            flightDetails: {
+              departureAirport: dep,
+              arrivalAirport: arr,
+              departureDate: body.tripDetails.departureDate,
+            },
+            client: { name: body.customer.name, email: body.customer.email },
+            pdfUrl: uploadResult.publicUrl ?? '',
+            fileName: proposalResult.fileName,
+            proposalId: proposalResult.proposalId,
+            pricing: proposalResult.pricing
+              ? {
+                  total: proposalResult.pricing.total,
+                  currency: proposalResult.pricing.currency,
+                }
+              : undefined,
+          };
+          const msgId = await saveMessage({
+            requestId: body.requestId,
+            senderType: 'ai_assistant',
+            senderIsoAgentId: isoAgentId,
+            content: confirmationContent,
+            contentType: 'proposal_shared',
+            richContent: { proposalSent: proposalSentData },
+          });
+          savedMessageId = msgId;
+          console.log('[Send] Persisted proposal-sent confirmation:', {
+            requestId: body.requestId,
+            messageId: msgId,
+          });
+        } else {
+          console.warn('[Send] Skipping proposal-sent persistence: could not resolve iso_agent_id');
+        }
+      } catch (persistErr) {
+        console.warn('[Send] Failed to persist proposal-sent message:', persistErr);
+      }
+    }
+
     // Return success response with PDF URL for browser viewing
     return NextResponse.json({
       success: true,
@@ -439,6 +518,7 @@ export async function POST(
       pricing: proposalResult.pricing,
       pdfUrl: uploadResult.publicUrl,
       fileName: proposalResult.fileName,
+      ...(savedMessageId != null ? { savedMessageId } : {}),
     });
   } catch (error) {
     console.error('Error sending proposal:', error);
