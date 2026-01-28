@@ -227,68 +227,18 @@ export default function JetvisionAgent() {
         conversationId: session.conversationId,
       });
 
-      // PRIORITY 1: Use requestId (or conversationId as fallback) via /api/requests
-      const requestKey = session.requestId || session.conversationId;
-      if (requestKey) {
+      // PRIORITY 1: Use direct API call with requestId/conversationId/sessionId
+      // This is the most reliable method - loads messages for the SPECIFIC request
+      // The old /api/requests?limit=50 approach failed when request was not in top 50 by created_at
+      const directSessionId = session.requestId || session.conversationId || session.id;
+      if (directSessionId && isValidUUID(directSessionId)) {
         try {
-          console.log('[loadMessagesForSession] Attempting to load via requests API with requestKey:', requestKey);
-          const requestsResponse = await fetch(`/api/requests?limit=50`, {
+          console.log('[loadMessagesForSession] Loading via chat-sessions/messages API with sessionId:', directSessionId);
+          const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(directSessionId)}&limit=200`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });
 
-          if (requestsResponse.ok) {
-            const requestsData = await requestsResponse.json();
-            const requestMessages = requestsData.messages?.[requestKey] || [];
-            
-            if (requestMessages.length > 0) {
-              messages = requestMessages.map((msg: { id: string; senderType?: string; content: string; createdAt: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
-                id: msg.id,
-                senderType: msg.senderType,
-                content: msg.content,
-                createdAt: msg.createdAt,
-                contentType: msg.contentType,
-                richContent: msg.richContent ?? null,
-              }));
-              // DEBUG: Log proposal_shared messages specifically
-              const proposalMessages = messages.filter((m: any) => m.contentType === 'proposal_shared');
-              console.log('[loadMessagesForSession] ✅ Loaded messages via requests API:', {
-                requestKey,
-                messageCount: messages.length,
-                firstMessage: messages[0]?.content?.substring(0, 50),
-                proposalMessageCount: proposalMessages.length,
-                proposalMessages: proposalMessages.map((m: any) => ({
-                  id: m.id,
-                  contentType: m.contentType,
-                  hasRichContent: !!m.richContent,
-                  richContentKeys: m.richContent ? Object.keys(m.richContent) : [],
-                })),
-              });
-            } else {
-              console.warn('[loadMessagesForSession] ⚠️ No messages found in requests API for requestKey:', requestKey);
-            }
-          } else {
-            console.warn('[loadMessagesForSession] ⚠️ Requests API failed:', {
-              requestKey,
-              status: requestsResponse.status,
-            });
-          }
-        } catch (error) {
-          console.warn('[loadMessagesForSession] Error loading via requests API:', error);
-        }
-      }
-
-      // PRIORITY 2: If no messages found and we have conversationId, try chat-sessions API
-      if (messages.length === 0 && session.conversationId) {
-        try {
-          console.log('[loadMessagesForSession] Attempting to load via chat-sessions API with conversationId:', session.conversationId);
-          const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(session.conversationId)}&limit=100`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
           if (response.ok) {
             const data = await response.json();
             messages = (data.messages || []).map((m: { id: string; type?: string; content: string; timestamp?: string; senderType?: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
@@ -301,51 +251,28 @@ export default function JetvisionAgent() {
               contentType: m.contentType,
               richContent: m.richContent ?? null,
             }));
-            console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions API:', {
-              conversationId: session.conversationId,
+            // DEBUG: Log proposal_shared messages specifically
+            const proposalMessages = messages.filter((m: any) => m.contentType === 'proposal_shared');
+            console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions/messages API:', {
+              sessionId: directSessionId,
               messageCount: messages.length,
+              firstMessage: messages[0]?.content?.substring(0, 50),
+              proposalMessageCount: proposalMessages.length,
+              proposalMessages: proposalMessages.map((m: any) => ({
+                id: m.id,
+                contentType: m.contentType,
+                hasRichContent: !!m.richContent,
+                richContentKeys: m.richContent ? Object.keys(m.richContent) : [],
+              })),
             });
           } else {
-            console.warn('[loadMessagesForSession] ⚠️ Chat-sessions API failed:', {
-              conversationId: session.conversationId,
+            console.warn('[loadMessagesForSession] ⚠️ chat-sessions/messages API failed:', {
+              sessionId: directSessionId,
               status: response.status,
             });
           }
         } catch (error) {
-          console.warn('[loadMessagesForSession] Error loading via chat-sessions API:', error);
-        }
-      }
-
-      // PRIORITY 3: Fallback to session.id (might be a chat_session ID)
-      if (messages.length === 0 && !session.requestId && !session.conversationId) {
-        try {
-          console.log('[loadMessagesForSession] Attempting to load via chat-sessions API with session.id:', session.id);
-          const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(session.id)}&limit=100`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            messages = (data.messages || []).map((m: { id: string; type?: string; content: string; timestamp?: string; senderType?: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
-              id: m.id,
-              type: m.type as 'user' | 'agent' | undefined,
-              senderType: m.senderType,
-              content: m.content,
-              timestamp: m.timestamp,
-              createdAt: m.timestamp,
-              contentType: m.contentType,
-              richContent: m.richContent ?? null,
-            }));
-            console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions API (fallback):', {
-              sessionId: session.id,
-              messageCount: messages.length,
-            });
-          }
-        } catch (error) {
-          console.warn('[loadMessagesForSession] Error loading via chat-sessions API (fallback):', error);
+          console.warn('[loadMessagesForSession] Error loading via chat-sessions/messages API:', error);
         }
       }
 

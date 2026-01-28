@@ -924,6 +924,9 @@ export function ChatInterface({
       showQuotes: quotes.length > 0 || (result.rfqData?.flights?.length ?? 0) > 0,
       showPipeline: !!result.pipelineData,
       pipelineData: result.pipelineData,
+      // Email approval workflow (human-in-the-loop)
+      showEmailApprovalRequest: !!result.emailApprovalData,
+      emailApprovalData: result.emailApprovalData,
     }
 
     // Update chat with new data
@@ -1928,59 +1931,40 @@ export function ChatInterface({
                 pipelineData: msg.pipelineData,
                 showProposalSentConfirmation: msg.showProposalSentConfirmation,
                 proposalSentData: msg.proposalSentData,
+                // Email approval workflow properties (human-in-the-loop)
+                showEmailApprovalRequest: msg.showEmailApprovalRequest,
+                emailApprovalData: msg.emailApprovalData,
               }))
 
               // Merge and sort by timestamp (chronological order)
               const allMessages = [...chatMessages, ...flatOperatorMessages]
                 .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 
-              // CRITICAL: Deduplicate RFQ messages before rendering
-              // Filter out duplicate agent messages with RFQ/quote content
+              // Deduplicate messages by ID and exact content (not by keywords)
+              // Only filter truly duplicate messages, not all RFQ-related ones
+              const seenIds = new Set<string>()
+              const seenContentHashes = new Set<string>()
               const deduplicatedMessages = allMessages.reduce((acc, message, index) => {
-                // Always keep user messages and operator messages
-                if (message.type === 'user' || message.type === 'operator') {
-                  acc.push({ message, index })
+                // Skip if we've already seen this message ID
+                if (message.id && seenIds.has(message.id)) {
+                  console.log('[ChatInterface] 🚫 Skipping duplicate message (same ID):', message.id)
                   return acc
                 }
-
-                // Always keep proposal-sent confirmation messages (inline UI)
-                if (message.showProposalSentConfirmation && message.proposalSentData) {
-                  acc.push({ message, index })
-                  return acc
+                if (message.id) {
+                  seenIds.add(message.id)
                 }
 
-                // For agent messages, check if it's an RFQ-related message
-                const messageContent = (message.content || '').trim().toLowerCase()
-                const isRfqMessage = messageContent.includes('rfq') ||
-                                    messageContent.includes('quote') ||
-                                    messageContent.includes('quotes') ||
-                                    messageContent.includes('trip id') ||
-                                    messageContent.includes('received quotes') ||
-                                    messageContent.includes('here are') ||
-                                    messageContent.includes('flight quotes') ||
-                                    (messageContent.includes('tist') && messageContent.includes('kopf'))
-
-                // If it's an RFQ message, check if we already have ANY RFQ message
-                if (isRfqMessage) {
-                  const hasAnyRfqMessage = acc.some(({ message: existingMsg }) => {
-                    if (existingMsg.type !== 'agent') return false
-                    const existingContent = (existingMsg.content || '').trim().toLowerCase()
-                    return existingContent.includes('rfq') ||
-                           existingContent.includes('quote') ||
-                           existingContent.includes('quotes') ||
-                           existingContent.includes('trip id') ||
-                           existingContent.includes('received quotes') ||
-                           existingContent.includes('here are') ||
-                           existingContent.includes('flight quotes')
-                  })
-
-                  if (hasAnyRfqMessage) {
-                    console.log('[ChatInterface] 🚫 Skipping duplicate RFQ message in render:', {
+                // For agent messages, check for exact duplicate content
+                if (message.type === 'agent') {
+                  const contentHash = `${message.type}:${(message.content || '').trim()}`
+                  if (seenContentHashes.has(contentHash)) {
+                    console.log('[ChatInterface] 🚫 Skipping duplicate message (same content):', {
                       messageId: message.id,
-                      contentPreview: messageContent.substring(0, 50),
+                      contentPreview: (message.content || '').substring(0, 50),
                     })
                     return acc
                   }
+                  seenContentHashes.add(contentHash)
                 }
 
                 acc.push({ message, index })
