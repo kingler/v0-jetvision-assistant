@@ -30,6 +30,8 @@ export { RFQFlightsList } from './rfq-flights-list';
 export type { RFQFlightsListProps, SortOption, StatusFilter } from './rfq-flights-list';
 export { SendProposalStep } from './send-proposal-step';
 export type { SendProposalStepProps } from './send-proposal-step';
+export { BookFlightModal } from './book-flight-modal';
+export type { BookFlightModalProps } from './book-flight-modal';
 
 // Shared types
 export type {

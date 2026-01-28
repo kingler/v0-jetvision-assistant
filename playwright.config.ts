@@ -7,6 +7,7 @@ import { clerkSetup } from '@clerk/testing/playwright';
  */
 export default defineConfig({
   testDir: './__tests__/e2e',
+  testMatch: '**/*.spec.ts',
 
   /* Global setup for Clerk testing */
   globalSetup: './__tests__/e2e/global.setup.ts',

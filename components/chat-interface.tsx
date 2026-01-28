@@ -27,6 +27,7 @@ import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
 import { FlightSearchProgress } from "./avinode/flight-search-progress"
+import { BookFlightModal } from "./avinode/book-flight-modal"
 import { CustomerSelectionDialog, type ClientProfile } from "./customer-selection-dialog"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
@@ -153,6 +154,10 @@ export function ChatInterface({
   const [pendingProposalFlightId, setPendingProposalFlightId] = useState<string | null>(null)
   const [pendingProposalQuoteId, setPendingProposalQuoteId] = useState<string | undefined>(undefined)
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false)
+
+  // Book flight modal state for contract generation
+  const [isBookFlightModalOpen, setIsBookFlightModalOpen] = useState(false)
+  const [bookFlightData, setBookFlightData] = useState<RFQFlight | null>(null)
 
   // Sync tripIdSubmitted with activeChat
   useEffect(() => {
@@ -1656,6 +1661,48 @@ export function ChatInterface({
   }
 
   /**
+   * Handle book flight action - opens the contract generation modal
+   */
+  const handleBookFlight = useCallback((flightId: string, quoteId?: string) => {
+    console.log('[ChatInterface] Book flight:', { flightId, quoteId })
+
+    // Find the flight from rfqFlights
+    const flight = rfqFlights.find(f => f.id === flightId)
+    if (!flight) {
+      console.error('[ChatInterface] Flight not found:', flightId)
+      return
+    }
+
+    // Open the book flight modal with the selected flight
+    setBookFlightData(flight)
+    setIsBookFlightModalOpen(true)
+  }, [rfqFlights])
+
+  /**
+   * Handle contract sent - called when contract is successfully sent from the modal
+   */
+  const handleContractSent = useCallback((contractId: string, contractNumber: string) => {
+    console.log('[ChatInterface] Contract sent:', { contractId, contractNumber })
+
+    // Close the modal
+    setIsBookFlightModalOpen(false)
+    setBookFlightData(null)
+
+    // Add a system message indicating the contract was sent
+    const contractSentMessage = {
+      id: `msg-${Date.now()}`,
+      type: 'agent' as const,
+      content: `✅ Contract ${contractNumber} has been generated and sent to the customer. You can track the contract status in the contracts section.`,
+      timestamp: new Date(),
+      showWorkflow: false,
+    }
+
+    onUpdateChat(activeChat.id, {
+      messages: [...(activeChat.messages || []), contractSentMessage],
+    })
+  }, [activeChat.id, activeChat.messages, onUpdateChat])
+
+  /**
    * Handle sending operator message
    */
   const handleSendOperatorMessage = async (message: string) => {
@@ -2091,6 +2138,7 @@ export function ChatInterface({
                         rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
                         onRfqFlightSelectionChange={setSelectedRfqFlightIds}
                         onReviewAndBook={handleReviewAndBook}
+                        onBookFlight={handleBookFlight}
                         customerEmail={activeChat.customer?.name ? `${activeChat.customer.name.toLowerCase().replace(/\s+/g, '.')}@example.com` : ''}
                         customerName={activeChat.customer?.name || ''}
                         selectedFlights={[]}
@@ -2177,6 +2225,7 @@ export function ChatInterface({
                         onViewChat={handleViewChat}
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
+                        onBookFlight={handleBookFlight}
                         // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
                         // This prevents cards from appearing during clarification dialogue before trip creation
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -2208,6 +2257,7 @@ export function ChatInterface({
                       tripIdSubmitted={false}
                       onRfqFlightSelectionChange={setSelectedRfqFlightIds}
                       onReviewAndBook={handleReviewAndBook}
+                      onBookFlight={handleBookFlight}
                       onViewChat={handleViewChat}
                       onGenerateProposal={handleGenerateProposal}
                     />
@@ -2372,6 +2422,34 @@ export function ChatInterface({
         }}
         onSelect={handleCustomerSelected}
       />
+
+      {/* Book Flight Modal for Contract Generation */}
+      {bookFlightData && (
+        <BookFlightModal
+          open={isBookFlightModalOpen}
+          onClose={() => {
+            setIsBookFlightModalOpen(false)
+            setBookFlightData(null)
+          }}
+          flight={bookFlightData}
+          customer={{
+            name: activeChat.customer?.name || '',
+            email: (activeChat.customer as { email?: string })?.email ||
+              (activeChat.customer?.name ? `${activeChat.customer.name.toLowerCase().replace(/\s+/g, '.')}@example.com` : ''),
+            company: (activeChat.customer as { company?: string })?.company,
+            phone: (activeChat.customer as { phone?: string })?.phone,
+          }}
+          tripDetails={{
+            departureAirport: routeParts?.[0] ? { icao: routeParts[0], name: routeParts[0] } : { icao: 'KTEB', name: 'Teterboro Airport' },
+            arrivalAirport: routeParts?.[1] ? { icao: routeParts[1], name: routeParts[1] } : { icao: 'KVNY', name: 'Van Nuys Airport' },
+            departureDate: activeChat.date || new Date().toISOString().split('T')[0],
+            passengers: activeChat.passengers || 1,
+            tripId: activeChat.tripId,
+          }}
+          requestId={activeChat.requestId || ''}
+          onContractSent={handleContractSent}
+        />
+      )}
 
       {/* Loading overlay when generating proposal */}
       {isGeneratingProposal && (

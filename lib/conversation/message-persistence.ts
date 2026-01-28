@@ -12,7 +12,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 type MessageSenderType = 'iso_agent' | 'operator' | 'ai_assistant' | 'system';
-type MessageContentType = 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal_shared';
+type MessageContentType = 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal_shared' | 'contract_shared';
 
 /**
  * Interface for saving a message (consolidated schema)
@@ -191,7 +191,7 @@ export async function saveMessage(
     sender_operator_id: params.senderOperatorId || null,
     sender_name: params.senderName || null,
     content: params.content,
-    content_type: (params.contentType || 'text') as 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal_shared',
+    content_type: (params.contentType || 'text') as MessageContentType,
     rich_content: params.richContent as Record<string, unknown> | null || null,
     status: 'sent' as 'draft' | 'sent' | 'delivered' | 'read' | 'failed',
     metadata: params.metadata as Record<string, unknown> || {},

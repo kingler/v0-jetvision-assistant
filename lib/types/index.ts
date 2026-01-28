@@ -6,6 +6,9 @@
 // Database types
 export * from './database';
 
+// Contract types
+export * from './contract';
+
 // Quote types (consolidated from components/quotes, components/avinode, components/message-components)
 // Note: We use explicit exports to avoid naming conflicts with database types
 export {

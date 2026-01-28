@@ -80,11 +80,10 @@ export type Database = {
         Row: {
           avinode_event_id: string
           avinode_quote_id: string | null
-          avinode_rfq_id: string | null
+          avinode_rfp_id: string | null
           avinode_thread_id: string | null
           avinode_timestamp: string | null
           avinode_trip_id: string | null
-          conversation_id: string | null
           created_at: string | null
           error_message: string | null
           error_stack: string | null
@@ -112,11 +111,10 @@ export type Database = {
         Insert: {
           avinode_event_id: string
           avinode_quote_id?: string | null
-          avinode_rfq_id?: string | null
+          avinode_rfp_id?: string | null
           avinode_thread_id?: string | null
           avinode_timestamp?: string | null
           avinode_trip_id?: string | null
-          conversation_id?: string | null
           created_at?: string | null
           error_message?: string | null
           error_stack?: string | null
@@ -144,11 +142,10 @@ export type Database = {
         Update: {
           avinode_event_id?: string
           avinode_quote_id?: string | null
-          avinode_rfq_id?: string | null
+          avinode_rfp_id?: string | null
           avinode_thread_id?: string | null
           avinode_timestamp?: string | null
           avinode_trip_id?: string | null
-          conversation_id?: string | null
           created_at?: string | null
           error_message?: string | null
           error_stack?: string | null
@@ -174,13 +171,6 @@ export type Database = {
           webhook_secret_version?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "avinode_webhook_events_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "avinode_webhook_events_message_id_fkey"
             columns: ["message_id"]
@@ -531,6 +521,163 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      empty_leg_matches: {
+        Row: {
+          aircraft_capacity: number | null
+          aircraft_category: string | null
+          aircraft_model: string | null
+          aircraft_registration: string | null
+          aircraft_type: string
+          arrival_airport: string
+          currency: string
+          deep_link: string | null
+          departure_airport: string
+          departure_date: string
+          departure_time: string | null
+          discount_percentage: number | null
+          empty_leg_id: string
+          id: string
+          interested: boolean | null
+          matched_at: string | null
+          operator_id: string
+          operator_name: string
+          operator_rating: number | null
+          price: number
+          regular_price: number | null
+          valid_until: string | null
+          viewed: boolean | null
+          viewed_at: string | null
+          watch_id: string
+        }
+        Insert: {
+          aircraft_capacity?: number | null
+          aircraft_category?: string | null
+          aircraft_model?: string | null
+          aircraft_registration?: string | null
+          aircraft_type: string
+          arrival_airport: string
+          currency?: string
+          deep_link?: string | null
+          departure_airport: string
+          departure_date: string
+          departure_time?: string | null
+          discount_percentage?: number | null
+          empty_leg_id: string
+          id?: string
+          interested?: boolean | null
+          matched_at?: string | null
+          operator_id: string
+          operator_name: string
+          operator_rating?: number | null
+          price: number
+          regular_price?: number | null
+          valid_until?: string | null
+          viewed?: boolean | null
+          viewed_at?: string | null
+          watch_id: string
+        }
+        Update: {
+          aircraft_capacity?: number | null
+          aircraft_category?: string | null
+          aircraft_model?: string | null
+          aircraft_registration?: string | null
+          aircraft_type?: string
+          arrival_airport?: string
+          currency?: string
+          deep_link?: string | null
+          departure_airport?: string
+          departure_date?: string
+          departure_time?: string | null
+          discount_percentage?: number | null
+          empty_leg_id?: string
+          id?: string
+          interested?: boolean | null
+          matched_at?: string | null
+          operator_id?: string
+          operator_name?: string
+          operator_rating?: number | null
+          price?: number
+          regular_price?: number | null
+          valid_until?: string | null
+          viewed?: boolean | null
+          viewed_at?: string | null
+          watch_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empty_leg_matches_watch_id_fkey"
+            columns: ["watch_id"]
+            isOneToOne: false
+            referencedRelation: "empty_leg_watches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empty_leg_watches: {
+        Row: {
+          aircraft_categories: string[] | null
+          arrival_airport: string
+          avinode_watch_id: string | null
+          created_at: string | null
+          date_range_end: string
+          date_range_start: string
+          departure_airport: string
+          expires_at: string | null
+          id: string
+          iso_agent_id: string
+          max_price: number | null
+          notification_email: string | null
+          passengers: number
+          status: string
+          updated_at: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          aircraft_categories?: string[] | null
+          arrival_airport: string
+          avinode_watch_id?: string | null
+          created_at?: string | null
+          date_range_end: string
+          date_range_start: string
+          departure_airport: string
+          expires_at?: string | null
+          id?: string
+          iso_agent_id: string
+          max_price?: number | null
+          notification_email?: string | null
+          passengers: number
+          status?: string
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          aircraft_categories?: string[] | null
+          arrival_airport?: string
+          avinode_watch_id?: string | null
+          created_at?: string | null
+          date_range_end?: string
+          date_range_start?: string
+          departure_airport?: string
+          expires_at?: string | null
+          id?: string
+          iso_agent_id?: string
+          max_price?: number | null
+          notification_email?: string | null
+          passengers?: number
+          status?: string
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empty_leg_watches_iso_agent_id_fkey"
+            columns: ["iso_agent_id"]
+            isOneToOne: false
+            referencedRelation: "iso_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       iso_agents: {
         Row: {
@@ -1004,7 +1151,6 @@ export type Database = {
           availability_confirmed: boolean | null
           avinode_quote_id: string | null
           base_price: number
-          conversation_id: string | null
           created_at: string | null
           decline_reason: string | null
           expired_at: string | null
@@ -1041,7 +1187,6 @@ export type Database = {
           availability_confirmed?: boolean | null
           avinode_quote_id?: string | null
           base_price: number
-          conversation_id?: string | null
           created_at?: string | null
           decline_reason?: string | null
           expired_at?: string | null
@@ -1078,7 +1223,6 @@ export type Database = {
           availability_confirmed?: boolean | null
           avinode_quote_id?: string | null
           base_price?: number
-          conversation_id?: string | null
           created_at?: string | null
           decline_reason?: string | null
           expired_at?: string | null
@@ -1107,13 +1251,6 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "quotes_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "quotes_operator_profile_id_fkey"
             columns: ["operator_profile_id"]
@@ -1277,6 +1414,53 @@ export type Database = {
           },
         ]
       }
+      trip_segments: {
+        Row: {
+          arrival_airport: string
+          created_at: string | null
+          departure_airport: string
+          departure_date: string
+          departure_time: string | null
+          id: string
+          passengers: number
+          request_id: string
+          segment_order: number
+          updated_at: string | null
+        }
+        Insert: {
+          arrival_airport: string
+          created_at?: string | null
+          departure_airport: string
+          departure_date: string
+          departure_time?: string | null
+          id?: string
+          passengers: number
+          request_id: string
+          segment_order: number
+          updated_at?: string | null
+        }
+        Update: {
+          arrival_airport?: string
+          created_at?: string | null
+          departure_airport?: string
+          departure_date?: string
+          departure_time?: string | null
+          id?: string
+          passengers?: number
+          request_id?: string
+          segment_order?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_segments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_states: {
         Row: {
           agent_id: string | null
@@ -1329,157 +1513,24 @@ export type Database = {
       }
     }
     Views: {
-      pending_webhook_events: {
-        Row: {
-          avinode_event_id: string | null
-          avinode_quote_id: string | null
-          avinode_rfq_id: string | null
-          avinode_thread_id: string | null
-          avinode_timestamp: string | null
-          avinode_trip_id: string | null
-          conversation_id: string | null
-          created_at: string | null
-          error_message: string | null
-          error_stack: string | null
-          event_type: Database["public"]["Enums"]["avinode_event_type"] | null
-          headers: Json | null
-          id: string | null
-          max_retries: number | null
-          message_id: string | null
-          next_retry_at: string | null
-          operator_profile_id: string | null
-          parsed_data: Json | null
-          processed_at: string | null
-          processing_duration_ms: number | null
-          processing_status:
-            | Database["public"]["Enums"]["webhook_processing_status"]
-            | null
-          quote_id: string | null
-          raw_payload: Json | null
-          received_at: string | null
-          request_id: string | null
-          retry_count: number | null
-          signature_verified: boolean | null
-          source_ip: string | null
-          user_agent: string | null
-          webhook_secret_version: string | null
-        }
-        Insert: {
-          avinode_event_id?: string | null
-          avinode_quote_id?: string | null
-          avinode_rfq_id?: string | null
-          avinode_thread_id?: string | null
-          avinode_timestamp?: string | null
-          avinode_trip_id?: string | null
-          conversation_id?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          error_stack?: string | null
-          event_type?: Database["public"]["Enums"]["avinode_event_type"] | null
-          headers?: Json | null
-          id?: string | null
-          max_retries?: number | null
-          message_id?: string | null
-          next_retry_at?: string | null
-          operator_profile_id?: string | null
-          parsed_data?: Json | null
-          processed_at?: string | null
-          processing_duration_ms?: number | null
-          processing_status?:
-            | Database["public"]["Enums"]["webhook_processing_status"]
-            | null
-          quote_id?: string | null
-          raw_payload?: Json | null
-          received_at?: string | null
-          request_id?: string | null
-          retry_count?: number | null
-          signature_verified?: boolean | null
-          source_ip?: string | null
-          user_agent?: string | null
-          webhook_secret_version?: string | null
-        }
-        Update: {
-          avinode_event_id?: string | null
-          avinode_quote_id?: string | null
-          avinode_rfq_id?: string | null
-          avinode_thread_id?: string | null
-          avinode_timestamp?: string | null
-          avinode_trip_id?: string | null
-          conversation_id?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          error_stack?: string | null
-          event_type?: Database["public"]["Enums"]["avinode_event_type"] | null
-          headers?: Json | null
-          id?: string | null
-          max_retries?: number | null
-          message_id?: string | null
-          next_retry_at?: string | null
-          operator_profile_id?: string | null
-          parsed_data?: Json | null
-          processed_at?: string | null
-          processing_duration_ms?: number | null
-          processing_status?:
-            | Database["public"]["Enums"]["webhook_processing_status"]
-            | null
-          quote_id?: string | null
-          raw_payload?: Json | null
-          received_at?: string | null
-          request_id?: string | null
-          retry_count?: number | null
-          signature_verified?: boolean | null
-          source_ip?: string | null
-          user_agent?: string | null
-          webhook_secret_version?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "avinode_webhook_events_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "avinode_webhook_events_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "avinode_webhook_events_operator_profile_id_fkey"
-            columns: ["operator_profile_id"]
-            isOneToOne: false
-            referencedRelation: "operator_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "avinode_webhook_events_quote_id_fkey"
-            columns: ["quote_id"]
-            isOneToOne: false
-            referencedRelation: "quotes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "avinode_webhook_events_request_id_fkey"
-            columns: ["request_id"]
-            isOneToOne: false
-            referencedRelation: "requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
-      archive_old_chat_sessions: { Args: never; Returns: number }
+      archive_old_request_sessions: {
+        Args: { p_days_old?: number }
+        Returns: number
+      }
+      calculate_agent_commission: {
+        Args: { agent_commission_pct?: number; flight_price: number }
+        Returns: number
+      }
       calculate_webhook_retry_time: {
         Args: { retry_count: number }
         Returns: string
       }
       claim_webhook_event: { Args: { event_id: string }; Returns: boolean }
-      complete_chat_session: {
-        Args: { session_id: string }
+      complete_request_session: {
+        Args: { p_request_id: string }
         Returns: undefined
       }
       complete_webhook_event: {
@@ -1493,6 +1544,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      expire_old_watches: { Args: never; Returns: undefined }
       fail_webhook_event: {
         Args: {
           event_id: string
@@ -1503,10 +1555,58 @@ export type Database = {
       }
       generate_contract_number: { Args: never; Returns: string }
       generate_proposal_number: { Args: never; Returns: string }
+      get_active_watches_for_route: {
+        Args: { p_arrival: string; p_date: string; p_departure: string }
+        Returns: {
+          aircraft_categories: string[]
+          iso_agent_id: string
+          max_price: number
+          notification_email: string
+          passengers: number
+          watch_id: string
+          webhook_url: string
+        }[]
+      }
       get_current_iso_agent_id: { Args: never; Returns: string }
-      get_or_create_request_conversation: {
-        Args: { p_iso_agent_id: string; p_request_id: string }
-        Returns: string
+      get_request_messages_by_quote: {
+        Args: { p_request_id: string }
+        Returns: {
+          has_unread: boolean
+          last_message_at: string
+          message_count: number
+          operator_name: string
+          quote_id: string
+        }[]
+      }
+      get_request_operator_threads: {
+        Args: { p_request_id: string }
+        Returns: {
+          aircraft_type: string
+          currency: string
+          has_unread: boolean
+          last_message_at: string
+          last_message_content: string
+          message_count: number
+          operator_id: string
+          operator_name: string
+          quote_id: string
+          total_price: number
+        }[]
+      }
+      get_trip_segments: {
+        Args: { p_request_id: string }
+        Returns: {
+          arrival_airport: string
+          departure_airport: string
+          departure_date: string
+          departure_time: string
+          passengers: number
+          segment_order: number
+        }[]
+      }
+      get_unviewed_matches_count: {
+        Args: { p_iso_agent_id: string }
+        Returns: number
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_user: { Args: never; Returns: boolean }
@@ -1514,9 +1614,17 @@ export type Database = {
         Args: { conv_id: string }
         Returns: boolean
       }
+      mark_request_messages_read: {
+        Args: {
+          p_reader_id: string
+          p_reader_type: string
+          p_request_id: string
+        }
+        Returns: undefined
+      }
       owns_resource: { Args: { resource_agent_id: string }; Returns: boolean }
-      update_chat_session_activity: {
-        Args: { session_id: string }
+      update_request_activity: {
+        Args: { p_request_id: string }
         Returns: undefined
       }
     }
@@ -1544,7 +1652,6 @@ export type Database = {
         | "trip_created"
         | "trip_updated"
         | "trip_cancelled"
-      chat_session_status: "active" | "paused" | "completed" | "archived"
       contract_status:
         | "draft"
         | "sent"
@@ -1555,17 +1662,6 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "expired"
-      conversation_status:
-        | "active"
-        | "awaiting_response"
-        | "resolved"
-        | "archived"
-      conversation_type:
-        | "rfp_negotiation"
-        | "quote_discussion"
-        | "general_inquiry"
-        | "booking_confirmation"
-        | "support"
       execution_status:
         | "pending"
         | "running"
@@ -1590,12 +1686,6 @@ export type Database = {
         | "typing_indicator"
       message_sender_type: "iso_agent" | "ai_assistant" | "operator" | "system"
       message_status: "sending" | "sent" | "delivered" | "read" | "failed"
-      participant_role:
-        | "iso_agent"
-        | "ai_assistant"
-        | "operator"
-        | "admin"
-        | "observer"
       proposal_status:
         | "draft"
         | "generated"
@@ -1628,7 +1718,6 @@ export type Database = {
         | "awaiting_user_action"
         | "avinode_session_active"
         | "monitoring_for_quotes"
-      session_status: "active" | "expired" | "revoked"
       user_role: "iso_agent" | "sales_rep" | "admin" | "customer" | "operator"
       webhook_processing_status:
         | "pending"
@@ -1789,19 +1878,16 @@ export const Constants = {
         "trip_updated",
         "trip_cancelled",
       ],
-      chat_session_status: ["active", "paused", "completed", "archived"],
-      conversation_status: [
-        "active",
-        "awaiting_response",
-        "resolved",
-        "archived",
-      ],
-      conversation_type: [
-        "rfp_negotiation",
-        "quote_discussion",
-        "general_inquiry",
-        "booking_confirmation",
-        "support",
+      contract_status: [
+        "draft",
+        "sent",
+        "viewed",
+        "signed",
+        "payment_pending",
+        "paid",
+        "completed",
+        "cancelled",
+        "expired",
       ],
       execution_status: [
         "pending",
@@ -1829,13 +1915,6 @@ export const Constants = {
       ],
       message_sender_type: ["iso_agent", "ai_assistant", "operator", "system"],
       message_status: ["sending", "sent", "delivered", "read", "failed"],
-      participant_role: [
-        "iso_agent",
-        "ai_assistant",
-        "operator",
-        "admin",
-        "observer",
-      ],
       proposal_status: [
         "draft",
         "generated",
@@ -1871,7 +1950,6 @@ export const Constants = {
         "avinode_session_active",
         "monitoring_for_quotes",
       ],
-      session_status: ["active", "expired", "revoked"],
       user_role: ["iso_agent", "sales_rep", "admin", "customer", "operator"],
       webhook_processing_status: [
         "pending",
@@ -1884,14 +1962,3 @@ export const Constants = {
     },
   },
 } as const
-
-// Type aliases for convenience
-export type UserRole = Database["public"]["Enums"]["user_role"]
-export type RequestStatus = Database["public"]["Enums"]["request_status"]
-export type ChatSessionStatus = Database["public"]["Enums"]["chat_session_status"]
-export type User = Database["public"]["Tables"]["iso_agents"]["Row"]
-export type ClientProfile = Database["public"]["Tables"]["client_profiles"]["Row"]
-export type Request = Database["public"]["Tables"]["requests"]["Row"]
-export type Quote = Database["public"]["Tables"]["quotes"]["Row"]
-export type Proposal = Database["public"]["Tables"]["proposals"]["Row"]
-export type Message = Database["public"]["Tables"]["messages"]["Row"]

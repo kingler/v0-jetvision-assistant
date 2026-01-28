@@ -60,6 +60,26 @@ export interface SendProposalEmailOptions {
   };
 }
 
+export interface SendContractEmailOptions {
+  to: string;
+  customerName: string;
+  subject?: string;
+  body?: string;
+  contractNumber: string;
+  pdfBase64: string;
+  pdfFilename: string;
+  flightDetails: {
+    departureAirport: string;
+    arrivalAirport: string;
+    departureDate: string;
+    aircraftType: string;
+  };
+  pricing: {
+    total: number;
+    currency: string;
+  };
+}
+
 // =============================================================================
 // EMAIL TEMPLATES
 // =============================================================================
@@ -401,9 +421,130 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   };
 }
 
+// =============================================================================
+// CONTRACT EMAIL FUNCTIONS
+// =============================================================================
+
+/**
+ * Generate default contract email subject
+ */
+function generateContractDefaultSubject(
+  departureAirport: string,
+  arrivalAirport: string
+): string {
+  return `Jetvision Flight Contract: ${departureAirport} → ${arrivalAirport}`;
+}
+
+/**
+ * Generate default contract email body
+ */
+function generateContractDefaultEmailBody(options: SendContractEmailOptions): string {
+  const { customerName, flightDetails, pricing, contractNumber } = options;
+
+  const formattedPrice = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: pricing.currency,
+    maximumFractionDigits: 0,
+  }).format(pricing.total);
+
+  const formattedDate = new Date(flightDetails.departureDate).toLocaleDateString(
+    'en-US',
+    {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }
+  );
+
+  return `Dear ${customerName},
+
+Thank you for choosing Jetvision for your private charter flight.
+
+Please find attached your Flight Charter Service Agreement for your upcoming trip:
+
+**Flight Details:**
+• Route: ${flightDetails.departureAirport} → ${flightDetails.arrivalAirport}
+• Date: ${formattedDate}
+• Aircraft: ${flightDetails.aircraftType}
+• Total: ${formattedPrice}
+
+**Contract Number:** ${contractNumber}
+
+The attached PDF contains your complete contract including:
+• Flight summary and pricing breakdown
+• Terms and conditions
+• Signature page
+• Credit card authorization form (if paying by card)
+
+Please review the contract carefully. To proceed with booking:
+1. Sign the agreement on the signature page
+2. Complete the payment information
+3. Return the signed contract via email
+
+If you have any questions or need any modifications, please reply to this email or contact our team directly.
+
+Best regards,
+The Jetvision Team
+
+---
+This email was sent by Jetvision - Private Charter Made Simple
+www.jetvision.com | support@jetvision.com`;
+}
+
+/**
+ * Send a contract email with PDF attachment
+ *
+ * @param options - Email options including customer info and PDF
+ * @returns Send result with success status and message ID
+ */
+export async function sendContractEmail(
+  options: SendContractEmailOptions
+): Promise<SendEmailResult> {
+  const {
+    to,
+    customerName,
+    subject,
+    body,
+    pdfBase64,
+    pdfFilename,
+    flightDetails,
+    pricing,
+    contractNumber,
+  } = options;
+
+  // Generate default subject and body if not provided
+  const emailSubject =
+    subject ||
+    generateContractDefaultSubject(
+      flightDetails.departureAirport,
+      flightDetails.arrivalAirport
+    );
+
+  const emailBody = body || generateContractDefaultEmailBody(options);
+
+  // Prepare attachment
+  const attachments: EmailAttachment[] = [
+    {
+      filename: pdfFilename,
+      content: pdfBase64,
+      contentType: 'application/pdf',
+    },
+  ];
+
+  // Send email using base send function
+  return sendEmail({
+    to,
+    subject: emailSubject,
+    body: emailBody,
+    attachments,
+  });
+}
+
 const emailService = {
   sendEmail,
   sendProposalEmail,
+  sendContractEmail,
 };
 
 export default emailService;

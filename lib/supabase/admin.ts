@@ -621,6 +621,7 @@ export async function searchUserTripsByTripId(
 // ============================================================================
 
 const PROPOSALS_BUCKET = 'proposals';
+const CONTRACTS_BUCKET = 'contracts';
 
 /**
  * Upload result from PDF storage
@@ -723,6 +724,115 @@ export async function deleteProposalPdf(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error deleting PDF',
+    };
+  }
+}
+
+// ============================================================================
+// CONTRACT STORAGE HELPERS
+// ============================================================================
+
+/**
+ * Upload result from contract PDF storage
+ */
+export interface UploadContractPdfResult {
+  success: boolean;
+  publicUrl?: string;
+  filePath?: string;
+  fileSizeBytes?: number;
+  error?: string;
+}
+
+/**
+ * Upload a PDF contract to Supabase storage
+ *
+ * @param pdfBuffer - The PDF file as a Buffer
+ * @param fileName - The filename for the PDF
+ * @param isoAgentId - The user's iso_agent_id for organizing files
+ * @returns Object with success status, public URL, file path, size, or error
+ */
+export async function uploadContractPdf(
+  pdfBuffer: Buffer,
+  fileName: string,
+  isoAgentId: string
+): Promise<UploadContractPdfResult> {
+  try {
+    // Create a unique path: contracts/{iso_agent_id}/{timestamp}_{filename}
+    const timestamp = Date.now();
+    const filePath = `${isoAgentId}/${timestamp}_${fileName}`;
+
+    // Calculate file size from buffer
+    const fileSizeBytes = pdfBuffer.length;
+
+    // Upload to Supabase storage
+    const { data, error } = await supabaseAdmin.storage
+      .from(CONTRACTS_BUCKET)
+      .upload(filePath, pdfBuffer, {
+        contentType: 'application/pdf',
+        cacheControl: '3600', // Cache for 1 hour
+        upsert: false, // Don't overwrite existing files
+      });
+
+    if (error) {
+      console.error('[Storage] Error uploading contract PDF:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Get the public URL for the uploaded file
+    const { data: urlData } = supabaseAdmin.storage
+      .from(CONTRACTS_BUCKET)
+      .getPublicUrl(filePath);
+
+    if (!urlData?.publicUrl) {
+      return { success: false, error: 'Failed to get public URL for uploaded contract PDF' };
+    }
+
+    console.log('[Storage] Contract PDF uploaded successfully:', {
+      path: filePath,
+      publicUrl: urlData.publicUrl,
+      sizeBytes: fileSizeBytes,
+    });
+
+    return {
+      success: true,
+      publicUrl: urlData.publicUrl,
+      filePath,
+      fileSizeBytes,
+    };
+  } catch (error) {
+    console.error('[Storage] Unexpected error uploading contract PDF:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error uploading contract PDF',
+    };
+  }
+}
+
+/**
+ * Delete a contract PDF from Supabase storage
+ *
+ * @param filePath - The full path of the file to delete
+ * @returns Object with success status or error
+ */
+export async function deleteContractPdf(
+  filePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin.storage
+      .from(CONTRACTS_BUCKET)
+      .remove([filePath]);
+
+    if (error) {
+      console.error('[Storage] Error deleting contract PDF:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Storage] Unexpected error deleting contract PDF:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error deleting contract PDF',
     };
   }
 }

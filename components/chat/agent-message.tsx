@@ -144,6 +144,8 @@ export interface AgentMessageProps {
   onContinueToProposal?: (selectedFlights: RFQFlight[]) => void
   /** Callback when user clicks "Review and Book" button on a flight card */
   onReviewAndBook?: (flightId: string) => void
+  /** Callback when user clicks "Book Flight" button on a quoted flight card */
+  onBookFlight?: (flightId: string, quoteId?: string) => void
   /** Callback when PDF preview is generated */
   onGeneratePreview?: (data: {
     customerEmail: string
@@ -242,6 +244,7 @@ export function AgentMessage({
   onRfqFlightSelectionChange,
   onContinueToProposal,
   onReviewAndBook,
+  onBookFlight,
   onGeneratePreview,
   onSendProposal,
   onGoBackFromProposal,
@@ -414,6 +417,7 @@ export function AgentMessage({
           onRfqFlightSelectionChange={onRfqFlightSelectionChange}
           onContinueToProposal={onContinueToProposal}
           onReviewAndBook={onReviewAndBook}
+          onBookFlight={onBookFlight}
           onGeneratePreview={onGeneratePreview}
           onSendProposal={onSendProposal}
           onGoBackFromProposal={onGoBackFromProposal}
