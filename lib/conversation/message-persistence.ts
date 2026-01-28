@@ -593,7 +593,6 @@ export async function markMessagesAsRead(
 ): Promise<void> {
   // Use the database function if available
   try {
-    // @ts-expect-error - RPC function types not fully generated
     await supabaseAdmin.rpc('mark_request_messages_read', {
       p_request_id: requestId,
       p_reader_type: userType,

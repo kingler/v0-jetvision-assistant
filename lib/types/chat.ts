@@ -52,7 +52,9 @@ export type MessageContentType =
   // Email approval workflow types (human-in-the-loop)
   | 'email_approval_request'
   | 'email_approved'
-  | 'email_rejected';
+  | 'email_rejected'
+  // Contract workflow types
+  | 'contract_shared';
 
 export type MessageStatus =
   | 'sending'
@@ -393,9 +395,9 @@ export interface BookingConfirmedContent {
 // Email approval workflow content types (human-in-the-loop)
 export interface EmailApprovalRequestContent {
   /** Proposal ID for the email */
-  proposal_id: string;
+  proposalId: string;
   /** Proposal number (e.g., 'PROP-2025-001') */
-  proposal_number?: string;
+  proposalNumber?: string;
   /** Recipient information */
   to: {
     email: string;
@@ -413,10 +415,10 @@ export interface EmailApprovalRequestContent {
     type?: string;
   }>;
   /** Flight details for context */
-  flight_details?: {
-    departure_airport: string;
-    arrival_airport: string;
-    departure_date: string;
+  flightDetails?: {
+    departureAirport: string;
+    arrivalAirport: string;
+    departureDate: string;
     passengers?: number;
   };
   /** Pricing information */
@@ -426,9 +428,9 @@ export interface EmailApprovalRequestContent {
     currency: string;
   };
   /** When the draft was generated */
-  generated_at: string;
+  generatedAt?: string;
   /** Request ID for context */
-  request_id?: string;
+  requestId?: string;
 }
 
 export interface EmailApprovedContent {

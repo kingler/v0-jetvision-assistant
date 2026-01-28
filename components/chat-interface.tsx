@@ -1887,6 +1887,9 @@ export function ChatInterface({
                 pipelineData?: PipelineData
                 showProposalSentConfirmation?: boolean
                 proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
+                // Email approval workflow properties (human-in-the-loop)
+                showEmailApprovalRequest?: boolean
+                emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
                 // Operator message properties
                 operatorName?: string
                 operatorQuoteId?: string

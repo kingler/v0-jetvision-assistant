@@ -70,34 +70,17 @@ COMMENT ON INDEX idx_proposals_email_approval_pending IS 'Efficient lookup of pr
 -- STEP 5: Update messages content_type enum to support new types
 -- =============================================================================
 
--- Note: The messages.content_type column uses a CHECK constraint, not an enum.
--- We need to update the constraint to allow new values.
+-- Note: The messages.content_type column uses a PostgreSQL ENUM type (message_content_type).
+-- We need to add new values to the enum type.
+-- Using 'IF NOT EXISTS' syntax (PostgreSQL 9.3+) to make migration idempotent.
 
--- First, drop the existing constraint if it exists
-DO $$
-BEGIN
-  -- Try to drop the old constraint (name may vary)
-  ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_content_type_check;
-EXCEPTION
-  WHEN undefined_object THEN NULL;
-END $$;
+-- Add new enum values for email approval workflow
+ALTER TYPE message_content_type ADD VALUE IF NOT EXISTS 'email_approval_request';
+ALTER TYPE message_content_type ADD VALUE IF NOT EXISTS 'email_approved';
+ALTER TYPE message_content_type ADD VALUE IF NOT EXISTS 'email_rejected';
 
--- Add updated constraint with new email approval types
-ALTER TABLE messages
-ADD CONSTRAINT messages_content_type_check
-CHECK (content_type IN (
-  -- Existing types
-  'text',
-  'rich',
-  'system',
-  'action',
-  'quote',
-  'proposal_shared',
-  -- New email approval types
-  'email_approval_request',
-  'email_approved',
-  'email_rejected'
-));
+-- Also add 'contract_shared' if it doesn't exist (from contracts feature)
+ALTER TYPE message_content_type ADD VALUE IF NOT EXISTS 'contract_shared';
 
 -- =============================================================================
 -- VERIFICATION
