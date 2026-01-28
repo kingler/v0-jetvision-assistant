@@ -1246,6 +1246,9 @@ function transformToRFQFlights(rfqData, tripId) {
     // - lift.links.quotes[] - Links to quote details
     const sellerLifts = Array.isArray(rfqData.sellerLift) ? rfqData.sellerLift :
         (Array.isArray(rfqData.lifts) ? rfqData.lifts : []);
+    // FIX: Attach sellerCompany from RFQ level to each lift (sellerCompany is at RFQ level, not lift level)
+    // This ensures operator name is available for all lifts (including unanswered ones)
+    const sellerCompanyFromRFQ = rfqData.sellerCompany;
     // Extract quotes from sellerLift array
     // IMPORTANT: Based on API testing, sellerLift[] contains lift objects with:
     // - lift.id - Lift identifier (asellerlift-*)
@@ -1268,6 +1271,8 @@ function transformToRFQFlights(rfqData, tripId) {
                 // Only override specific fields that come from the quote link
                 return {
                     ...lift, // Spread the entire lift object (includes merged quote details: sellerPrice, sellerMessage, etc.)
+                    // FIX: Attach sellerCompany from RFQ level (operator info is at RFQ level, not lift level)
+                    sellerCompany: lift.sellerCompany || sellerCompanyFromRFQ,
                     // Quote ID from link (override if needed)
                     quote_id: quoteLink.id,
                     id: quoteLink.id,
@@ -1295,12 +1300,52 @@ function transformToRFQFlights(rfqData, tripId) {
                 };
             });
         }
-        // Fallback: If lift itself has quote_id or price, treat it as a quote
-        // In this case, the lift is already the quote object (possibly merged with quote details)
-        if (lift.quote_id || lift.id || lift.price !== undefined || lift.sellerPrice) {
+        // Fallback: Only return lift as a quote if it has ACTUAL price data
+        // FIX: Removed `lift.id` from condition - lift.id always exists for sellerLift items
+        // but doesn't indicate the lift has quote/price data (just that it's a valid lift)
+        // This prevents lifts without prices from being displayed as "$0.00" quotes
+        const hasActualPriceData = lift.quote_id || // Has a quote ID (indicates quote was submitted)
+            lift.price !== undefined || // Has direct price field
+            lift.sellerPrice?.price > 0 || // Has sellerPrice (from Avinode quote)
+            lift.pricing?.total > 0 || // Has pricing breakdown
+            lift.totalPrice?.amount > 0 || // Has totalPrice object
+            lift.estimatedPrice?.amount > 0; // Has estimated marketplace price
+        if (hasActualPriceData) {
+            console.log('[transformToRFQFlights] Including lift as quote (has price data):', {
+                lift_id: lift.id,
+                quote_id: lift.quote_id,
+                hasSellerPrice: !!lift.sellerPrice?.price,
+                hasPricing: !!lift.pricing?.total,
+                hasEstimatedPrice: !!lift.estimatedPrice?.amount,
+            });
             return [lift];
         }
-        return [];
+        // Lift exists but has no price data - this is an RFQ recipient that hasn't quoted yet
+        // FIX: Include ALL lifts (even without prices) so unanswered RFQs appear in the UI
+        // Users expect to see all RFQs regardless of status, with "Price Pending" for unanswered ones
+        console.log('[transformToRFQFlights] Including lift WITHOUT price data (unanswered):', {
+            lift_id: lift.id,
+            sourcingDisplayStatus: lift.sourcingDisplayStatus || lift.sourcing_display_status,
+            hasLinks: !!lift.links,
+            hasQuoteLinks: !!(lift.links?.quotes),
+            sellerCompany: sellerCompanyFromRFQ?.displayName,
+        });
+        // Return the lift with explicit unanswered markers
+        return [{
+                ...lift,
+                // FIX: Attach sellerCompany from RFQ level (operator info is at RFQ level, not lift level)
+                sellerCompany: lift.sellerCompany || sellerCompanyFromRFQ,
+                // Create a stable ID for unanswered lifts
+                id: lift.id || `unanswered-${Date.now()}`,
+                quote_id: lift.id, // Use lift ID as quote ID for unanswered
+                // Mark as unanswered RFQ (no price yet)
+                _isUnansweredRFQ: true,
+                // Ensure status is unanswered
+                sourcingDisplayStatus: lift.sourcingDisplayStatus || lift.sourcing_display_status || 'Unanswered',
+                // Ensure price fields are 0 (will show "Price Pending" in UI)
+                totalPrice: 0,
+                sellerPrice: undefined,
+            }];
     });
     // Log sellerLift extraction for debugging
     if (quotesFromSellerLift.length > 0) {
@@ -1524,11 +1569,14 @@ function transformToRFQFlights(rfqData, tripId) {
         }
         const hasQuote = rfqStatus === 'quoted' || hasSellerPrice;
         // Extract aircraft data
-        const aircraftType = quote.aircraft?.type || 'Unknown';
-        const aircraftModel = quote.aircraft?.model || quote.aircraft?.type || 'Unknown';
-        const tailNumber = quote.aircraft?.tailNumber || quote.aircraft?.registration;
+        // FIX: Check sellerLift fields first (aircraftType, aircraftSuperType, aircraftTail, maxPax)
+        // then fallback to quote.aircraft.* fields for compatibility
+        const aircraftType = quote.aircraftType || quote.aircraftSuperType || quote.aircraft?.type || 'Unknown';
+        const aircraftModel = quote.aircraftType || quote.aircraftSuperType || quote.aircraft?.model || quote.aircraft?.type || 'Unknown';
+        const tailNumber = quote.aircraftTail || quote.aircraft?.tailNumber || quote.aircraft?.registration;
         const yearOfManufacture = quote.aircraft?.yearOfManufacture || quote.aircraft?.year_built;
-        const passengerCapacity = quote.aircraft?.capacity || rfqData.passengers || 0;
+        const passengerCapacity = quote.maxPax || quote.aircraft?.capacity || rfqData.passengers || 0;
+        const aircraftCategoryFromLift = quote.aircraftCategory; // From sellerLift (e.g., "Heavy jet", "Ultra long range")
         // Log price extraction for debugging
         if (hasQuote && totalPrice > 0) {
             console.log('[transformToRFQFlights] ✅ Extracted price for quote', quote.quote?.id || quote.id || quote.quote_id, ':', currency, totalPrice, {

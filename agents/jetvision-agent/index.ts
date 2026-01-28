@@ -211,10 +211,20 @@ export class JetvisionAgent {
     let deepLink: string | undefined;
 
     for (const result of toolResults) {
-      if (result.success && result.name === 'create_trip') {
-        const data = result.data as { trip_id?: string; deep_link?: string } | undefined;
-        tripId = data?.trip_id;
-        deepLink = data?.deep_link;
+      if (result.name === 'create_trip') {
+        // DEBUG: Log create_trip result to diagnose sidebar update issue
+        console.log('[JetvisionAgent] 🔍 create_trip tool result:', {
+          success: result.success,
+          hasData: !!result.data,
+          trip_id: (result.data as any)?.trip_id,
+          deep_link: (result.data as any)?.deep_link ? 'SET' : undefined,
+          error: result.error,
+        });
+        if (result.success) {
+          const data = result.data as { trip_id?: string; deep_link?: string } | undefined;
+          tripId = data?.trip_id;
+          deepLink = data?.deep_link;
+        }
       }
     }
 

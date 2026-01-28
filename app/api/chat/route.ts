@@ -380,7 +380,15 @@ export async function POST(req: NextRequest) {
       });
 
       // Send trip data if created (includes flight details from rfpData)
+      // DEBUG: Log what we're about to send to diagnose sidebar update issue
       if (result.tripId || result.rfpData) {
+        console.log('[Chat API] 🔍 Sending trip_data SSE chunk:', {
+          tripId: result.tripId,
+          deepLink: result.deepLink ? 'SET' : undefined,
+          departure_airport: result.rfpData?.departure_airport,
+          arrival_airport: result.rfpData?.arrival_airport,
+          hasRfpData: !!result.rfpData,
+        });
         yield JSON.stringify({
           trip_data: {
             trip_id: result.tripId,

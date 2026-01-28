@@ -877,6 +877,7 @@ export default function JetvisionAgent() {
       const quoteId = (quote.quote_id || quote.quoteId || quote.id || `quote-${Date.now()}`) as string;
 
       // Extract price - check multiple possible locations
+      // FIX: Added estimatedPrice fallback for "Unanswered" RFQs (initial RFQ submission price)
       let price = 0;
       let currency = 'USD';
 
@@ -892,6 +893,24 @@ export default function JetvisionAgent() {
         price = quote.price as number;
       } else if (quote.total_price) {
         price = quote.total_price as number;
+      } else if (typeof quote.totalPrice === 'number' && quote.totalPrice > 0) {
+        // FIX: Direct totalPrice field (number, not object)
+        price = quote.totalPrice as number;
+      } else if (quote.totalPrice && typeof quote.totalPrice === 'object') {
+        // FIX: totalPrice object with amount
+        const totalPriceObj = quote.totalPrice as Record<string, unknown>;
+        price = (totalPriceObj.amount as number) || 0;
+        currency = (totalPriceObj.currency as string) || currency;
+      } else if (quote.estimatedPrice && typeof quote.estimatedPrice === 'object') {
+        // FIX: estimatedPrice for initial RFQ submission (Unanswered status)
+        const estimatedPrice = quote.estimatedPrice as Record<string, unknown>;
+        price = (estimatedPrice.amount as number) || (estimatedPrice.price as number) || 0;
+        currency = (estimatedPrice.currency as string) || 'USD';
+      } else if (quote.estimated_price && typeof quote.estimated_price === 'object') {
+        // FIX: Snake_case variant of estimatedPrice
+        const estimatedPrice = quote.estimated_price as Record<string, unknown>;
+        price = (estimatedPrice.amount as number) || (estimatedPrice.price as number) || 0;
+        currency = (estimatedPrice.currency as string) || 'USD';
       }
 
       // Determine status
@@ -949,10 +968,41 @@ export default function JetvisionAgent() {
 
   /**
    * Transform an RFQ (without quotes) to RFQFlight format as placeholder
+   * FIX: Extract initial/estimated price from RFQ data instead of hardcoding 0
    */
   const transformRFQToFlight = (rfq: Record<string, unknown>): RFQFlight | null => {
     try {
       const rfqId = (rfq.rfq_id || rfq.id || `rfq-${Date.now()}`) as string;
+
+      // FIX: Extract initial/estimated price from RFQ data
+      let price = 0;
+      let currency = 'USD';
+
+      if (rfq.estimatedPrice && typeof rfq.estimatedPrice === 'object') {
+        const estimatedPrice = rfq.estimatedPrice as Record<string, unknown>;
+        price = (estimatedPrice.amount as number) || (estimatedPrice.price as number) || 0;
+        currency = (estimatedPrice.currency as string) || 'USD';
+      } else if (rfq.estimated_price && typeof rfq.estimated_price === 'object') {
+        const estimatedPrice = rfq.estimated_price as Record<string, unknown>;
+        price = (estimatedPrice.amount as number) || (estimatedPrice.price as number) || 0;
+        currency = (estimatedPrice.currency as string) || 'USD';
+      } else if (rfq.pricing && typeof rfq.pricing === 'object') {
+        const pricing = rfq.pricing as Record<string, unknown>;
+        price = (pricing.total || pricing.amount) as number || 0;
+        currency = (pricing.currency as string) || 'USD';
+      } else if (typeof rfq.totalPrice === 'number') {
+        price = rfq.totalPrice as number;
+      } else if (rfq.totalPrice && typeof rfq.totalPrice === 'object') {
+        const totalPriceObj = rfq.totalPrice as Record<string, unknown>;
+        price = (totalPriceObj.amount as number) || 0;
+        currency = (totalPriceObj.currency as string) || 'USD';
+      }
+
+      // Determine status based on price
+      let rfqStatus: 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired' = 'unanswered';
+      if (price > 0) {
+        rfqStatus = 'quoted';
+      }
 
       const flight: RFQFlight = {
         id: rfqId,
@@ -965,8 +1015,8 @@ export default function JetvisionAgent() {
         aircraftModel: 'Aircraft TBD',
         passengerCapacity: (rfq.passengers || 0) as number,
         operatorName: 'Awaiting quotes',
-        totalPrice: 0,
-        currency: 'USD',
+        totalPrice: price,
+        currency,
         amenities: {
           wifi: false,
           pets: false,
@@ -975,7 +1025,7 @@ export default function JetvisionAgent() {
           lavatory: false,
           medical: false,
         },
-        rfqStatus: 'unanswered',
+        rfqStatus,
         lastUpdated: new Date().toISOString(),
         isSelected: false,
       };
@@ -1324,6 +1374,13 @@ export default function JetvisionAgent() {
             newId: updates.id || chatId,
             conversationId: updatedSession.conversationId,
             requestId: updatedSession.requestId,
+            // Trip-related fields for debugging sidebar update issue
+            tripId: updatedSession.tripId,
+            route: updatedSession.route,
+            date: updatedSession.date,
+            passengers: updatedSession.passengers,
+            generatedName: updatedSession.generatedName,
+            deepLink: updatedSession.deepLink ? 'SET' : undefined,
             hasRfqFlights: !!updatedSession.rfqFlights,
             rfqFlightsCount: updatedSession.rfqFlights?.length || 0,
             samplePrice: updatedSession.rfqFlights?.[0]?.totalPrice,

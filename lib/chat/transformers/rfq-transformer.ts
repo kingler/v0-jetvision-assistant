@@ -404,6 +404,84 @@ export function convertQuoteToRFQFlight(
 }
 
 /**
+ * Extract price from RFQ object (used when RFQ has no quotes yet)
+ * Looks for initial/estimated price fields that Avinode may provide
+ *
+ * @param rfq - The RFQ object from Avinode API
+ * @returns Object with price and currency
+ */
+function extractPriceFromRfq(rfq: Record<string, unknown>): { price: number; currency: string } {
+  // FIX: Extract initial/estimated price from RFQ data instead of defaulting to 0
+  // Avinode may provide estimatedPrice or pricing at the RFQ level for unanswered RFQs
+
+  // Check estimatedPrice (marketplace estimated price)
+  const estimatedPrice = rfq.estimatedPrice || rfq.estimated_price;
+  if (estimatedPrice && typeof estimatedPrice === 'object') {
+    const est = estimatedPrice as { amount?: number; price?: number; currency?: string };
+    const amount = est.amount || est.price;
+    if (amount && amount > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[extractPriceFromRfq] ✅ Found estimatedPrice:', amount, est.currency || 'USD');
+      }
+      return { price: amount, currency: est.currency || 'USD' };
+    }
+  }
+
+  // Check pricing object
+  const pricing = rfq.pricing;
+  if (pricing && typeof pricing === 'object') {
+    const p = pricing as { total?: number; amount?: number; base?: number; currency?: string };
+    const pricingTotal = p.total || p.amount || p.base;
+    if (pricingTotal && pricingTotal > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[extractPriceFromRfq] ✅ Found pricing:', pricingTotal, p.currency || 'USD');
+      }
+      return { price: pricingTotal, currency: p.currency || 'USD' };
+    }
+  }
+
+  // Check sellerPrice
+  const sellerPrice = rfq.sellerPrice || rfq.seller_price;
+  if (sellerPrice && typeof sellerPrice === 'object') {
+    const sp = sellerPrice as { price?: number; amount?: number; currency?: string };
+    const amount = sp.price || sp.amount;
+    if (amount && amount > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[extractPriceFromRfq] ✅ Found sellerPrice:', amount, sp.currency || 'USD');
+      }
+      return { price: amount, currency: sp.currency || 'USD' };
+    }
+  }
+
+  // Check direct price fields
+  const directPrice = (rfq.totalPrice as number) || (rfq.total_price as number) || (rfq.price as number);
+  if (directPrice && directPrice > 0) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[extractPriceFromRfq] ✅ Found direct price:', directPrice);
+    }
+    return { price: directPrice, currency: (rfq.currency as string) || 'USD' };
+  }
+
+  // Check totalPrice object
+  const totalPriceObj = rfq.totalPrice;
+  if (totalPriceObj && typeof totalPriceObj === 'object') {
+    const tp = totalPriceObj as { amount?: number; currency?: string };
+    if (tp.amount && tp.amount > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[extractPriceFromRfq] ✅ Found totalPrice.amount:', tp.amount, tp.currency || 'USD');
+      }
+      return { price: tp.amount, currency: tp.currency || 'USD' };
+    }
+  }
+
+  // No price found - return 0
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[extractPriceFromRfq] ⚠️ No price found in RFQ, defaulting to 0');
+  }
+  return { price: 0, currency: (rfq.currency as string) || 'USD' };
+}
+
+/**
  * Convert an RFQ (without quotes) to RFQFlight format
  * Used when RFQs are returned from the API but don't have quotes yet
  *
@@ -452,15 +530,26 @@ export function convertRfqToRFQFlight(
     date ||
     new Date().toISOString().split('T')[0];
 
+  // FIX: Extract initial/estimated price from RFQ instead of hardcoding 0
+  const { price: initialPrice, currency } = extractPriceFromRfq(rfqAny);
+
   // Determine RFQ status
   const status = rfq.status as string;
-  const rfqStatus: RFQStatusType =
+  let rfqStatus: RFQStatusType =
     status === 'sent' ? RFQStatus.SENT :
     status === 'unanswered' ? RFQStatus.UNANSWERED :
     status === 'quoted' ? RFQStatus.QUOTED :
     status === 'declined' ? RFQStatus.DECLINED :
     status === 'expired' ? RFQStatus.EXPIRED :
     RFQStatus.SENT;
+
+  // FIX: If we have a price, ensure status reflects that (business rule: price > 0 means 'quoted')
+  if (initialPrice > 0 && (rfqStatus === RFQStatus.UNANSWERED || rfqStatus === RFQStatus.SENT)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[convertRfqToRFQFlight] ✅ Price > 0 (' + initialPrice + ') - updating status to quoted (was:', rfqStatus, ')');
+    }
+    rfqStatus = RFQStatus.QUOTED;
+  }
 
   return {
     id: rfq.rfq_id || rfq.id || `rfq-${Date.now()}`,
@@ -474,8 +563,8 @@ export function convertRfqToRFQFlight(
     aircraftModel: 'Aircraft TBD',
     passengerCapacity: (rfqAny.passengers as number) || 0,
     operatorName: 'Awaiting quotes',
-    totalPrice: 0,
-    currency: 'USD',
+    totalPrice: initialPrice,
+    currency,
     amenities: DEFAULT_AMENITIES,
     rfqStatus,
     lastUpdated: (rfqAny.updated_at as string) || (rfqAny.created_at as string) || new Date().toISOString(),

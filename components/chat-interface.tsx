@@ -1940,19 +1940,44 @@ export function ChatInterface({
               // FlightSearchProgress should appear AFTER ALL dialogue messages in chronological order
               // This ensures the conversation flow is: User messages -> Agent responses -> FlightSearchProgress
               // The component will be inserted at the end of the message list, after all conversation messages
-              
+
               // Determine if we should show FlightSearchProgress (trip is created and we have valid data)
               const shouldInsertProgressAtEnd = shouldShowFlightSearchProgress
 
-              return deduplicatedMessages.map(({ message, index }, mapIndex) => {
-                // Check if this is the last message in the list
-                // FlightSearchProgress will appear after the last message
-                const isLastMessage = mapIndex === deduplicatedMessages.length - 1
-                // Show FlightSearchProgress after the last message when trip is created
-                const shouldShowProgressAfterThis = shouldInsertProgressAtEnd && isLastMessage
+              // CRITICAL FIX: Separate proposal confirmation messages from regular messages
+              // Proposal confirmations should appear AFTER FlightSearchProgress (Step 3) because
+              // the "Generate Proposal" button is located within the RFQ flight card in Step 3
+              const { regularMessages, proposalConfirmations } = deduplicatedMessages.reduce(
+                (acc, item) => {
+                  const { message } = item
+                  // Check if this is a proposal confirmation message
+                  const isProposalConfirmation =
+                    (message.showProposalSentConfirmation && message.proposalSentData) ||
+                    (message.content && (
+                      (message.content.toLowerCase().includes('proposal') &&
+                       message.content.toLowerCase().includes('sent')) ||
+                      message.content.toLowerCase().includes('was sent to')
+                    ))
 
-                return (
-                  <React.Fragment key={message.id || `msg-${index}`}>
+                  if (isProposalConfirmation) {
+                    acc.proposalConfirmations.push(item)
+                  } else {
+                    acc.regularMessages.push(item)
+                  }
+                  return acc
+                },
+                {
+                  regularMessages: [] as Array<{ message: UnifiedMessage; index: number }>,
+                  proposalConfirmations: [] as Array<{ message: UnifiedMessage; index: number }>,
+                }
+              )
+
+              // Render: Regular messages -> FlightSearchProgress -> Proposal confirmations
+              return (
+                <>
+                  {/* Regular messages (user, operator, agent) in chronological order */}
+                  {regularMessages.map(({ message, index }, mapIndex) => (
+                    <React.Fragment key={message.id || `msg-${index}`}>
                     {message.type === 'user' ? (
                       // User message - blue bubble on the right
                       <div className="flex justify-end">
@@ -2092,73 +2117,103 @@ export function ChatInterface({
                       />
                     )}
 
-                    {/* Insert FlightSearchProgress after ALL dialogue messages in chronological order */}
-                    {/* This ensures it appears AFTER the complete conversation, maintaining proper message flow */}
-                    {shouldShowProgressAfterThis && (
-                      <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
-                        <FlightSearchProgress
-                          currentStep={(() => {
-                            // Calculate proper step based on state per UX requirements:
-                            // Step 1: Request Created (has route/request)
-                            // Step 2: Select in Avinode (has deepLink)
-                            // Step 3: Enter TripID (has tripId but no RFQs yet)
-                            // Step 4: Review Quotes (has tripId and RFQ flights)
-                            const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
-
-                            // Step 4: If we have RFQ flights and tripId is submitted
-                            if (rfqFlights.length > 0 && isTripIdSubmitted) {
-                              return 4
-                            }
-
-                            // Step 3: If we have tripId and RFQs are not loaded yet
-                            if (activeChat.tripId && rfqFlights.length === 0) {
-                              return 3
-                            }
-
-                            // Step 2: If we have deepLink (means request created, ready to select in Avinode)
-                            if (activeChat.deepLink) {
-                              return 2
-                            }
-
-                            // Step 1: Default (request created)
-                            return activeChat.currentStep || 1
-                          })()}
-                          flightRequest={{
-                            departureAirport: activeChat.route?.split(' → ')[0]
-                              ? { icao: activeChat.route.split(' → ')[0].trim() }
-                              : { icao: 'TBD' },
-                            arrivalAirport: activeChat.route?.split(' → ')[1]
-                              ? { icao: activeChat.route.split(' → ')[1].trim() }
-                              : { icao: 'TBD' },
-                            departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
-                            passengers: activeChat.passengers || 1,
-                            requestId: activeChat.requestId,
-                          }}
-                          deepLink={activeChat.deepLink}
-                          tripId={activeChat.tripId}
-                          isTripIdLoading={isTripIdLoading}
-                          tripIdError={tripIdError}
-                          tripIdSubmitted={tripIdSubmitted || activeChat.tripIdSubmitted || (activeChat.tripId && activeChat.rfqFlights && activeChat.rfqFlights.length > 0) || false}
-                          rfqFlights={rfqFlights}
-                          isRfqFlightsLoading={false}
-                          selectedRfqFlightIds={selectedRfqFlightIds}
-                          rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
-                          customerEmail={(activeChat.customer as { email?: string })?.email}
-                          customerName={activeChat.customer?.name}
-                          onTripIdSubmit={handleTripIdSubmit}
-                          onRfqFlightSelectionChange={setSelectedRfqFlightIds}
-                          onViewChat={handleViewChat}
-                          onGenerateProposal={handleGenerateProposal}
-                          onReviewAndBook={handleReviewAndBook}
-                          // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
-                          // This prevents cards from appearing during clarification dialogue before trip creation
-                          isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
-                        />
-                      </div>
-                    )}
                   </React.Fragment>
-                )
-              })
+                  ))}
+
+                  {/* FlightSearchProgress after ALL regular messages */}
+                  {shouldInsertProgressAtEnd && (
+                    <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
+                      <FlightSearchProgress
+                        currentStep={(() => {
+                          // Calculate proper step based on state per UX requirements:
+                          // Step 1: Request Created (has route/request)
+                          // Step 2: Select in Avinode (has deepLink)
+                          // Step 3: Enter TripID (has tripId but no RFQs yet)
+                          // Step 4: Review Quotes (has tripId and RFQ flights)
+                          const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
+
+                          // Step 4: If we have RFQ flights and tripId is submitted
+                          if (rfqFlights.length > 0 && isTripIdSubmitted) {
+                            return 4
+                          }
+
+                          // Step 3: If we have tripId and RFQs are not loaded yet
+                          if (activeChat.tripId && rfqFlights.length === 0) {
+                            return 3
+                          }
+
+                          // Step 2: If we have deepLink (means request created, ready to select in Avinode)
+                          if (activeChat.deepLink) {
+                            return 2
+                          }
+
+                          // Step 1: Default (request created)
+                          return activeChat.currentStep || 1
+                        })()}
+                        flightRequest={{
+                          departureAirport: activeChat.route?.split(' → ')[0]
+                            ? { icao: activeChat.route.split(' → ')[0].trim() }
+                            : { icao: 'TBD' },
+                          arrivalAirport: activeChat.route?.split(' → ')[1]
+                            ? { icao: activeChat.route.split(' → ')[1].trim() }
+                            : { icao: 'TBD' },
+                          departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
+                          passengers: activeChat.passengers || 1,
+                          requestId: activeChat.requestId,
+                        }}
+                        deepLink={activeChat.deepLink}
+                        tripId={activeChat.tripId}
+                        isTripIdLoading={isTripIdLoading}
+                        tripIdError={tripIdError}
+                        tripIdSubmitted={tripIdSubmitted || activeChat.tripIdSubmitted || (activeChat.tripId && activeChat.rfqFlights && activeChat.rfqFlights.length > 0) || false}
+                        rfqFlights={rfqFlights}
+                        isRfqFlightsLoading={false}
+                        selectedRfqFlightIds={selectedRfqFlightIds}
+                        rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
+                        customerEmail={(activeChat.customer as { email?: string })?.email}
+                        customerName={activeChat.customer?.name}
+                        onTripIdSubmit={handleTripIdSubmit}
+                        onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                        onViewChat={handleViewChat}
+                        onGenerateProposal={handleGenerateProposal}
+                        onReviewAndBook={handleReviewAndBook}
+                        // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
+                        // This prevents cards from appearing during clarification dialogue before trip creation
+                        isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Proposal confirmations AFTER FlightSearchProgress */}
+                  {/* This ensures they appear after Step 3 where the "Generate Proposal" button is located */}
+                  {proposalConfirmations.map(({ message, index }) => (
+                    <AgentMessage
+                      key={message.id || `proposal-${index}`}
+                      content={message.content}
+                      timestamp={message.timestamp}
+                      showProposalSentConfirmation={true}
+                      proposalSentData={message.proposalSentData}
+                      // Disable other features for proposal confirmations
+                      showDeepLink={false}
+                      showTripIdInput={false}
+                      showWorkflow={false}
+                      showQuotes={false}
+                      showProposal={false}
+                      showCustomerPreferences={false}
+                      showPipeline={false}
+                      rfqFlights={[]}
+                      selectedRfqFlightIds={[]}
+                      onTripIdSubmit={handleTripIdSubmit}
+                      isTripIdLoading={false}
+                      tripIdSubmitted={false}
+                      onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                      onReviewAndBook={handleReviewAndBook}
+                      onViewChat={handleViewChat}
+                      onGenerateProposal={handleGenerateProposal}
+                    />
+                  ))}
+                </>
+              )
             })()}
 
             {/* Streaming Response / Typing Indicator */}

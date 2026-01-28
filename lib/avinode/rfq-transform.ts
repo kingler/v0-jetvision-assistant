@@ -147,9 +147,10 @@ function normalizeQuoteToFlight(
 
   const sellerPrice = quote.sellerPrice || quote.seller_price || quote.sellerPriceWithoutCommission;
   // CRITICAL: Check multiple price field variations to extract price correctly
-  // Priority: sellerPrice.price > pricing.total > totalPrice (direct number) > total_price > price > totalPrice.amount
+  // Priority: sellerPrice.price > pricing.total > totalPrice (direct number) > total_price > price > totalPrice.amount > estimatedPrice.amount
+  // FIX: Added estimatedPrice fallback for "Unanswered" RFQs (initial RFQ submission price before operator responds)
   let pricingTotal = 0;
-  
+
   if (sellerPrice?.price && sellerPrice.price > 0) {
     pricingTotal = sellerPrice.price;
   } else if (pricing.total && pricing.total > 0) {
@@ -165,22 +166,32 @@ function normalizeQuoteToFlight(
     pricingTotal = quote.totalPrice.amount;
   } else if (pricing.amount && pricing.amount > 0) {
     pricingTotal = pricing.amount;
+  } else if ((quote as any).estimatedPrice?.amount && (quote as any).estimatedPrice.amount > 0) {
+    // FIX: Fallback to estimatedPrice for initial RFQ marketplace price (Unanswered status)
+    pricingTotal = (quote as any).estimatedPrice.amount;
+  } else if ((quote as any).estimated_price?.amount && (quote as any).estimated_price.amount > 0) {
+    // FIX: Snake_case variant of estimatedPrice
+    pricingTotal = (quote as any).estimated_price.amount;
   }
   
   // CRITICAL: Log when price extraction fails for debugging
   if (pricingTotal === 0 && process.env.NODE_ENV === 'development') {
     console.warn('[normalizeQuoteToFlight] ⚠️ Price is 0 after extraction:', {
       quoteId: quote.id || quote.quote_id,
-      availableFields: Object.keys(quote).filter(key => 
-        key.toLowerCase().includes('price') || 
+      availableFields: Object.keys(quote).filter(key =>
+        key.toLowerCase().includes('price') ||
         key.toLowerCase().includes('amount') ||
-        key.toLowerCase().includes('total')
+        key.toLowerCase().includes('total') ||
+        key.toLowerCase().includes('estimated')
       ),
       sellerPrice: sellerPrice,
       pricing: pricing,
       totalPrice: (quote as any).totalPrice,
       total_price: (quote as any).total_price,
       price: (quote as any).price,
+      // FIX: Include estimatedPrice in debug output
+      estimatedPrice: (quote as any).estimatedPrice,
+      estimated_price: (quote as any).estimated_price,
     });
   }
   const pricingCurrency =
@@ -188,6 +199,9 @@ function normalizeQuoteToFlight(
     pricing.currency ||
     quote.currency ||
     quote.totalPrice?.currency ||
+    // FIX: Added estimatedPrice currency fallback
+    (quote as any).estimatedPrice?.currency ||
+    (quote as any).estimated_price?.currency ||
     'USD';
 
   const flightDuration =

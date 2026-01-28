@@ -1227,22 +1227,39 @@ export class AvinodeClient {
     validUntil?: string;
   } {
     const sellerPrice = quote.sellerPrice || quote.sellerPriceWithoutCommission;
+
+    // FIX: Extract price REGARDLESS of hasQuote status
+    // For unanswered RFQs, Avinode may provide estimatedPrice (initial marketplace price)
+    // This allows displaying the initial price before operators respond
+    // Priority: sellerPrice > totalPrice > quote.totalPrice > pricing > estimatedPrice
+    const totalPrice =
+      sellerPrice?.price ||
+      quote.totalPrice?.amount ||
+      quote.quote?.totalPrice?.amount ||
+      quote.pricing?.total ||
+      quote.estimatedPrice?.amount ||
+      quote.estimated_price?.amount ||
+      // Also check sellerLiftData for price (may be nested in lift object)
+      quote.sellerLiftData?.sellerPrice?.price ||
+      quote.sellerLiftData?.estimatedPrice?.amount ||
+      quote.sellerLiftData?.pricing?.total ||
+      0;
+
+    const currency =
+      sellerPrice?.currency ||
+      quote.totalPrice?.currency ||
+      quote.quote?.totalPrice?.currency ||
+      quote.pricing?.currency ||
+      quote.estimatedPrice?.currency ||
+      quote.estimated_price?.currency ||
+      quote.sellerLiftData?.sellerPrice?.currency ||
+      quote.sellerLiftData?.estimatedPrice?.currency ||
+      'USD';
+
     return {
-      totalPrice: hasQuote
-        ? (quote.totalPrice?.amount ||
-            quote.quote?.totalPrice?.amount ||
-            sellerPrice?.price ||
-            quote.pricing?.total ||
-            0)
-        : 0,
-      currency: hasQuote
-        ? (quote.totalPrice?.currency ||
-            quote.quote?.totalPrice?.currency ||
-            sellerPrice?.currency ||
-            quote.pricing?.currency ||
-            'USD')
-        : 'USD',
-      priceBreakdown: hasQuote && quote.pricing ? {
+      totalPrice,
+      currency,
+      priceBreakdown: (hasQuote || totalPrice > 0) && quote.pricing ? {
         basePrice: quote.pricing.basePrice || 0,
         fuelSurcharge: quote.pricing.fuelSurcharge,
         taxes: quote.pricing.taxes || 0,

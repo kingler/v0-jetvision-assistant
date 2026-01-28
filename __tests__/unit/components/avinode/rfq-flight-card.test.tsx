@@ -238,6 +238,31 @@ describe('RFQFlightCard', () => {
 
       expect(screen.queryByText(/Base:/)).not.toBeInTheDocument();
     });
+
+    it('displays "Price Pending" when price is 0 (FIX: $0.00 bug)', () => {
+      const flightWithZeroPrice = {
+        ...minimalFlight,
+        totalPrice: 0,
+        rfqStatus: 'unanswered' as const,
+      };
+      render(<RFQFlightCard flight={flightWithZeroPrice} />);
+
+      // Should display "Price Pending" instead of "$0" or "$0.00"
+      expect(screen.getAllByText('Price Pending').length).toBeGreaterThan(0);
+      expect(screen.queryByText('$0')).not.toBeInTheDocument();
+      expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    });
+
+    it('displays "Price Pending" when price is undefined', () => {
+      const flightWithUndefinedPrice = {
+        ...minimalFlight,
+        totalPrice: undefined as unknown as number,
+      };
+      render(<RFQFlightCard flight={flightWithUndefinedPrice} />);
+
+      // Should display "Price Pending" instead of throwing or showing NaN
+      expect(screen.getAllByText('Price Pending').length).toBeGreaterThan(0);
+    });
   });
 
   describe('Amenities Section', () => {

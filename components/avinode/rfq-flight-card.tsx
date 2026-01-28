@@ -230,8 +230,15 @@ function formatDate(dateString: string): string {
  * @param amount - The numeric price amount
  * @param currency - ISO 4217 currency code (e.g., 'USD', 'EUR', 'GBP')
  * @returns Formatted price string with currency symbol (e.g., "$50,000" or "€45,000.50")
+ *          Returns "Price Pending" if amount is 0 or falsy (defense-in-depth)
  */
 function formatPrice(amount: number, currency: string): string {
+  // FIX: Handle $0.00 case - show "Price Pending" instead of "$0" for quotes without prices
+  // This serves as defense-in-depth if a quote without price data reaches the UI
+  if (!amount || amount === 0) {
+    return 'Price Pending';
+  }
+
   try {
     // Use Intl.NumberFormat for proper currency formatting with correct symbol placement
     // minimumFractionDigits: 0 allows whole numbers without decimals
