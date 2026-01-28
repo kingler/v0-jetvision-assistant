@@ -540,8 +540,41 @@ export const GMAIL_TOOLS: OpenAIToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'prepare_proposal_email',
+      description: 'Generate a proposal email for user review before sending. Returns email content for approval in the chat UI. The user can review, edit, and approve the email before it is sent. Use this instead of send_proposal_email when you want the user to approve the email first.',
+      parameters: {
+        type: 'object',
+        properties: {
+          proposal_id: {
+            type: 'string',
+            description: 'Proposal UUID to prepare email for',
+          },
+          to_email: {
+            type: 'string',
+            description: 'Client email address',
+          },
+          to_name: {
+            type: 'string',
+            description: 'Client name for personalization',
+          },
+          custom_message: {
+            type: 'string',
+            description: 'Custom message to include in email body',
+          },
+          request_id: {
+            type: 'string',
+            description: 'Request UUID for message persistence',
+          },
+        },
+        required: ['proposal_id', 'to_email', 'to_name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_proposal_email',
-      description: 'Send a proposal to a client via email.',
+      description: 'Send a proposal to a client via email immediately (without approval). Use prepare_proposal_email instead if you want the user to review and approve the email first.',
       parameters: {
         type: 'object',
         properties: {
@@ -639,6 +672,7 @@ export const TOOL_CATEGORIES: Record<string, 'avinode' | 'database' | 'gmail'> =
 
   // Gmail tools
   send_email: 'gmail',
+  prepare_proposal_email: 'gmail',
   send_proposal_email: 'gmail',
   send_quote_email: 'gmail',
 };

@@ -70,11 +70,12 @@ const TOOL_REFERENCE = `## Available Tools (23 total)
 | \`create_proposal\` | Generate proposal | request_id, quote_id, title | User wants to create a proposal |
 | \`get_proposal\` | Proposal details | proposal_id | User asks about a proposal |
 
-### Gmail/Email Tools (3)
+### Gmail/Email Tools (4)
 | Tool | Purpose | Required Params | When to Use |
 |------|---------|-----------------|-------------|
 | \`send_email\` | General email | to, subject, body | User wants to send an email (general) |
-| \`send_proposal_email\` | Send proposal | proposal_id, to_email, to_name | User wants to email a proposal to client |
+| \`prepare_proposal_email\` | Generate email for review | proposal_id, to_email, to_name | **PREFERRED**: User wants to email a proposal - generates draft for approval |
+| \`send_proposal_email\` | Send proposal directly | proposal_id, to_email, to_name | ONLY if user explicitly requests to skip review |
 | \`send_quote_email\` | Send quotes summary | request_id, quote_ids, to_email, to_name | User wants to email quotes to client |`;
 
 /**
@@ -333,7 +334,7 @@ Check: Has quote context (quote_id or recent quote discussion)?
 - \`customer_email\`: Client email for profile linking (optional)
 - \`margin_applied\`: Markup percentage if applicable (optional)
 
-### 7. Send Proposal
+### 7. Send Proposal (Human-in-the-Loop)
 **Trigger**: User wants to send proposal to client
 
 \`\`\`
@@ -342,16 +343,30 @@ START
   v
 Check: Has proposal_id?
   |-- No --> Check for recent quote context, offer to create proposal first
-  |-- Yes --> Verify recipient email
+  |-- Yes --> Verify recipient email and name
                |
                v
-             CONFIRM: "I'm about to send this proposal to [email]. Confirm?"
-               |-- User confirms --> Call \`send_proposal_email\`
-               |-- User declines --> Ask what to modify
+             Call \`prepare_proposal_email\` to generate email draft
+             (DO NOT use send_proposal_email - always use prepare first)
                |
                v
-             Report: "Proposal sent successfully" with delivery status
+             Response: "I've prepared an email for [name]. Please review it
+                       below and click 'Send Email' when ready."
+             (The EmailPreviewCard UI component will display for user review)
+               |
+               v
+             WAIT for user to review and approve via UI
+             (User can edit subject/body, then clicks "Send Email" button)
+               |
+               v
+             After user approves: Email sent via /api/proposal/approve-email
+             Confirmation message displayed automatically
 \`\`\`
+
+**CRITICAL: Always use \`prepare_proposal_email\` instead of \`send_proposal_email\`**
+- This enables human-in-the-loop approval before sending
+- The UI displays an EmailPreviewCard for editing and approval
+- Only use \`send_proposal_email\` if user explicitly asks to "send immediately" or "skip review"
 
 ### 8. Operator Communication
 **Trigger**: User wants to message an operator

@@ -319,7 +319,54 @@ export async function POST(req: NextRequest) {
       message?: string;
     } | undefined;
 
+    // 11b. Extract email_approval_data from prepare_proposal_email tool results
+    let emailApprovalData: {
+      proposalId: string;
+      proposalNumber?: string;
+      to: { email: string; name: string };
+      subject: string;
+      body: string;
+      attachments: Array<{ name: string; url: string; size?: number }>;
+      flightDetails?: {
+        departureAirport: string;
+        arrivalAirport: string;
+        departureDate: string;
+        passengers?: number;
+      };
+      pricing?: { subtotal: number; total: number; currency: string };
+      generatedAt?: string;
+      requestId?: string;
+    } | undefined;
+
     for (const tr of result.toolResults) {
+      // Check for prepare_proposal_email results
+      if (tr.name === 'prepare_proposal_email' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        console.log('[Chat API] ✅ prepare_proposal_email tool succeeded:', {
+          proposalId: data.proposal_id,
+          to: data.to,
+          status: data.status,
+        });
+
+        emailApprovalData = {
+          proposalId: data.proposal_id as string,
+          proposalNumber: data.proposal_number as string | undefined,
+          to: data.to as { email: string; name: string },
+          subject: data.subject as string,
+          body: data.body as string,
+          attachments: (data.attachments as Array<{ name: string; url: string; size?: number }>) || [],
+          flightDetails: data.flight_details as {
+            departureAirport: string;
+            arrivalAirport: string;
+            departureDate: string;
+            passengers?: number;
+          } | undefined,
+          pricing: data.pricing as { subtotal: number; total: number; currency: string } | undefined,
+          generatedAt: data.generated_at as string | undefined,
+          requestId: (data.request_id as string) || conversationId,
+        };
+      }
+
       if (tr.name === 'get_rfq') {
         if (tr.success && tr.data) {
           const data = tr.data as Record<string, unknown>;
@@ -408,6 +455,17 @@ export async function POST(req: NextRequest) {
       if (rfqData) {
         yield JSON.stringify({
           rfq_data: rfqData,
+        });
+      }
+
+      // Send email approval data if prepare_proposal_email was called
+      if (emailApprovalData) {
+        console.log('[Chat API] 🔍 Sending email_approval_data SSE chunk:', {
+          proposalId: emailApprovalData.proposalId,
+          to: emailApprovalData.to,
+        });
+        yield JSON.stringify({
+          email_approval_data: emailApprovalData,
         });
       }
 

@@ -7,6 +7,27 @@
 import type { WorkflowStatusType, RFQStatusType, MessageTypeValue } from '../constants';
 
 /**
+ * Email approval data from prepare_proposal_email tool
+ */
+export interface EmailApprovalData {
+  proposalId: string;
+  proposalNumber?: string;
+  to: { email: string; name: string };
+  subject: string;
+  body: string;
+  attachments: Array<{ name: string; url: string; size?: number }>;
+  flightDetails?: {
+    departureAirport: string;
+    arrivalAirport: string;
+    departureDate: string;
+    passengers?: number;
+  };
+  pricing?: { subtotal: number; total: number; currency: string };
+  generatedAt?: string;
+  requestId?: string;
+}
+
+/**
  * SSE Stream Data from /api/chat endpoint
  */
 export interface SSEStreamData {
@@ -19,6 +40,7 @@ export interface SSEStreamData {
   rfp_data?: RFPData;
   rfq_data?: RFQData;
   pipeline_data?: PipelineData;
+  email_approval_data?: EmailApprovalData;
   quotes?: Quote[];
   agent?: AgentMetadata;
   _debug?: Record<string, unknown>;
@@ -346,6 +368,7 @@ export interface SSEParseResult {
   rfpData?: RFPData;
   rfqData?: RFQData;
   pipelineData?: PipelineData;
+  emailApprovalData?: EmailApprovalData;
   quotes: Quote[];
   agentMetadata?: AgentMetadata;
   debug?: Record<string, unknown>;
@@ -371,6 +394,10 @@ export interface ChatMessage {
   showCustomerPreferences?: boolean;
   showPipeline?: boolean;
   pipelineData?: PipelineData;
+  /** Human-in-the-loop email approval request */
+  showEmailApprovalRequest?: boolean;
+  /** Email approval data from prepare_proposal_email tool */
+  emailApprovalData?: EmailApprovalData;
 }
 
 /**

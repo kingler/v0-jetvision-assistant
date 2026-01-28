@@ -47,17 +47,24 @@ export interface SendProposalEmailOptions {
   subject?: string;
   body?: string;
   proposalId: string;
-  pdfBase64: string;
-  pdfFilename: string;
-  tripDetails: {
+  /** Base64 encoded PDF (optional - if not provided, no attachment) */
+  pdfBase64?: string;
+  /** PDF filename (required if pdfBase64 is provided) */
+  pdfFilename?: string;
+  tripDetails?: {
     departureAirport: string;
     arrivalAirport: string;
     departureDate: string;
   };
-  pricing: {
+  pricing?: {
     total: number;
     currency: string;
   };
+  /**
+   * Custom HTML body to use instead of generating default body.
+   * Used by the email approval workflow when user has edited the email.
+   */
+  customHtmlBody?: string;
 }
 
 export interface SendContractEmailOptions {
@@ -96,8 +103,9 @@ function generateDefaultSubject(
 
 /**
  * Generate default proposal email body
+ * Only called when tripDetails and pricing are defined
  */
-function generateDefaultEmailBody(options: SendProposalEmailOptions): string {
+function generateDefaultEmailBody(options: Required<Pick<SendProposalEmailOptions, 'customerName' | 'tripDetails' | 'pricing' | 'proposalId'>>): string {
   const { customerName, tripDetails, pricing, proposalId } = options;
 
   const formattedPrice = new Intl.NumberFormat('en-US', {
@@ -176,9 +184,9 @@ function getMockEmailDelay(overrideDelay?: number): number {
 // =============================================================================
 
 /**
- * Send a proposal email with PDF attachment
+ * Send a proposal email with optional PDF attachment
  *
- * @param options - Email options including customer info and PDF
+ * @param options - Email options including customer info and optional PDF
  * @returns Send result with success status and message ID
  */
 export async function sendProposalEmail(
@@ -194,33 +202,56 @@ export async function sendProposalEmail(
     tripDetails,
     pricing,
     proposalId,
+    customHtmlBody,
   } = options;
 
-  // Generate default subject and body if not provided
+  // Generate default subject if not provided
   const emailSubject =
     subject ||
-    generateDefaultSubject(
-      tripDetails.departureAirport,
-      tripDetails.arrivalAirport
-    );
+    (tripDetails
+      ? generateDefaultSubject(
+          tripDetails.departureAirport,
+          tripDetails.arrivalAirport
+        )
+      : `Jetvision Charter Proposal: ${proposalId}`);
 
-  const emailBody = body || generateDefaultEmailBody(options);
+  // Use custom HTML body if provided, otherwise generate default or use provided body
+  let emailBody: string;
+  if (customHtmlBody) {
+    // Use the custom HTML body from the approval workflow
+    emailBody = customHtmlBody;
+  } else if (body) {
+    // Use the provided body
+    emailBody = body;
+  } else if (tripDetails && pricing) {
+    // Generate default body - we've verified tripDetails and pricing exist
+    emailBody = generateDefaultEmailBody({
+      customerName,
+      tripDetails,
+      pricing,
+      proposalId,
+    });
+  } else {
+    // Fallback to a simple body
+    emailBody = `Dear ${customerName},\n\nPlease find attached your charter flight proposal.\n\nProposal ID: ${proposalId}\n\nBest regards,\nThe Jetvision Team`;
+  }
 
-  // Prepare attachment
-  const attachments: EmailAttachment[] = [
-    {
+  // Prepare attachment only if PDF is provided
+  const attachments: EmailAttachment[] = [];
+  if (pdfBase64 && pdfFilename) {
+    attachments.push({
       filename: pdfFilename,
       content: pdfBase64,
       contentType: 'application/pdf',
-    },
-  ];
+    });
+  }
 
   // Send email using base send function
   return sendEmail({
     to,
     subject: emailSubject,
     body: emailBody,
-    attachments,
+    attachments: attachments.length > 0 ? attachments : undefined,
   });
 }
 

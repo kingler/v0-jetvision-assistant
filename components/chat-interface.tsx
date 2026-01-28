@@ -2148,6 +2148,8 @@ export function ChatInterface({
                         pipelineData={message.pipelineData}
                         showProposalSentConfirmation={message.showProposalSentConfirmation}
                         proposalSentData={message.proposalSentData}
+                        showEmailApprovalRequest={message.showEmailApprovalRequest}
+                        emailApprovalData={message.emailApprovalData}
                         onViewRequest={(requestId) => {
                           console.log('[Pipeline] View request:', requestId)
                         }}

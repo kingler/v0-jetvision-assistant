@@ -48,7 +48,11 @@ export type MessageContentType =
   | 'payment_requested'
   | 'system_notification'
   | 'workflow_update'
-  | 'typing_indicator';
+  | 'typing_indicator'
+  // Email approval workflow types (human-in-the-loop)
+  | 'email_approval_request'
+  | 'email_approved'
+  | 'email_rejected';
 
 export type MessageStatus =
   | 'sending'
@@ -386,6 +390,80 @@ export interface BookingConfirmedContent {
   payment_status?: string;
 }
 
+// Email approval workflow content types (human-in-the-loop)
+export interface EmailApprovalRequestContent {
+  /** Proposal ID for the email */
+  proposal_id: string;
+  /** Proposal number (e.g., 'PROP-2025-001') */
+  proposal_number?: string;
+  /** Recipient information */
+  to: {
+    email: string;
+    name: string;
+  };
+  /** Draft email subject */
+  subject: string;
+  /** Draft email body (HTML) */
+  body: string;
+  /** Attachments metadata */
+  attachments: Array<{
+    name: string;
+    url: string;
+    size?: number;
+    type?: string;
+  }>;
+  /** Flight details for context */
+  flight_details?: {
+    departure_airport: string;
+    arrival_airport: string;
+    departure_date: string;
+    passengers?: number;
+  };
+  /** Pricing information */
+  pricing?: {
+    subtotal: number;
+    total: number;
+    currency: string;
+  };
+  /** When the draft was generated */
+  generated_at: string;
+  /** Request ID for context */
+  request_id?: string;
+}
+
+export interface EmailApprovedContent {
+  /** Proposal ID */
+  proposal_id: string;
+  /** Final email subject (may be edited) */
+  subject: string;
+  /** Final email body (may be edited) */
+  body: string;
+  /** Recipient information */
+  to: {
+    email: string;
+    name: string;
+  };
+  /** When approved */
+  approved_at: string;
+  /** Email message ID after sending */
+  message_id?: string;
+  /** Sent timestamp */
+  sent_at?: string;
+}
+
+export interface EmailRejectedContent {
+  /** Proposal ID */
+  proposal_id: string;
+  /** Reason for rejection */
+  reason?: string;
+  /** When rejected */
+  rejected_at: string;
+  /** Original draft subject */
+  original_subject: string;
+  /** Original draft body */
+  original_body: string;
+}
+
 // Discriminated union for rich content
 export type RichMessageContent =
   | { type: 'quote_shared'; data: QuoteSharedContent }
@@ -398,7 +476,11 @@ export type RichMessageContent =
   | { type: 'workflow_update'; data: WorkflowUpdateContent }
   | { type: 'system_notification'; data: SystemNotificationContent }
   | { type: 'document_attached'; data: DocumentAttachedContent }
-  | { type: 'booking_confirmed'; data: BookingConfirmedContent };
+  | { type: 'booking_confirmed'; data: BookingConfirmedContent }
+  // Email approval workflow types (human-in-the-loop)
+  | { type: 'email_approval_request'; data: EmailApprovalRequestContent }
+  | { type: 'email_approved'; data: EmailApprovedContent }
+  | { type: 'email_rejected'; data: EmailRejectedContent };
 
 // ============================================================================
 // AVINODE WEBHOOK TYPES

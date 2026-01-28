@@ -56,8 +56,9 @@ If ANY information is missing, ask the user for it. Don't assume values.
 ## Client & Quote Management
 - Use \`get_client\` or \`list_clients\` to find clients
 - Use \`get_quotes\` to see quotes for a request
-- Use \`send_proposal_email\` or \`send_quote_email\` to email clients
-- Always confirm with the user before sending emails
+- Use \`prepare_proposal_email\` to generate proposal emails for user review (human-in-the-loop approval)
+- Only use \`send_proposal_email\` if the user explicitly asks to skip the review step
+- Always let the user review and approve emails before sending
 
 ## Response Guidelines
 - Be concise and professional
@@ -250,6 +251,13 @@ export class StreamingJetvisionAgent {
         return '\n\nNo clients found.';
       }
 
+      case 'prepare_proposal_email': {
+        // Email preview data is sent separately via email_approval event
+        // Return a simple message here
+        const to = data.to as { email: string; name: string } | undefined;
+        return `\n\n**Email Ready for Review**\nI've prepared an email for ${to?.name || 'the client'}. Please review it below and click "Send Email" when ready.`;
+      }
+
       default:
         return '';
     }
@@ -299,6 +307,13 @@ export function createAgentSSEStream(
           },
           onToolEnd: (name, result) => {
             sendEvent('tool_end', { tool: name, success: result.success, data: result.data, error: result.error });
+            // Send special event for email approval workflow
+            if (name === 'prepare_proposal_email' && result.success && result.data) {
+              sendEvent('email_approval', {
+                type: 'email_approval_request',
+                data: result.data,
+              });
+            }
           },
           onComplete: (fullResponse, toolResults) => {
             sendEvent('done', {

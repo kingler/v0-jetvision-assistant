@@ -5,6 +5,9 @@
  * message shape. Restores proposal-sent confirmation UI when contentType is
  * 'proposal_shared' and richContent contains proposalSent data.
  *
+ * Also handles 'email_approval_request' contentType for human-in-the-loop
+ * email approval workflow.
+ *
  * @see lib/conversation/message-persistence.ts
  * @see app/api/messages/save/route.ts
  * @see components/chat-sidebar.tsx (ChatSession messages type)
@@ -35,9 +38,39 @@ export interface DbMessageLike {
 const RICH_CONTENT_PROPOSAL_KEY = 'proposalSent';
 
 /**
+ * Email approval request payload stored in richContent when contentType === 'email_approval_request'
+ */
+const RICH_CONTENT_EMAIL_APPROVAL_KEY = 'emailApproval';
+
+/**
+ * Email approval data structure stored in richContent
+ */
+interface EmailApprovalData {
+  proposalId: string;
+  proposalNumber?: string;
+  to: { email: string; name: string };
+  subject: string;
+  body: string;
+  attachments: Array<{ name: string; url: string; size?: number }>;
+  flightDetails?: {
+    departureAirport: string;
+    arrivalAirport: string;
+    departureDate: string;
+    passengers?: number;
+  };
+  pricing?: { subtotal: number; total: number; currency: string };
+  generatedAt?: string;
+  requestId?: string;
+  status?: 'pending' | 'approved' | 'rejected' | 'sent';
+}
+
+/**
  * Maps a persisted message to UI chat message format.
  * When contentType is 'proposal_shared' and richContent.proposalSent exists,
  * sets showProposalSentConfirmation and proposalSentData for inline rendering.
+ *
+ * When contentType is 'email_approval_request' and richContent.emailApproval exists,
+ * sets showEmailApprovalRequest and emailApprovalData for inline email review.
  *
  * @param msg - DB-like message (from API or loadMessages)
  * @returns ChatSession message for rendering
@@ -54,17 +87,21 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     timestamp: ts ? new Date(ts) : new Date(),
   };
 
-  // Debug logging for proposal messages
-  if (msg.contentType === 'proposal_shared' || (msg.richContent && RICH_CONTENT_PROPOSAL_KEY in msg.richContent)) {
-    console.log('[mapDbMessageToChatMessage] Proposal message detected:', {
+  // Debug logging for special message types
+  if (
+    msg.contentType === 'proposal_shared' ||
+    msg.contentType === 'email_approval_request' ||
+    (msg.richContent && (RICH_CONTENT_PROPOSAL_KEY in msg.richContent || RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent))
+  ) {
+    console.log('[mapDbMessageToChatMessage] Special message detected:', {
       id: msg.id,
       contentType: msg.contentType,
       hasRichContent: !!msg.richContent,
       richContentKeys: msg.richContent ? Object.keys(msg.richContent) : [],
-      hasProposalSentKey: msg.richContent ? RICH_CONTENT_PROPOSAL_KEY in msg.richContent : false,
     });
   }
 
+  // Handle proposal_shared contentType
   if (
     msg.contentType === 'proposal_shared' &&
     msg.richContent &&
@@ -78,6 +115,27 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
         showProposalSentConfirmation: true,
         proposalSentData: proposalSent as ProposalSentConfirmationProps,
       };
+    }
+  }
+
+  // Handle email_approval_request contentType
+  if (
+    msg.contentType === 'email_approval_request' &&
+    msg.richContent &&
+    typeof msg.richContent === 'object' &&
+    RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent
+  ) {
+    const emailApproval = msg.richContent[RICH_CONTENT_EMAIL_APPROVAL_KEY];
+    if (emailApproval && typeof emailApproval === 'object') {
+      const emailData = emailApproval as EmailApprovalData;
+      // Only show approval UI if not already sent
+      if (emailData.status !== 'sent') {
+        return {
+          ...base,
+          showEmailApprovalRequest: true,
+          emailApprovalData: emailData,
+        };
+      }
     }
   }
 

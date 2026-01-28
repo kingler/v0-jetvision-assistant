@@ -540,7 +540,7 @@ export function FlightSearchProgress({
           {currentStep >= 1 && isTripCreated && (
             <div
               data-testid="step-1-content"
-              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
             >
               <div className="flex items-center gap-2 mb-3">
                 {currentStep > 1 ? (
@@ -660,7 +660,7 @@ export function FlightSearchProgress({
           {currentStep >= 2 && isTripCreated && (deepLink || tripId) && (
             <div
               data-testid="step-2-content"
-              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
             >
               <div className="flex items-center gap-2 mb-3">
                 {currentStep > 2 ? (
@@ -727,7 +727,7 @@ export function FlightSearchProgress({
           {currentStep >= 3 && isTripCreated && (
             <div
               data-testid="step-3-content"
-              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 mb-6"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 shadow-sm w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 mb-6"
               style={{ 
                 minHeight: 'auto',
                 height: 'auto',

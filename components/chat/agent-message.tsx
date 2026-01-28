@@ -21,6 +21,7 @@ import {
   type OperatorMessageInline,
 } from "../message-components/operator-chat-inline"
 import type { PipelineData } from "@/lib/types/chat-agent"
+import { EmailPreviewCard, type EmailPreviewCardProps } from "@/components/email"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -205,6 +206,36 @@ export interface AgentMessageProps {
   showProposalSentConfirmation?: boolean
   /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */
   proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
+  /** Whether to show email approval request card (human-in-the-loop) */
+  showEmailApprovalRequest?: boolean
+  /** Data for EmailPreviewCard when showEmailApprovalRequest is true */
+  emailApprovalData?: {
+    proposalId: string
+    proposalNumber?: string
+    to: { email: string; name: string }
+    subject: string
+    body: string
+    attachments: Array<{ name: string; url: string; size?: number }>
+    flightDetails?: {
+      departureAirport: string
+      arrivalAirport: string
+      departureDate: string
+      passengers?: number
+    }
+    pricing?: { subtotal: number; total: number; currency: string }
+    generatedAt?: string
+    requestId?: string
+  }
+  /** Callback when email is edited */
+  onEmailEdit?: (field: 'subject' | 'body', value: string) => void
+  /** Callback when email send is approved */
+  onEmailSend?: () => Promise<void>
+  /** Callback when email approval is cancelled */
+  onEmailCancel?: () => void
+  /** Email approval status */
+  emailApprovalStatus?: 'draft' | 'sending' | 'sent' | 'error'
+  /** Error message for email approval */
+  emailApprovalError?: string
 }
 
 /**
@@ -259,6 +290,13 @@ export function AgentMessage({
   onReplyToOperator,
   showProposalSentConfirmation,
   proposalSentData,
+  showEmailApprovalRequest,
+  emailApprovalData,
+  onEmailEdit,
+  onEmailSend,
+  onEmailCancel,
+  emailApprovalStatus = 'draft',
+  emailApprovalError,
 }: AgentMessageProps) {
   const sortedQuotes = [...quotes].sort((a, b) => (a.ranking || 0) - (b.ranking || 0))
 
@@ -327,7 +365,10 @@ export function AgentMessage({
   const shouldShowFlightSearchProgress = showDeepLink || showTripIdInput || (showWorkflow && workflowProps)
 
   return (
-    <div data-testid="agent-message" className="flex flex-col space-y-3 max-w-[85%] overflow-hidden">
+    <div
+      data-testid="agent-message"
+      className="flex flex-col items-start justify-start space-y-3 w-full overflow-hidden"
+    >
       {/* Avatar + Badge Header */}
       <div className="flex items-center space-x-2">
         {/* Jetvision Logo - Dark outlined, 10% bigger than original (24px * 1.10 = 26.46px) */}
@@ -481,9 +522,32 @@ export function AgentMessage({
         </div>
       )}
 
+      {/* Email Approval Request - human-in-the-loop email review */}
+      {showEmailApprovalRequest && emailApprovalData && (
+        <div className="mt-4 w-full">
+          <EmailPreviewCard
+            proposalId={emailApprovalData.proposalId}
+            proposalNumber={emailApprovalData.proposalNumber}
+            to={emailApprovalData.to}
+            subject={emailApprovalData.subject}
+            body={emailApprovalData.body}
+            attachments={emailApprovalData.attachments}
+            flightDetails={emailApprovalData.flightDetails}
+            pricing={emailApprovalData.pricing}
+            status={emailApprovalStatus}
+            onEdit={onEmailEdit}
+            onSend={onEmailSend}
+            onCancel={onEmailCancel}
+            error={emailApprovalError}
+            generatedAt={emailApprovalData.generatedAt}
+            requestId={emailApprovalData.requestId}
+          />
+        </div>
+      )}
+
       {/* Proposal Sent Confirmation - inline after proposal is sent */}
       {showProposalSentConfirmation && proposalSentData && (
-        <div className="mt-4">
+        <div className="mt-4 w-full">
           <ProposalSentConfirmation {...proposalSentData} />
         </div>
       )}

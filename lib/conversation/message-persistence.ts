@@ -12,7 +12,18 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 type MessageSenderType = 'iso_agent' | 'operator' | 'ai_assistant' | 'system';
-type MessageContentType = 'text' | 'rich' | 'system' | 'action' | 'quote' | 'proposal_shared' | 'contract_shared';
+type MessageContentType =
+  | 'text'
+  | 'rich'
+  | 'system'
+  | 'action'
+  | 'quote'
+  | 'proposal_shared'
+  | 'contract_shared'
+  // Email approval workflow types (human-in-the-loop)
+  | 'email_approval_request'
+  | 'email_approved'
+  | 'email_rejected';
 
 /**
  * Interface for saving a message (consolidated schema)

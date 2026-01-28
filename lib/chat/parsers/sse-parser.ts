@@ -149,6 +149,15 @@ function processSSEData(
     logger.debug('RFP data received', { tripId: data.rfp_data.trip_id });
   }
 
+  // Extract email approval data (sent in separate chunk BEFORE done signal)
+  if (data.email_approval_data) {
+    result.emailApprovalData = data.email_approval_data;
+    logger.debug('Email approval data received', {
+      proposalId: data.email_approval_data.proposalId,
+      to: data.email_approval_data.to,
+    });
+  }
+
   // Extract session info from ALL events (sent with initial content, not just done)
   // This ensures the frontend can update session state with the database ID
   if (data.conversation_id) {
@@ -207,6 +216,11 @@ function processSSEData(
     // Extract pipeline data
     if (data.pipeline_data) {
       result.pipelineData = data.pipeline_data;
+    }
+
+    // Extract email approval data
+    if (data.email_approval_data) {
+      result.emailApprovalData = data.email_approval_data;
     }
 
     // Extract quotes

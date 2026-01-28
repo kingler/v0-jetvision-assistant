@@ -293,6 +293,19 @@ export function useStreamingChat(options: UseStreamingChatOptions) {
                   conversationType: finalResult.conversationType,
                 });
               }
+
+              // Handle email approval data from prepare_proposal_email tool
+              if (finalResult.emailApprovalData) {
+                console.log('[useStreamingChat] Email approval data received:', {
+                  proposalId: finalResult.emailApprovalData.proposalId,
+                  to: finalResult.emailApprovalData.to,
+                });
+                // Update message with email approval UI flag
+                actions.updateMessage(assistantMessageId, {
+                  showEmailApprovalRequest: true,
+                  emailApprovalData: finalResult.emailApprovalData,
+                });
+              }
             },
             onError: (error) => {
               actions.setError(error.message);

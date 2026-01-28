@@ -432,6 +432,8 @@ export class ToolExecutor {
     switch (name) {
       case 'send_email':
         return this.sendEmail(params);
+      case 'prepare_proposal_email':
+        return this.prepareProposalEmail(params);
       case 'send_proposal_email':
         return this.sendProposalEmail(params);
       case 'send_quote_email':
@@ -462,6 +464,118 @@ export class ToolExecutor {
     return {
       message_id: result.messageId,
       sent_at: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Prepare a proposal email for user review (human-in-the-loop approval).
+   * Returns email draft data without sending - user must approve via UI.
+   */
+  private async prepareProposalEmail(params: Record<string, unknown>): Promise<{
+    status: 'pending_approval';
+    proposal_id: string;
+    proposal_number?: string;
+    to: { email: string; name: string };
+    subject: string;
+    body: string;
+    attachments: Array<{ name: string; url: string; size?: number }>;
+    flight_details?: {
+      departure_airport: string;
+      arrival_airport: string;
+      departure_date: string;
+      passengers?: number;
+    };
+    pricing?: {
+      subtotal: number;
+      total: number;
+      currency: string;
+    };
+    generated_at: string;
+    request_id?: string;
+  }> {
+    const { proposal_id, to_email, to_name, custom_message, request_id } = params;
+
+    // Get proposal details using proposal-service
+    const proposal = await getProposalById(proposal_id as string);
+    if (!proposal) {
+      throw new Error(`Proposal not found: ${proposal_id}`);
+    }
+
+    // Get request details for context
+    const request = await this.getRequest({ request_id: proposal.request_id }) as Record<string, unknown> | null;
+
+    // Build email subject
+    const subject = `Charter Flight Proposal: ${proposal.title || proposal.proposal_number}`;
+
+    // Build email body
+    const body = this.buildProposalEmailBody(
+      proposal as unknown as Record<string, unknown>,
+      request,
+      to_name as string,
+      custom_message as string
+    );
+
+    // Build attachments list (PDF proposal)
+    const attachments: Array<{ name: string; url: string; size?: number }> = [];
+    if (proposal.file_url) {
+      attachments.push({
+        name: proposal.file_name || 'proposal.pdf',
+        url: proposal.file_url,
+        size: proposal.file_size_bytes ?? undefined,
+      });
+    }
+
+    // Build flight details from request
+    const flight_details = request ? {
+      departure_airport: (request.departure_airport as string) || 'TBD',
+      arrival_airport: (request.arrival_airport as string) || 'TBD',
+      departure_date: (request.departure_date as string) || 'TBD',
+      passengers: request.passengers as number | undefined,
+    } : undefined;
+
+    // Build pricing from proposal
+    const pricing = proposal.total_amount ? {
+      subtotal: proposal.total_amount,
+      total: proposal.final_amount || proposal.total_amount,
+      currency: 'USD',
+    } : undefined;
+
+    const generated_at = new Date().toISOString();
+
+    // Update proposal with draft email data for persistence
+    try {
+      await updateRow(
+        'proposals',
+        { id: proposal_id },
+        {
+          email_approval_status: 'pending',
+          email_draft_subject: subject,
+          email_draft_body: body,
+          email_draft_generated_at: generated_at,
+          updated_at: new Date().toISOString(),
+        }
+      );
+      console.log('[ToolExecutor] Updated proposal with email draft:', proposal_id);
+    } catch (updateError) {
+      console.warn('[ToolExecutor] Could not update proposal with draft:', updateError);
+      // Continue - the draft can still be shown to user
+    }
+
+    return {
+      status: 'pending_approval',
+      proposal_id: proposal_id as string,
+      proposal_number: proposal.proposal_number,
+      to: {
+        email: to_email as string,
+        name: to_name as string,
+      },
+      subject,
+      body,
+      attachments,
+      flight_details,
+      pricing,
+      generated_at,
+      request_id: (request_id as string) || proposal.request_id,
     };
   }
 

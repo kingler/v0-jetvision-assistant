@@ -159,6 +159,26 @@ export interface ChatSession {
     showProposalSentConfirmation?: boolean
     /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */
     proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
+    /** Whether to show email approval request card (human-in-the-loop) */
+    showEmailApprovalRequest?: boolean
+    /** Data for EmailPreviewCard when showEmailApprovalRequest is true */
+    emailApprovalData?: {
+      proposalId: string
+      proposalNumber?: string
+      to: { email: string; name: string }
+      subject: string
+      body: string
+      attachments: Array<{ name: string; url: string; size?: number }>
+      flightDetails?: {
+        departureAirport: string
+        arrivalAirport: string
+        departureDate: string
+        passengers?: number
+      }
+      pricing?: { subtotal: number; total: number; currency: string }
+      generatedAt?: string
+      requestId?: string
+    }
   }>
   /** Flag to indicate this chat needs an initial API call (set when created from landing page) */
   needsInitialApiCall?: boolean
