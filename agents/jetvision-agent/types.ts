@@ -406,6 +406,29 @@ export interface GmailTools {
     };
   };
 
+  // Human-in-the-loop email approval: prepares email draft for review
+  prepare_proposal_email: {
+    params: {
+      proposal_id: string;
+      to_email: string;
+      to_name: string;
+      custom_message?: string;
+    };
+    result: {
+      proposal_id: string;
+      to_email: string;
+      to_name: string;
+      subject: string;
+      body: string;
+      attachments: Array<{
+        name: string;
+        url: string;
+        size?: number;
+      }>;
+      status: 'draft';
+    };
+  };
+
   send_quote_email: {
     params: {
       request_id: string;

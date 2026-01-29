@@ -812,7 +812,7 @@ export const FORCED_TOOL_PATTERNS: Array<{
 
   // Proposal generation patterns
   {
-    pattern: /(?:create|generate|make|prepare)\s+(?:a\s+)?proposal/i,
+    pattern: /(?:create|generate|make)\s+(?:a\s+)?proposal(?!\s+email)/i,
     toolName: 'create_proposal',
     description: 'Create proposal from quote',
   },
@@ -820,6 +820,33 @@ export const FORCED_TOOL_PATTERNS: Array<{
     pattern: /(?:turn|convert)\s+(?:this|that|the)\s+quote\s+(?:into|to)\s+(?:a\s+)?proposal/i,
     toolName: 'create_proposal',
     description: 'Convert quote to proposal',
+  },
+
+  // Email proposal patterns (human-in-the-loop approval)
+  {
+    pattern: /(?:prepare|generate|create|draft)\s+(?:a\s+)?(?:proposal\s+)?email/i,
+    toolName: 'prepare_proposal_email',
+    description: 'Prepare proposal email for user review',
+  },
+  {
+    pattern: /(?:send|email)\s+(?:a\s+)?proposal\s+(?:to|for)/i,
+    toolName: 'prepare_proposal_email',
+    description: 'Send proposal to client (via approval flow)',
+  },
+  {
+    pattern: /prepare_proposal_email/i,
+    toolName: 'prepare_proposal_email',
+    description: 'Direct tool invocation',
+  },
+  {
+    pattern: /(?:email|send)\s+(?:this|that|the)\s+proposal/i,
+    toolName: 'prepare_proposal_email',
+    description: 'Email existing proposal',
+  },
+  {
+    pattern: /proposal\s+(?:id|ID)\s+[a-f0-9-]+.*(?:email|send)/i,
+    toolName: 'prepare_proposal_email',
+    description: 'Email proposal by ID',
   },
 
   // Airport search patterns

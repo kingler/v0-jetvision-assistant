@@ -1934,8 +1934,11 @@ export function ChatInterface({
               const allMessages = [...chatMessages, ...flatOperatorMessages]
                 .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 
-              // CRITICAL: Deduplicate RFQ messages before rendering
-              // Filter out duplicate agent messages with RFQ/quote content
+              // CRITICAL: Deduplicate messages before rendering
+              // Only filter true duplicates:
+              // 1. Messages with exact matching IDs (true duplicates from database)
+              // 2. Messages with exact matching content from the same agent (copied messages)
+              // Preserve all unique messages regardless of keyword overlap
               const deduplicatedMessages = allMessages.reduce((acc, message, index) => {
                 // Always keep user messages and operator messages
                 if (message.type === 'user' || message.type === 'operator') {
@@ -1949,40 +1952,39 @@ export function ChatInterface({
                   return acc
                 }
 
-                // For agent messages, check if it's an RFQ-related message
-                const messageContent = (message.content || '').trim().toLowerCase()
-                const isRfqMessage = messageContent.includes('rfq') ||
-                                    messageContent.includes('quote') ||
-                                    messageContent.includes('quotes') ||
-                                    messageContent.includes('trip id') ||
-                                    messageContent.includes('received quotes') ||
-                                    messageContent.includes('here are') ||
-                                    messageContent.includes('flight quotes') ||
-                                    (messageContent.includes('tist') && messageContent.includes('kopf'))
+                // For agent messages, check for true duplicates only
+                const messageId = message.id
+                const messageContent = (message.content || '').trim()
 
-                // If it's an RFQ message, check if we already have ANY RFQ message
-                if (isRfqMessage) {
-                  const hasAnyRfqMessage = acc.some(({ message: existingMsg }) => {
-                    if (existingMsg.type !== 'agent') return false
-                    const existingContent = (existingMsg.content || '').trim().toLowerCase()
-                    return existingContent.includes('rfq') ||
-                           existingContent.includes('quote') ||
-                           existingContent.includes('quotes') ||
-                           existingContent.includes('trip id') ||
-                           existingContent.includes('received quotes') ||
-                           existingContent.includes('here are') ||
-                           existingContent.includes('flight quotes')
+                // Check if we already have a message with the same ID (true duplicate from database)
+                const hasDuplicateId = acc.some(({ message: existingMsg }) => {
+                  return existingMsg.id === messageId && messageId !== undefined
+                })
+
+                if (hasDuplicateId) {
+                  console.log('[ChatInterface] 🚫 Skipping duplicate message (same ID):', {
+                    messageId: message.id,
+                    contentPreview: messageContent.substring(0, 50),
                   })
-
-                  if (hasAnyRfqMessage) {
-                    console.log('[ChatInterface] 🚫 Skipping duplicate RFQ message in render:', {
-                      messageId: message.id,
-                      contentPreview: messageContent.substring(0, 50),
-                    })
-                    return acc
-                  }
+                  return acc
                 }
 
+                // Check if we already have a message with exact same content from the same agent (copied message)
+                const hasDuplicateContent = acc.some(({ message: existingMsg }) => {
+                  if (existingMsg.type !== 'agent' || message.type !== 'agent') return false
+                  const existingContent = (existingMsg.content || '').trim()
+                  return existingContent === messageContent && messageContent.length > 0
+                })
+
+                if (hasDuplicateContent) {
+                  console.log('[ChatInterface] 🚫 Skipping duplicate message (same content):', {
+                    messageId: message.id,
+                    contentPreview: messageContent.substring(0, 50),
+                  })
+                  return acc
+                }
+
+                // Keep all unique messages
                 acc.push({ message, index })
                 return acc
               }, [] as Array<{ message: UnifiedMessage, index: number }>)
