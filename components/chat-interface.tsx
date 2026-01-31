@@ -60,6 +60,8 @@ import {
   convertRfqToRFQFlight,
   mergeQuoteDetailsIntoFlights,
   extractRouteParts,
+  // Book Flight customer derivation
+  getBookFlightCustomer,
   // Types
   type Quote,
   type QuoteDetailsMap,
@@ -1639,7 +1641,18 @@ export function ChatInterface({
         proposalSentData,
       }
       const updatedMessages = [...(activeChat.messages || []), confirmationMessage]
-      onUpdateChat(activeChat.id, { messages: updatedMessages })
+      // Persist selected proposal customer so Book Flight modal can display and use it for contracts
+      onUpdateChat(activeChat.id, {
+        messages: updatedMessages,
+        customer: {
+          name: customerData.name,
+          email: customerData.email,
+          company: customerData.company,
+          phone: customerData.phone,
+          isReturning: false,
+          preferences: {},
+        },
+      })
     } catch (error) {
       console.error('[ChatInterface] Error generating proposal:', error)
       alert(`Failed to generate proposal: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -1659,6 +1672,12 @@ export function ChatInterface({
     setSelectedQuoteId(flightId)
     setIsDrawerOpen(true)
   }
+
+  /** Customer for Book Flight modal: from persisted chat or latest proposal-sent message */
+  const bookFlightCustomer = useMemo(
+    () => getBookFlightCustomer(activeChat),
+    [activeChat.customer, activeChat.messages]
+  )
 
   /**
    * Handle book flight action - opens the contract generation modal
@@ -2439,13 +2458,7 @@ export function ChatInterface({
             setBookFlightData(null)
           }}
           flight={bookFlightData}
-          customer={{
-            name: activeChat.customer?.name || '',
-            email: (activeChat.customer as { email?: string })?.email ||
-              (activeChat.customer?.name ? `${activeChat.customer.name.toLowerCase().replace(/\s+/g, '.')}@example.com` : ''),
-            company: (activeChat.customer as { company?: string })?.company,
-            phone: (activeChat.customer as { phone?: string })?.phone,
-          }}
+          customer={bookFlightCustomer}
           tripDetails={{
             departureAirport: routeParts?.[0] ? { icao: routeParts[0], name: routeParts[0] } : { icao: 'KTEB', name: 'Teterboro Airport' },
             arrivalAirport: routeParts?.[1] ? { icao: routeParts[1], name: routeParts[1] } : { icao: 'KVNY', name: 'Van Nuys Airport' },

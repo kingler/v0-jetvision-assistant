@@ -1,371 +1,240 @@
 # Identified Issues, Bugs & Technical Debt
 
 **Project**: Jetvision AI Assistant
-**Analysis Date**: 2025-11-13
-**Priority Scale**: 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low
+**Analysis Date**: 2025-01-31
+**Priority Scale**: P0 Critical | P1 High | P2 Medium | P3 Low
 
 ---
 
-## Critical Issues (🔴 P0 - Blocking MVP)
+## Issue Summary
 
-### 1. Unified Chat Interface Not Started
-**Severity**: 🔴 Critical | **Impact**: Primary UX blocker
-**Linear**: ONEK-92 (88 story points)
+| Priority | Previous (Jan 28) | Current (Jan 31) | Change |
+|----------|-------------------|------------------|--------|
+| P0 Critical | 1 | 1 | Stable |
+| P1 High | 2 | 2 | Stable |
+| P2 Medium | 5 | 5 | Stable |
+| P3 Low | 3 | 3 | Stable |
 
-**Evidence**:
-- Only ONEK-93 (Message Components) completed
-- 23 subtasks across 4 phases remain
-- Old multi-page dashboard still active
-
-**Consequence**:
-- User experience fragmented across 5+ separate pages
-- Cannot achieve "ChatGPT for private jet booking" vision
-- All conversational flows blocked
-
-**Location**: `app/dashboard/`, `app/chat/page.tsx`
-**Recommended Fix**: Start ONEK-92 Phase 1 immediately (Chat Interface Enhancement)
+**Status**: No new issues introduced. Existing issues well-documented.
 
 ---
 
-### 2. Test Coverage Below 75% Threshold
-**Severity**: 🔴 Critical | **Impact**: Production confidence, CI/CD blocked
-**Coverage**: ~50-55% (Target: 75%)
+## Critical Issues (P0)
 
-**Evidence**:
-- 30 test failures blocking coverage reporting
-  - ProfilePage: 25 failures (ResizeObserver not defined)
-  - ChatKit Session: 5 failures (missing mocks)
-- 640 tests passing but insufficient coverage
-- Integration tests incomplete (RLS policies untested)
-- E2E tests in backup folder
+### 1. TypeScript Type Export Errors
+**Severity**: P0 Critical | **Impact**: CI/CD and code quality
 
-**Consequence**:
-- Cannot measure actual coverage
-- Production deployment risky without test confidence
-- Regressions will ship undetected
+**Evidence** (from `npx tsc --noEmit`):
+```
+14 TypeScript errors found
+```
 
-**Location**: `__tests__/unit/app/settings/profile/page.test.tsx`, `__tests__/unit/api/chatkit/session.test.ts`
+**Affected Files**:
+- `lib/middleware/rbac.ts` - Missing `UserRole`
+- `lib/rbac/permissions.ts` - Missing `UserRole`
+- `lib/hooks/use-user-role.ts` - Missing `UserRole`
+- `lib/hooks/use-avinode-quotes.ts` - Missing `Quote`
+- `lib/services/supabase-queries.ts` - Missing `RequestStatus`
+- `lib/utils/request-to-chat-session.ts` - Missing `Request`
+- `app/api/clients/route.ts` - Missing `User`, `ClientProfile`
+- `app/api/requests/route.ts` - Missing `User`, `Request`
+- `app/settings/profile/page.tsx` - Missing `UserRole`
+- `app/_archived/admin/users/page.tsx` - Archived file with stale imports
+
+**Root Cause**: Types exist but are not exported from `lib/types/database`
+
 **Recommended Fix**:
-1. Add ResizeObserver polyfill to test setup
-2. Create ChatKit SDK mocks
-3. Expand RLS integration tests
-4. Move E2E tests out of backup
+1. Add missing exports to `lib/types/database/index.ts`
+2. Or update imports to use correct paths
+3. Consider removing archived files that cause errors
+
+**Effort**: 1-2 hours
 
 ---
 
-### 3. MCP Servers Incomplete
-**Severity**: 🔴 Critical | **Impact**: Agent functionality blocked
+## High Priority Issues (P1)
+
+### 2. Email Approval Workflow Edge Cases
+**Severity**: P1 High | **Impact**: Human-in-the-loop UX
 
 **Evidence**:
-| Server | Completion | Missing |
-|--------|------------|---------|
-| Avinode | 60% | Full tool suite, error handling |
-| Google Sheets | 30% | OAuth 2.0, CRUD operations |
-| Gmail | 30% | OAuth 2.0, send with attachments |
-| Supabase | 40% | Complex queries, RLS-aware ops |
+- `EmailPreviewCard` component implemented (components/email/)
+- `prepare_proposal_email` tool added to types
+- Email approval database fields added (migration 650c736)
 
-**Consequence**:
-- ClientDataAgent cannot fetch client profiles
-- FlightSearchAgent cannot search/create RFPs
-- CommunicationAgent cannot send proposals
-- End-to-end workflows impossible
+**What's Missing**:
+- Edit email content before sending
+- Cancel email workflow
+- Retry failed email sends
+- Error state handling in UI
 
-**Location**: `mcp-servers/*/src/`
-**Recommended Fix**: Complete OAuth implementations and core tool sets (1 week effort)
+**Recommended Fix**:
+1. Add edit functionality to EmailPreviewCard
+2. Implement cancel button with confirmation
+3. Add retry mechanism for failed sends
+4. Test full workflow end-to-end
+
+**Effort**: 1-2 days
 
 ---
 
-### 4. Agent Implementations Incomplete
-**Severity**: 🔴 Critical | **Impact**: Core functionality missing
-**Overall Completion**: 45%
+### 3. Test Suite Maintenance
+**Severity**: P1 High | **Impact**: CI reliability
 
 **Evidence**:
-- All 6 agents only partially implemented (40-65% each)
-- No agent tools directory (`agents/tools/` empty)
-- MCP integration missing from all agents
-- Error handling and retry logic incomplete
+- 108 test files exist
+- Some tests may have stale mocks
+- ResizeObserver polyfill issues in component tests
 
-**Consequence**:
-- OrchestratorAgent cannot parse complex RFPs
-- No agent can successfully complete full workflow
-- NLP understanding insufficient for production
+**Recommended Fix**:
+1. Run full test suite: `npm test`
+2. Update mocks for new API shapes
+3. Add ResizeObserver polyfill to test setup
+4. Fix any failing tests
 
-**Location**: `agents/implementations/`
-**Recommended Fix**: Wire agent-to-MCP connections, add comprehensive error handling
+**Effort**: 2-4 hours
 
 ---
 
-## High Priority Issues (🟠 P1)
+## Medium Priority Issues (P2)
 
-### 5. Chat UI Still Uses Mock Data
-**Severity**: 🟠 High | **Impact**: Primary workflow unusable with live backend
+### 4. Google Sheets OAuth Not Complete
+**Severity**: P2 Medium | **Impact**: External CRM sync
 
 **Evidence**:
-- `app/page.tsx` seeds sessions from `useCaseChats` mock data
-- `components/chat-interface.tsx` renders from in-memory arrays
-- `simulateWorkflowProgress` drives conversations instead of agents
-- Live hooks implemented but unused (`hooks/use-chat-agent.ts`)
+- Google Sheets MCP at 70% completion
+- OAuth flow structure exists but not tested
+- Token refresh mechanism needed
 
 **Consequence**:
-- No real Supabase persistence exercised
-- MCP calls never triggered from UI
-- Agent orchestration not validated
-- User testing cannot validate backend logic
+- Cannot sync client data from external sources
+- Manual data entry required
 
-**Location**: `app/page.tsx:31`, `components/chat-interface.tsx:101`, `lib/mock-data.ts`
-**Recommended Fix**: Replace mocks with actual service calls after ONEK-92 Phase 2
+**Recommended Fix**: Complete OAuth 2.0 flow with token refresh
+
+**Effort**: 1-2 days
 
 ---
 
-### 6. Production Deployment Infrastructure Missing
-**Severity**: 🟠 High | **Impact**: Cannot deploy to production
+### 5. Production Deployment Configuration
+**Severity**: P2 Medium | **Impact**: Launch readiness
 
 **Evidence**:
-- No Docker/Docker Compose configuration
-- No Kubernetes manifests
-- No deployment scripts or runbooks
-- No environment-specific configs (dev/staging/prod)
-- Monitoring (Sentry) integrated but not configured
+- Vercel configured but needs finalization
+- No Docker setup (using Vercel instead)
+- Environment-specific configs incomplete
 
-**Consequence**:
-- Manual deployment process error-prone
-- Cannot replicate production environment locally
-- No rollback strategy
-- No deployment automation
+**Recommended Fix**:
+1. Finalize Vercel configuration
+2. Create production environment variables
+3. Set up error monitoring (Sentry)
+4. Document deployment process
 
-**Location**: Root directory (missing files)
-**Recommended Fix**: Create `Dockerfile`, `docker-compose.yml`, `.github/workflows/deploy.yml`
+**Effort**: 1-2 days
 
 ---
 
-### 7. OAuth Flows Not Implemented
-**Severity**: 🟠 High | **Impact**: Gmail and Sheets MCP blocked
+### 6. Rate Limiting Not Implemented
+**Severity**: P2 Medium | **Impact**: Security/cost control
 
 **Evidence**:
-- Google Sheets MCP has no OAuth 2.0 flow
-- Gmail MCP has no OAuth 2.0 flow
-- Credential management undocumented
-- No token refresh logic
+- No rate limiting on API routes
+- No throttling for expensive operations (OpenAI calls)
 
-**Consequence**:
-- ClientDataAgent cannot access client profiles
-- CommunicationAgent cannot send emails
-- User Story 2 and 5 blocked
+**Recommended Fix**:
+- Implement Redis-based rate limiter middleware
+- Limits: 100 req/min API, 10 req/min OpenAI
 
-**Location**: `mcp-servers/google-sheets-mcp-server/`, `mcp-servers/gmail-mcp-server/`
-**Recommended Fix**: Implement OAuth 2.0 with token refresh using `google-auth-library`
+**Effort**: 4-8 hours
 
 ---
 
-### 8. Proposal PDF Generation Not Implemented
-**Severity**: 🟠 High | **Impact**: User Story 5 blocked
-
-**Evidence**:
-- PDF generation service documented but not implemented
-- Communication Agent can draft emails but no PDF attachment
-- No PDF template system
-- TASK-019 in backlog
-
-**Consequence**:
-- Cannot deliver proposals to clients
-- Manual PDF creation required
-- User Story 5 only 40% complete
-
-**Location**: Missing service (should be `lib/pdf/`)
-**Recommended Fix**: Implement PDF service using a library like `@react-pdf/renderer` or `puppeteer`
-
----
-
-## Medium Priority Issues (🟡 P2)
-
-### 9. Real-Time Updates Not Wired
-**Severity**: 🟡 Medium | **Impact**: Quote tracking incomplete
-
-**Evidence**:
-- `hooks/use-rfp-realtime.ts` implemented but unused in active UI
-- Only archived dashboard uses realtime subscription
-- Chat interface has no Supabase realtime integration
-- Quote polling not implemented
-
-**Consequence**:
-- Users must manually refresh for quote updates
-- No notifications when quotes arrive
-- User Story 3 only 55% complete
-
-**Location**: `hooks/use-rfp-realtime.ts`, `components/chat-interface.tsx`
-**Recommended Fix**: Wire realtime hooks into unified chat interface
-
----
-
-### 10. Test Data Out of Sync with Schemas
-**Severity**: 🟡 Medium | **Impact**: Test failures
-
-**Evidence**:
-- PR #11: 4 email API tests failing due to stricter Zod validation
-- Test mocks use old database field names
-- Test data doesn't match current validation rules
-
-**Consequence**:
-- Tests fail even when code is correct
-- False negatives in CI
-- Developer friction
-
-**Location**: `__tests__/unit/api/email/route.test.ts`
-**Recommended Fix**: Update test data to match strict schemas
-
----
-
-### 11. API Documentation Missing
-**Severity**: 🟡 Medium | **Impact**: Developer experience
+### 7. API Documentation Missing
+**Severity**: P2 Medium | **Impact**: Developer experience
 
 **Evidence**:
 - No OpenAPI/Swagger documentation
-- No API versioning strategy
-- No request/response examples in docs
-- Endpoint documentation scattered
+- Endpoint documentation scattered across docs/
 
-**Consequence**:
-- Difficult for frontend to integrate
-- No contract testing
-- API changes break consumers
+**Recommended Fix**:
+- Generate OpenAPI spec from Zod schemas
+- Use tools like zod-to-openapi
 
-**Location**: Missing documentation (should have `docs/api/`)
-**Recommended Fix**: Generate OpenAPI spec from Zod schemas
+**Effort**: 1 day
 
 ---
 
-### 12. Rate Limiting Not Implemented
-**Severity**: 🟡 Medium | **Impact**: Security/abuse risk
+### 8. Mobile Responsiveness Testing Needed
+**Severity**: P2 Medium | **Impact**: Mobile UX
 
 **Evidence**:
-- No rate limiting on any API routes
-- No throttling for expensive operations
-- No quota management per user
+- Desktop UI excellent
+- Mobile not systematically tested
+- 80% completion on responsive design
 
-**Consequence**:
-- Vulnerable to abuse/DoS
-- No cost control for OpenAI/Avinode API calls
-- Resource exhaustion possible
+**Recommended Fix**:
+- Test on mobile devices
+- Add responsive breakpoint tests
 
-**Location**: `app/api/` routes
-**Recommended Fix**: Implement rate limiting middleware using Redis
+**Effort**: 1 day
 
 ---
 
-### 13. Error Monitoring Not Configured
-**Severity**: 🟡 Medium | **Impact**: Observability gap
+## Low Priority Issues (P3)
+
+### 9. Performance Indexes
+**Severity**: P3 Low | **Impact**: Query performance at scale
 
 **Evidence**:
-- Sentry package installed but not configured
-- No error dashboards or alerts
-- No APM (Application Performance Monitoring)
-- Basic console logging only
+- Basic indexes exist
+- No compound indexes for complex queries
 
-**Consequence**:
-- Cannot detect production errors
-- No performance metrics
-- Slow incident response
+**Recommended Fix**: Add indexes after profiling slow queries in production
 
-**Location**: Missing Sentry initialization
-**Recommended Fix**: Configure Sentry with proper DSN and environment tags
+**Effort**: 2-4 hours (when needed)
 
 ---
 
-### 14. ResizeObserver Polyfill Missing
-**Severity**: 🟡 Medium | **Impact**: 25 ProfilePage tests failing
+### 10. Backup/Restore Procedures
+**Severity**: P3 Low | **Impact**: Disaster recovery
 
 **Evidence**:
-```
-ReferenceError: ResizeObserver is not defined
-  at ProfilePage > should show preferences for customer role
-```
+- Supabase provides automatic backups
+- No documented restore procedures
 
-**Consequence**:
-- ProfilePage component tests all fail
-- Cannot verify UI behavior
-- Blocks test coverage improvements
+**Recommended Fix**: Document and test restore procedures
 
-**Location**: `__tests__/helpers/setup.ts`
-**Recommended Fix**: Add ResizeObserver polyfill to test setup:
-```typescript
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}))
-```
+**Effort**: 2-4 hours
 
 ---
 
-### 15. E2E Tests in Backup Folder
-**Severity**: 🟡 Medium | **Impact**: Critical flows untested
+### 11. Contract Digital Signatures
+**Severity**: P3 Low | **Impact**: Contract workflow
 
 **Evidence**:
-- Auth E2E tests in `__tests__/e2e/auth.backup/`
-- Tests not running in CI
-- Playwright configured but not used
+- Contract generation implemented
+- Contract send endpoint exists
+- No digital signature integration
 
-**Consequence**:
-- No end-to-end validation
-- Sign-in/sign-up flows untested
-- User journeys unverified
+**Recommended Fix**: Integrate DocuSign or similar for v2
 
-**Location**: `__tests__/e2e/auth.backup/`
-**Recommended Fix**: Move tests out of backup, fix and enable in CI
+**Effort**: 2-3 days (future enhancement)
 
 ---
 
-## Low Priority Issues (🟢 P3)
+## Resolved Issues (Since Last Report)
 
-### 16. Performance Indexes Missing
-**Severity**: 🟢 Low | **Impact**: Query performance at scale
+### RESOLVED: Message Persistence Loading
+- **Previous**: Messages not loading correctly for older sessions
+- **Resolution**: Fixed in commit 885db74 - load messages directly per session
 
-**Evidence**:
-- Database schema has basic indexes only
-- No compound indexes for common queries
-- No query plan analysis done
+### RESOLVED: Quote Pricing Display
+- **Previous**: Incorrect prices for unanswered quotes
+- **Resolution**: Fixed in commit 8233e83
 
-**Consequence**:
-- Slower queries as data grows
-- Potential N+1 query issues
-
-**Location**: `supabase/migrations/`
-**Recommended Fix**: Add indexes after profiling slow queries
-
----
-
-### 17. Backup/Restore Procedures Missing
-**Severity**: 🟢 Low | **Impact**: Disaster recovery
-
-**Evidence**:
-- No documented backup strategy
-- No restore procedures
-- No backup testing
-
-**Consequence**:
-- Data loss risk
-- Long recovery time
-- Compliance issues
-
-**Location**: Missing documentation
-**Recommended Fix**: Document and test backup/restore procedures
-
----
-
-### 18. Mobile Responsiveness Untested
-**Severity**: 🟢 Low | **Impact**: Mobile UX unknown
-
-**Evidence**:
-- Desktop UI working
-- No mobile testing documented
-- Responsive design partial (60%)
-
-**Consequence**:
-- Possible mobile UX issues
-- Touch interactions not optimized
-
-**Location**: All components
-**Recommended Fix**: Test on mobile devices, add responsive breakpoint tests
+### RESOLVED: Email Approval Migration
+- **Previous**: PostgreSQL ENUM type issues
+- **Resolution**: Fixed in commit 650c736
 
 ---
 
@@ -373,82 +242,36 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 
 ### Code Quality Debt
 
-1. **Empty Directories**: `agents/tools/`, `agents/guardrails/`, `agents/monitoring/` exist but unused
-2. **Archived Dashboard**: Old multi-page UI at `app/_archived/dashboard/` should be removed after migration
-3. **Mock Data Dependencies**: `lib/mock-data.ts` used in production code paths
-4. **Type Safety**: Some `any` types in agent implementations
-5. **Error Messages**: Generic error messages, need user-friendly localized messages
+1. **Archived Dashboard**: `app/_archived/dashboard/` should be deleted
+2. **Archived Admin**: `app/_archived/admin/` causes TypeScript errors
+3. **Some Stale Test Mocks**: Need updating for new API shapes
 
 ### Architecture Debt
 
-1. **No HTTP+SSE Transport**: MCP servers only support stdio, limiting deployment options
-2. **No Circuit Breakers**: External API calls have no failure protection
-3. **No Caching Layer**: Repeated API calls not cached (Redis available but unused)
-4. **No Request Deduplication**: Simultaneous identical requests not deduplicated
-5. **No Idempotency**: POST requests not idempotent, risking duplicate operations
+1. **No HTTP+SSE Transport**: MCP servers only support stdio
+2. **No Caching Layer**: API responses not cached (Redis available but unused for caching)
+3. **No Request Deduplication**: Simultaneous requests not deduplicated
 
 ### Documentation Debt
 
-1. **Task Index Out of Sync**: `tasks/TASK_INDEX.md` shows 1/37 complete (actually much higher)
-2. **Linear Sync**: Project status not reflected in Linear issues
-3. **Deployment Guide Missing**: No step-by-step production deployment
-4. **Architecture Diagrams Outdated**: Diagrams don't show latest structure
-5. **API Examples Missing**: No request/response examples
+1. **API Examples**: Need request/response examples
+2. **Deployment Guide**: Needs finalization for production
 
 ---
 
-## Issue Summary by Priority
+## Recommended Resolution Order
 
-### Critical (🔴 P0): 4 issues
-1. Unified Chat Interface not started - **BLOCKER**
-2. Test coverage below 75%
-3. MCP servers incomplete
-4. Agent implementations incomplete
+### This Week (Priority)
+1. P0: Fix 14 TypeScript errors (1-2 hours)
+2. P1: Run and fix test suite (2-4 hours)
+3. P1: Test email approval workflow (1 day)
 
-### High (🟠 P1): 4 issues
-5. Chat UI uses mock data
-6. Production deployment infrastructure missing
-7. OAuth flows not implemented
-8. PDF generation not implemented
+### Next Week
+4. P2: Finalize production deployment (1-2 days)
+5. P2: Add rate limiting (4-8 hours)
 
-### Medium (🟡 P2): 7 issues
-9. Real-time updates not wired
-10. Test data out of sync
-11. API documentation missing
-12. Rate limiting not implemented
-13. Error monitoring not configured
-14. ResizeObserver polyfill missing
-15. E2E tests in backup folder
-
-### Low (🟢 P3): 3 issues
-16. Performance indexes missing
-17. Backup/restore procedures missing
-18. Mobile responsiveness untested
-
-**Total Issues**: 18 identified issues + 15 technical debt items
-
----
-
-## Recommended Issue Resolution Order
-
-### Week 1
-1. 🔴 Start ONEK-92 Phase 1 (Chat Interface Enhancement)
-2. 🔴 Fix 30 test failures (ResizeObserver + ChatKit mocks)
-3. 🟠 Complete OAuth flows for Gmail and Sheets
-
-### Week 2
-4. 🔴 Complete MCP server implementations
-5. 🔴 Wire agents to MCP servers
-6. 🟡 Implement real-time updates in chat
-
-### Week 3
-7. 🟠 Create production deployment infrastructure (Docker, CI/CD)
-8. 🟠 Implement PDF generation service
-9. 🟡 Expand test coverage to 75%
-
-### Week 4+
-10. 🟡 Add API documentation
-11. 🟡 Configure error monitoring
-12. 🟡 Implement rate limiting
-13. 🟢 Performance optimization
-14. 🟢 Mobile testing
+### Future (Post-Launch)
+6. P2: Complete Google Sheets OAuth
+7. P2: API documentation
+8. P3: Performance optimization
+9. P3: Digital signatures

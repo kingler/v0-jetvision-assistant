@@ -27,3 +27,32 @@ export {
   type PollingState,
   type UseRFQPollingReturn,
 } from './use-rfq-polling';
+
+export {
+  useWebhookSubscription,
+  type UseWebhookSubscriptionOptions,
+  type UseWebhookSubscriptionReturn,
+  type WebhookEvent,
+  type WebhookEventPayload,
+  type OperatorMessage,
+} from './use-webhook-subscription';
+
+export {
+  useMessageDeduplication,
+  type UseMessageDeduplicationOptions,
+  type UseMessageDeduplicationReturn,
+  type DeduplicatableMessage,
+  type UnifiedMessage,
+  type OperatorMessageItem,
+} from './use-message-deduplication';
+
+export {
+  useProposalGeneration,
+  type UseProposalGenerationOptions,
+  type UseProposalGenerationReturn,
+  type ClientProfile,
+  type ChatSession,
+  type ChatMessage,
+  type ProposalSentData,
+  type CustomerData,
+} from './use-proposal-generation';

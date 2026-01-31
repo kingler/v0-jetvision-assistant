@@ -207,6 +207,9 @@ export function BookFlightModal({
   const flightDetails = buildFlightDetails(flight, tripDetails);
   const amenities = buildAmenities(flight);
 
+  /** Customer must have name and email for contract generation/send (avoids API "Customer name is required" error) */
+  const hasValidCustomer = !!(customer.name?.trim() && customer.email?.trim());
+
   /**
    * Handle preview contract
    */
@@ -354,20 +357,28 @@ export function BookFlightModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Customer Info */}
+          {/* Customer Info: selected customer from generated proposal (name + email required for contract) */}
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Customer
             </h4>
-            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              {customer.name}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {customer.email}
-            </p>
-            {customer.company && (
-              <p className="text-sm text-gray-500 dark:text-gray-500">
-                {customer.company}
+            {customer.name?.trim() && customer.email?.trim() ? (
+              <>
+                <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  {customer.name}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {customer.email}
+                </p>
+                {customer.company && (
+                  <p className="text-sm text-gray-500 dark:text-gray-500">
+                    {customer.company}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-amber-600 dark:text-amber-400" data-testid="book-flight-no-customer">
+                No customer selected. Generate a proposal and select a customer first — the contract will be sent to that customer.
               </p>
             )}
           </div>
@@ -513,11 +524,20 @@ export function BookFlightModal({
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button variant="outline" onClick={handlePreviewContract}>
+              <Button
+                variant="outline"
+                onClick={handlePreviewContract}
+                disabled={!hasValidCustomer}
+                title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
+              >
                 <FileText className="mr-2 h-4 w-4" />
                 Preview Contract
               </Button>
-              <Button onClick={handleSendContract}>
+              <Button
+                onClick={handleSendContract}
+                disabled={!hasValidCustomer}
+                title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
+              >
                 <Mail className="mr-2 h-4 w-4" />
                 Send Contract
               </Button>
@@ -540,7 +560,11 @@ export function BookFlightModal({
                 <ExternalLink className="mr-2 h-4 w-4" />
                 Open PDF
               </Button>
-              <Button onClick={handleSendContract}>
+              <Button
+                onClick={handleSendContract}
+                disabled={!hasValidCustomer}
+                title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
+              >
                 <Mail className="mr-2 h-4 w-4" />
                 Send Contract
               </Button>
