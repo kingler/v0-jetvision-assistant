@@ -1988,3 +1988,43 @@ export const Constants = {
     },
   },
 } as const
+
+// ============================================================================
+// CONVENIENCE TYPE ALIASES
+// ============================================================================
+
+/**
+ * User role enum type
+ * @example 'sales_rep' | 'admin' | 'customer' | 'operator' | 'iso_agent'
+ */
+export type UserRole = Database["public"]["Enums"]["user_role"];
+
+/**
+ * Request status enum type
+ */
+export type RequestStatus = Database["public"]["Enums"]["request_status"];
+
+/**
+ * Quote status enum type
+ */
+export type QuoteStatus = Database["public"]["Enums"]["quote_status"];
+
+/**
+ * User (iso_agents table) row type
+ */
+export type User = Tables<"iso_agents">;
+
+/**
+ * Client profile row type
+ */
+export type ClientProfile = Tables<"client_profiles">;
+
+/**
+ * Quote row type (database table)
+ */
+export type Quote = Tables<"quotes">;
+
+/**
+ * Request row type
+ */
+export type Request = Tables<"requests">;
