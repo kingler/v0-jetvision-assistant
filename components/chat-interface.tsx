@@ -160,6 +160,10 @@ export function ChatInterface({
   // Book flight modal state for contract generation
   const [isBookFlightModalOpen, setIsBookFlightModalOpen] = useState(false)
   const [bookFlightData, setBookFlightData] = useState<RFQFlight | null>(null)
+  const [pendingBookFlightId, setPendingBookFlightId] = useState<string | null>(null)
+  const [pendingBookFlightQuoteId, setPendingBookFlightQuoteId] = useState<string | undefined>(undefined)
+  const [selectedBookingCustomer, setSelectedBookingCustomer] = useState<{ name: string; email: string; company?: string; phone?: string } | null>(null)
+  const [isBookingCustomerDialogOpen, setIsBookingCustomerDialogOpen] = useState(false)
 
   // Sync tripIdSubmitted with activeChat
   useEffect(() => {
@@ -1680,7 +1684,7 @@ export function ChatInterface({
   )
 
   /**
-   * Handle book flight action - opens the contract generation modal
+   * Handle book flight action - uses proposal customer if available, otherwise opens customer selection dialog
    */
   const handleBookFlight = useCallback((flightId: string, quoteId?: string) => {
     console.log('[ChatInterface] Book flight:', { flightId, quoteId })
@@ -1692,10 +1696,74 @@ export function ChatInterface({
       return
     }
 
-    // Open the book flight modal with the selected flight
+    // Check if there's an existing proposal with customer data
+    // Look for proposalSentData in messages that contains client info
+    const proposalMessage = activeChat.messages?.find(
+      (msg) => msg.proposalSentData?.client?.name && msg.proposalSentData?.client?.email
+    )
+
+    if (proposalMessage?.proposalSentData?.client) {
+      // Use the customer from the existing proposal
+      const proposalClient = proposalMessage.proposalSentData.client
+      console.log('[ChatInterface] Using customer from proposal:', proposalClient)
+
+      setSelectedBookingCustomer({
+        name: proposalClient.name,
+        email: proposalClient.email,
+        company: undefined,
+        phone: undefined,
+      })
+
+      // Open book flight modal directly with the proposal customer
+      setBookFlightData(flight)
+      setIsBookFlightModalOpen(true)
+      return
+    }
+
+    // No existing proposal customer - open customer selection dialog
+    setPendingBookFlightId(flightId)
+    setPendingBookFlightQuoteId(quoteId)
+    setIsBookingCustomerDialogOpen(true)
+  }, [rfqFlights, activeChat.messages])
+
+  /**
+   * Handle customer selection for booking
+   *
+   * Called when a customer is selected in the CustomerSelectionDialog for booking.
+   * Sets the customer data and opens the book flight modal.
+   */
+  const handleBookingCustomerSelected = useCallback((customer: ClientProfile) => {
+    console.log('[ChatInterface] Customer selected for booking:', customer)
+
+    if (!pendingBookFlightId) {
+      console.error('[ChatInterface] No pending flight ID for booking')
+      return
+    }
+
+    // Find the flight from rfqFlights
+    const flight = rfqFlights.find(f => f.id === pendingBookFlightId)
+    if (!flight) {
+      console.error('[ChatInterface] Flight not found:', pendingBookFlightId)
+      return
+    }
+
+    // Set the selected customer for booking
+    setSelectedBookingCustomer({
+      name: customer.contact_name || '',
+      email: customer.email || '',
+      company: customer.company_name || '',
+      phone: customer.phone || '',
+    })
+
+    // Close customer dialog and open book flight modal
+    setIsBookingCustomerDialogOpen(false)
     setBookFlightData(flight)
     setIsBookFlightModalOpen(true)
-  }, [rfqFlights])
+
+    // Clear pending state
+    setPendingBookFlightId(null)
+    setPendingBookFlightQuoteId(undefined)
+  }, [pendingBookFlightId, rfqFlights])
 
   /**
    * Handle contract sent - called when contract is successfully sent from the modal
@@ -2449,6 +2517,17 @@ export function ChatInterface({
         onSelect={handleCustomerSelected}
       />
 
+      {/* Customer Selection Dialog for Booking */}
+      <CustomerSelectionDialog
+        open={isBookingCustomerDialogOpen}
+        onClose={() => {
+          setIsBookingCustomerDialogOpen(false)
+          setPendingBookFlightId(null)
+          setPendingBookFlightQuoteId(undefined)
+        }}
+        onSelect={handleBookingCustomerSelected}
+      />
+
       {/* Book Flight Modal for Contract Generation */}
       {bookFlightData && (
         <BookFlightModal
@@ -2456,6 +2535,7 @@ export function ChatInterface({
           onClose={() => {
             setIsBookFlightModalOpen(false)
             setBookFlightData(null)
+            setSelectedBookingCustomer(null)
           }}
           flight={bookFlightData}
           customer={bookFlightCustomer}
