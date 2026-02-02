@@ -126,10 +126,14 @@ export interface ChatSession {
   sessionStartedAt?: string
   /** Timestamp when messages were last read/viewed, keyed by quote ID */
   lastMessagesReadAt?: Record<string, string>
+  /** Customer from last generated proposal; used by Book Flight modal for contract recipient */
   customer?: {
     name: string
-    isReturning: boolean
-    preferences: Record<string, string>
+    email?: string
+    company?: string
+    phone?: string
+    isReturning?: boolean
+    preferences?: Record<string, string>
   }
   messages: Array<{
     id: string

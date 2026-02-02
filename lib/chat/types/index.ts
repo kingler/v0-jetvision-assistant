@@ -6,6 +6,9 @@
 
 import type { WorkflowStatusType, RFQStatusType, MessageTypeValue } from '../constants';
 
+// Re-export commonly used types from constants for convenience
+export type { RFQStatusType, WorkflowStatusType, MessageTypeValue } from '../constants';
+
 /**
  * Email approval data from prepare_proposal_email tool
  */

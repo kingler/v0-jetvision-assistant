@@ -1,9 +1,10 @@
 # Project Structure - Jetvision AI Assistant
 
-**Analysis Date**: 2025-12-09
-**Project**: Jetvision Multi-Agent System
-**Architecture**: Multi-Agent System with OpenAI + MCP Servers
-**Stack**: Next.js 14, TypeScript, Supabase, BullMQ, Clerk Auth
+**Analysis Date**: 2025-01-31
+**Total Files**: ~1,383 (excluding node_modules, .git, .next)
+**TypeScript Files**: 589
+**Test Files**: 108
+**API Routes**: 36
 
 ---
 
@@ -11,339 +12,258 @@
 
 ```
 v0-jetvision-assistant/
-├── .claude/                      # Claude Code configuration
-│   ├── commands/                 # 35+ custom slash commands
-│   ├── agents/                   # Worktree manager agent
-│   ├── hooks/                    # Git hooks automation
-│   ├── skills/                   # Git worktree isolation skill
-│   └── workspaces/               # Agent workspace management
+├── agents/                    # Agent system
+│   ├── coordination/          # Agent coordination (100% complete)
+│   │   ├── handoff-manager.ts
+│   │   ├── linear-agent-spawner.ts
+│   │   ├── message-bus.ts
+│   │   ├── state-machine.ts
+│   │   ├── task-queue.ts
+│   │   └── terminal-manager.ts
+│   └── jetvision-agent/       # Main agent (95% complete)
+│       ├── index.ts
+│       ├── tool-executor.ts
+│       └── types.ts
 │
-├── .context/                     # Project context & documentation
-│   ├── assessments/              # Status and readiness reports
-│   ├── documentation/            # Technical documentation
-│   ├── planning/                 # Planning and recommendations
-│   └── status/                   # Status updates
+├── app/                       # Next.js 14 App Router
+│   ├── api/                   # 36 API routes
+│   │   ├── admin/             # Admin endpoints
+│   │   ├── agents/            # Agent management
+│   │   ├── analytics/         # Usage analytics
+│   │   ├── avinode/           # Avinode integration
+│   │   ├── chat/              # Chat API with SSE
+│   │   ├── chat-sessions/     # Session management
+│   │   ├── clients/           # Client profiles
+│   │   ├── contract/          # Contract generation (NEW)
+│   │   │   ├── [id]/
+│   │   │   ├── generate/
+│   │   │   └── send/
+│   │   ├── email/             # Email sending
+│   │   ├── health/            # Health checks
+│   │   ├── mcp/               # MCP endpoints
+│   │   ├── messages/          # Message persistence
+│   │   ├── proposal/          # Proposal workflow
+│   │   │   ├── approve-email/ # Email approval (NEW)
+│   │   │   ├── generate/
+│   │   │   └── send/
+│   │   ├── quotes/            # Quote management
+│   │   ├── requests/          # RFP requests
+│   │   ├── rfp/               # RFP processing
+│   │   ├── test/              # Test endpoints
+│   │   ├── users/             # User management
+│   │   ├── webhooks/          # Clerk, Avinode webhooks
+│   │   └── workflows/         # Workflow state
+│   ├── chat/                  # Chat page
+│   ├── component-demo/        # Component demos
+│   ├── settings/              # Settings pages
+│   ├── sign-in/               # Auth pages
+│   ├── sign-up/
+│   └── _archived/             # Archived pages (causes TS errors)
 │
-├── .github/                      # GitHub configuration
-│   ├── workflows/                # CI/CD workflows (5 workflows)
-│   │   ├── code-review.yml       # Automated code review
-│   │   ├── pr-code-review.yml    # PR review with morpheus-validator
-│   │   ├── linear-sync.yml       # Linear issue synchronization
-│   │   ├── auto-create-pr.yml    # Auto PR creation for feature branches
-│   │   └── review-command.yml    # Manual review triggers
-│   └── PULL_REQUEST_TEMPLATE/    # PR templates
+├── components/                # 101 React components
+│   ├── avinode/               # 21 Avinode components
+│   │   ├── avinode-action-required.tsx
+│   │   ├── avinode-auth-status.tsx
+│   │   ├── avinode-connection-status.tsx
+│   │   ├── avinode-deep-links.tsx
+│   │   ├── avinode-message-card.tsx
+│   │   ├── avinode-sidebar-card.tsx
+│   │   ├── book-flight-modal.tsx
+│   │   ├── deep-link-prompt.tsx
+│   │   ├── flight-search-progress.tsx
+│   │   ├── operator-message-thread.tsx
+│   │   ├── rfq-flight-card.tsx
+│   │   ├── rfq-flights-list.tsx
+│   │   ├── rfq-quote-details-card.tsx
+│   │   ├── send-proposal-step.tsx
+│   │   ├── trip-details-card.tsx
+│   │   ├── trip-id-input.tsx
+│   │   ├── trip-summary-card.tsx
+│   │   └── webhook-status-indicator.tsx
+│   ├── chat/                  # Chat components
+│   ├── conversation-starters/ # 8 starter components
+│   ├── email/                 # Email preview (NEW)
+│   │   ├── email-preview-card.tsx
+│   │   └── index.ts
+│   ├── message-components/    # Rich message types
+│   ├── proposal/              # Proposal UI (NEW)
+│   │   └── proposal-sent-confirmation.tsx
+│   ├── quotes/                # Quote cards
+│   ├── rfp/                   # RFP form steps
+│   ├── rich-messages/         # Markdown rendering
+│   ├── ui/                    # Base UI (shadcn/ui)
+│   └── workflow-steps/        # Workflow UI
 │
-├── .husky/                       # Git hooks (Husky)
-│   ├── pre-commit                # Type check, lint, unit tests
-│   ├── pre-push                  # Full test suite
-│   └── commit-msg                # Conventional commits validation
+├── lib/                       # Core libraries
+│   ├── airports/              # Airport data
+│   ├── avinode/               # Avinode utilities
+│   ├── chat/                  # Chat state & hooks
+│   ├── config/                # Configuration
+│   ├── conversation/          # Conversation flow
+│   ├── design-system/         # Tailwind helpers
+│   ├── hooks/                 # React hooks
+│   ├── linear/                # Linear integration
+│   ├── mcp/                   # MCP client library
+│   ├── middleware/            # Auth middleware
+│   ├── mock-data/             # Test data
+│   ├── pdf/                   # PDF generation
+│   ├── prompts/               # System prompts
+│   ├── rbac/                  # Role-based access
+│   ├── resilience/            # Circuit breakers
+│   ├── services/              # Business logic
+│   ├── sessions/              # Session management
+│   ├── supabase/              # Database client
+│   ├── types/                 # Type definitions
+│   ├── utils/                 # Utilities
+│   └── validations/           # Zod schemas
 │
-├── __tests__/                    # Test suites (58 test files)
-│   ├── unit/                     # Unit tests (640+ tests passing)
-│   │   ├── agents/               # Agent tests (6 files)
-│   │   ├── api/                  # API route tests (11 files)
-│   │   ├── components/           # Component tests
-│   │   ├── lib/                  # Library tests
-│   │   └── mcp/                  # MCP server tests (3 files)
-│   ├── integration/              # Integration tests (5 suites)
-│   │   ├── auth/                 # Auth flow tests
-│   │   ├── conversation/         # Conversation tests
-│   │   ├── database/             # Database tests
-│   │   └── mcp/                  # MCP integration tests
-│   ├── e2e/                      # End-to-end tests (Playwright)
-│   ├── helpers/                  # Test utilities
-│   └── utils/                    # Test utilities
+├── mcp-servers/               # MCP servers
+│   ├── avinode-mcp-server/    # 100% complete
+│   ├── gmail-mcp-server/      # 90% complete
+│   ├── google-sheets-mcp-server/ # 70% complete
+│   └── supabase-mcp-server/   # 100% complete
 │
-├── agents/                       # AI Agent System (23 files)
-│   ├── core/                     # ✅ 95% Complete
-│   │   ├── base-agent.ts         # Abstract base class for all agents
-│   │   ├── agent-factory.ts      # Singleton factory for agent creation
-│   │   ├── agent-registry.ts     # Central agent registry
-│   │   ├── agent-context.ts      # Context management
-│   │   ├── gpt5-configs.ts       # GPT-5 model configurations
-│   │   ├── types.ts              # Type definitions
-│   │   └── index.ts              # Barrel exports
-│   │
-│   ├── coordination/             # ✅ 100% Complete
-│   │   ├── message-bus.ts        # EventEmitter-based pub/sub
-│   │   ├── handoff-manager.ts    # Task delegation between agents
-│   │   ├── task-queue.ts         # BullMQ + Redis async queue
-│   │   ├── state-machine.ts      # Workflow state management (11 states)
-│   │   └── index.ts              # Barrel exports
-│   │
-│   ├── implementations/          # 🟢 70% Complete (NEW: +25% since last report)
-│   │   ├── orchestrator-agent.ts        # ✅ 85% (was 60%) - Conversational capabilities added
-│   │   ├── client-data-agent.ts         # 🟡 40% - Needs Google Sheets MCP
-│   │   ├── flight-search-agent.ts       # ✅ 80% (was 50%) - Avinode MCP integrated
-│   │   ├── proposal-analysis-agent.ts   # 🟡 55% - Scoring complete
-│   │   ├── communication-agent.ts       # 🟡 50% - Email generation works
-│   │   └── error-monitor-agent.ts       # 🟡 65% - Basic monitoring
-│   │
-│   └── tools/                    # 🟡 40% Complete (NEW: Added recently)
-│       ├── intent-parser.ts      # ✅ Intent parsing for RFP extraction
-│       ├── data-extractor.ts     # ✅ Extract flight details from messages
-│       ├── question-generator.ts # ✅ Generate follow-up questions
-│       ├── types.ts              # Tool type definitions
-│       └── index.ts              # Barrel exports
+├── __tests__/                 # Test files (108 total)
+│   ├── e2e/                   # End-to-end tests
+│   ├── helpers/               # Test utilities
+│   ├── integration/           # Integration tests
+│   │   ├── agents/
+│   │   ├── auth/
+│   │   ├── conversation/
+│   │   ├── database/
+│   │   ├── mcp/
+│   │   └── webhooks/
+│   ├── mocks/                 # Test mocks
+│   ├── templates/             # Test templates
+│   └── unit/                  # Unit tests
+│       ├── agents/
+│       ├── api/
+│       ├── app/
+│       ├── components/
+│       ├── conversation/
+│       ├── hooks/
+│       ├── lib/
+│       ├── mcp/
+│       └── middleware/
 │
-├── app/                          # Next.js App Router
-│   ├── api/                      # API Routes (15 routes)
-│   │   ├── agents/               # Agent management
-│   │   ├── analytics/            # Analytics endpoints
-│   │   ├── chat/                 # Chat API
-│   │   │   └── respond/          # Chat response endpoint
-│   │   ├── chatkit/              # ChatKit integration
-│   │   │   └── session/          # ChatKit session management
-│   │   ├── clients/              # Client management
-│   │   ├── email/                # Email sending
-│   │   ├── mcp/                  # MCP server health checks
-│   │   │   └── health/           # Health check endpoint
-│   │   ├── quotes/               # Quote management
-│   │   ├── requests/             # RFP request management
-│   │   ├── rfp/                  # RFP processing
-│   │   │   └── process/          # RFP processing endpoint
-│   │   ├── users/                # User management
-│   │   │   └── me/               # Current user profile
-│   │   │       └── avatar/       # Avatar upload
-│   │   ├── webhooks/             # Webhook handlers
-│   │   │   └── clerk/            # Clerk auth webhooks
-│   │   └── workflows/            # Workflow tracking
-│   │
-│   ├── chat/                     # ✅ Chat interface page (NEW)
-│   ├── dashboard/                # Dashboard pages
-│   │   ├── new-request/          # New RFP request form
-│   │   └── quotes/               # Quote viewing
-│   ├── settings/                 # Settings pages
-│   │   └── profile/              # User profile management
-│   ├── sign-in/                  # Clerk sign-in
-│   ├── sign-up/                  # Clerk sign-up
-│   ├── _archived/                # Old dashboard (to be removed)
-│   ├── layout.tsx                # Root layout with Clerk
-│   ├── page.tsx                  # Landing page
-│   └── globals.css               # Global styles
+├── docs/                      # Documentation (90+ files)
+│   ├── agents/
+│   ├── api/
+│   ├── architecture/
+│   ├── avinode/
+│   ├── deployment/
+│   ├── implementation/
+│   └── ...
 │
-├── components/                   # React Components (55+ files)
-│   ├── aviation/                 # Aviation-specific components
-│   │   ├── aircraft-card.tsx     # Aircraft details display
-│   │   ├── flight-details.tsx    # Flight information
-│   │   └── quote-card.tsx        # Quote display card
-│   │
-│   ├── message-components/       # ✅ Message Components (ONEK-93)
-│   │   ├── action-buttons.tsx    # Inline action buttons
-│   │   ├── file-attachment.tsx   # File attachments in messages
-│   │   ├── form-field.tsx        # Form fields in chat
-│   │   ├── message-renderer.tsx  # Main message renderer
-│   │   ├── progress-indicator.tsx # Progress bars
-│   │   ├── proposal-preview.tsx  # Proposal preview cards
-│   │   ├── quote-card.tsx        # Rich quote cards
-│   │   ├── quote-comparison.tsx  # Quote comparison table
-│   │   └── workflow-status.tsx   # Workflow status display
-│   │
-│   ├── rfp/                      # RFP form components
-│   │   ├── steps/                # Multi-step form components
-│   │   └── rfp-form.tsx          # Main RFP form
-│   │
-│   ├── ui/                       # shadcn/ui components (24+ components)
-│   │   ├── button.tsx            # Button component
-│   │   ├── card.tsx              # Card component
-│   │   ├── dialog.tsx            # Dialog component
-│   │   ├── form.tsx              # Form component
-│   │   ├── input.tsx             # Input component
-│   │   ├── select.tsx            # Select component
-│   │   ├── table.tsx             # Table component
-│   │   └── ...                   # 17+ more components
-│   │
-│   ├── chat-interface.tsx        # ✅ NEW: Main chat interface
-│   ├── chat-sidebar.tsx          # Chat session sidebar
-│   ├── message-list.tsx          # Message list display
-│   └── ...                       # Other components
+├── supabase/                  # Database
+│   └── migrations/            # 32 migration files
 │
-├── docs/                         # Documentation (100+ files)
-│   ├── architecture/             # Architecture documentation
-│   │   ├── MULTI_AGENT_SYSTEM.md           # Complete system architecture
-│   │   ├── DATABASE_SCHEMA_DIAGRAM.md      # Database schema
-│   │   ├── MCP_SERVER_ARCHITECTURE.md      # MCP architecture
-│   │   ├── UNIFIED_CHAT_INTERFACE.md       # Unified chat design
-│   │   └── IMPLEMENTATION_SUMMARY.md       # Phase 1 summary
-│   │
-│   ├── code-review/              # Code review documentation
-│   ├── communication/            # Project updates
-│   ├── database/                 # Database documentation
-│   ├── deployment/               # Deployment guides
-│   ├── git/                      # Git workflow documentation
-│   ├── guides/                   # Development guides
-│   ├── BRD.md                    # Business Requirements Document
-│   ├── PRD.md                    # Product Requirements Document
-│   ├── CLAUDE.md                 # ✅ Claude Code comprehensive guide
-│   ├── GETTING_STARTED.md        # Getting started guide
-│   ├── SYSTEM_ARCHITECTURE.md    # System overview
-│   └── ...                       # 80+ more documentation files
+├── scripts/                   # Utility scripts
+│   ├── avinode/
+│   ├── clerk/
+│   ├── code-review/
+│   ├── database/
+│   └── ...
 │
-├── hooks/                        # React hooks
-│   ├── use-chat-agent.ts         # Chat agent integration hook
-│   ├── use-rfp-realtime.ts       # Real-time RFP updates
-│   └── ...                       # Other hooks
+├── .context/                  # Project context
+│   ├── assessments/           # Status reports (this file)
+│   ├── documentation/
+│   ├── planning/
+│   ├── status/
+│   └── workspaces/            # Worktree metadata
 │
-├── lib/                          # Shared libraries
-│   ├── agents/                   # Agent utilities
-│   ├── config/                   # Configuration
-│   ├── conversation/             # Conversation utilities
-│   ├── hooks/                    # Hook utilities
-│   ├── linear/                   # Linear integration
-│   ├── mcp/                      # MCP client libraries
-│   │   ├── clients/              # MCP client implementations
-│   │   ├── errors/               # MCP error handling
-│   │   └── transports/           # MCP transport layers
-│   ├── middleware/               # Middleware (RBAC)
-│   ├── mock-data/                # Mock data for development
-│   ├── pdf/                      # PDF generation utilities
-│   ├── rbac/                     # Role-based access control
-│   ├── services/                 # Service layer
-│   │   └── mcp-server-manager.ts # ✅ MCP server manager singleton
-│   ├── supabase/                 # Supabase client
-│   ├── task-runner/              # Task runner utilities
-│   ├── types/                    # Shared types
-│   ├── utils/                    # Utility functions
-│   └── validations/              # Zod validation schemas
+├── .claude/                   # Claude Code config
+│   ├── agents/
+│   ├── commands/
+│   ├── hooks/
+│   ├── plans/
+│   └── skills/
 │
-├── mcp-servers/                  # MCP Server Implementations (26 files)
-│   ├── avinode-mcp-server/       # 🟢 75% Complete (was 60%)
-│   │   ├── src/
-│   │   │   ├── index.ts          # Main server entry
-│   │   │   ├── api-client.ts     # ✅ Avinode API client
-│   │   │   ├── tools/            # ✅ Tool implementations
-│   │   │   └── mock/             # ✅ Mock data infrastructure
-│   │   ├── dist/                 # Compiled output
-│   │   ├── tests/                # Test files
-│   │   │   ├── unit/             # Unit tests
-│   │   │   ├── integration/      # Integration tests
-│   │   │   └── fixtures/         # Test fixtures
-│   │   ├── package.json          # Dependencies
-│   │   └── tsconfig.json         # TypeScript config
-│   │
-│   ├── google-sheets-mcp-server/ # 🟡 30% - Needs OAuth
-│   │   └── src/                  # Basic structure
-│   │
-│   ├── gmail-mcp-server/         # 🟡 30% - Needs OAuth
-│   │   └── src/                  # Basic structure
-│   │
-│   └── supabase-mcp-server/      # 🟡 40% - Needs complex queries
-│       └── src/                  # Basic CRUD operations
-│
-├── public/                       # Static assets
-│   └── images/                   # Image assets
-│
-├── reports/                      # Generated reports
-│
-├── scripts/                      # Utility scripts
-│   ├── code-review/              # Code review scripts
-│   ├── database/                 # Database scripts
-│   ├── linear/                   # Linear integration scripts
-│   ├── mcp/                      # MCP utility scripts
-│   ├── test/                     # Test scripts
-│   └── testing/                  # Testing utilities
-│
-├── supabase/                     # Supabase configuration
-│   └── migrations/               # Database migrations (10 files)
-│       ├── 001_*.sql             # Initial schema
-│       ├── 002_*.sql             # RLS policies
-│       ├── 003_*.sql             # Foreign keys
-│       ├── 004_*.sql             # Seed data
-│       ├── 005_*.sql             # User roles update
-│       ├── 006_*.sql             # ChatKit sessions
-│       └── ...                   # 4 more migrations
-│
-├── tasks/                        # Task management
-│   ├── backlog/                  # Backlog tasks
-│   ├── completed/                # Completed tasks
-│   └── templates/                # Task templates
-│
-├── .env.example                  # ✅ Environment template
-├── .gitignore                    # Git ignore rules
-├── .mcp.json                     # ✅ MCP configuration
-├── middleware.ts                 # ✅ Clerk middleware
-├── next.config.mjs               # Next.js configuration
-├── package.json                  # ✅ Dependencies + 40+ scripts
-├── pnpm-lock.yaml                # pnpm lockfile
-├── tsconfig.json                 # TypeScript configuration
-├── vercel.json                   # Vercel deployment config
-├── vitest.config.ts              # ✅ Test configuration
-├── CLAUDE.md                     # ✅ Claude Code comprehensive guide
-└── README.md                     # Project README
+└── .github/                   # GitHub config
+    ├── workflows/             # CI/CD workflows
+    └── PULL_REQUEST_TEMPLATE/
 ```
 
 ---
 
 ## Key Statistics
 
-### Codebase Size
-- **Total TypeScript files**: ~230 files (was 200+)
-- **Agent files**: 23 files (was 18)
-- **MCP server files**: 26 files
-- **Component files**: 55 TSX files (was 54)
-- **API routes**: 15 routes (was 14)
-- **Test files**: 58 test files (was 56+)
-- **Documentation files**: 100+ markdown files
+### Codebase Size (January 2025)
+
+| Metric | Jan 28 | Jan 31 | Notes |
+|--------|--------|--------|-------|
+| **TypeScript Files** | 833 (estimated) | 589 (accurate) | Recounted |
+| **Component Files** | 118 | 101 | Recounted |
+| **Test Files** | 208+ | 108 | Recounted |
+| **API Routes** | 36 | 36 | Stable |
+| **Migrations** | 32 | 32 | Stable |
+| **Avinode Components** | 19 | 21 | +2 |
 
 ### Lines of Code (Estimated)
-- **Agents**: ~3,500 lines
-- **API Routes**: ~2,000 lines
-- **Components**: ~4,500 lines
-- **MCP Servers**: ~2,500 lines
+- **Agents**: ~4,000 lines
+- **API Routes**: ~3,000 lines
+- **Components**: ~6,000 lines
+- **MCP Servers**: ~3,000 lines
 - **Tests**: ~8,000 lines
-- **Total**: ~20,000+ lines
-
-### Dependencies
-- **Production**: 87 packages
-- **Development**: 70 packages
-- **Total**: 157 packages
+- **Total**: ~24,000+ lines
 
 ---
 
-## New Files Since Last Report (2025-11-13)
+## New Files Since Last Report (Jan 28)
 
-### Added (Recent Commits)
-1. **agents/tools/** - NEW directory with 4 files
-   - `intent-parser.ts` - Intent parsing for RFP extraction
-   - `data-extractor.ts` - Extract flight details
-   - `question-generator.ts` - Generate follow-up questions
-   - `types.ts` & `index.ts` - Types and exports
+### New Components
+- No new components since Jan 28
 
-2. **Conversational RFP Flow** (ONEK-95)
-   - Enhanced chat interface with conversational flow
-   - Backend integration for RFP gathering
+### New API Routes
+- No new routes since Jan 28
 
-3. **FlightSearchAgent Integration** (ONEK-30)
-   - Full integration with Avinode MCP server
-   - Tool implementations for flight search
-
-4. **Orchestrator Enhancements** (ONEK-98)
-   - Conversational capabilities added
-   - Improved NLP understanding
-
-### Updated (Major Changes)
-1. **agents/implementations/orchestrator-agent.ts**
-   - From 60% → 85% complete
-   - Added conversational capabilities
-   - Integrated NLP tools
-
-2. **agents/implementations/flight-search-agent.ts**
-   - From 50% → 80% complete
-   - Full Avinode MCP integration
-   - Tool implementations complete
-
-3. **TypeScript Fixes**
-   - 52 critical type errors resolved
-   - All components type-safe
-   - API routes type-safe
-
-### Archived
-- Old dashboard pages moved to `app/_archived/`
-- Preparing for unified chat interface migration
+### Recent Commits (Stability)
+- `885db74` - Fix: Load messages directly per session
+- `48580cb` - Revert: Undo aggressive deduplication
+- `650c736` - Fix: Email approval migration ENUM
 
 ---
 
-## Architecture Patterns
+## Architecture Highlights
+
+### Single-Agent Architecture
+```
+JetvisionAgent (agents/jetvision-agent/)
+    │
+    ├── System Prompt (lib/prompts/jetvision-system-prompt.ts)
+    │   └── Forced tool patterns for common intents
+    │
+    ├── Tool Executor (tool-executor.ts)
+    │   └── Routes to MCP servers
+    │
+    └── MCP Servers (mcp-servers/)
+        ├── Avinode MCP (flight search, trips, quotes)
+        ├── Gmail MCP (email sending)
+        ├── Supabase MCP (database operations)
+        └── Google Sheets MCP (client data - partial)
+```
+
+### Chat Flow
+```
+User Message → Chat API → JetvisionAgent → Tool Executor → MCP Server
+                    ↓
+              SSE Streaming ← Response ← Tool Result
+                    ↓
+              Message Persistence (Supabase)
+```
+
+### Proposal Workflow
+```
+RFQ Created → Quotes Received → Proposal Generated → Email Preview
+                                                           ↓
+                                                    User Approval
+                                                           ↓
+                                                    Email Sent → Confirmation
+```
+
+---
+
+## Notable Patterns
 
 ### Singleton Patterns
 - `AgentFactory` - Single agent factory instance
@@ -353,108 +273,79 @@ v0-jetvision-assistant/
 - `WorkflowStateManager` - Single workflow manager
 - `MCPServerManager` - Single MCP server manager
 
-### Factory Pattern
-- `AgentFactory.createAgent()` - Creates agent instances
-- Registered agent types: 6 agent implementations
+### Component Organization
+- Avinode components: `components/avinode/` (21 files)
+- Quote components: `components/quotes/`
+- Message components: `components/message-components/`
+- Chat components: `components/chat/`
+- Email components: `components/email/` (2 files)
+- Proposal components: `components/proposal/` (1 file)
 
-### Observer Pattern (Pub/Sub)
-- `MessageBus` - EventEmitter-based messaging
-- 7 message types: TASK_CREATED, TASK_STARTED, TASK_COMPLETED, TASK_FAILED, AGENT_HANDOFF, CONTEXT_UPDATE, ERROR
-
-### State Machine Pattern
-- `WorkflowStateMachine` - 11 workflow states
-- Enforced state transitions
-- State timing tracking
-
-### Repository Pattern
-- Supabase client abstraction
-- RLS-aware data access
-
----
-
-## Notable File Locations
+### Test Organization
+- Unit tests mirror source structure in `__tests__/unit/`
+- Integration tests for cross-cutting concerns
+- E2E tests for critical paths
 
 ### Configuration Files
-- **Environment**: `.env.example`, `.env.local` (create locally)
-- **TypeScript**: `tsconfig.json` (strict mode enabled)
-- **Next.js**: `next.config.mjs`
-- **Testing**: `vitest.config.ts` (75% coverage thresholds)
-- **MCP**: `.mcp.json` (MCP server configuration)
-- **Vercel**: `vercel.json` (deployment configuration)
-- **Package**: `package.json` (40+ npm scripts)
-
-### Core System Files
-- **Agent Core**: `agents/core/base-agent.ts` (1,200+ lines)
-- **Coordination**: `agents/coordination/` (4 files, production-ready)
-- **Database Schema**: `supabase/migrations/` (10 migrations)
-- **Authentication**: `middleware.ts` (Clerk middleware)
-- **RBAC**: `lib/middleware/rbac.ts` (72 passing tests)
-
-### Documentation
-- **Main Guide**: `CLAUDE.md` (comprehensive 600+ line guide)
-- **Architecture**: `docs/architecture/MULTI_AGENT_SYSTEM.md` (400+ lines)
-- **BRD**: `docs/BRD.md` (Business Requirements)
-- **PRD**: `docs/PRD.md` (Product Requirements)
-- **Status**: `.context/status/current-project-status.md`
-
----
-
-## Change Log Since Last Report
-
-### Major Changes
-1. ✅ **ONEK-95**: Conversational RFP Flow implemented
-2. ✅ **ONEK-30**: FlightSearchAgent + Avinode MCP integration
-3. ✅ **ONEK-98**: Orchestrator conversational capabilities
-4. ✅ **ONEK-116**: Avinode 3-party chat integration
-5. ✅ **TypeScript Fixes**: 52 critical errors resolved
-
-### Completion Increases
-- **Overall Project**: 62% → 72% (+10%)
-- **Agent Implementations**: 45% → 70% (+25%)
-- **OrchestratorAgent**: 60% → 85% (+25%)
-- **FlightSearchAgent**: 50% → 80% (+30%)
-- **Avinode MCP**: 60% → 75% (+15%)
-
-### New Features
-- Agent tools directory with 4 utilities
-- Conversational RFP gathering flow
-- FlightSearchAgent Avinode integration
-- Enhanced orchestrator with NLP
+- **Environment**: `.env.local`
+- **TypeScript**: `tsconfig.json` (strict mode)
+- **Testing**: `vitest.config.ts`
+- **Linting**: `eslint.config.mjs`
+- **MCP**: `.mcp.json`
 
 ---
 
 ## Project Health Indicators
 
-### Positive Signs ✅
+### Positive Signs
 - Strong core infrastructure (95%+ complete)
 - Comprehensive coordination layer (100% complete)
-- Significant agent progress (45% → 70%)
-- TypeScript errors resolved (52 fixed)
-- Good test coverage foundation (58 test files)
-- Comprehensive documentation (100+ docs)
+- JetvisionAgent architecture solid (95%)
+- MCP servers mostly complete (90%)
+- Good test coverage foundation (108 test files)
+- Comprehensive documentation (90+ docs)
+- Chat message persistence fixed (885db74)
+- Email approval workflow implemented
+- Contract generation added
 
-### Areas Needing Attention 🟡
-- Unified Chat Interface (ONEK-92) still in progress
-- MCP OAuth flows incomplete (Gmail, Sheets)
-- Test coverage below 75% target
-- 30 test failures need fixing
-- Production deployment infrastructure missing
+### Areas Needing Attention
+- 14 TypeScript type export errors
+- Test suite verification needed
+- Google Sheets OAuth not complete
+- Production deployment configuration
 
-### Critical Blockers 🔴
-- ~~Conversational RFP Flow~~ ✅ DONE (ONEK-95)
-- ~~FlightSearchAgent integration~~ ✅ DONE (ONEK-30)
-- Unified Chat UI completion (ONEK-92)
-- MCP OAuth implementations
-- Test failures resolution
+### Recently Fixed
+- Message persistence (885db74)
+- Quote pricing display (8233e83)
+- Email approval migration (650c736)
+
+---
+
+## Files Causing TypeScript Errors
+
+The following files have import errors due to missing exports from `lib/types/database`:
+
+1. `lib/middleware/rbac.ts` - `UserRole`
+2. `lib/rbac/permissions.ts` - `UserRole`
+3. `lib/hooks/use-user-role.ts` - `UserRole`
+4. `lib/hooks/use-avinode-quotes.ts` - `Quote`
+5. `lib/services/supabase-queries.ts` - `RequestStatus`
+6. `lib/utils/request-to-chat-session.ts` - `Request`
+7. `app/api/clients/route.ts` - `User`, `ClientProfile`
+8. `app/api/requests/route.ts` - `User`, `Request`
+9. `app/settings/profile/page.tsx` - `UserRole`
+10. `app/_archived/admin/users/page.tsx` - `UserRole`, `User` (archived)
+
+**Fix**: Add missing exports to `lib/types/database/index.ts`
 
 ---
 
 ## Recommendations
 
-1. **Continue ONEK-92** - Complete unified chat interface
-2. **Fix Test Failures** - Resolve 30 failing tests
-3. **Implement OAuth** - Gmail and Google Sheets MCP servers
-4. **Production Deployment** - Create Docker + CI/CD setup
-5. **Expand Test Coverage** - Reach 75% threshold
+1. **Fix TypeScript Errors** - Add missing type exports (1-2 hours)
+2. **Clean Archived Files** - Remove `app/_archived/` or exclude from compilation
+3. **Verify Tests** - Run test suite and fix failures
+4. **Production Setup** - Configure Vercel and Sentry
+5. **Google Sheets OAuth** - Complete for v1.1
 
-**Overall Assessment**: Project structure is well-organized, comprehensive, and follows best practices. Significant progress made since last report with conversational capabilities and agent integrations.
+**Overall Assessment**: Project structure is well-organized and comprehensive. 86% overall completion. Ready for production with TypeScript cleanup.
