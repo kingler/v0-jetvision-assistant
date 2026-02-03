@@ -219,6 +219,13 @@ export interface AirportInfo {
  * RFQ Flight - normalized format for UI display
  * Note: This type should match components/avinode/rfq-flight-card.tsx RFQFlight
  */
+/**
+ * Leg type for round-trip support
+ * - 'outbound': First leg of trip (departure to destination)
+ * - 'return': Return leg of round-trip (destination back to origin)
+ */
+export type LegType = 'outbound' | 'return';
+
 export interface RFQFlight {
   id: string;
   quoteId: string;
@@ -261,6 +268,20 @@ export interface RFQFlight {
   avinodeDeepLink?: string;
   /** Response time in minutes */
   responseTimeMinutes?: number;
+  /**
+   * Leg type for round-trip proposals
+   * - 'outbound': First leg (departure to destination)
+   * - 'return': Return leg (destination back to origin)
+   * Default: 'outbound' for backward compatibility
+   */
+  legType?: LegType;
+  /**
+   * Leg sequence number for multi-leg trips
+   * - 1: First leg (outbound)
+   * - 2: Second leg (return)
+   * Used for ordering and grouping in proposals
+   */
+  legSequence?: number;
 }
 
 /**
