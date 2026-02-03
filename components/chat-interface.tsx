@@ -2124,18 +2124,36 @@ export function ChatInterface({
                 }
               )
 
-              // Find the first user message index to insert FlightSearchProgress after it
-              // FlightSearchProgress should appear right after the initial trip request (first user message)
-              let firstUserMessageIndex = -1;
+              // Find the insertion point for FlightSearchProgress
+              // It should appear right after the agent message that CREATED the trip
+              // (the message with showDeepLink or deepLinkData, indicating create_trip was called)
+              // This ensures correct positioning when user's initial request is incomplete
+              // and multiple back-and-forth messages are needed to gather all required details
+              let tripCreationIndex = -1;
               for (let i = 0; i < regularMessages.length; i++) {
-                if (regularMessages[i].message.type === 'user') {
-                  firstUserMessageIndex = i;
+                const msg = regularMessages[i].message;
+                // Find the agent message where the trip was created
+                if (msg.type === 'agent' && (msg.showDeepLink || msg.deepLinkData?.tripId || msg.deepLinkData?.deepLink)) {
+                  tripCreationIndex = i;
                   break;
                 }
               }
 
-              // Split messages: before FlightSearchProgress (includes first user message) and after
-              const splitIndex = firstUserMessageIndex >= 0 ? firstUserMessageIndex + 1 : 0;
+              // Fallback: If no trip creation message found, use first user message
+              // This handles edge cases where deepLinkData might not be set on messages
+              let insertionIndex = tripCreationIndex;
+              if (insertionIndex === -1) {
+                for (let i = 0; i < regularMessages.length; i++) {
+                  if (regularMessages[i].message.type === 'user') {
+                    insertionIndex = i;
+                    break;
+                  }
+                }
+              }
+
+              // Split messages: before FlightSearchProgress and after
+              // FlightSearchProgress appears AFTER the trip creation message
+              const splitIndex = insertionIndex >= 0 ? insertionIndex + 1 : 0;
               const messagesBeforeProgress = regularMessages.slice(0, splitIndex);
               const messagesAfterProgress = regularMessages.slice(splitIndex);
 
@@ -2290,10 +2308,10 @@ export function ChatInterface({
               // Render: Messages before FlightSearchProgress -> FlightSearchProgress -> Messages after -> Proposal confirmations
               return (
                 <>
-                  {/* Messages BEFORE FlightSearchProgress (includes first user message / trip request) */}
+                  {/* Messages BEFORE FlightSearchProgress (includes all messages up to trip creation) */}
                   {messagesBeforeProgress.map(renderMessage)}
 
-                  {/* FlightSearchProgress - positioned right after the first user message (trip request) */}
+                  {/* FlightSearchProgress - positioned right after the trip creation message */}
                   {shouldInsertProgressAtEnd && (
                     <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                       <FlightSearchProgress

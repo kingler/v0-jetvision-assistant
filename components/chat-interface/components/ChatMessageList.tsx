@@ -212,17 +212,34 @@ export function ChatMessageList({
     }
 
     // Find the insertion point for FlightSearchProgress
-    // It should appear right after the first user message (the trip request)
-    let insertionIndex = -1;
+    // It should appear right after the agent message that CREATED the trip
+    // (the message with showDeepLink or deepLinkData, indicating create_trip was called)
+    // This ensures correct positioning when user's initial request is incomplete
+    // and multiple back-and-forth messages are needed to gather all required details
+    let tripCreationIndex = -1;
     for (let i = 0; i < regularMessages.length; i++) {
-      if (regularMessages[i].message.type === 'user') {
-        insertionIndex = i;
+      const msg = regularMessages[i].message;
+      // Find the agent message where the trip was created
+      if (msg.type === 'agent' && (msg.showDeepLink || msg.deepLinkData?.tripId || msg.deepLinkData?.deepLink)) {
+        tripCreationIndex = i;
         break;
       }
     }
 
+    // Fallback: If no trip creation message found, use first user message
+    // This handles edge cases where deepLinkData might not be set on messages
+    let insertionIndex = tripCreationIndex;
+    if (insertionIndex === -1) {
+      for (let i = 0; i < regularMessages.length; i++) {
+        if (regularMessages[i].message.type === 'user') {
+          insertionIndex = i;
+          break;
+        }
+      }
+    }
+
     // Split messages into before and after the FlightSearchProgress insertion point
-    // If no user message found, FlightSearchProgress goes at the beginning
+    // FlightSearchProgress appears AFTER the insertion point message
     const splitIndex = insertionIndex >= 0 ? insertionIndex + 1 : 0;
 
     const before = regularMessages.slice(0, splitIndex);

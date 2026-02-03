@@ -144,6 +144,20 @@ export interface RFQFlight {
   hasPackage?: boolean;
   /** Deep link to view this flight in Avinode marketplace - maps to actions.viewInAvinode.href */
   avinodeDeepLink?: string;
+  /**
+   * Leg type for round-trip proposals
+   * - 'outbound': First leg (departure to destination)
+   * - 'return': Return leg (destination back to origin)
+   * Default: 'outbound' for backward compatibility
+   */
+  legType?: 'outbound' | 'return';
+  /**
+   * Leg sequence number for multi-leg trips
+   * - 1: First leg (outbound)
+   * - 2: Second leg (return)
+   * Used for ordering and grouping in proposals
+   */
+  legSequence?: number;
 }
 
 /**

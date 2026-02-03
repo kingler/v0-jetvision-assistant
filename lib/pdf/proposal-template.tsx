@@ -24,6 +24,22 @@ import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 // TYPES
 // =============================================================================
 
+/**
+ * Trip type for proposal categorization
+ * - 'one_way': Single direction flight
+ * - 'round_trip': Outbound + return flight
+ */
+export type TripType = 'one_way' | 'round_trip';
+
+/**
+ * Airport information structure
+ */
+export interface ProposalAirport {
+  icao: string;
+  name?: string;
+  city?: string;
+}
+
 export interface ProposalData {
   proposalId: string;
   generatedAt: string;
@@ -34,18 +50,31 @@ export interface ProposalData {
     phone?: string;
   };
   tripDetails: {
-    departureAirport: {
-      icao: string;
-      name?: string;
-      city?: string;
-    };
-    arrivalAirport: {
-      icao: string;
-      name?: string;
-      city?: string;
-    };
+    /**
+     * Type of trip - one_way or round_trip
+     * Default: 'one_way' for backward compatibility
+     */
+    tripType?: TripType;
+    departureAirport: ProposalAirport;
+    arrivalAirport: ProposalAirport;
     departureDate: string;
     departureTime?: string;
+    /**
+     * Return date for round-trip proposals (ISO format)
+     * Only applicable when tripType is 'round_trip'
+     */
+    returnDate?: string;
+    /**
+     * Return departure time for round-trip proposals
+     * Only applicable when tripType is 'round_trip'
+     */
+    returnTime?: string;
+    /**
+     * Return arrival airport for round-trip proposals
+     * Defaults to original departure airport if not specified
+     * Only applicable when tripType is 'round_trip'
+     */
+    returnAirport?: ProposalAirport;
     passengers: number;
     tripId?: string;
   };
@@ -56,6 +85,14 @@ export interface ProposalData {
     taxes: number;
     total: number;
     currency: string;
+    /**
+     * Cost breakdown for outbound leg (round-trip only)
+     */
+    outboundCost?: number;
+    /**
+     * Cost breakdown for return leg (round-trip only)
+     */
+    returnCost?: number;
   };
   quoteValidUntil: string;
 }
