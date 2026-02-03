@@ -2124,11 +2124,23 @@ export function ChatInterface({
                 }
               )
 
-              // Render: Regular messages -> FlightSearchProgress -> Proposal confirmations
-              return (
-                <>
-                  {/* Regular messages (user, operator, agent) in chronological order */}
-                  {regularMessages.map(({ message, index }, mapIndex) => (
+              // Find the first user message index to insert FlightSearchProgress after it
+              // FlightSearchProgress should appear right after the initial trip request (first user message)
+              let firstUserMessageIndex = -1;
+              for (let i = 0; i < regularMessages.length; i++) {
+                if (regularMessages[i].message.type === 'user') {
+                  firstUserMessageIndex = i;
+                  break;
+                }
+              }
+
+              // Split messages: before FlightSearchProgress (includes first user message) and after
+              const splitIndex = firstUserMessageIndex >= 0 ? firstUserMessageIndex + 1 : 0;
+              const messagesBeforeProgress = regularMessages.slice(0, splitIndex);
+              const messagesAfterProgress = regularMessages.slice(splitIndex);
+
+              // Helper function to render a single message
+              const renderMessage = ({ message, index }: { message: UnifiedMessage; index: number }, mapIndex: number) => (
                     <React.Fragment key={message.id || `msg-${index}`}>
                     {message.type === 'user' ? (
                       // User message - blue bubble on the right
@@ -2273,9 +2285,15 @@ export function ChatInterface({
                     )}
 
                   </React.Fragment>
-                  ))}
+              );
 
-                  {/* FlightSearchProgress after ALL regular messages */}
+              // Render: Messages before FlightSearchProgress -> FlightSearchProgress -> Messages after -> Proposal confirmations
+              return (
+                <>
+                  {/* Messages BEFORE FlightSearchProgress (includes first user message / trip request) */}
+                  {messagesBeforeProgress.map(renderMessage)}
+
+                  {/* FlightSearchProgress - positioned right after the first user message (trip request) */}
                   {shouldInsertProgressAtEnd && (
                     <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                       <FlightSearchProgress
@@ -2339,6 +2357,9 @@ export function ChatInterface({
                       />
                     </div>
                   )}
+
+                  {/* Messages AFTER FlightSearchProgress (all subsequent conversation) */}
+                  {messagesAfterProgress.map(renderMessage)}
 
                   {/* Proposal confirmations AFTER FlightSearchProgress */}
                   {/* This ensures they appear after Step 3 where the "Generate Proposal" button is located */}
