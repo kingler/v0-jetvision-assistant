@@ -303,6 +303,61 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginBottom: 4,
   },
+  // Round-trip specific styles
+  legHeader: {
+    fontSize: 11,
+    fontFamily: 'Helvetica-Bold',
+    color: '#0066cc',
+    marginTop: 16,
+    marginBottom: 8,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  legBadge: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    color: '#ffffff',
+    backgroundColor: '#0066cc',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 2,
+    marginBottom: 4,
+  },
+  returnLegBadge: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    color: '#ffffff',
+    backgroundColor: '#6c757d',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 2,
+    marginBottom: 4,
+  },
+  sectionDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    marginVertical: 16,
+  },
+  tripTypeBadge: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: '#0066cc',
+    backgroundColor: '#e3f2fd',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 3,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  pricingSubtotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    paddingLeft: 12,
+    color: '#666666',
+    fontSize: 9,
+  },
 });
 
 // =============================================================================
@@ -387,13 +442,22 @@ function formatAirportName(airport: {
 interface FlightCardProps {
   flight: RFQFlight;
   index: number;
+  /** Optional leg label for round-trip proposals (e.g., "Outbound", "Return") */
+  legLabel?: string;
 }
 
-function FlightCard({ flight, index }: FlightCardProps) {
+function FlightCard({ flight, index, legLabel }: FlightCardProps) {
   const amenityLabels = getAmenityLabels(flight.amenities);
+  const isReturn = legLabel === 'Return' || flight.legType === 'return';
 
   return (
     <View style={styles.flightCard}>
+      {/* Leg badge for round-trip */}
+      {legLabel && (
+        <Text style={isReturn ? styles.returnLegBadge : styles.legBadge}>
+          {legLabel}
+        </Text>
+      )}
       <View style={styles.flightHeader}>
         <View>
           <Text style={styles.routeText}>
@@ -460,6 +524,200 @@ function FlightCard({ flight, index }: FlightCardProps) {
 }
 
 // =============================================================================
+// SECTION COMPONENTS
+// =============================================================================
+
+/**
+ * Trip Details Section - displays route, dates, and trip type
+ * Handles both one-way and round-trip display formats
+ */
+function TripDetailsSection({ tripDetails }: { tripDetails: ProposalData['tripDetails'] }) {
+  const isRoundTrip = tripDetails.tripType === 'round_trip';
+  const returnAirport = tripDetails.returnAirport || tripDetails.departureAirport;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Trip Details</Text>
+
+      {/* Trip Type Badge */}
+      <Text style={styles.tripTypeBadge}>
+        {isRoundTrip ? 'Round-Trip' : 'One-Way'}
+      </Text>
+
+      {/* Route Display */}
+      <View style={styles.row}>
+        <Text style={styles.label}>Route:</Text>
+        <Text style={styles.value}>
+          {tripDetails.departureAirport.icao} ({formatAirportName(tripDetails.departureAirport)})
+          {' → '}
+          {tripDetails.arrivalAirport.icao} ({formatAirportName(tripDetails.arrivalAirport)})
+          {isRoundTrip && (
+            <Text>
+              {' → '}
+              {returnAirport.icao} ({formatAirportName(returnAirport)})
+            </Text>
+          )}
+        </Text>
+      </View>
+
+      {/* Outbound Date */}
+      <View style={styles.row}>
+        <Text style={styles.label}>
+          {isRoundTrip ? 'Outbound:' : 'Departure Date:'}
+        </Text>
+        <Text style={styles.value}>
+          {formatDate(tripDetails.departureDate)}
+          {tripDetails.departureTime && ` at ${tripDetails.departureTime}`}
+        </Text>
+      </View>
+
+      {/* Return Date (if round-trip) */}
+      {isRoundTrip && tripDetails.returnDate && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Return:</Text>
+          <Text style={styles.value}>
+            {formatDate(tripDetails.returnDate)}
+            {tripDetails.returnTime && ` at ${tripDetails.returnTime}`}
+          </Text>
+        </View>
+      )}
+
+      {/* Passengers */}
+      <View style={styles.row}>
+        <Text style={styles.label}>Passengers:</Text>
+        <Text style={styles.value}>{tripDetails.passengers}</Text>
+      </View>
+
+      {/* Reference ID */}
+      {tripDetails.tripId && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Reference ID:</Text>
+          <Text style={styles.value}>{tripDetails.tripId}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Flight Options Section - displays flight cards grouped by leg type
+ * For round-trip, shows outbound flights first, then return flights
+ */
+function FlightOptionsSection({
+  selectedFlights,
+  tripType,
+}: {
+  selectedFlights: RFQFlight[];
+  tripType?: TripType;
+}) {
+  const isRoundTrip = tripType === 'round_trip';
+
+  // Separate flights by leg type
+  const outboundFlights = selectedFlights.filter(
+    (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+  );
+  const returnFlights = selectedFlights.filter(
+    (f) => f.legType === 'return' || f.legSequence === 2
+  );
+
+  return (
+    <View style={styles.section}>
+      {/* Outbound Flights */}
+      <Text style={styles.sectionTitle}>
+        {isRoundTrip ? 'Outbound Flight Options' : 'Selected Flight Options'}
+      </Text>
+      {outboundFlights.map((flight, index) => (
+        <FlightCard
+          key={flight.id}
+          flight={flight}
+          index={index}
+          legLabel={isRoundTrip ? 'Outbound' : undefined}
+        />
+      ))}
+
+      {/* Return Flights (if round-trip) */}
+      {isRoundTrip && returnFlights.length > 0 && (
+        <>
+          <View style={styles.sectionDivider} />
+          <Text style={styles.sectionTitle}>Return Flight Options</Text>
+          {returnFlights.map((flight, index) => (
+            <FlightCard
+              key={flight.id}
+              flight={flight}
+              index={index}
+              legLabel="Return"
+            />
+          ))}
+        </>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Pricing Section - displays pricing breakdown with optional per-leg costs
+ * For round-trip, shows outbound and return costs separately
+ */
+function PricingSection({
+  pricing,
+  tripType,
+}: {
+  pricing: ProposalData['pricing'];
+  tripType?: TripType;
+}) {
+  const isRoundTrip = tripType === 'round_trip';
+  const showLegBreakdown = isRoundTrip && pricing.outboundCost !== undefined && pricing.returnCost !== undefined;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Pricing Summary</Text>
+      <View style={styles.pricingTable}>
+        {/* Per-leg breakdown for round-trip */}
+        {showLegBreakdown && (
+          <>
+            <View style={styles.pricingRow}>
+              <Text>Charter Cost</Text>
+              <Text>{formatPrice(pricing.subtotal, pricing.currency)}</Text>
+            </View>
+            <View style={styles.pricingSubtotal}>
+              <Text>Outbound Leg</Text>
+              <Text>{formatPrice(pricing.outboundCost!, pricing.currency)}</Text>
+            </View>
+            <View style={styles.pricingSubtotal}>
+              <Text>Return Leg</Text>
+              <Text>{formatPrice(pricing.returnCost!, pricing.currency)}</Text>
+            </View>
+          </>
+        )}
+
+        {/* Standard breakdown for one-way */}
+        {!showLegBreakdown && (
+          <View style={styles.pricingRow}>
+            <Text>Charter Cost</Text>
+            <Text>{formatPrice(pricing.subtotal, pricing.currency)}</Text>
+          </View>
+        )}
+
+        <View style={styles.pricingRow}>
+          <Text>Jetvision Service Fee</Text>
+          <Text>{formatPrice(pricing.jetvisionFee, pricing.currency)}</Text>
+        </View>
+        <View style={styles.pricingRow}>
+          <Text>Taxes & Fees</Text>
+          <Text>{formatPrice(pricing.taxes, pricing.currency)}</Text>
+        </View>
+        <View style={styles.pricingTotal}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalValue}>
+            {formatPrice(pricing.total, pricing.currency)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// =============================================================================
 // MAIN DOCUMENT COMPONENT
 // =============================================================================
 
@@ -517,72 +775,19 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
         </View>
 
         {/* Trip Details Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Trip Details</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Route:</Text>
-            <Text style={styles.value}>
-              {data.tripDetails.departureAirport.icao} ({formatAirportName(data.tripDetails.departureAirport)})
-              {' → '}
-              {data.tripDetails.arrivalAirport.icao} ({formatAirportName(data.tripDetails.arrivalAirport)})
-            </Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Departure Date:</Text>
-            <Text style={styles.value}>{formatDate(data.tripDetails.departureDate)}</Text>
-          </View>
-          {data.tripDetails.departureTime && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Departure Time:</Text>
-              <Text style={styles.value}>{data.tripDetails.departureTime}</Text>
-            </View>
-          )}
-          <View style={styles.row}>
-            <Text style={styles.label}>Passengers:</Text>
-            <Text style={styles.value}>{data.tripDetails.passengers}</Text>
-          </View>
-          {data.tripDetails.tripId && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Reference ID:</Text>
-              <Text style={styles.value}>{data.tripDetails.tripId}</Text>
-            </View>
-          )}
-        </View>
+        <TripDetailsSection tripDetails={data.tripDetails} />
 
         {/* Flight Options Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Selected Flight {data.selectedFlights.length > 1 ? 'Options' : 'Option'}
-          </Text>
-          {data.selectedFlights.map((flight, index) => (
-            <FlightCard key={flight.id} flight={flight} index={index} />
-          ))}
-        </View>
+        <FlightOptionsSection
+          selectedFlights={data.selectedFlights}
+          tripType={data.tripDetails.tripType}
+        />
 
         {/* Pricing Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pricing Summary</Text>
-          <View style={styles.pricingTable}>
-            <View style={styles.pricingRow}>
-              <Text>Charter Cost</Text>
-              <Text>{formatPrice(data.pricing.subtotal, data.pricing.currency)}</Text>
-            </View>
-            <View style={styles.pricingRow}>
-              <Text>Jetvision Service Fee</Text>
-              <Text>{formatPrice(data.pricing.jetvisionFee, data.pricing.currency)}</Text>
-            </View>
-            <View style={styles.pricingRow}>
-              <Text>Taxes & Fees</Text>
-              <Text>{formatPrice(data.pricing.taxes, data.pricing.currency)}</Text>
-            </View>
-            <View style={styles.pricingTotal}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>
-                {formatPrice(data.pricing.total, data.pricing.currency)}
-              </Text>
-            </View>
-          </View>
-        </View>
+        <PricingSection
+          pricing={data.pricing}
+          tripType={data.tripDetails.tripType}
+        />
 
         {/* Terms & Conditions */}
         <View style={styles.termsSection}>
