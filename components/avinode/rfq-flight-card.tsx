@@ -146,13 +146,27 @@ export interface RFQFlight {
   avinodeDeepLink?: string;
   /** Message ID for retrieving specific operator messages (from webhook events) */
   messageId?: string;
-  /** 
+  /**
    * Operator message text - PRIMARY source: sellerMessage field from Avinode API
    * Per Avinode API: GET /quotes/{quoteId} returns sellerMessage (string) containing operator's message
    * FALLBACK: notes field or trip messages
    * @see https://developer.avinodegroup.com/reference/readmessage
    */
   sellerMessage?: string;
+  /**
+   * Leg type for round-trip flights
+   * - 'outbound': First leg of a round-trip (departure to destination)
+   * - 'return': Second leg of a round-trip (destination back to origin)
+   * - undefined: One-way flight or leg type not specified
+   */
+  legType?: 'outbound' | 'return';
+  /**
+   * Leg sequence number for multi-leg trips
+   * - 1: First leg (outbound)
+   * - 2: Second leg (return)
+   * - undefined: One-way flight or sequence not specified
+   */
+  legSequence?: 1 | 2;
 }
 
 export interface RFQFlightCardProps {
