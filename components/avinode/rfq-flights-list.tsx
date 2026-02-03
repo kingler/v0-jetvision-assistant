@@ -32,7 +32,7 @@ import { RFQFlightCard, type RFQFlight } from './rfq-flight-card';
 // TYPES
 // =============================================================================
 
-export type SortOption = 'price-asc' | 'price-desc' | 'rating-asc' | 'rating-desc' | 'time-asc';
+export type SortOption = 'price-asc' | 'price-desc' | 'rating-asc' | 'rating-desc' | 'time-asc' | 'received-asc' | 'received-desc';
 export type StatusFilter = 'all' | 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired';
 
 export interface RFQFlightsListProps {
@@ -81,6 +81,16 @@ function sortFlights(flights: RFQFlight[], sortBy: SortOption): RFQFlight[] {
         const timeA = a.departureTime || '00:00';
         const timeB = b.departureTime || '00:00';
         return timeA.localeCompare(timeB);
+      case 'received-asc':
+        // Sort by lastUpdated (oldest first - chronological order)
+        const dateA = new Date(a.lastUpdated || 0).getTime();
+        const dateB = new Date(b.lastUpdated || 0).getTime();
+        return dateA - dateB;
+      case 'received-desc':
+        // Sort by lastUpdated (newest first)
+        const dateA2 = new Date(a.lastUpdated || 0).getTime();
+        const dateB2 = new Date(b.lastUpdated || 0).getTime();
+        return dateB2 - dateA2;
       default:
         return 0;
     }
@@ -273,6 +283,8 @@ export function RFQFlightsList({
               <option value="rating-desc">Rating: High to Low</option>
               <option value="rating-asc">Rating: Low to High</option>
               <option value="time-asc">Departure Time</option>
+              <option value="received-asc">Received: Oldest First</option>
+              <option value="received-desc">Received: Newest First</option>
             </select>
           )}
         </div>

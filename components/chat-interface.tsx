@@ -1983,15 +1983,27 @@ export function ChatInterface({
                 operatorMessageType?: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
               }
 
+              // Helper to safely parse timestamps, handling invalid/missing values
+              // Prevents Invalid Date from causing unpredictable sort order
+              const safeParseTimestamp = (timestamp: Date | string | undefined | null, fallback: Date): Date => {
+                if (!timestamp) return fallback;
+                if (timestamp instanceof Date) {
+                  return isNaN(timestamp.getTime()) ? fallback : timestamp;
+                }
+                const parsed = new Date(timestamp);
+                return isNaN(parsed.getTime()) ? fallback : parsed;
+              };
+
               // Flatten operator messages from Record<quoteId, messages[]> to array with context
               const flatOperatorMessages: UnifiedMessage[] = Object.entries(activeChat.operatorMessages || {})
-                .flatMap(([quoteId, messages]) => {
+                .flatMap(([quoteId, messages], quoteIndex) => {
                   const flight = rfqFlights.find(f => f.quoteId === quoteId)
-                  return (messages || []).map(msg => ({
+                  return (messages || []).map((msg, msgIndex) => ({
                     id: msg.id || `op-${quoteId}-${msg.timestamp}`,
                     type: 'operator' as const,
                     content: msg.content,
-                    timestamp: new Date(msg.timestamp),
+                    // Use safe parsing with fallback based on indices to maintain order
+                    timestamp: safeParseTimestamp(msg.timestamp, new Date(Date.now() - (1000 * (quoteIndex * 100 + msgIndex)))),
                     operatorName: msg.sender || flight?.operatorName || 'Operator',
                     operatorQuoteId: quoteId,
                     operatorMessageType: msg.type,
@@ -1999,11 +2011,12 @@ export function ChatInterface({
                 })
 
               // Convert agent/user messages to unified format
-              const chatMessages: UnifiedMessage[] = (activeChat.messages || []).map(msg => ({
+              const chatMessages: UnifiedMessage[] = (activeChat.messages || []).map((msg, index) => ({
                 id: msg.id,
                 type: msg.type,
                 content: msg.content,
-                timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+                // Use index-based fallback to maintain relative order for messages with invalid timestamps
+                timestamp: safeParseTimestamp(msg.timestamp, new Date(Date.now() - (1000 * index))),
                 showWorkflow: msg.showWorkflow,
                 showProposal: msg.showProposal,
                 showQuoteStatus: msg.showQuoteStatus,

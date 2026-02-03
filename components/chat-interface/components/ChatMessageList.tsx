@@ -108,6 +108,12 @@ function deduplicateMessages(
 
 /**
  * Calculate the current step for FlightSearchProgress
+ *
+ * Step progression:
+ * 1. Trip request created (basic info captured)
+ * 2. Deep link available (user can open Avinode)
+ * 3. Trip ID available (RFQs can be viewed/fetched)
+ * 4. RFQ flights loaded AND user has submitted/viewed (ready for proposal)
  */
 function calculateCurrentStep(
   currentStep: number | undefined,
@@ -116,13 +122,15 @@ function calculateCurrentStep(
   rfqFlightsCount: number,
   tripIdSubmitted: boolean
 ): number {
-  // Step 4: If we have RFQ flights and tripId is submitted
+  // Step 4: If we have RFQ flights AND tripId is submitted (ready to send proposal)
   if (rfqFlightsCount > 0 && tripIdSubmitted) {
     return 4;
   }
 
-  // Step 3: If we have tripId and RFQs are not loaded yet
-  if (tripId && rfqFlightsCount === 0) {
+  // Step 3: If we have tripId (regardless of whether RFQs are loaded)
+  // This ensures Step 3 is shown when tripId exists with or without RFQs
+  // FIX: Previously fell through to Step 2 when tripId existed but rfqFlightsCount > 0 and !tripIdSubmitted
+  if (tripId) {
     return 3;
   }
 
