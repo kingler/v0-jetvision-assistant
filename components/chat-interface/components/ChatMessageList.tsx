@@ -197,7 +197,6 @@ export function ChatMessageList({
 
   // Deduplicate and separate messages, and find the insertion point for FlightSearchProgress
   const { messagesBeforeProgress, messagesAfterProgress, proposalConfirmations } = useMemo(() => {
-    console.log('[ChatMessageList] 🔄 Computing message split for FlightSearchProgress positioning');
     const deduplicated = deduplicateMessages(messages);
 
     // Separate proposal confirmations from regular messages
@@ -228,16 +227,6 @@ export function ChatMessageList({
 
     const before = regularMessages.slice(0, splitIndex);
     const after = regularMessages.slice(splitIndex);
-
-    console.log('[ChatMessageList] 📊 Message split result:', {
-      totalMessages: messages.length,
-      insertionIndex,
-      splitIndex,
-      beforeCount: before.length,
-      afterCount: after.length,
-      proposalCount: proposalConfirmations.length,
-      firstUserMsgContent: before[0]?.message?.content?.substring(0, 50) || 'N/A',
-    });
 
     return {
       messagesBeforeProgress: before,
@@ -335,8 +324,8 @@ export function ChatMessageList({
             const isInStep3Or4 = calculatedStep >= 3;
             return (
               !isInStep3Or4 &&
-              (message.showQuotes && tripIdSubmitted) ||
-              (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
+              ((message.showQuotes && tripIdSubmitted) ||
+                (rfqFlights.length > 0 && !shouldShowFlightSearchProgress))
             );
           })()}
           rfqFlights={
