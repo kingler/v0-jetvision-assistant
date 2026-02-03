@@ -108,6 +108,12 @@ function deduplicateMessages(
 
 /**
  * Calculate the current step for FlightSearchProgress
+ *
+ * Step progression:
+ * 1. Trip request created (basic info captured)
+ * 2. Deep link available (user can open Avinode)
+ * 3. Trip ID available (RFQs can be viewed/fetched)
+ * 4. RFQ flights loaded AND user has submitted/viewed (ready for proposal)
  */
 function calculateCurrentStep(
   currentStep: number | undefined,
@@ -116,13 +122,15 @@ function calculateCurrentStep(
   rfqFlightsCount: number,
   tripIdSubmitted: boolean
 ): number {
-  // Step 4: If we have RFQ flights and tripId is submitted
+  // Step 4: If we have RFQ flights AND tripId is submitted (ready to send proposal)
   if (rfqFlightsCount > 0 && tripIdSubmitted) {
     return 4;
   }
 
-  // Step 3: If we have tripId and RFQs are not loaded yet
-  if (tripId && rfqFlightsCount === 0) {
+  // Step 3: If we have tripId (regardless of whether RFQs are loaded)
+  // This ensures Step 3 is shown when tripId exists with or without RFQs
+  // FIX: Previously fell through to Step 2 when tripId existed but rfqFlightsCount > 0 and !tripIdSubmitted
+  if (tripId) {
     return 3;
   }
 
@@ -187,24 +195,44 @@ export function ChatMessageList({
 }: ChatMessageListProps) {
   const workflowRef = useRef<HTMLDivElement>(null);
 
-  // Deduplicate and separate messages
-  const { regularMessages, proposalConfirmations } = useMemo(() => {
+  // Deduplicate and separate messages, and find the insertion point for FlightSearchProgress
+  const { messagesBeforeProgress, messagesAfterProgress, proposalConfirmations } = useMemo(() => {
     const deduplicated = deduplicateMessages(messages);
 
-    return deduplicated.reduce(
-      (acc, item) => {
-        if (isProposalConfirmation(item.message)) {
-          acc.proposalConfirmations.push(item);
-        } else {
-          acc.regularMessages.push(item);
-        }
-        return acc;
-      },
-      {
-        regularMessages: [] as Array<{ message: UnifiedMessage; index: number }>,
-        proposalConfirmations: [] as Array<{ message: UnifiedMessage; index: number }>,
+    // Separate proposal confirmations from regular messages
+    const regularMessages: Array<{ message: UnifiedMessage; index: number }> = [];
+    const proposalConfirmations: Array<{ message: UnifiedMessage; index: number }> = [];
+
+    for (const item of deduplicated) {
+      if (isProposalConfirmation(item.message)) {
+        proposalConfirmations.push(item);
+      } else {
+        regularMessages.push(item);
       }
-    );
+    }
+
+    // Find the insertion point for FlightSearchProgress
+    // It should appear right after the first user message (the trip request)
+    let insertionIndex = -1;
+    for (let i = 0; i < regularMessages.length; i++) {
+      if (regularMessages[i].message.type === 'user') {
+        insertionIndex = i;
+        break;
+      }
+    }
+
+    // Split messages into before and after the FlightSearchProgress insertion point
+    // If no user message found, FlightSearchProgress goes at the beginning
+    const splitIndex = insertionIndex >= 0 ? insertionIndex + 1 : 0;
+
+    const before = regularMessages.slice(0, splitIndex);
+    const after = regularMessages.slice(splitIndex);
+
+    return {
+      messagesBeforeProgress: before,
+      messagesAfterProgress: after,
+      proposalConfirmations,
+    };
   }, [messages]);
 
   // Calculate current step for FlightSearchProgress
@@ -253,94 +281,97 @@ export function ChatMessageList({
     }
   };
 
+  // Helper to render a single message
+  const renderMessage = ({ message, index }: { message: UnifiedMessage; index: number }) => (
+    <React.Fragment key={message.id || `msg-${index}`}>
+      {message.type === 'user' ? (
+        <UserMessage content={message.content} timestamp={message.timestamp} />
+      ) : message.type === 'operator' ? (
+        <OperatorMessage
+          content={message.content}
+          operatorName={message.operatorName}
+          messageType={message.operatorMessageType}
+          quoteId={message.operatorQuoteId}
+          timestamp={message.timestamp}
+          onViewThread={handleViewThread}
+        />
+      ) : (
+        <AgentMessage
+          content={stripMarkdown(message.content)}
+          timestamp={message.timestamp}
+          showDeepLink={shouldShowFlightSearchProgress ? false : message.showDeepLink}
+          showTripIdInput={shouldShowFlightSearchProgress ? false : message.showDeepLink}
+          showWorkflow={shouldShowFlightSearchProgress ? false : message.showWorkflow}
+          workflowProps={
+            shouldShowFlightSearchProgress
+              ? undefined
+              : message.showWorkflow
+                ? {
+                    isProcessing,
+                    currentStep: calculatedStep,
+                    status: 'pending',
+                    tripId,
+                    deepLink,
+                  }
+                : undefined
+          }
+          deepLinkData={shouldShowFlightSearchProgress ? undefined : message.deepLinkData}
+          onTripIdSubmit={onTripIdSubmit}
+          isTripIdLoading={isTripIdLoading}
+          tripIdError={tripIdError}
+          tripIdSubmitted={tripIdSubmitted}
+          showQuotes={(() => {
+            const isInStep3Or4 = calculatedStep >= 3;
+            return (
+              !isInStep3Or4 &&
+              ((message.showQuotes && tripIdSubmitted) ||
+                (rfqFlights.length > 0 && !shouldShowFlightSearchProgress))
+            );
+          })()}
+          rfqFlights={
+            (() => {
+              const isInStep3Or4 = calculatedStep >= 3;
+              const shouldShowQuotes =
+                !isInStep3Or4 &&
+                ((message.showQuotes && tripIdSubmitted) ||
+                  (rfqFlights.length > 0 && !shouldShowFlightSearchProgress));
+              return shouldShowQuotes ? enhancedRfqFlights : [];
+            })()
+          }
+          selectedRfqFlightIds={selectedRfqFlightIds}
+          rfqsLastFetchedAt={rfqsLastFetchedAt}
+          onRfqFlightSelectionChange={onRfqFlightSelectionChange}
+          onReviewAndBook={onReviewAndBook}
+          onBookFlight={onBookFlight}
+          customerEmail={customerEmail}
+          customerName={customerName}
+          selectedFlights={[]}
+          onViewChat={onViewChat}
+          onGenerateProposal={onGenerateProposal}
+          showPipeline={message.showPipeline}
+          pipelineData={message.pipelineData}
+          showProposalSentConfirmation={message.showProposalSentConfirmation}
+          proposalSentData={message.proposalSentData}
+          showEmailApprovalRequest={message.showEmailApprovalRequest}
+          emailApprovalData={message.emailApprovalData}
+          onViewRequest={onViewRequest}
+          onRefreshPipeline={onRefreshPipeline}
+          showOperatorMessages={false}
+          operatorMessages={undefined}
+          operatorFlightContext={undefined}
+          onViewOperatorThread={undefined}
+          onReplyToOperator={undefined}
+        />
+      )}
+    </React.Fragment>
+  );
+
   return (
     <>
-      {/* Regular messages (user, operator, agent) in chronological order */}
-      {regularMessages.map(({ message, index }) => (
-        <React.Fragment key={message.id || `msg-${index}`}>
-          {message.type === 'user' ? (
-            <UserMessage content={message.content} timestamp={message.timestamp} />
-          ) : message.type === 'operator' ? (
-            <OperatorMessage
-              content={message.content}
-              operatorName={message.operatorName}
-              messageType={message.operatorMessageType}
-              quoteId={message.operatorQuoteId}
-              timestamp={message.timestamp}
-              onViewThread={handleViewThread}
-            />
-          ) : (
-            <AgentMessage
-              content={stripMarkdown(message.content)}
-              timestamp={message.timestamp}
-              showDeepLink={shouldShowFlightSearchProgress ? false : message.showDeepLink}
-              showTripIdInput={shouldShowFlightSearchProgress ? false : message.showDeepLink}
-              showWorkflow={shouldShowFlightSearchProgress ? false : message.showWorkflow}
-              workflowProps={
-                shouldShowFlightSearchProgress
-                  ? undefined
-                  : message.showWorkflow
-                    ? {
-                        isProcessing,
-                        currentStep: calculatedStep,
-                        status: 'pending',
-                        tripId,
-                        deepLink,
-                      }
-                    : undefined
-              }
-              deepLinkData={shouldShowFlightSearchProgress ? undefined : message.deepLinkData}
-              onTripIdSubmit={onTripIdSubmit}
-              isTripIdLoading={isTripIdLoading}
-              tripIdError={tripIdError}
-              tripIdSubmitted={tripIdSubmitted}
-              showQuotes={(() => {
-                const isInStep3Or4 = calculatedStep >= 3;
-                return (
-                  !isInStep3Or4 &&
-                  (message.showQuotes && tripIdSubmitted) ||
-                  (rfqFlights.length > 0 && !shouldShowFlightSearchProgress)
-                );
-              })()}
-              rfqFlights={
-                (() => {
-                  const isInStep3Or4 = calculatedStep >= 3;
-                  const shouldShowQuotes =
-                    !isInStep3Or4 &&
-                    ((message.showQuotes && tripIdSubmitted) ||
-                      (rfqFlights.length > 0 && !shouldShowFlightSearchProgress));
-                  return shouldShowQuotes ? enhancedRfqFlights : [];
-                })()
-              }
-              selectedRfqFlightIds={selectedRfqFlightIds}
-              rfqsLastFetchedAt={rfqsLastFetchedAt}
-              onRfqFlightSelectionChange={onRfqFlightSelectionChange}
-              onReviewAndBook={onReviewAndBook}
-              onBookFlight={onBookFlight}
-              customerEmail={customerEmail}
-              customerName={customerName}
-              selectedFlights={[]}
-              onViewChat={onViewChat}
-              onGenerateProposal={onGenerateProposal}
-              showPipeline={message.showPipeline}
-              pipelineData={message.pipelineData}
-              showProposalSentConfirmation={message.showProposalSentConfirmation}
-              proposalSentData={message.proposalSentData}
-              showEmailApprovalRequest={message.showEmailApprovalRequest}
-              emailApprovalData={message.emailApprovalData}
-              onViewRequest={onViewRequest}
-              onRefreshPipeline={onRefreshPipeline}
-              showOperatorMessages={false}
-              operatorMessages={undefined}
-              operatorFlightContext={undefined}
-              onViewOperatorThread={undefined}
-              onReplyToOperator={undefined}
-            />
-          )}
-        </React.Fragment>
-      ))}
+      {/* Messages BEFORE FlightSearchProgress (includes first user message / trip request) */}
+      {messagesBeforeProgress.map(renderMessage)}
 
-      {/* FlightSearchProgress after ALL regular messages */}
+      {/* FlightSearchProgress - positioned right after the first user message (trip request) */}
       {shouldShowFlightSearchProgress && flightRequest && (
         <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
           <FlightSearchProgress
@@ -368,7 +399,10 @@ export function ChatMessageList({
         </div>
       )}
 
-      {/* Proposal confirmations AFTER FlightSearchProgress */}
+      {/* Messages AFTER FlightSearchProgress (all subsequent conversation) */}
+      {messagesAfterProgress.map(renderMessage)}
+
+      {/* Proposal confirmations at the end */}
       {proposalConfirmations.map(({ message, index }) => (
         <AgentMessage
           key={message.id || `proposal-${index}`}

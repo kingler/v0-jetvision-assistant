@@ -205,14 +205,12 @@ interface ChatSidebarProps {
 export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewChat, onDeleteChat, onCancelChat, onArchiveChat }: ChatSidebarProps) {
   /**
    * Filter out empty/invalid flight request sessions
-   * A session is considered empty if it has:
-   * - No tripId AND
-   * - No meaningful route (placeholder "Select route" or empty) AND
-   * - No meaningful date (placeholder "Select date" or empty) AND
-   * - No messages (or only empty messages)
-   * 
-   * This prevents "Untitled #1" cards from appearing in the sidebar
-   * for sessions that were never properly initialized with flight data.
+   *
+   * Flight request sessions MUST have a tripId to be displayed in the sidebar.
+   * Sessions without tripId are considered incomplete/in-progress and should not
+   * clutter the sidebar with incomplete cards.
+   *
+   * General conversations don't require tripId.
    */
   const isValidSession = (session: ChatSession): boolean => {
     // General conversations are always valid (they don't need flight data)
@@ -220,31 +218,9 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
       return true;
     }
 
-    // Flight request sessions need meaningful data to be displayed
-    // If session has tripId, it's valid (even if route/date are placeholders)
-    if (session.tripId) {
-      return true;
-    }
-
-    // Check if route is meaningful (not placeholder or empty)
-    const hasValidRoute = session.route && 
-      session.route !== 'Select route' && 
-      session.route.trim().length > 0;
-
-    // Check if date is meaningful (not placeholder or empty)
-    const hasValidDate = session.date && 
-      session.date !== 'Select date' && 
-      session.date.trim().length > 0;
-
-    // Check if there are meaningful messages
-    const hasMessages = session.messages && 
-      session.messages.length > 0 && 
-      session.messages.some(msg => msg.content && msg.content.trim().length > 0);
-
-    // Session is valid if it has either:
-    // 1. Valid route AND valid date, OR
-    // 2. Has messages (user has started a conversation)
-    return (hasValidRoute && hasValidDate) || hasMessages;
+    // Flight request sessions MUST have a tripId to be displayed
+    // This ensures only sessions with completed trip creation are shown
+    return !!session.tripId;
   };
 
   // Filter out invalid/empty sessions before rendering

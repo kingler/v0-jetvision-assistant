@@ -1983,15 +1983,27 @@ export function ChatInterface({
                 operatorMessageType?: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
               }
 
+              // Helper to safely parse timestamps, handling invalid/missing values
+              // Prevents Invalid Date from causing unpredictable sort order
+              const safeParseTimestamp = (timestamp: Date | string | undefined | null, fallback: Date): Date => {
+                if (!timestamp) return fallback;
+                if (timestamp instanceof Date) {
+                  return isNaN(timestamp.getTime()) ? fallback : timestamp;
+                }
+                const parsed = new Date(timestamp);
+                return isNaN(parsed.getTime()) ? fallback : parsed;
+              };
+
               // Flatten operator messages from Record<quoteId, messages[]> to array with context
               const flatOperatorMessages: UnifiedMessage[] = Object.entries(activeChat.operatorMessages || {})
-                .flatMap(([quoteId, messages]) => {
+                .flatMap(([quoteId, messages], quoteIndex) => {
                   const flight = rfqFlights.find(f => f.quoteId === quoteId)
-                  return (messages || []).map(msg => ({
+                  return (messages || []).map((msg, msgIndex) => ({
                     id: msg.id || `op-${quoteId}-${msg.timestamp}`,
                     type: 'operator' as const,
                     content: msg.content,
-                    timestamp: new Date(msg.timestamp),
+                    // Use safe parsing with fallback based on indices to maintain order
+                    timestamp: safeParseTimestamp(msg.timestamp, new Date(Date.now() - (1000 * (quoteIndex * 100 + msgIndex)))),
                     operatorName: msg.sender || flight?.operatorName || 'Operator',
                     operatorQuoteId: quoteId,
                     operatorMessageType: msg.type,
@@ -1999,11 +2011,12 @@ export function ChatInterface({
                 })
 
               // Convert agent/user messages to unified format
-              const chatMessages: UnifiedMessage[] = (activeChat.messages || []).map(msg => ({
+              const chatMessages: UnifiedMessage[] = (activeChat.messages || []).map((msg, index) => ({
                 id: msg.id,
                 type: msg.type,
                 content: msg.content,
-                timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+                // Use index-based fallback to maintain relative order for messages with invalid timestamps
+                timestamp: safeParseTimestamp(msg.timestamp, new Date(Date.now() - (1000 * index))),
                 showWorkflow: msg.showWorkflow,
                 showProposal: msg.showProposal,
                 showQuoteStatus: msg.showQuoteStatus,
@@ -2111,11 +2124,23 @@ export function ChatInterface({
                 }
               )
 
-              // Render: Regular messages -> FlightSearchProgress -> Proposal confirmations
-              return (
-                <>
-                  {/* Regular messages (user, operator, agent) in chronological order */}
-                  {regularMessages.map(({ message, index }, mapIndex) => (
+              // Find the first user message index to insert FlightSearchProgress after it
+              // FlightSearchProgress should appear right after the initial trip request (first user message)
+              let firstUserMessageIndex = -1;
+              for (let i = 0; i < regularMessages.length; i++) {
+                if (regularMessages[i].message.type === 'user') {
+                  firstUserMessageIndex = i;
+                  break;
+                }
+              }
+
+              // Split messages: before FlightSearchProgress (includes first user message) and after
+              const splitIndex = firstUserMessageIndex >= 0 ? firstUserMessageIndex + 1 : 0;
+              const messagesBeforeProgress = regularMessages.slice(0, splitIndex);
+              const messagesAfterProgress = regularMessages.slice(splitIndex);
+
+              // Helper function to render a single message
+              const renderMessage = ({ message, index }: { message: UnifiedMessage; index: number }, mapIndex: number) => (
                     <React.Fragment key={message.id || `msg-${index}`}>
                     {message.type === 'user' ? (
                       // User message - blue bubble on the right
@@ -2260,9 +2285,15 @@ export function ChatInterface({
                     )}
 
                   </React.Fragment>
-                  ))}
+              );
 
-                  {/* FlightSearchProgress after ALL regular messages */}
+              // Render: Messages before FlightSearchProgress -> FlightSearchProgress -> Messages after -> Proposal confirmations
+              return (
+                <>
+                  {/* Messages BEFORE FlightSearchProgress (includes first user message / trip request) */}
+                  {messagesBeforeProgress.map(renderMessage)}
+
+                  {/* FlightSearchProgress - positioned right after the first user message (trip request) */}
                   {shouldInsertProgressAtEnd && (
                     <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                       <FlightSearchProgress
@@ -2326,6 +2357,9 @@ export function ChatInterface({
                       />
                     </div>
                   )}
+
+                  {/* Messages AFTER FlightSearchProgress (all subsequent conversation) */}
+                  {messagesAfterProgress.map(renderMessage)}
 
                   {/* Proposal confirmations AFTER FlightSearchProgress */}
                   {/* This ensures they appear after Step 3 where the "Generate Proposal" button is located */}
