@@ -176,6 +176,20 @@ function validateProposalInput(input: GenerateProposalInput): void {
         throw new Error('Return airport ICAO code must be a non-empty string if provided');
       }
     }
+    // Validate that at least one return flight is selected for round-trip
+    const returnFlights = input.selectedFlights.filter(
+      (f) => f.legType === 'return' || f.legSequence === 2
+    );
+    if (returnFlights.length === 0) {
+      throw new Error('At least one return flight must be selected for round-trip proposals');
+    }
+    // Validate that at least one outbound flight is selected for round-trip
+    const outboundFlights = input.selectedFlights.filter(
+      (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+    );
+    if (outboundFlights.length === 0) {
+      throw new Error('At least one outbound flight must be selected for round-trip proposals');
+    }
   }
 
   // Validate jetvisionFeePercentage: if provided, must be a valid number in range 0-100
@@ -196,6 +210,48 @@ function generateProposalId(): string {
   const timestamp = Date.now().toString(36).toUpperCase();
   const random = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `JV-${timestamp}-${random}`;
+}
+
+/**
+ * Separate flights by leg type for round-trip proposals
+ *
+ * Flights are categorized based on:
+ * - legType field ('outbound' or 'return')
+ * - legSequence field (1 for outbound, 2 for return)
+ * - Flights without leg info default to outbound for backward compatibility
+ *
+ * @param flights - Array of selected RFQ flights
+ * @returns Object containing outbound and return flight arrays
+ */
+function separateFlightsByLeg(flights: RFQFlight[]): {
+  outboundFlights: RFQFlight[];
+  returnFlights: RFQFlight[];
+} {
+  const outboundFlights = flights.filter(
+    (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+  );
+  const returnFlights = flights.filter(
+    (f) => f.legType === 'return' || f.legSequence === 2
+  );
+
+  return { outboundFlights, returnFlights };
+}
+
+/**
+ * Sort flights by leg sequence for consistent ordering in proposals
+ *
+ * Outbound flights (legSequence 1) come first, then return flights (legSequence 2).
+ * Within each leg, flights maintain their original order.
+ *
+ * @param flights - Array of selected RFQ flights
+ * @returns Sorted array with outbound flights first, then return flights
+ */
+function sortFlightsByLegSequence(flights: RFQFlight[]): RFQFlight[] {
+  return [...flights].sort((a, b) => {
+    const seqA = a.legSequence ?? (a.legType === 'return' ? 2 : 1);
+    const seqB = b.legSequence ?? (b.legType === 'return' ? 2 : 1);
+    return seqA - seqB;
+  });
 }
 
 /**
@@ -385,23 +441,36 @@ export async function generateProposal(
   // Determine if this is a round-trip proposal
   const isRoundTrip = input.tripDetails.tripType === 'round_trip';
 
+  // Sort flights by leg sequence for consistent ordering (outbound first, then return)
+  const sortedFlights = isRoundTrip
+    ? sortFlightsByLegSequence(input.selectedFlights)
+    : input.selectedFlights;
+
   // Calculate pricing (with leg breakdown for round-trips)
   const pricing = calculatePricing(
-    input.selectedFlights,
+    sortedFlights,
     input.jetvisionFeePercentage,
     isRoundTrip
   );
 
   // Calculate quote validity
-  const quoteValidUntil = calculateQuoteValidUntil(input.selectedFlights);
+  const quoteValidUntil = calculateQuoteValidUntil(sortedFlights);
+
+  // For round-trip, set returnAirport to departureAirport if not specified
+  const tripDetails = isRoundTrip
+    ? {
+        ...input.tripDetails,
+        returnAirport: input.tripDetails.returnAirport || input.tripDetails.departureAirport,
+      }
+    : input.tripDetails;
 
   // Prepare proposal data
   const proposalData: ProposalData = {
     proposalId,
     generatedAt,
     customer: input.customer,
-    tripDetails: input.tripDetails,
-    selectedFlights: input.selectedFlights,
+    tripDetails,
+    selectedFlights: sortedFlights,
     pricing,
     quoteValidUntil,
   };
@@ -458,22 +527,38 @@ export function prepareProposalData(
   // Determine if this is a round-trip proposal
   const isRoundTrip = input.tripDetails.tripType === 'round_trip';
 
+  // Sort flights by leg sequence for consistent ordering (outbound first, then return)
+  const sortedFlights = isRoundTrip
+    ? sortFlightsByLegSequence(input.selectedFlights)
+    : input.selectedFlights;
+
   const pricing = calculatePricing(
-    input.selectedFlights,
+    sortedFlights,
     input.jetvisionFeePercentage,
     isRoundTrip
   );
-  const quoteValidUntil = calculateQuoteValidUntil(input.selectedFlights);
+  const quoteValidUntil = calculateQuoteValidUntil(sortedFlights);
+
+  // For round-trip, set returnAirport to departureAirport if not specified
+  const tripDetails = isRoundTrip
+    ? {
+        ...input.tripDetails,
+        returnAirport: input.tripDetails.returnAirport || input.tripDetails.departureAirport,
+      }
+    : input.tripDetails;
 
   return {
     proposalId,
     generatedAt,
     customer: input.customer,
-    tripDetails: input.tripDetails,
-    selectedFlights: input.selectedFlights,
+    tripDetails,
+    selectedFlights: sortedFlights,
     pricing,
     quoteValidUntil,
   };
 }
+
+// Export helper functions for external use
+export { separateFlightsByLeg, sortFlightsByLegSequence };
 
 export default generateProposal;
