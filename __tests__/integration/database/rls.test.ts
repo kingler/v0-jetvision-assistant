@@ -17,9 +17,19 @@ import {
  * - Cross-tenant access prevention
  * - RLS policy enforcement on SELECT, INSERT, UPDATE, DELETE
  * - Service role bypass (for system operations)
+ *
+ * NOTE: These tests require Supabase credentials and are skipped in CI
+ * when TEST_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL are not set.
  */
 
-describe('RLS Policies - iso_agents Table', () => {
+const supabaseUrl = process.env.TEST_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseKey = process.env.TEST_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+const isProductionUrl = supabaseUrl.includes('supabase.co') && process.env.ALLOW_PRODUCTION_DB_TESTS !== 'true'
+const hasSupabaseCredentials = !!(supabaseUrl && supabaseKey && !isProductionUrl)
+
+const describeWithDb = hasSupabaseCredentials ? describe : describe.skip
+
+describeWithDb('RLS Policies - iso_agents Table', () => {
   let serviceClient: TestSupabaseClient
   let anonClient: TestSupabaseClient
   let testUser1ClerkId: string
@@ -77,7 +87,7 @@ describe('RLS Policies - iso_agents Table', () => {
   })
 })
 
-describe('RLS Policies - requests Table', () => {
+describeWithDb('RLS Policies - requests Table', () => {
   let serviceClient: TestSupabaseClient
   let user1Client: TestSupabaseClient
   let user2Client: TestSupabaseClient
@@ -229,7 +239,7 @@ describe('RLS Policies - requests Table', () => {
   })
 })
 
-describe('RLS Policies - Cascading Deletes', () => {
+describeWithDb('RLS Policies - Cascading Deletes', () => {
   let serviceClient: TestSupabaseClient
   let testUserClerkId: string
   let testUserId: string
@@ -308,7 +318,7 @@ describe('RLS Policies - Cascading Deletes', () => {
   })
 })
 
-describe('RLS Policies - Service Role Bypass', () => {
+describeWithDb('RLS Policies - Service Role Bypass', () => {
   let serviceClient: TestSupabaseClient
   let anonClient: TestSupabaseClient
 
