@@ -110,8 +110,9 @@ jobs:
         timeout-minutes: 5
         run: |
           echo "Checking test coverage (design system only for speed)..."
-          # Run coverage on critical design system files only to avoid timeout
-          pnpm run test:coverage -- --run __tests__/unit/lib/design-system/ 2>&1 | tee coverage-report.txt || true
+          # Run coverage on critical design system files only to avoid OOM on runner
+          # Note: use NODE_OPTIONS to limit memory and avoid OOM-kill (exit 143)
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm vitest run --coverage __tests__/unit/lib/design-system/ 2>&1 | tee coverage-report.txt || true
           # Check coverage threshold (75%)
           if grep -q "All files.*[7-9][0-9]\|100" coverage-report.txt; then
             echo "coverage_exit_code=0" >> $GITHUB_OUTPUT
