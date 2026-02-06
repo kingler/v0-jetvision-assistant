@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -51,7 +51,7 @@ interface FlightRequestCardProps {
  * Displays a single flight request card in the chat sidebar.
  * Fixed width of 300px to fit within the 320px sidebar with padding.
  */
-export function FlightRequestCard({ session, isActive, onClick, onDelete, onCancel, onArchive }: FlightRequestCardProps) {
+export const FlightRequestCard = React.memo(function FlightRequestCard({ session, isActive, onClick, onDelete, onCancel, onArchive }: FlightRequestCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [showArchiveDialog, setShowArchiveDialog] = useState(false)
@@ -547,4 +547,15 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
       </Dialog>
     </Card>
   )
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.session.id === nextProps.session.id &&
+    prevProps.session.status === nextProps.session.status &&
+    prevProps.session.currentStep === nextProps.session.currentStep &&
+    prevProps.session.rfqFlights?.length === nextProps.session.rfqFlights?.length &&
+    prevProps.session.quotesReceived === nextProps.session.quotesReceived &&
+    prevProps.session.quotesTotal === nextProps.session.quotesTotal &&
+    prevProps.session.rfqsLastFetchedAt === nextProps.session.rfqsLastFetchedAt &&
+    prevProps.isActive === nextProps.isActive
+  )
+})
