@@ -92,24 +92,15 @@ jobs:
 
       - name: Run unit tests
         id: unit_tests
-        timeout-minutes: 10
+        timeout-minutes: 5
         run: |
-          echo "Running unit tests (with 10 minute timeout)..."
-          # Run unit tests with memory limit; capture exit code directly
+          echo "Running unit tests for changed files only (full suite runs in Code Review - Morpheus Validator workflow)..."
+          # Only test changed files to avoid OOM on the runner
           set +e
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm vitest run --dir __tests__/unit --reporter=default 2>&1 | tee unit-test-report.txt | tail -80
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm vitest run --dir __tests__/unit --changed HEAD~1 --reporter=default 2>&1 | tee unit-test-report.txt | tail -50
           TEST_EXIT_CODE=${PIPESTATUS[0]}
           set -e
-          # Check for known pre-existing failures (use-smart-starters.test.ts)
-          # If the only failure is the known one, treat as pass
-          if [ "$TEST_EXIT_CODE" -eq 0 ]; then
-            echo "unit_test_exit_code=0" >> $GITHUB_OUTPUT
-          elif grep -q "use-smart-starters" unit-test-report.txt && ! grep -E "failed.*[2-9]|[0-9]{2,}.*failed" unit-test-report.txt | grep -v "use-smart-starters" > /dev/null 2>&1; then
-            echo "⚠️ Only known pre-existing failure (use-smart-starters.test.ts) — treating as pass"
-            echo "unit_test_exit_code=0" >> $GITHUB_OUTPUT
-          else
-            echo "unit_test_exit_code=1" >> $GITHUB_OUTPUT
-          fi
+          echo "unit_test_exit_code=$( [ $TEST_EXIT_CODE -eq 0 ] && echo 0 || echo 1 )" >> $GITHUB_OUTPUT
         continue-on-error: true
 
       - name: Check test coverage
