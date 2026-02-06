@@ -122,11 +122,6 @@ export function ChatInterface({
   // Track which chat IDs we've already auto-loaded RFQs for
   // This prevents duplicate API calls when switching between chats that have tripIds
   const autoLoadedRfqsForChatIdRef = useRef<string | null>(null)
-  // CRITICAL: Track processed RFQ message content hashes to prevent duplicates across concurrent calls
-  // This ref persists across renders and prevents duplicates even when multiple handleSSEResult calls happen rapidly
-  const processedRfqMessageHashesRef = useRef<Set<string>>(new Set())
-  // Track which chat ID we're tracking hashes for (reset hashes when chat changes)
-  const processedRfqMessageHashesChatIdRef = useRef<string | null>(null)
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -300,13 +295,8 @@ export function ChatInterface({
   // Scroll to bottom when messages change
   useEffect(() => {
     latestMessagesRef.current = activeChat.messages
-    // CRITICAL: Reset processed RFQ message hashes when switching chats to allow RFQ messages in new chats
-    if (processedRfqMessageHashesChatIdRef.current !== activeChat.id) {
-      processedRfqMessageHashesRef.current.clear()
-      processedRfqMessageHashesChatIdRef.current = activeChat.id
-    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [activeChat.messages, activeChat.id])
+  }, [activeChat.messages])
 
   // Handle initial API call for new chats
   // Track by chat ID to prevent duplicate calls when switching between chats or in React Strict Mode
@@ -782,133 +772,9 @@ export function ChatInterface({
       }
     }
 
-    // CRITICAL FIX: Ultra-aggressive duplicate detection for RFQ messages
-    // Check for duplicates BEFORE creating agentMessage - this prevents creating message objects for duplicates
-    // Block ALL RFQ messages if ANY RFQ message already exists - don't even check trip ID
-    const messageContent = (result.content || streamingContentRef.current || '').trim().toLowerCase()
-    
-    // Check if this is ANY kind of RFQ/quote-related message
-    const isRfqMessage = messageContent.includes('rfq') ||
-                        messageContent.includes('quote') ||
-                        messageContent.includes('quotes') ||
-                        messageContent.includes('trip id') ||
-                        messageContent.includes('received quotes') ||
-                        messageContent.includes('here are') ||
-                        messageContent.includes('flight quotes') ||
-                        (messageContent.includes('tist') && messageContent.includes('kopf')) // Route-specific check
-    
-    // CRITICAL: Use content hash to detect duplicates across concurrent calls
-    // Create a simple hash of the message content for deduplication
-    const createContentHash = (content: string): string => {
-      // Use first 100 chars + last 50 chars + length for hash
-      // This catches similar messages even with slight variations
-      const normalized = content.trim().toLowerCase().replace(/\s+/g, ' ')
-      const firstPart = normalized.substring(0, 100)
-      const lastPart = normalized.substring(Math.max(0, normalized.length - 50))
-      return `${firstPart}|${lastPart}|${normalized.length}`
-    }
-    
-    // CRITICAL: Block RFQ messages if ANY RFQ message already exists
-    // Use atomic hash marking to prevent race conditions in concurrent calls
-    if (isRfqMessage) {
-      const contentHash = createContentHash(result.content || streamingContentRef.current || '')
-      
-      // CRITICAL: Check hash FIRST and mark IMMEDIATELY to prevent race conditions
-      // This is an atomic-like operation - check if hash exists, if not, mark it
-      // This ensures only ONE concurrent call can proceed with the same hash
-      const hashWasAlreadyProcessed = processedRfqMessageHashesRef.current.has(contentHash)
-      if (!hashWasAlreadyProcessed) {
-        // Mark hash IMMEDIATELY before any other checks - this prevents concurrent calls from proceeding
-        processedRfqMessageHashesRef.current.add(contentHash)
-      }
-      
-      // If hash was already processed, block immediately
-      if (hashWasAlreadyProcessed) {
-        console.warn('[ChatInterface] 🚫 BLOCKING duplicate RFQ message - content hash already processed:', {
-          contentHash: contentHash.substring(0, 50),
-          processedHashesCount: processedRfqMessageHashesRef.current.size,
-        })
-        // Still update RFQ flights data if needed, but don't add message
-        if (newRfqFlights.length > 0) {
-          const existingIds = new Set((activeChat.rfqFlights || []).map((f) => f.id))
-          const uniqueNewFlights = newRfqFlights.filter((f) => !existingIds.has(f.id))
-          if (uniqueNewFlights.length > 0) {
-            const allRfqFlights = [...(activeChat.rfqFlights || []), ...uniqueNewFlights]
-            onUpdateChat(activeChat.id, {
-              rfqFlights: allRfqFlights,
-              rfqsLastFetchedAt: new Date().toISOString(),
-            })
-          }
-        }
-        return
-      }
-      
-      // Now check if ANY existing message has RFQ content (hash wasn't processed, so check messages)
-      // Combine all messages from both sources
-      const allMessages = [...currentMessages, ...(activeChat.messages || [])]
-      // Remove duplicates by message ID
-      const uniqueMessages = Array.from(
-        new Map(allMessages.map(msg => [msg.id, msg])).values()
-      )
-      
-      // Check if ANY agent message has RFQ/quote content
-      const hasAnyRfqMessage = uniqueMessages.some((msg) => {
-        if (msg.type !== 'agent') return false
-        const msgContent = (msg.content || '').trim().toLowerCase()
-        
-        // Check if message contains RFQ/quote keywords
-        return msgContent.includes('rfq') ||
-               msgContent.includes('quote') ||
-               msgContent.includes('quotes') ||
-               msgContent.includes('received quotes') ||
-               msgContent.includes('here are') ||
-               msgContent.includes('flight quotes') ||
-               (msgContent.includes('tist') && msgContent.includes('kopf')) // Route-specific check
-      })
-      
-      // Also check if we're in Step 3 or 4 (RFQs displayed in FlightSearchProgress)
-      const currentStep = activeChat.currentStep || step || 1
-      const isInStep3Or4 = currentStep >= 3
-      
-      // Also check if we have RFQ flights data
-      const hasExistingRfqFlights = activeChat.rfqFlights && activeChat.rfqFlights.length > 0
-      
-      // BLOCK if ANY RFQ message exists OR we're in Step 3/4 OR we have RFQ flights data
-      if (hasAnyRfqMessage || isInStep3Or4 || hasExistingRfqFlights) {
-        console.warn('[ChatInterface] 🚫 BLOCKING duplicate RFQ message - RFQ content already exists:', {
-          hasAnyRfqMessage,
-          isInStep3Or4,
-          currentStep,
-          hasExistingRfqFlights,
-          existingRfqFlightsCount: activeChat.rfqFlights?.length || 0,
-          currentMessagesCount: currentMessages.length,
-          activeChatMessagesCount: activeChat.messages?.length || 0,
-          uniqueMessagesCount: uniqueMessages.length,
-          contentHash: contentHash.substring(0, 50),
-          reason: hasAnyRfqMessage ? 'RFQ message already exists' :
-                  isInStep3Or4 ? 'Step 3/4 - RFQs displayed in FlightSearchProgress' :
-                  'RFQ flights data exists',
-        })
-        // Hash is already marked above, so no need to mark again
-        // Still update RFQ flights data if we have new flights, but don't add message
-        if (newRfqFlights.length > 0) {
-          const existingIds = new Set((activeChat.rfqFlights || []).map((f) => f.id))
-          const uniqueNewFlights = newRfqFlights.filter((f) => !existingIds.has(f.id))
-          if (uniqueNewFlights.length > 0) {
-            const allRfqFlights = [...(activeChat.rfqFlights || []), ...uniqueNewFlights]
-            onUpdateChat(activeChat.id, {
-              rfqFlights: allRfqFlights,
-              rfqsLastFetchedAt: new Date().toISOString(),
-            })
-          }
-        }
-        // Early return - don't create agentMessage or update chat with message
-        return
-      }
-      
-      // If we reach here, hash is already marked (done above), and no duplicate was found
-      // Proceed with creating the message
-    }
+    // NOTE: Message deduplication is handled in the rendering layer (lines ~2037-2090)
+    // which filters by exact message ID and exact content matches.
+    // No additional filtering needed here - let all messages through and dedupe at render time.
 
     // Create agent message (only if we didn't block it above)
     // Use ref for streaming content fallback to avoid stale closure issues
