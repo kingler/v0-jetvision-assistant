@@ -385,7 +385,7 @@ export function AgentMessage({
         </span>
       </div>
 
-      {/* Plain text content - NO bubble wrapper */}
+      {/* Plain text content - transparent background, no border/shadow */}
       <div className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
         {stripMarkdown(content)}
       </div>
