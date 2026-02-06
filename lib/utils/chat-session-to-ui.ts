@@ -244,9 +244,13 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     rfqId: chatSessionRow.avinode_rfq_id || request?.avinode_rfq_id || undefined,
     deepLink: request?.avinode_deep_link || undefined,
 
-    // Quote statistics from chat_session
-    quotesReceived: chatSessionRow.quotes_received_count || undefined,
-    quotesTotal: chatSessionRow.quotes_expected_count || undefined,
+    // Quote statistics: prefer database fields, fallback to computing from rfqFlights
+    quotesReceived: chatSessionRow.quotes_received_count ||
+      ((chatSessionRow as any).rfqFlights?.filter((f: any) => f.rfqStatus === 'quoted')?.length) ||
+      undefined,
+    quotesTotal: chatSessionRow.quotes_expected_count ||
+      ((chatSessionRow as any).rfqFlights?.length) ||
+      undefined,
 
     // Generated name - prefer conversation subject (LLM-generated title), fallback to request name
     // Filter out internal tool call commands like "get_rfq XXXXX" from being used as names
@@ -282,8 +286,8 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     // Can be populated by loading messages from conversation_id
     messages: [],
 
-    // Initialize rfqFlights as empty array (will be lazy-loaded when card is clicked)
-    rfqFlights: [],
+    // Use rfqFlights from API response if available, otherwise empty array
+    rfqFlights: (chatSessionRow as any).rfqFlights || [],
 
     // Conversation start timestamp (used for sidebar display)
     sessionStartedAt:
