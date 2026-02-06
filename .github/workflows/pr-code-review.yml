@@ -97,7 +97,7 @@ jobs:
           echo "Running unit tests (with 10 minute timeout)..."
           # Capture exit code directly instead of relying on grep over truncated output
           set +e
-          pnpm run test:unit -- --run --reporter=verbose --exclude '**/use-smart-starters.test.ts' 2>&1 | tee unit-test-report.txt | tail -50
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm run test:unit -- --run --reporter=default --exclude '**/use-smart-starters.test.ts' 2>&1 | tee unit-test-report.txt | tail -50
           TEST_EXIT_CODE=${PIPESTATUS[0]}
           set -e
           if [ "$TEST_EXIT_CODE" -eq 0 ]; then

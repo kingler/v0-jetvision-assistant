@@ -13,16 +13,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
-// Mock Clerk auth
-vi.mock('@clerk/nextjs/server', () => ({
-  auth: vi.fn(),
-}));
+// Mock getAuthenticatedAgent from api utils
+const mockGetAuthenticatedAgent = vi.fn();
+vi.mock('@/lib/utils/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/utils/api')>();
+  return {
+    ...actual,
+    getAuthenticatedAgent: (...args: unknown[]) => mockGetAuthenticatedAgent(...args),
+  };
+});
 
-// Mock Supabase client
-vi.mock('@/lib/supabase/client', () => ({
-  supabase: {
-    from: vi.fn(),
-  },
+// Mock proposal service (used when saveDraft=true)
+vi.mock('@/lib/services/proposal-service', () => ({
+  createProposalWithResolution: vi.fn().mockResolvedValue(null),
 }));
 
 // Mock PDF generator
@@ -30,10 +33,6 @@ const mockGenerateProposal = vi.fn();
 vi.mock('@/lib/pdf', () => ({
   generateProposal: (...args: unknown[]) => mockGenerateProposal(...args),
 }));
-
-// Import after mocks
-import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
 
 // =============================================================================
 // TEST DATA
@@ -122,29 +121,20 @@ function createMockRequest(body: unknown): NextRequest {
   });
 }
 
-function setupAuthMock(userId: string | null = 'user_test123') {
-  vi.mocked(auth).mockResolvedValue({
-    userId,
-    sessionId: userId ? 'session-123' : null,
-    sessionClaims: null,
-    actor: null,
-    has: () => !!userId,
-    debug: () => null,
-  });
-}
-
-function setupSupabaseMock(userData: { id: string } | null = { id: 'agent-uuid-123' }) {
-  const mockFrom = vi.fn().mockReturnValue({
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: userData,
-          error: userData ? null : { message: 'Not found', code: 'PGRST116' },
-        }),
-      }),
-    }),
-  });
-  vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+function setupAuthMock(mode: 'success' | 'unauthorized' | 'not_found' = 'success') {
+  if (mode === 'unauthorized') {
+    const { NextResponse } = require('next/server');
+    mockGetAuthenticatedAgent.mockResolvedValue(
+      NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    );
+  } else if (mode === 'not_found') {
+    const { NextResponse } = require('next/server');
+    mockGetAuthenticatedAgent.mockResolvedValue(
+      NextResponse.json({ error: 'ISO agent not found' }, { status: 404 })
+    );
+  } else {
+    mockGetAuthenticatedAgent.mockResolvedValue({ id: 'agent-uuid-123' });
+  }
 }
 
 // =============================================================================
@@ -154,8 +144,7 @@ function setupSupabaseMock(userData: { id: string } | null = { id: 'agent-uuid-1
 describe('POST /api/proposal/generate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    setupAuthMock();
-    setupSupabaseMock();
+    setupAuthMock('success');
     mockGenerateProposal.mockResolvedValue({
       proposalId: 'JV-ABC123-XYZ',
       pdfBuffer: Buffer.from('mock-pdf-content'),
@@ -248,7 +237,7 @@ describe('POST /api/proposal/generate', () => {
 
   describe('Authentication', () => {
     it('returns 401 when not authenticated', async () => {
-      setupAuthMock(null);
+      setupAuthMock('unauthorized');
 
       const { POST } = await import('@/app/api/proposal/generate/route');
       const request = createMockRequest(validRequestBody);
@@ -259,7 +248,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 404 when user not found in database', async () => {
-      setupSupabaseMock(null);
+      setupAuthMock('not_found');
 
       const { POST } = await import('@/app/api/proposal/generate/route');
       const request = createMockRequest(validRequestBody);
