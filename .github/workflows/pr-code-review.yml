@@ -123,15 +123,11 @@ jobs:
 
       - name: Generate PR review report
         id: generate_report
-        timeout-minutes: 3
+        timeout-minutes: 1
         run: |
-          echo "Generating PR review report..."
-          # Skip review:pr if it doesn't exist or times out
-          if pnpm run review:pr --help 2>/dev/null; then
-            timeout 120 pnpm run review:pr 2>&1 | tee pr-review-report.txt || echo "Review report skipped" > pr-review-report.txt
-          else
-            echo "review:pr script not available - skipping" > pr-review-report.txt
-          fi
+          # Skip review:pr - it re-runs the full test suite which is redundant
+          # since all checks already ran in previous steps
+          echo "PR review report: all checks completed in previous steps" > pr-review-report.txt
           echo "pr_review_exit_code=0" >> $GITHUB_OUTPUT
         continue-on-error: true
 
