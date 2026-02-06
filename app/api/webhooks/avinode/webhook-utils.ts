@@ -329,8 +329,37 @@ export async function storeOperatorQuote(
 
   // Extract data from webhook and message details
   const webhookData = webhookPayload.data as any;
-  const quoteData = messageDetails?.data?.relationships?.quote?.data?.attributes;
-  const senderData = messageDetails?.data?.relationships?.sender?.data?.attributes;
+  const msgDetails = messageDetails as any;
+
+  // ONEK-175 FIX: Extract quote data from multiple possible response formats
+  // The fetched response from /quotes/{id} may have sellerPrice at different levels:
+  // 1. Direct: messageDetails.sellerPrice (when response is the quote object itself)
+  // 2. Nested data: messageDetails.data.sellerPrice (single wrap)
+  // 3. Relationships: messageDetails.data.relationships.quote.data.attributes (JSONAPI format)
+  const quoteData =
+    msgDetails?.sellerPrice ? msgDetails :
+    msgDetails?.data?.sellerPrice ? msgDetails.data :
+    msgDetails?.data?.data?.sellerPrice ? msgDetails.data.data :
+    msgDetails?.data?.relationships?.quote?.data?.attributes || null;
+
+  const senderData = msgDetails?.data?.relationships?.sender?.data?.attributes || null;
+
+  // ONEK-175 FIX: Extract sellerPrice (the authoritative operator price)
+  // This is the PRIMARY price source - it reflects the operator's latest price including updates
+  const sellerPrice = quoteData?.sellerPrice?.price ||
+    msgDetails?.sellerPrice?.price ||
+    0;
+  const sellerCurrency = quoteData?.sellerPrice?.currency ||
+    msgDetails?.sellerPrice?.currency ||
+    null;
+
+  console.log('[storeOperatorQuote] Price extraction:', {
+    hasMessageDetails: !!messageDetails,
+    sellerPrice,
+    sellerCurrency,
+    webhookPrice: webhookData.quote?.totalPrice?.amount,
+    quoteDataKeys: quoteData ? Object.keys(quoteData) : [],
+  });
 
   // Determine quote status
   // Map webhook request.status to database quote status
@@ -347,10 +376,11 @@ export async function storeOperatorQuote(
   }
 
   // Build quote record
+  // ONEK-175 FIX: Price priority: sellerPrice (fetched) > webhook totalPrice > 0
   const quoteRecord = {
     request_id: requestId,
     avinode_quote_id:
-      webhookData.quote?.id || `decline-${webhookPayload.eventId}`,
+      webhookData.quote?.id || quoteData?.id || `decline-${webhookPayload.eventId}`,
     operator_id: webhookData.seller?.id || 'unknown',
     operator_name: webhookData.seller?.name || 'Unknown Operator',
     operator_contact: senderData
@@ -360,24 +390,35 @@ export async function storeOperatorQuote(
         }
       : {},
     aircraft_type:
+      quoteData?.aircraftType ||
       quoteData?.aircraft?.type ||
       webhookData.quote?.aircraft?.type ||
       'Unknown',
     aircraft_tail_number:
+      quoteData?.aircraftTail ||
       quoteData?.aircraft?.tailNumber ||
       webhookData.quote?.aircraft?.tailNumber ||
       null,
     aircraft_details: quoteData?.aircraft || webhookData.quote?.aircraft || {},
-    base_price: quoteData?.pricing?.basePrice || webhookData.quote?.totalPrice?.amount || 0,
+    base_price:
+      sellerPrice ||
+      quoteData?.pricing?.basePrice ||
+      webhookData.quote?.totalPrice?.amount ||
+      0,
     total_price:
+      sellerPrice ||
       quoteData?.pricing?.total ||
       webhookData.quote?.totalPrice?.amount ||
       0,
-    currency: quoteData?.pricing?.currency || webhookData.quote?.totalPrice?.currency || 'USD',
+    currency:
+      sellerCurrency ||
+      quoteData?.pricing?.currency ||
+      webhookData.quote?.totalPrice?.currency ||
+      'USD',
     status,
     schedule: quoteData?.schedule || webhookData.quote?.schedule || {},
     availability: quoteData?.availability || {},
-    message_content: webhookData.message?.content || null,
+    message_content: quoteData?.sellerMessage || webhookData.message?.content || null,
     decline_reason: webhookData.declineReason || null,
     raw_webhook_payload: webhookPayload,
     raw_message_details: messageDetails,
