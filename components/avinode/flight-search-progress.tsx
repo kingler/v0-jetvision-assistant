@@ -164,6 +164,8 @@ export interface FlightSearchProgressProps {
   }) => Promise<{ success: boolean; error?: string }>;
   /** Callback when user goes back from Step 4 */
   onGoBackFromProposal?: () => void;
+  /** Which steps to render: 'steps-1-2', 'steps-3-4', or 'all' (default) */
+  renderMode?: 'steps-1-2' | 'steps-3-4' | 'all';
   /** Additional CSS class */
   className?: string;
 }
@@ -359,10 +361,25 @@ export function FlightSearchProgress({
   onGeneratePreview,
   onSendProposal,
   onGoBackFromProposal,
+  renderMode = 'all',
   className,
   isTripCreated = false,
 }: FlightSearchProgressProps) {
   const [copied, setCopied] = useState(false);
+
+  // renderMode guards: which step groups to render
+  const showSteps12 = renderMode === 'all' || renderMode === 'steps-1-2';
+  const showSteps34 = renderMode === 'all' || renderMode === 'steps-3-4';
+
+  const stepsToRender = useMemo(() => {
+    if (renderMode === 'steps-1-2') {
+      return [{ number: 1, label: STEP_LABELS[0] }, { number: 2, label: STEP_LABELS[1] }];
+    }
+    if (renderMode === 'steps-3-4') {
+      return [{ number: 3, label: STEP_LABELS[2] }, { number: 4, label: STEP_LABELS[3] }];
+    }
+    return STEP_LABELS.map((label, i) => ({ number: i + 1, label }));
+  }, [renderMode]);
 
   // Debug: Log button label calculation
   const buttonLabel = useMemo(() => {
@@ -508,27 +525,15 @@ export function FlightSearchProgress({
         {/* Step Progress Indicator - Hidden when complete with flights shown */}
         {!hideStepperWhenComplete && (
           <div className="flex items-start justify-center mb-6 overflow-x-auto pb-2">
-            <StepIndicator
-              stepNumber={1}
-              title={STEP_LABELS[0]}
-              status={getStepStatus(1)}
-            />
-            <StepIndicator
-              stepNumber={2}
-              title={STEP_LABELS[1]}
-              status={getStepStatus(2)}
-            />
-            <StepIndicator
-              stepNumber={3}
-              title={STEP_LABELS[2]}
-              status={getStepStatus(3)}
-            />
-            <StepIndicator
-              stepNumber={4}
-              title={STEP_LABELS[3]}
-              status={getStepStatus(4)}
-              isLast
-            />
+            {stepsToRender.map((step, idx) => (
+              <StepIndicator
+                key={step.number}
+                stepNumber={step.number}
+                title={step.label}
+                status={getStepStatus(step.number)}
+                isLast={idx === stepsToRender.length - 1}
+              />
+            ))}
           </div>
         )}
 
@@ -537,7 +542,7 @@ export function FlightSearchProgress({
           {/* Step 1: Trip Request Created */}
           {/* CRITICAL: Only render step cards when trip is actually created (has avinode_trip_id) */}
           {/* This prevents cards from appearing during clarification dialogue before trip creation */}
-          {currentStep >= 1 && isTripCreated && (
+          {showSteps12 && currentStep >= 1 && isTripCreated && (
             <div
               data-testid="step-1-content"
               className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
@@ -657,7 +662,7 @@ export function FlightSearchProgress({
           {/* Step 2: Select Flight & RFQ */}
           {/* Show Step 2 if we're at step 2 or beyond, and we have either a deepLink or tripId (indicates deep link was created) */}
           {/* CRITICAL: Only render when trip is actually created (has avinode_trip_id) */}
-          {currentStep >= 2 && isTripCreated && (deepLink || tripId) && (
+          {showSteps12 && currentStep >= 2 && isTripCreated && (deepLink || tripId) && (
             <div
               data-testid="step-2-content"
               className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
@@ -724,7 +729,7 @@ export function FlightSearchProgress({
           {/* Step 3: Enter Trip ID & View RFQ Flights */}
           {/* FIXED: Added explicit display and width to prevent layout cutoff when RFQs load */}
           {/* CRITICAL: Only render when trip is actually created (has avinode_trip_id) */}
-          {currentStep >= 3 && isTripCreated && (
+          {showSteps34 && currentStep >= 3 && isTripCreated && (
             <div
               data-testid="step-3-content"
               className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 shadow-sm w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 mb-6"
@@ -955,7 +960,7 @@ export function FlightSearchProgress({
           )}
 
           {/* Step 4: Send Proposal to Customer */}
-          {currentStep >= 4 && selectedRfqFlightIds.length > 0 && (
+          {showSteps34 && currentStep >= 4 && selectedRfqFlightIds.length > 0 && (
             <div
               data-testid="step-4-content"
               className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 p-4"

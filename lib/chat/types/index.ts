@@ -204,6 +204,13 @@ export interface Quote {
   validUntil?: string;
   ranking?: number;
   isRecommended?: boolean;
+  /** Leg type for round-trip flights: 'outbound' (first leg) or 'return' (second leg) */
+  legType?: 'outbound' | 'return';
+  leg_type?: 'outbound' | 'return';
+  legDirection?: 'outbound' | 'return';
+  /** Leg sequence: 1 (outbound) or 2 (return) */
+  legSequence?: 1 | 2;
+  leg_sequence?: 1 | 2;
 }
 
 /**
@@ -281,7 +288,7 @@ export interface RFQFlight {
    * - 2: Second leg (return)
    * Used for ordering and grouping in proposals
    */
-  legSequence?: number;
+  legSequence?: 1 | 2;
 }
 
 /**

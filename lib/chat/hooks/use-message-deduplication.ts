@@ -116,6 +116,42 @@ function isRFQMessage(content: string): boolean {
   );
 }
 
+/**
+ * Extract semantic RFQ fingerprint from message content.
+ * Returns a string like "JDREBG|quotes_received|4" that uniquely identifies
+ * an RFQ status update. Two messages with the same fingerprint are duplicates.
+ */
+function extractRFQFingerprint(content: string): string | null {
+  const lower = content.trim().toLowerCase();
+  if (!isRFQMessage(lower)) return null;
+
+  // Extract trip ID (6-char alphanumeric like JDREBG, or atrip-xxx format)
+  const tripIdMatch = content.match(/\b([A-Z0-9]{5,8})\b/i) ||
+    content.match(/atrip-[\w-]+/i);
+  const tripId = tripIdMatch ? tripIdMatch[0].toUpperCase() : 'UNKNOWN';
+
+  // Determine status category from content
+  let status = 'unknown';
+  if (/no\s*(active|open)\s*trip|doesn't\s*look|not\s*active/i.test(content)) {
+    status = 'not_active';
+  } else if (/no\s*quotes?\s*(yet|received)|awaiting|pending/i.test(content)) {
+    status = 'awaiting_quotes';
+  } else if (/\d+\s*(of\s*\d+\s*)?operators?\s*(have\s*)?(responded|quoted|submitted)/i.test(content) ||
+             /received?\s*\d+\s*quotes?/i.test(content) ||
+             /quotes?\s*received/i.test(content)) {
+    status = 'quotes_received';
+  } else if (/proposal|ready|recommend/i.test(content)) {
+    status = 'proposal_ready';
+  }
+
+  // Extract quote count
+  const countMatch = content.match(/(\d+)\s*(of\s*\d+\s*)?(quotes?|operators?\s*(have\s*)?(responded|quoted))/i) ||
+    content.match(/received?\s*(\d+)/i);
+  const count = countMatch ? countMatch[1] : '0';
+
+  return `${tripId}|${status}|${count}`;
+}
+
 // =============================================================================
 // HOOK IMPLEMENTATION
 // =============================================================================
@@ -153,11 +189,14 @@ export function useMessageDeduplication(
 
   // Track processed content hashes to prevent duplicates across concurrent calls
   const processedHashesRef = useRef<Set<string>>(new Set());
+  // Track semantic RFQ fingerprints (tripId+status+quoteCount) to block redundant status messages
+  const seenRFQFingerprintsRef = useRef<Set<string>>(new Set());
   const currentChatIdRef = useRef<string>(chatId);
 
   // Reset hashes when chat changes
   if (currentChatIdRef.current !== chatId) {
     processedHashesRef.current.clear();
+    seenRFQFingerprintsRef.current.clear();
     currentChatIdRef.current = chatId;
   }
 
@@ -183,6 +222,30 @@ export function useMessageDeduplication(
       if (processedHashesRef.current.has(hash)) {
         console.log('[useMessageDeduplication] Blocking duplicate RFQ message (hash exists)');
         return true;
+      }
+
+      // Semantic fingerprint check: block messages about the same trip+status+count
+      const fingerprint = extractRFQFingerprint(content);
+      if (fingerprint && seenRFQFingerprintsRef.current.has(fingerprint)) {
+        console.log('[useMessageDeduplication] Blocking duplicate RFQ message (same fingerprint):', fingerprint);
+        processedHashesRef.current.add(hash);
+        return true;
+      }
+
+      // Also check existing messages for matching fingerprints
+      if (fingerprint) {
+        for (const msg of existingMessages) {
+          if (msg.type === 'agent') {
+            const existingFingerprint = extractRFQFingerprint(msg.content);
+            if (existingFingerprint === fingerprint) {
+              console.log('[useMessageDeduplication] Blocking RFQ message matching existing fingerprint:', fingerprint);
+              processedHashesRef.current.add(hash);
+              seenRFQFingerprintsRef.current.add(fingerprint);
+              return true;
+            }
+          }
+        }
+        seenRFQFingerprintsRef.current.add(fingerprint);
       }
 
       // Mark as processed immediately to prevent race conditions
@@ -309,6 +372,7 @@ export function useMessageDeduplication(
    */
   const clearHashes = useCallback(() => {
     processedHashesRef.current.clear();
+    seenRFQFingerprintsRef.current.clear();
   }, []);
 
   return {

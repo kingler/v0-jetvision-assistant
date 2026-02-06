@@ -10,6 +10,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import type { Database } from '@/lib/supabase/database.types';
 import type { Json } from '@/lib/types/supabase';
 
 /**
@@ -132,8 +133,7 @@ export async function createOrUpdateChatSession(
     }
 
     // Create new request with session fields
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const insertData: any = {
+    const insertData: Database['public']['Tables']['requests']['Insert'] = {
       iso_agent_id: sessionData.iso_agent_id,
       departure_airport: sessionData.departure_airport || '',
       arrival_airport: sessionData.arrival_airport || '',

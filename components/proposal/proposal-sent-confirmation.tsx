@@ -3,6 +3,7 @@
 import React from "react"
 import { FileText, CheckCircle2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 /**
  * Proposal Sent Confirmation Component
@@ -19,6 +20,12 @@ export interface ProposalSentConfirmationProps {
     departureAirport: string
     arrivalAirport: string
     departureDate: string
+    /** Trip type: one_way or round_trip */
+    tripType?: 'one_way' | 'round_trip'
+    /** Return date for round-trip proposals */
+    returnDate?: string
+    /** Return airport for round-trip (if different from departure) */
+    returnAirport?: string
   }
   /** Client information */
   client: {
@@ -35,6 +42,10 @@ export interface ProposalSentConfirmationProps {
   pricing?: {
     total: number
     currency: string
+    /** Outbound leg cost for round-trip */
+    outboundCost?: number
+    /** Return leg cost for round-trip */
+    returnCost?: number
   }
 }
 
@@ -61,6 +72,17 @@ export function ProposalSentConfirmation({
   const formatDate = (dateString: string): string => {
     if (!dateString) return 'TBD'
     try {
+      // Parse YYYY-MM-DD as local date components to avoid timezone-induced off-by-one
+      // new Date('2026-03-25') parses as UTC midnight, which in US timezones becomes Mar 24
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number)
+        const date = new Date(year, month - 1, day)
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      }
       const date = new Date(dateString)
       return date.toLocaleDateString('en-US', {
         month: 'short',
@@ -86,16 +108,26 @@ export function ProposalSentConfirmation({
     departureAirport: 'N/A',
     arrivalAirport: 'N/A',
     departureDate: '',
+    tripType: 'one_way' as const,
+    returnDate: undefined,
+    returnAirport: undefined,
   }
   const safeClient = client || {
     name: 'Customer',
     email: 'N/A',
   }
 
+  // Determine if this is a round-trip proposal
+  const isRoundTrip = safeFlightDetails.tripType === 'round_trip'
+
   /**
-   * Format flight route for display (e.g., "KTEB → KVNY")
+   * Format flight route for display
+   * Round-trip: "KTEB ⇄ KVNY" or "KTEB → KVNY → KTEB" if return to origin
+   * One-way: "KTEB → KVNY"
    */
-  const flightRoute = `${safeFlightDetails.departureAirport || 'N/A'} → ${safeFlightDetails.arrivalAirport || 'N/A'}`
+  const flightRoute = isRoundTrip
+    ? `${safeFlightDetails.departureAirport || 'N/A'} ⇄ ${safeFlightDetails.arrivalAirport || 'N/A'}`
+    : `${safeFlightDetails.departureAirport || 'N/A'} → ${safeFlightDetails.arrivalAirport || 'N/A'}`
 
   return (
     <div className="w-full">
@@ -126,26 +158,83 @@ export function ProposalSentConfirmation({
         {/* Flight Details Summary */}
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="grid grid-cols-2 gap-4 text-sm">
+            {/* Trip Type Badge */}
+            <div className="col-span-2 flex items-center gap-2">
+              <span
+                className={cn(
+                  'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                  isRoundTrip
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                )}
+              >
+                {isRoundTrip ? 'Round-Trip' : 'One-Way'}
+              </span>
+            </div>
+
             <div>
               <span className="text-gray-500 dark:text-gray-400">Route:</span>
               <p className="font-medium text-gray-900 dark:text-gray-100">{flightRoute}</p>
             </div>
             <div>
-              <span className="text-gray-500 dark:text-gray-400">Departure Date:</span>
+              <span className="text-gray-500 dark:text-gray-400">
+                {isRoundTrip ? 'Outbound Date:' : 'Departure Date:'}
+              </span>
               <p className="font-medium text-gray-900 dark:text-gray-100">
                 {formatDate(safeFlightDetails.departureDate)}
               </p>
             </div>
-            {pricing && (
-              <div className="col-span-2">
-                <span className="text-gray-500 dark:text-gray-400">Total Price:</span>
-                <p className="font-medium text-lg text-gray-900 dark:text-gray-100">
-                  {pricing.currency} {pricing.total.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+
+            {/* Return Date for Round-Trip */}
+            {isRoundTrip && safeFlightDetails.returnDate && (
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Return Date:</span>
+                <p className="font-medium text-gray-900 dark:text-gray-100">
+                  {formatDate(safeFlightDetails.returnDate)}
                 </p>
               </div>
+            )}
+
+            {/* Pricing Section */}
+            {pricing && (
+              <>
+                {/* Show leg breakdown for round-trip if available */}
+                {isRoundTrip && (pricing.outboundCost || pricing.returnCost) && (
+                  <div className="col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-gray-200 dark:border-gray-600">
+                    {pricing.outboundCost && (
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Outbound:</span>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                          {pricing.currency} {pricing.outboundCost.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </p>
+                      </div>
+                    )}
+                    {pricing.returnCost && (
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Return:</span>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                          {pricing.currency} {pricing.returnCost.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="col-span-2">
+                  <span className="text-gray-500 dark:text-gray-400">Total Price:</span>
+                  <p className="font-medium text-lg text-gray-900 dark:text-gray-100">
+                    {pricing.currency} {pricing.total.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+              </>
             )}
           </div>
         </div>

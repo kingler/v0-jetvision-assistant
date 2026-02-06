@@ -253,6 +253,15 @@ function normalizeQuoteToFlight(
     }
   }
 
+  // Extract leg type information for round-trip proposals
+  // legType: 'outbound' (first leg) or 'return' (second leg)
+  // legSequence: 1 (outbound) or 2 (return)
+  const legType = quote.legType || quote.leg_type || quote.legDirection ||
+    (quote.legSequence === 2 || quote.leg_sequence === 2 ? 'return' : undefined);
+  const legSequence = quote.legSequence || quote.leg_sequence ||
+    (quote.legType === 'return' || quote.leg_type === 'return' ? 2 :
+      quote.legType === 'outbound' || quote.leg_type === 'outbound' ? 1 : undefined);
+
   return {
     id: quoteId,
     quoteId,
@@ -269,6 +278,9 @@ function normalizeQuoteToFlight(
     departureDate: departureDate || new Date().toISOString().split('T')[0],
     departureTime,
     flightDuration,
+    // Round-trip leg information
+    legType: legType as 'outbound' | 'return' | undefined,
+    legSequence: legSequence as 1 | 2 | undefined,
     aircraftType:
       quote.aircraftType ||
       quote.aircraft_type ||

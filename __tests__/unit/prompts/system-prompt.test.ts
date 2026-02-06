@@ -181,8 +181,8 @@ describe('Prompt Sections', () => {
       expect(TOOL_REFERENCE).toContain('get_proposal');
     });
 
-    it('should document Gmail tools (3)', () => {
-      expect(TOOL_REFERENCE).toContain('Gmail/Email Tools (3)');
+    it('should document Gmail tools (4)', () => {
+      expect(TOOL_REFERENCE).toContain('Gmail/Email Tools (4)');
       expect(TOOL_REFERENCE).toContain('send_email');
       expect(TOOL_REFERENCE).toContain('send_proposal_email');
       expect(TOOL_REFERENCE).toContain('send_quote_email');
@@ -212,11 +212,9 @@ describe('Prompt Sections', () => {
       expect(RESPONSE_FORMATS).toContain('Price');
     });
 
-    it('should include trip summary format', () => {
-      expect(RESPONSE_FORMATS).toContain('Trip Summary Format');
-      expect(RESPONSE_FORMATS).toContain('Route');
-      expect(RESPONSE_FORMATS).toContain('Date');
-      expect(RESPONSE_FORMATS).toContain('Passengers');
+    it('should include trip creation response format', () => {
+      expect(RESPONSE_FORMATS).toContain('Initial Trip Creation Response');
+      expect(RESPONSE_FORMATS).toContain('Trip Status Lookup Response');
     });
 
     it('should include error message format', () => {

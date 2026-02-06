@@ -42,6 +42,8 @@ interface GenerateProposalRequest {
     phone?: string;
   };
   tripDetails: {
+    /** Trip type: 'one_way' or 'round_trip' */
+    tripType?: 'one_way' | 'round_trip';
     departureAirport: {
       icao: string;
       name?: string;
@@ -54,6 +56,16 @@ interface GenerateProposalRequest {
     };
     departureDate: string;
     departureTime?: string;
+    /** Return date for round-trip (ISO format YYYY-MM-DD) */
+    returnDate?: string;
+    /** Return time for round-trip */
+    returnTime?: string;
+    /** Return airport (defaults to departure airport if not specified) */
+    returnAirport?: {
+      icao: string;
+      name?: string;
+      city?: string;
+    };
     passengers: number;
     tripId?: string;
   };
@@ -80,6 +92,10 @@ interface GenerateProposalResponse {
     taxes: number;
     total: number;
     currency: string;
+    /** Cost for outbound leg (round-trip only) */
+    outboundCost?: number;
+    /** Cost for return leg (round-trip only) */
+    returnCost?: number;
   };
   error?: string;
 }
@@ -128,6 +144,48 @@ function validateRequest(body: GenerateProposalRequest): string | null {
   }
   if (body.selectedFlights.length === 0) {
     return 'At least one flight must be selected';
+  }
+
+  // Round-trip validation
+  if (body.tripDetails.tripType === 'round_trip') {
+    // Return date is required for round-trip
+    if (!body.tripDetails.returnDate) {
+      return 'Return date is required for round-trip proposals';
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(body.tripDetails.returnDate)) {
+      return 'Return date must be in ISO format (YYYY-MM-DD)';
+    }
+
+    // Validate return date is on or after departure date
+    const departureDate = new Date(body.tripDetails.departureDate);
+    const returnDate = new Date(body.tripDetails.returnDate);
+    if (returnDate < departureDate) {
+      return 'Return date must be on or after departure date';
+    }
+
+    // Validate at least one return flight is selected
+    const returnFlights = body.selectedFlights.filter(
+      (f) => f.legType === 'return' || f.legSequence === 2
+    );
+    if (returnFlights.length === 0) {
+      return 'At least one return flight must be selected for round-trip proposals';
+    }
+
+    // Validate at least one outbound flight is selected
+    const outboundFlights = body.selectedFlights.filter(
+      (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+    );
+    if (outboundFlights.length === 0) {
+      return 'At least one outbound flight must be selected for round-trip proposals';
+    }
+
+    // Validate return airport ICAO if provided
+    if (body.tripDetails.returnAirport && !body.tripDetails.returnAirport.icao) {
+      return 'Return airport ICAO code is required when return airport is specified';
+    }
   }
 
   return null;

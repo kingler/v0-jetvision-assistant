@@ -365,6 +365,15 @@ export function convertQuoteToRFQFlight(
       medical: rawAmenities.includes('medical'),
     };
 
+    // Extract leg type information for round-trip proposals
+    // legType: 'outbound' (first leg) or 'return' (second leg)
+    // legSequence: 1 (outbound) or 2 (return)
+    const legType = quote.legType || quote.leg_type || quote.legDirection ||
+      (quote.legSequence === 2 || quote.leg_sequence === 2 ? 'return' : undefined);
+    const legSequence = quote.legSequence || quote.leg_sequence ||
+      (quote.legType === 'return' || quote.leg_type === 'return' ? 2 :
+        quote.legType === 'outbound' || quote.leg_type === 'outbound' ? 1 : undefined);
+
     const flight: RFQFlight = {
       id: quoteId,
       quoteId,
@@ -373,6 +382,9 @@ export function convertQuoteToRFQFlight(
       departureDate: date || new Date().toISOString().split('T')[0],
       departureTime,
       flightDuration,
+      // Round-trip leg information
+      legType: legType as 'outbound' | 'return' | undefined,
+      legSequence: legSequence as 1 | 2 | undefined,
       aircraftType,
       aircraftModel: aircraftType,
       tailNumber,
@@ -551,6 +563,15 @@ export function convertRfqToRFQFlight(
     rfqStatus = RFQStatus.QUOTED;
   }
 
+  // Extract leg type information for round-trip proposals
+  // legType: 'outbound' (first leg) or 'return' (second leg)
+  // legSequence: 1 (outbound) or 2 (return)
+  const legType = rfqAny.legType || rfqAny.leg_type || rfqAny.legDirection ||
+    (rfqAny.legSequence === 2 || rfqAny.leg_sequence === 2 ? 'return' : undefined);
+  const legSequence = rfqAny.legSequence || rfqAny.leg_sequence ||
+    (rfqAny.legType === 'return' || rfqAny.leg_type === 'return' ? 2 :
+      rfqAny.legType === 'outbound' || rfqAny.leg_type === 'outbound' ? 1 : undefined);
+
   return {
     id: rfq.rfq_id || rfq.id || `rfq-${Date.now()}`,
     quoteId: rfq.rfq_id || rfq.id || `rfq-${Date.now()}`,
@@ -559,6 +580,9 @@ export function convertRfqToRFQFlight(
     departureDate,
     departureTime: (rfqAny.departure_time as string) || undefined,
     flightDuration: 'TBD',
+    // Round-trip leg information
+    legType: legType as 'outbound' | 'return' | undefined,
+    legSequence: legSequence as 1 | 2 | undefined,
     aircraftType: 'Aircraft TBD',
     aircraftModel: 'Aircraft TBD',
     passengerCapacity: (rfqAny.passengers as number) || 0,

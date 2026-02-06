@@ -52,6 +52,8 @@ interface SendProposalRequest {
     phone?: string;
   };
   tripDetails: {
+    /** Trip type: 'one_way' or 'round_trip' */
+    tripType?: 'one_way' | 'round_trip';
     departureAirport: {
       icao: string;
       name?: string;
@@ -64,6 +66,16 @@ interface SendProposalRequest {
     };
     departureDate: string;
     departureTime?: string;
+    /** Return date for round-trip (ISO format YYYY-MM-DD) */
+    returnDate?: string;
+    /** Return time for round-trip */
+    returnTime?: string;
+    /** Return airport (defaults to departure airport if not specified) */
+    returnAirport?: {
+      icao: string;
+      name?: string;
+      city?: string;
+    };
     /** Number of passengers (simple count) or array of passenger details */
     passengers: number | Passenger[];
     tripId?: string;
@@ -97,6 +109,10 @@ interface SendProposalResponse {
     taxes: number;
     total: number;
     currency: string;
+    /** Cost for outbound leg (round-trip only) */
+    outboundCost?: number;
+    /** Cost for return leg (round-trip only) */
+    returnCost?: number;
   };
   pdfUrl?: string;
   fileName?: string;
@@ -212,6 +228,48 @@ function validateRequest(body: SendProposalRequest): string | null {
     return 'At least one flight must be selected';
   }
 
+  // Round-trip validation
+  if (body.tripDetails.tripType === 'round_trip') {
+    // Return date is required for round-trip
+    if (!body.tripDetails.returnDate) {
+      return 'Return date is required for round-trip proposals';
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(body.tripDetails.returnDate)) {
+      return 'Return date must be in ISO format (YYYY-MM-DD)';
+    }
+
+    // Validate return date is on or after departure date
+    const departureDate = new Date(body.tripDetails.departureDate);
+    const returnDate = new Date(body.tripDetails.returnDate);
+    if (returnDate < departureDate) {
+      return 'Return date must be on or after departure date';
+    }
+
+    // Validate at least one return flight is selected
+    const returnFlights = body.selectedFlights.filter(
+      (f) => f.legType === 'return' || f.legSequence === 2
+    );
+    if (returnFlights.length === 0) {
+      return 'At least one return flight must be selected for round-trip proposals';
+    }
+
+    // Validate at least one outbound flight is selected
+    const outboundFlights = body.selectedFlights.filter(
+      (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+    );
+    if (outboundFlights.length === 0) {
+      return 'At least one outbound flight must be selected for round-trip proposals';
+    }
+
+    // Validate return airport ICAO if provided
+    if (body.tripDetails.returnAirport && !body.tripDetails.returnAirport.icao) {
+      return 'Return airport ICAO code is required when return airport is specified';
+    }
+  }
+
   return null;
 }
 
@@ -263,6 +321,10 @@ export async function POST(
       );
     }
 
+    // Determine trip type for use throughout the function
+    const isRoundTrip = body.tripDetails.tripType === 'round_trip';
+    const returnAirport = body.tripDetails.returnAirport || body.tripDetails.departureAirport;
+
     // Normalize passengers value for generateProposal
     // Convert array to count, or use number directly
     const passengersCount =
@@ -309,9 +371,13 @@ export async function POST(
     // Create proposal record in database (if tripId is available)
     if (body.tripDetails.tripId) {
       try {
-        // Build proposal title
-        const title = `Flight Proposal: ${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`;
-        const description = `Proposal for ${body.customer.name} - ${body.tripDetails.departureDate}`;
+        // Build proposal title with round-trip indicator
+        const title = isRoundTrip
+          ? `Round-Trip Proposal: ${body.tripDetails.departureAirport.icao} ⇄ ${body.tripDetails.arrivalAirport.icao}`
+          : `Flight Proposal: ${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`;
+        const description = isRoundTrip
+          ? `Round-trip proposal for ${body.customer.name} - ${body.tripDetails.departureDate} to ${body.tripDetails.returnDate}`
+          : `Proposal for ${body.customer.name} - ${body.tripDetails.departureDate}`;
 
         // Extract quote_id from first selected flight if available
         const quoteId = body.selectedFlights[0]?.quoteId;
@@ -376,8 +442,10 @@ export async function POST(
     }
 
     // Build email subject and body
-    const emailSubject = body.emailSubject ||
-      `Your Flight Proposal: ${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`;
+    const defaultSubject = isRoundTrip
+      ? `Your Round-Trip Flight Proposal: ${body.tripDetails.departureAirport.icao} ⇄ ${body.tripDetails.arrivalAirport.icao}`
+      : `Your Flight Proposal: ${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`;
+    const emailSubject = body.emailSubject || defaultSubject;
     const emailBody = body.emailMessage || '';
 
     // Send email with PDF attachment
@@ -465,14 +533,19 @@ export async function POST(
         if (isoAgentId) {
           const dep = body.tripDetails.departureAirport.icao;
           const arr = body.tripDetails.arrivalAirport.icao;
+          const tripTypeLabel = isRoundTrip ? 'round-trip proposal' : 'proposal';
+          const routeSymbol = isRoundTrip ? '⇄' : '→';
           const confirmationContent = emailResult.success
-            ? `The proposal for ${dep} → ${arr} was sent to ${body.customer.name} at ${body.customer.email}.`
-            : `The proposal for ${dep} → ${arr} was generated. Email could not be sent (check Gmail configuration).`;
+            ? `The ${tripTypeLabel} for ${dep} ${routeSymbol} ${arr} was sent to ${body.customer.name} at ${body.customer.email}.`
+            : `The ${tripTypeLabel} for ${dep} ${routeSymbol} ${arr} was generated. Email could not be sent (check Gmail configuration).`;
           const proposalSentData = {
             flightDetails: {
               departureAirport: dep,
               arrivalAirport: arr,
               departureDate: body.tripDetails.departureDate,
+              tripType: body.tripDetails.tripType,
+              returnDate: body.tripDetails.returnDate,
+              returnAirport: body.tripDetails.returnAirport?.icao,
             },
             client: { name: body.customer.name, email: body.customer.email },
             pdfUrl: uploadResult.publicUrl ?? '',
