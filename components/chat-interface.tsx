@@ -1224,8 +1224,9 @@ export function ChatInterface({
         existingRequestId: activeChat.requestId || 'none',
         existingConversationId: activeChat.conversationId || 'none',
         finalRequestId: updates.requestId || 'not set',
+        hasAgentSummary: !!result.content,
       })
-      
+
       onUpdateChat(activeChat.id, updates)
       setTripIdSubmitted(true)
 
@@ -2052,38 +2053,87 @@ export function ChatInterface({
                 }
               )
 
-              // Find the insertion point for FlightSearchProgress
-              // It should appear right after the agent message that CREATED the trip
-              // (the message with showDeepLink or deepLinkData, indicating create_trip was called)
-              // This ensures correct positioning when user's initial request is incomplete
-              // and multiple back-and-forth messages are needed to gather all required details
+              // Find the trip creation agent message to render between Steps 1-2 and Steps 3-4
+              // Detection strategy (in priority order):
+              //   1. Primary: message flags (showDeepLink/deepLinkData) — set during SSE or restored from DB metadata
+              //   2. Fallback: content phrases — "trip has been created", "avinode marketplace", etc.
+              //   3. Fallback: trip ID in content — search for the actual trip ID string
+              //   4. Ultimate fallback: find the first agent message that mentions the trip at all
               let tripCreationIndex = -1;
+
+              // Primary: detect by message flags
               for (let i = 0; i < regularMessages.length; i++) {
                 const msg = regularMessages[i].message;
-                // Find the agent message where the trip was created
                 if (msg.type === 'agent' && (msg.showDeepLink || msg.deepLinkData?.tripId || msg.deepLinkData?.deepLink)) {
                   tripCreationIndex = i;
                   break;
                 }
               }
 
-              // Fallback: If no trip creation message found, use first user message
-              // This handles edge cases where deepLinkData might not be set on messages
-              let insertionIndex = tripCreationIndex;
-              if (insertionIndex === -1) {
+              // Fallback 1: detect by content phrases (DB-loaded messages may lack runtime flags)
+              if (tripCreationIndex === -1 && (activeChat.tripId || activeChat.deepLink)) {
                 for (let i = 0; i < regularMessages.length; i++) {
-                  if (regularMessages[i].message.type === 'user') {
-                    insertionIndex = i;
+                  const msg = regularMessages[i].message;
+                  if (msg.type === 'agent' && msg.content) {
+                    const lower = msg.content.toLowerCase();
+                    if (
+                      lower.includes('trip has been created') ||
+                      lower.includes('avinode marketplace') ||
+                      lower.includes('deep link') ||
+                      (lower.includes('trip') && lower.includes('created') && lower.includes('successfully'))
+                    ) {
+                      tripCreationIndex = i;
+                      break;
+                    }
+                  }
+                }
+              }
+
+              // Fallback 2: search for the actual trip ID in agent message content
+              if (tripCreationIndex === -1 && activeChat.tripId) {
+                for (let i = 0; i < regularMessages.length; i++) {
+                  const msg = regularMessages[i].message;
+                  if (msg.type === 'agent' && msg.content && msg.content.includes(activeChat.tripId)) {
+                    tripCreationIndex = i;
                     break;
                   }
                 }
               }
 
-              // Split messages: before FlightSearchProgress and after
-              // FlightSearchProgress appears AFTER the trip creation message
-              const splitIndex = insertionIndex >= 0 ? insertionIndex + 1 : 0;
-              const messagesBeforeProgress = regularMessages.slice(0, splitIndex);
-              const messagesAfterProgress = regularMessages.slice(splitIndex);
+              // Extract trip creation message to render between Steps 1-2 and Steps 3-4
+              const tripCreationMessage = tripCreationIndex >= 0 ? regularMessages[tripCreationIndex] : null;
+
+              // Split messages around the trip creation message
+              let messagesBeforeProgress: typeof regularMessages;
+              let messagesAfterProgress: typeof regularMessages;
+
+              if (tripCreationIndex >= 0) {
+                // Trip creation message found: everything before it goes above Steps 1-2,
+                // the message itself renders after Steps 1-2, everything after goes below Steps 3-4
+                messagesBeforeProgress = regularMessages.slice(0, tripCreationIndex);
+                messagesAfterProgress = regularMessages.slice(tripCreationIndex + 1);
+              } else if (activeChat.tripId || activeChat.deepLink) {
+                // Trip exists but no creation message found: place steps before the last agent message
+                // This handles cases where the trip creation message was combined with another response
+                let lastAgentBeforeTripIdx = -1;
+                for (let i = regularMessages.length - 1; i >= 0; i--) {
+                  if (regularMessages[i].message.type === 'agent') {
+                    lastAgentBeforeTripIdx = i;
+                    break;
+                  }
+                }
+                if (lastAgentBeforeTripIdx >= 0) {
+                  messagesBeforeProgress = regularMessages.slice(0, lastAgentBeforeTripIdx);
+                  messagesAfterProgress = regularMessages.slice(lastAgentBeforeTripIdx);
+                } else {
+                  messagesBeforeProgress = regularMessages;
+                  messagesAfterProgress = [];
+                }
+              } else {
+                // No trip created yet: show all messages without step cards
+                messagesBeforeProgress = regularMessages;
+                messagesAfterProgress = [];
+              }
 
               // Helper function to render a single message
               const renderMessage = ({ message, index }: { message: UnifiedMessage; index: number }, mapIndex: number) => (
@@ -2093,6 +2143,9 @@ export function ChatInterface({
                       <div className="flex justify-end">
                         <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
                           <p className="text-sm leading-relaxed">{message.content}</p>
+                          <span className="block mt-1 text-[10px] text-blue-200 text-right">
+                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
                       </div>
                     ) : message.type === 'operator' ? (
@@ -2233,13 +2286,13 @@ export function ChatInterface({
                   </React.Fragment>
               );
 
-              // Render: Messages before FlightSearchProgress -> FlightSearchProgress -> Messages after -> Proposal confirmations
+              // Render: Messages before -> Steps 1-2 -> Trip creation message -> Steps 3-4 -> Messages after -> Proposal confirmations
               return (
                 <>
-                  {/* Messages BEFORE FlightSearchProgress (includes all messages up to trip creation) */}
+                  {/* Messages BEFORE FlightSearchProgress (clarification dialogue) */}
                   {messagesBeforeProgress.map(renderMessage)}
 
-                  {/* FlightSearchProgress - positioned right after the trip creation message */}
+                  {/* FlightSearchProgress Steps 1-2 */}
                   {shouldInsertProgressAtEnd && (
                     <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                       <FlightSearchProgress
@@ -2279,6 +2332,9 @@ export function ChatInterface({
                       />
                     </div>
                   )}
+
+                  {/* Agent message with trip ID - rendered after Steps 1-2, before Steps 3-4 */}
+                  {tripCreationMessage && renderMessage(tripCreationMessage, -1)}
 
                   {/* FlightSearchProgress Steps 3-4 - only shown when RFQs are submitted/loaded */}
                   {shouldShowSteps34 && (
@@ -2320,6 +2376,42 @@ export function ChatInterface({
                     </div>
                   )}
 
+                  {/* Agent RFQ summary - static block rendered from rfqFlights state (not a persisted message) */}
+                  {shouldShowSteps34 && rfqFlights.length > 0 && (
+                    <div className="flex flex-col items-start space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-[26.46px] h-[26.46px] flex items-center justify-center shrink-0">
+                          <img
+                            src="/images/jvg-logo.svg"
+                            alt="Jetvision"
+                            className="w-full h-full"
+                            style={{ filter: 'brightness(0)' }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-black dark:text-gray-100">Jetvision Agent</span>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed">
+                        {(() => {
+                          const quoted = rfqFlights.filter(f => f.rfqStatus === 'quoted').length
+                          const unanswered = rfqFlights.filter(f => f.rfqStatus === 'unanswered' || !f.rfqStatus).length
+                          const declined = rfqFlights.filter(f => f.rfqStatus === 'declined').length
+                          const parts: string[] = []
+                          parts.push(`${rfqFlights.length} flight${rfqFlights.length > 1 ? 's' : ''} available from operators.`)
+                          if (quoted > 0) parts.push(`${quoted} quoted`)
+                          if (unanswered > 0) parts.push(`${unanswered} awaiting operator response`)
+                          if (declined > 0) parts.push(`${declined} declined`)
+                          const statusLine = parts.length > 1 ? ' ' + parts.slice(1).join(', ') + '.' : ''
+                          return `${parts[0]}${statusLine} Select the flights you'd like to include in your proposal, then click "Create Proposal" to generate and send the PDF to your customer.`
+                        })()}
+                      </p>
+                      {activeChat.rfqsLastFetchedAt && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(activeChat.rfqsLastFetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Messages AFTER FlightSearchProgress (all subsequent conversation) */}
                   {messagesAfterProgress.map(renderMessage)}
 
@@ -2358,37 +2450,35 @@ export function ChatInterface({
 
             {/* Streaming Response / Typing Indicator */}
             {isTyping && (
-              <div className="flex justify-start">
-                <div className="max-w-[85%] bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl px-4 py-3 border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-[26.46px] h-[26.46px] flex items-center justify-center shrink-0">
-                      <img
-                        src="/images/jvg-logo.svg"
-                        alt="Jetvision"
-                        className="w-full h-full"
-                        style={{ filter: 'brightness(0)' }}
-                      />
-                    </div>
-                    <span className="text-xs font-semibold text-black dark:text-gray-100">Jetvision Agent</span>
+              <div className="flex flex-col items-start space-y-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-[26.46px] h-[26.46px] flex items-center justify-center shrink-0">
+                    <img
+                      src="/images/jvg-logo.svg"
+                      alt="Jetvision"
+                      className="w-full h-full"
+                      style={{ filter: 'brightness(0)' }}
+                    />
                   </div>
-                  {streamingContent ? (
-                    <div>
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{stripMarkdown(streamingContent)}</p>
-                      <span className="inline-block w-2 h-4 bg-black dark:bg-gray-900 animate-pulse ml-0.5" />
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-black dark:text-gray-100" />
-                      <span className="text-sm">
-                        {activeChat.status === 'searching_aircraft' ? 'Searching for flights...' :
-                         activeChat.status === 'analyzing_options' ? 'Analyzing quotes...' :
-                         activeChat.status === 'requesting_quotes' ? 'Requesting quotes from operators...' :
-                         activeChat.status === 'understanding_request' ? 'Understanding your request...' :
-                         'Processing your request...'}
-                      </span>
-                    </div>
-                  )}
+                  <span className="text-xs font-semibold text-black dark:text-gray-100">Jetvision Agent</span>
                 </div>
+                {streamingContent ? (
+                  <div className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
+                    {stripMarkdown(streamingContent)}
+                    <span className="inline-block w-2 h-4 bg-black dark:bg-gray-900 animate-pulse ml-0.5" />
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-black dark:text-gray-100" />
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {activeChat.status === 'searching_aircraft' ? 'Searching for flights...' :
+                       activeChat.status === 'analyzing_options' ? 'Analyzing quotes...' :
+                       activeChat.status === 'requesting_quotes' ? 'Requesting quotes from operators...' :
+                       activeChat.status === 'understanding_request' ? 'Understanding your request...' :
+                       'Processing your request...'}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
