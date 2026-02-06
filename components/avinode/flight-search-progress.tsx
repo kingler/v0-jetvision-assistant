@@ -20,7 +20,6 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
-  Pause,
   ExternalLink,
   Copy,
   Check,
@@ -171,80 +170,8 @@ export interface FlightSearchProgressProps {
 }
 
 // =============================================================================
-// STEP LABELS
-// =============================================================================
-
-const STEP_LABELS = [
-  'Request',
-  'Select Flight & RFQ',
-  'Retrieve Flight Details',
-  'Send Proposal',
-] as const;
-
-// =============================================================================
 // HELPER COMPONENTS
 // =============================================================================
-
-interface StepIndicatorProps {
-  stepNumber: number;
-  title: string;
-  status: 'completed' | 'active' | 'pending';
-  isLast?: boolean;
-  hideWhenComplete?: boolean;
-}
-
-function StepIndicator({ stepNumber, title, status, isLast, hideWhenComplete }: StepIndicatorProps) {
-  // Hide the stepper entirely when workflow is complete
-  if (hideWhenComplete && status === 'completed') {
-    return null;
-  }
-
-  return (
-    <div className="flex items-center">
-      {/* Step Circle */}
-      <div className="flex flex-col items-center">
-        <div
-          className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-all',
-            // Use gray for completed (per design), blue for active, light gray for pending
-            status === 'completed' && 'bg-gray-400 text-white dark:bg-gray-500',
-            status === 'active' && 'bg-primary text-primary-foreground',
-            status === 'pending' && 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-          )}
-        >
-          {status === 'completed' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : status === 'active' ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            stepNumber
-          )}
-        </div>
-        <span
-          className={cn(
-            'mt-1 text-xs font-medium whitespace-nowrap text-center max-w-[80px]',
-            // Gray text for all states per design
-            status === 'completed' && 'text-gray-500 dark:text-gray-400',
-            status === 'active' && 'text-primary',
-            status === 'pending' && 'text-gray-400 dark:text-gray-500'
-          )}
-        >
-          {title}
-        </span>
-      </div>
-      {/* Connector Line */}
-      {!isLast && (
-        <div
-          className={cn(
-            'mx-2 h-0.5 w-6 sm:w-10 transition-all',
-            // Gray connector lines
-            status === 'completed' ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-200 dark:bg-gray-700'
-          )}
-        />
-      )}
-    </div>
-  );
-}
 
 /**
  * Flight Card Component - Displays selected flight details
@@ -371,16 +298,6 @@ export function FlightSearchProgress({
   const showSteps12 = renderMode === 'all' || renderMode === 'steps-1-2';
   const showSteps34 = renderMode === 'all' || renderMode === 'steps-3-4';
 
-  const stepsToRender = useMemo(() => {
-    if (renderMode === 'steps-1-2') {
-      return [{ number: 1, label: STEP_LABELS[0] }, { number: 2, label: STEP_LABELS[1] }];
-    }
-    if (renderMode === 'steps-3-4') {
-      return [{ number: 3, label: STEP_LABELS[2] }, { number: 4, label: STEP_LABELS[3] }];
-    }
-    return STEP_LABELS.map((label, i) => ({ number: i + 1, label }));
-  }, [renderMode]);
-
   // Debug: Log button label calculation
   const buttonLabel = useMemo(() => {
     const label = rfqsLastFetchedAt || rfqFlights.length > 0 ? 'Update RFQs' : 'View RFQs';
@@ -414,8 +331,7 @@ export function FlightSearchProgress({
       .map(convertToAvinodeRFQFlight);
   }, [rfqFlights, selectedRfqFlightIds]);
 
-  // Determine if we should hide the stepper (when TripID is entered and flights are shown)
-  const hideStepperWhenComplete = tripIdSubmitted && selectedFlights.length > 0;
+
 
   /**
    * Format timestamp to relative time (e.g., "2 minutes ago")
@@ -473,15 +389,6 @@ export function FlightSearchProgress({
   };
 
   /**
-   * Get step status based on current progress
-   */
-  const getStepStatus = (step: number): 'completed' | 'active' | 'pending' => {
-    if (step < currentStep) return 'completed';
-    if (step === currentStep) return 'active';
-    return 'pending';
-  };
-
-  /**
    * Handle copy deep link to clipboard
    */
   /**
@@ -522,21 +429,6 @@ export function FlightSearchProgress({
   return (
     <div data-testid="flight-search-progress" className={cn('w-full bg-white dark:bg-gray-900', className)}>
       <div className="py-6">
-        {/* Step Progress Indicator - Hidden when complete with flights shown */}
-        {!hideStepperWhenComplete && (
-          <div className="flex items-start justify-center mb-6 overflow-x-auto pb-2">
-            {stepsToRender.map((step, idx) => (
-              <StepIndicator
-                key={step.number}
-                stepNumber={step.number}
-                title={step.label}
-                status={getStepStatus(step.number)}
-                isLast={idx === stepsToRender.length - 1}
-              />
-            ))}
-          </div>
-        )}
-
         {/* Step Content */}
         <div className="space-y-4">
           {/* Step 1: Trip Request Created */}
