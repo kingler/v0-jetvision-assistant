@@ -610,7 +610,7 @@ export function ChatInterface({
     onUpdateChat(activeChat.id, sessionUpdates)
 
     try {
-      const response = await fetch("/api/chat", {
+      const fetchChat = () => fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -628,11 +628,24 @@ export function ChatInterface({
             content: m.content,
           })),
         }),
-        signal: abortControllerRef.current.signal,
+        signal: abortControllerRef.current?.signal,
       })
 
+      let response = await fetchChat()
+
+      // Retry once on 401 — Clerk session token may have expired and auto-refreshed
+      if (response.status === 401) {
+        console.warn('[ChatInterface] 🔄 Got 401 on chat, retrying after token refresh...')
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        response = await fetchChat()
+      }
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
+        throw new Error(
+          response.status === 401
+            ? 'Session expired. Please refresh the page and try again.'
+            : `API error: ${response.status}`
+        )
       }
 
       const reader = response.body?.getReader()
@@ -1041,7 +1054,7 @@ export function ChatInterface({
       })
 
       const convOrReqId = activeChat.conversationId || activeChat.requestId
-      const response = await fetch("/api/chat", {
+      const fetchRfqData = () => fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1057,8 +1070,21 @@ export function ChatInterface({
         }),
       })
 
+      let response = await fetchRfqData()
+
+      // Retry once on 401 — Clerk session token may have expired and auto-refreshed
+      if (response.status === 401) {
+        console.warn('[ChatInterface] 🔄 Got 401, retrying after token refresh...')
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        response = await fetchRfqData()
+      }
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
+        throw new Error(
+          response.status === 401
+            ? 'Session expired. Please refresh the page and try again.'
+            : `Failed to fetch RFQs (error ${response.status}). Please try again.`
+        )
       }
 
       const reader = response.body?.getReader()
