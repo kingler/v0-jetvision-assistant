@@ -176,7 +176,7 @@ function validateRequest(body: GenerateProposalRequest): string | null {
 
     // Validate at least one outbound flight is selected
     const outboundFlights = body.selectedFlights.filter(
-      (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+      (f) => f.legType === 'outbound' || f.legSequence === 1 || (!f.legType && f.legSequence !== 2)
     );
     if (outboundFlights.length === 0) {
       return 'At least one outbound flight must be selected for round-trip proposals';

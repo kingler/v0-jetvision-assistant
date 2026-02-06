@@ -185,7 +185,7 @@ function validateProposalInput(input: GenerateProposalInput): void {
     }
     // Validate that at least one outbound flight is selected for round-trip
     const outboundFlights = input.selectedFlights.filter(
-      (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+      (f) => f.legType === 'outbound' || f.legSequence === 1 || (!f.legType && f.legSequence !== 2)
     );
     if (outboundFlights.length === 0) {
       throw new Error('At least one outbound flight must be selected for round-trip proposals');
@@ -228,7 +228,7 @@ function separateFlightsByLeg(flights: RFQFlight[]): {
   returnFlights: RFQFlight[];
 } {
   const outboundFlights = flights.filter(
-    (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+    (f) => f.legType === 'outbound' || f.legSequence === 1 || (!f.legType && f.legSequence !== 2)
   );
   const returnFlights = flights.filter(
     (f) => f.legType === 'return' || f.legSequence === 2

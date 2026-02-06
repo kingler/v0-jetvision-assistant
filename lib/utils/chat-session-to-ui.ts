@@ -245,11 +245,11 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     deepLink: request?.avinode_deep_link || undefined,
 
     // Quote statistics: prefer database fields, fallback to computing from rfqFlights
-    quotesReceived: chatSessionRow.quotes_received_count ||
-      ((chatSessionRow as any).rfqFlights?.filter((f: any) => f.rfqStatus === 'quoted')?.length) ||
+    quotesReceived: chatSessionRow.quotes_received_count ??
+      ((chatSessionRow as any).rfqFlights?.filter((f: any) => f.rfqStatus === 'quoted')?.length) ??
       undefined,
-    quotesTotal: chatSessionRow.quotes_expected_count ||
-      ((chatSessionRow as any).rfqFlights?.length) ||
+    quotesTotal: chatSessionRow.quotes_expected_count ??
+      ((chatSessionRow as any).rfqFlights?.length) ??
       undefined,
 
     // Generated name - prefer conversation subject (LLM-generated title), fallback to request name

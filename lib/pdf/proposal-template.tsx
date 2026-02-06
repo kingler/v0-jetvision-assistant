@@ -614,7 +614,7 @@ function FlightOptionsSection({
 
   // Separate flights by leg type
   const outboundFlights = selectedFlights.filter(
-    (f) => !f.legType || f.legType === 'outbound' || f.legSequence === 1
+    (f) => f.legType === 'outbound' || f.legSequence === 1 || (!f.legType && f.legSequence !== 2)
   );
   const returnFlights = selectedFlights.filter(
     (f) => f.legType === 'return' || f.legSequence === 2
