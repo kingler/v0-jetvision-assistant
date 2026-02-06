@@ -547,15 +547,4 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
       </Dialog>
     </Card>
   )
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.session.id === nextProps.session.id &&
-    prevProps.session.status === nextProps.session.status &&
-    prevProps.session.currentStep === nextProps.session.currentStep &&
-    prevProps.session.rfqFlights?.length === nextProps.session.rfqFlights?.length &&
-    prevProps.session.quotesReceived === nextProps.session.quotesReceived &&
-    prevProps.session.quotesTotal === nextProps.session.quotesTotal &&
-    prevProps.session.rfqsLastFetchedAt === nextProps.session.rfqsLastFetchedAt &&
-    prevProps.isActive === nextProps.isActive
-  )
 })
