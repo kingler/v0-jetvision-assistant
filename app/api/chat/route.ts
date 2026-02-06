@@ -219,38 +219,42 @@ export async function POST(req: NextRequest) {
     // Execute agent
     const result = await agent.execute(message, conversationHistory);
 
-    // 7. Save assistant response
-    console.log('[Chat API] Saving assistant response:', {
-      conversationId,
-      messagePreview: result.message.slice(0, 50),
-      hasTripId: !!result.tripId,
-    });
-    try {
-      // CRITICAL: Use requestId (which is the same as conversationId) to ensure messages are linked correctly
-      // In the consolidated schema, conversationId IS the requestId
-      const assistantMessageId = await saveMessage({
-        requestId: conversationId, // Use requestId explicitly to match database schema
-        senderType: 'ai_assistant',
-        content: result.message,
-        contentType: 'text',
-        metadata: {
-          toolResults: result.toolResults,
-          tripId: result.tripId,
-          deepLink: result.deepLink,
-        },
-      });
-      console.log('[Chat API] ✅ Assistant message saved:', {
-        messageId: assistantMessageId,
+    // 7. Save assistant response (skip when skipMessagePersistence is true, e.g. background RFQ refreshes)
+    if (!skipMessagePersistence) {
+      console.log('[Chat API] Saving assistant response:', {
         conversationId,
-        requestId: conversationId,
+        messagePreview: result.message.slice(0, 50),
+        hasTripId: !!result.tripId,
       });
-    } catch (error) {
-      // Log error but don't fail the request - message persistence is important but shouldn't block chat
-      console.error('[Chat API] ❌ Failed to save assistant message:', {
-        conversationId,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      try {
+        // CRITICAL: Use requestId (which is the same as conversationId) to ensure messages are linked correctly
+        // In the consolidated schema, conversationId IS the requestId
+        const assistantMessageId = await saveMessage({
+          requestId: conversationId, // Use requestId explicitly to match database schema
+          senderType: 'ai_assistant',
+          content: result.message,
+          contentType: 'text',
+          metadata: {
+            toolResults: result.toolResults,
+            tripId: result.tripId,
+            deepLink: result.deepLink,
+          },
+        });
+        console.log('[Chat API] ✅ Assistant message saved:', {
+          messageId: assistantMessageId,
+          conversationId,
+          requestId: conversationId,
+        });
+      } catch (error) {
+        // Log error but don't fail the request - message persistence is important but shouldn't block chat
+        console.error('[Chat API] ❌ Failed to save assistant message:', {
+          conversationId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
+    } else {
+      console.log('[Chat API] Skipping assistant message persistence for:', { conversationId, messagePreview: result.message.slice(0, 50) });
     }
 
     // 8. Update request with trip info and flight details if created

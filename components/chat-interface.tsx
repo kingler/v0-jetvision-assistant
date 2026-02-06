@@ -122,6 +122,13 @@ export function ChatInterface({
   // Track which chat IDs we've already auto-loaded RFQs for
   // This prevents duplicate API calls when switching between chats that have tripIds
   const autoLoadedRfqsForChatIdRef = useRef<string | null>(null)
+  // Debounce webhook-triggered RFQ refreshes (5-second minimum interval)
+  // Multiple quotes arriving in rapid succession should be batched into a single refresh
+  const lastWebhookRefreshRef = useRef<number>(0)
+  const webhookRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Track when a trip was just created to suppress auto-load "not active trip" messages
+  // Within 30s of trip creation, operators haven't responded yet so RFQ data is empty
+  const tripCreatedAtRef = useRef<number>(0)
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -369,6 +376,13 @@ export function ChatInterface({
     const hasRecentFetch = activeChat.rfqsLastFetchedAt && 
       (Date.now() - new Date(activeChat.rfqsLastFetchedAt).getTime()) < 5 * 60 * 1000 // 5 minutes
     
+    // Suppress auto-load if trip was just created (< 30s ago)
+    // Operators haven't responded yet, so RFQ data will be empty and the AI
+    // generates a confusing "doesn't look like an active trip" message
+    const TRIP_CREATION_GRACE_MS = 30000
+    const isTripJustCreated = tripCreatedAtRef.current > 0 &&
+      (Date.now() - tripCreatedAtRef.current) < TRIP_CREATION_GRACE_MS
+
     // Determine if auto-load should trigger
     // Always auto-load if:
     // 1. We have a tripId
@@ -376,12 +390,14 @@ export function ChatInterface({
     // 3. We're not currently loading
     // 4. We don't have RFQ flights OR haven't fetched recently OR tripIdSubmitted is false
     // 5. Handler is available
-    const shouldAutoLoad = 
+    // 6. Trip was NOT just created (grace period)
+    const shouldAutoLoad =
       !!activeChat.tripId && // Must have tripId
       activeChat.id !== autoLoadedRfqsForChatIdRef.current && // Haven't already loaded for this chat
       !isTripIdLoading && // Not currently loading
       (!hasRfqFlights || !hasRecentFetch || !activeChat.tripIdSubmitted) && // No RFQs OR not fetched recently OR not submitted
-      !!handleTripIdSubmit // Handler available
+      !!handleTripIdSubmit && // Handler available
+      !isTripJustCreated // Not within grace period after trip creation
 
     console.log('[ChatInterface] 🔍 Auto-load check:', {
       chatId: activeChat.id,
@@ -432,10 +448,30 @@ export function ChatInterface({
     const payload = event.payload || {}
 
     if (eventType === 'TripRequestSellerResponse') {
-      // New quote received - trigger RFQ refresh
+      // New quote received - debounce RFQ refresh (5-second minimum interval)
+      // Multiple quotes arriving in rapid succession are batched into a single refresh
       const quoteId = payload.quoteId || payload.quote_id
       if (quoteId && activeChat.tripId) {
-        handleTripIdSubmit(activeChat.tripId)
+        const now = Date.now()
+        const elapsed = now - lastWebhookRefreshRef.current
+        const DEBOUNCE_MS = 5000
+
+        if (elapsed >= DEBOUNCE_MS) {
+          // Enough time has passed - refresh immediately
+          lastWebhookRefreshRef.current = now
+          handleTripIdSubmit(activeChat.tripId)
+        } else {
+          // Too soon - schedule a delayed refresh (replaces any existing timer)
+          if (webhookRefreshTimerRef.current) {
+            clearTimeout(webhookRefreshTimerRef.current)
+          }
+          const tripIdCapture = activeChat.tripId
+          webhookRefreshTimerRef.current = setTimeout(() => {
+            lastWebhookRefreshRef.current = Date.now()
+            handleTripIdSubmit(tripIdCapture)
+            webhookRefreshTimerRef.current = null
+          }, DEBOUNCE_MS - elapsed)
+        }
       }
     } else if (eventType === 'TripChatSeller' || eventType === 'TripChatMine') {
       // New message - update operator messages
@@ -809,6 +845,8 @@ export function ChatInterface({
     // Update trip/rfq IDs if we got new ones
     if (tripData?.trip_id) {
       updates.tripId = tripData.trip_id
+      // Record trip creation time so auto-load can skip the grace period
+      tripCreatedAtRef.current = Date.now()
     }
     if (rfpData?.rfq_id) {
       updates.rfqId = rfpData.rfq_id
@@ -828,14 +866,21 @@ export function ChatInterface({
     }
     const departureDate = tripData?.departure_date || rfpData?.departure_date
     if (departureDate) {
-      // Store ISO date for API calls (YYYY-MM-DD format)
-      // The raw departureDate from trip/rfp data is already in ISO format
-      updates.isoDate = departureDate
-      // Format date for display
-      try {
-        updates.date = formatDate(departureDate)
-      } catch {
-        updates.date = departureDate
+      // Only update the date if it looks like a valid departure date (YYYY-MM-DD),
+      // not a timestamp. Also don't overwrite an already-set user date with today's date
+      // (which could happen if the API returns the trip creation date instead of requested date).
+      const isISODate = /^\d{4}-\d{2}-\d{2}$/.test(departureDate)
+      const existingIsoDate = activeChat.isoDate
+      const isToday = departureDate === new Date().toISOString().split('T')[0]
+
+      // Update only if: it's a valid ISO date AND (we don't already have a date OR it's not just today's date)
+      if (isISODate && (!existingIsoDate || !isToday)) {
+        updates.isoDate = departureDate
+        try {
+          updates.date = formatDate(departureDate)
+        } catch {
+          updates.date = departureDate
+        }
       }
     }
     const passengerCount = tripData?.passengers || rfpData?.passengers
@@ -1512,8 +1557,10 @@ export function ChatInterface({
       }
       const updatedMessages = [...(activeChat.messages || []), confirmationMessage]
       // Persist selected proposal customer so Book Flight modal can display and use it for contracts
+      // Also update status to proposal_sent for sidebar badge
       onUpdateChat(activeChat.id, {
         messages: updatedMessages,
+        status: 'proposal_sent' as const,
         customer: {
           name: customerData.name,
           email: customerData.email,
@@ -1962,6 +2009,21 @@ export function ChatInterface({
               // Determine if we should show FlightSearchProgress (trip is created and we have valid data)
               const shouldInsertProgressAtEnd = shouldShowFlightSearchProgress
 
+              // Determine if Steps 3-4 card should be shown (only when RFQs are submitted/loaded)
+              const shouldShowSteps34 = shouldInsertProgressAtEnd &&
+                (tripIdSubmitted || activeChat.tripIdSubmitted ||
+                 rfqFlights.length > 0 ||
+                 !!activeChat.rfqsLastFetchedAt)
+
+              // Compute current step once for both FlightSearchProgress instances
+              const computedCurrentStep = (() => {
+                const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
+                if (rfqFlights.length > 0 && isTripIdSubmitted) return 4
+                if (activeChat.tripId && rfqFlights.length === 0) return 3
+                if (activeChat.deepLink) return 2
+                return activeChat.currentStep || 1
+              })()
+
               // CRITICAL FIX: Separate proposal confirmation messages from regular messages
               // Proposal confirmations should appear AFTER FlightSearchProgress (Step 3) because
               // the "Generate Proposal" button is located within the RFQ flight card in Step 3
@@ -2181,32 +2243,8 @@ export function ChatInterface({
                   {shouldInsertProgressAtEnd && (
                     <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
                       <FlightSearchProgress
-                        currentStep={(() => {
-                          // Calculate proper step based on state per UX requirements:
-                          // Step 1: Request Created (has route/request)
-                          // Step 2: Select in Avinode (has deepLink)
-                          // Step 3: Enter TripID (has tripId but no RFQs yet)
-                          // Step 4: Review Quotes (has tripId and RFQ flights)
-                          const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
-
-                          // Step 4: If we have RFQ flights and tripId is submitted
-                          if (rfqFlights.length > 0 && isTripIdSubmitted) {
-                            return 4
-                          }
-
-                          // Step 3: If we have tripId and RFQs are not loaded yet
-                          if (activeChat.tripId && rfqFlights.length === 0) {
-                            return 3
-                          }
-
-                          // Step 2: If we have deepLink (means request created, ready to select in Avinode)
-                          if (activeChat.deepLink) {
-                            return 2
-                          }
-
-                          // Step 1: Default (request created)
-                          return activeChat.currentStep || 1
-                        })()}
+                        renderMode="steps-1-2"
+                        currentStep={computedCurrentStep}
                         flightRequest={{
                           departureAirport: activeChat.route?.split(' → ')[0]
                             ? { icao: activeChat.route.split(' → ')[0].trim() }
@@ -2237,6 +2275,46 @@ export function ChatInterface({
                         onBookFlight={handleBookFlight}
                         // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
                         // This prevents cards from appearing during clarification dialogue before trip creation
+                        isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
+                      />
+                    </div>
+                  )}
+
+                  {/* FlightSearchProgress Steps 3-4 - only shown when RFQs are submitted/loaded */}
+                  {shouldShowSteps34 && (
+                    <div className="mt-4 mb-4" style={{ overflow: 'visible' }}>
+                      <FlightSearchProgress
+                        renderMode="steps-3-4"
+                        currentStep={computedCurrentStep}
+                        flightRequest={{
+                          departureAirport: activeChat.route?.split(' → ')[0]
+                            ? { icao: activeChat.route.split(' → ')[0].trim() }
+                            : { icao: 'TBD' },
+                          arrivalAirport: activeChat.route?.split(' → ')[1]
+                            ? { icao: activeChat.route.split(' → ')[1].trim() }
+                            : { icao: 'TBD' },
+                          departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
+                          passengers: activeChat.passengers || 1,
+                          requestId: activeChat.requestId,
+                        }}
+                        deepLink={activeChat.deepLink}
+                        tripId={activeChat.tripId}
+                        isTripIdLoading={isTripIdLoading}
+                        tripIdError={tripIdError}
+                        tripIdSubmitted={tripIdSubmitted || activeChat.tripIdSubmitted || (activeChat.tripId && activeChat.rfqFlights && activeChat.rfqFlights.length > 0) || false}
+                        rfqFlights={rfqFlights}
+                        isRfqFlightsLoading={false}
+                        selectedRfqFlightIds={selectedRfqFlightIds}
+                        rfqsLastFetchedAt={activeChat.rfqsLastFetchedAt}
+                        customerEmail={(activeChat.customer as { email?: string })?.email}
+                        customerName={activeChat.customer?.name}
+                        onTripIdSubmit={handleTripIdSubmit}
+                        onRfqFlightSelectionChange={setSelectedRfqFlightIds}
+                        onViewChat={handleViewChat}
+                        onGenerateProposal={handleGenerateProposal}
+                        onReviewAndBook={handleReviewAndBook}
+                        onBookFlight={handleBookFlight}
+                        onGoBackFromProposal={() => setSelectedRfqFlightIds([])}
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
                       />
                     </div>

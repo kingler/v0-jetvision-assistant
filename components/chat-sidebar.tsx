@@ -78,7 +78,7 @@ export interface ChatSession {
   date: string
   /** ISO format date (YYYY-MM-DD) for API calls */
   isoDate?: string
-  status: "proposal_ready" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"
+  status: "proposal_ready" | "proposal_sent" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"
   currentStep: number
   totalSteps: number
   aircraft?: string
@@ -264,7 +264,7 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
                 />
               ) : (
                 <FlightRequestCard
-                  key={session.id}
+                  key={`${session.id}-${session.rfqsLastFetchedAt || ''}-${session.quotesReceived || 0}-${session.rfqFlights?.length || 0}`}
                   session={session}
                   isActive={activeChatId === session.id}
                   onClick={() => onSelectChat(session.id)}
@@ -281,6 +281,10 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
       {/* Footer */}
       <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-800">
         <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
+            <span>Proposal Sent</span>
+          </div>
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-500 rounded-full shrink-0"></div>
             <span>Proposal Ready</span>

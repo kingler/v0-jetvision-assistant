@@ -159,7 +159,7 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
    * Check if session can be archived (only when status is completed/booked)
    */
   const canArchive = (): boolean => {
-    // Can archive only when NOT in progress
+    // Can archive when status is terminal (proposal_ready, proposal_sent)
     const inProgress = session.status === 'understanding_request' ||
                       session.status === 'searching_aircraft' ||
                       session.status === 'requesting_quotes' ||
@@ -172,7 +172,7 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
   const getWorkflowIcon = (step: number, status: string) => {
     const IconComponent = workflowSteps[step as keyof typeof workflowSteps]?.icon || Clock
 
-    if (status === "proposal_ready" && step <= 5) {
+    if ((status === "proposal_ready" || status === "proposal_sent") && step <= 5) {
       return <CheckCircle className="w-4 h-4 text-green-500" />
     } else if (status === "requesting_quotes" && step === 3) {
       return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
@@ -199,6 +199,7 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
       case "analyzing_options":
         return 4
       case "proposal_ready":
+      case "proposal_sent":
         return 5
       default:
         return 1
@@ -209,7 +210,13 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
    * Get status badge component
    */
   const getStatusBadge = () => {
-    if (session.status === "proposal_ready") {
+    if (session.status === "proposal_sent") {
+      return (
+        <Badge variant="default" className="bg-blue-500 text-xs">
+          Proposal Sent
+        </Badge>
+      )
+    } else if (session.status === "proposal_ready") {
       return (
         <Badge variant="default" className="bg-green-500 text-xs">
           Proposal Ready
@@ -352,7 +359,7 @@ export function FlightRequestCard({ session, isActive, onClick, onDelete, onCanc
             <div
               className={cn(
                 "h-1 rounded-full transition-all duration-300",
-                session.status === "proposal_ready" ? "bg-green-500" : "bg-cyan-500",
+                session.status === "proposal_sent" ? "bg-blue-500" : session.status === "proposal_ready" ? "bg-green-500" : "bg-cyan-500",
               )}
               style={{
                 width: `${Math.min((session.currentStep / session.totalSteps) * 100, 100)}%`,

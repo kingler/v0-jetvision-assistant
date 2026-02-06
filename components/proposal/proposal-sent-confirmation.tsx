@@ -72,6 +72,17 @@ export function ProposalSentConfirmation({
   const formatDate = (dateString: string): string => {
     if (!dateString) return 'TBD'
     try {
+      // Parse YYYY-MM-DD as local date components to avoid timezone-induced off-by-one
+      // new Date('2026-03-25') parses as UTC midnight, which in US timezones becomes Mar 24
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number)
+        const date = new Date(year, month - 1, day)
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      }
       const date = new Date(dateString)
       return date.toLocaleDateString('en-US', {
         month: 'short',

@@ -105,6 +105,7 @@ function mapCurrentStepToStatus(currentStep: string | null): ChatSession['status
     requesting_quotes: 'requesting_quotes',
     analyzing_options: 'analyzing_options',
     proposal_ready: 'proposal_ready',
+    proposal_sent: 'proposal_sent',
   };
 
   return stepMap[currentStep] || 'understanding_request';
@@ -122,6 +123,7 @@ function getWorkflowStepFromCurrentStep(currentStep: string | null): number {
     requesting_quotes: 3,
     analyzing_options: 4,
     proposal_ready: 5,
+    proposal_sent: 5,
   };
 
   return stepMap[currentStep] || 1;
@@ -229,6 +231,7 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     route,
     passengers: request?.passengers || 0,
     date,
+    isoDate: request?.departure_date ? request.departure_date.split('T')[0] : undefined,
     status,
     currentStep,
     totalSteps: 5,
