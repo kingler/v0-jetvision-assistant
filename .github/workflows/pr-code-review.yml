@@ -95,10 +95,12 @@ jobs:
         timeout-minutes: 10
         run: |
           echo "Running unit tests (with 10 minute timeout)..."
-          # Run critical path tests only to avoid timeout
-          pnpm run test:unit -- --run --reporter=verbose 2>&1 | head -500 | tee unit-test-report.txt || true
-          # Check if tests passed by looking for success indicator
-          if grep -q "Test Files.*passed" unit-test-report.txt; then
+          # Capture exit code directly instead of relying on grep over truncated output
+          set +e
+          pnpm run test:unit -- --run --reporter=verbose 2>&1 | tee unit-test-report.txt | tail -50
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+          if [ "$TEST_EXIT_CODE" -eq 0 ]; then
             echo "unit_test_exit_code=0" >> $GITHUB_OUTPUT
           else
             echo "unit_test_exit_code=1" >> $GITHUB_OUTPUT
