@@ -522,7 +522,7 @@ export function CustomerSelectionDialog({
                     <button
                       type="button"
                       onClick={handleSwitchToCreate}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b border-gray-200 dark:border-gray-700"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b-2 border-gray-200 dark:border-gray-700"
                     >
                       <Plus className="h-4 w-4" />
                       <span>Create New Customer</span>
@@ -548,7 +548,7 @@ export function CustomerSelectionDialog({
                             role="option"
                             aria-selected={selectedClient?.id === client.id}
                             className={cn(
-                              'cursor-pointer px-3 py-2 transition-colors',
+                              'cursor-pointer px-3 py-2.5 transition-colors',
                               highlightedIndex === index &&
                                 'bg-gray-100 dark:bg-gray-800',
                               selectedClient?.id === client.id &&
@@ -658,7 +658,7 @@ export function CustomerSelectionDialog({
               <button
                 type="button"
                 onClick={handleSwitchToSelect}
-                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 py-2 px-1 -ml-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back to customer list</span>

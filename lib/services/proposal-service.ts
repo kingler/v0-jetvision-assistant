@@ -57,6 +57,30 @@ export async function findClientProfileByEmail(
 }
 
 /**
+ * Find a quote's database UUID by its Avinode quote ID
+ *
+ * @param avinodeQuoteId - Avinode quote ID (e.g., "aquote-393019585")
+ * @returns Quote database UUID or null if not found
+ */
+export async function findQuoteByAvinodeId(
+  avinodeQuoteId: string
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from('quotes')
+    .select('id')
+    .eq('avinode_quote_id', avinodeQuoteId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[ProposalService] Error finding quote by Avinode ID:', error);
+    return null;
+  }
+
+  return data?.id ?? null;
+}
+
+/**
  * Find a request by Avinode Trip ID
  * Wrapper around admin.findRequestByTripId for proposal service use
  *

@@ -962,16 +962,16 @@ export function ChatInterface({
       const allRfqFlights = [...updatedExisting, ...uniqueNewFlights]
       updates.rfqFlights = allRfqFlights
       updates.quotesTotal = allRfqFlights.length
-      updates.quotesReceived = allRfqFlights.filter((f) => f.rfqStatus === 'quoted').length
-      
+      updates.quotesReceived = allRfqFlights.filter((f) => f.rfqStatus === 'quoted' || (f.totalPrice && f.totalPrice > 0)).length
+
       // If we got RFQ data, ensure tripIdSubmitted is set to true
       if (result.rfqData && !updates.tripIdSubmitted) {
         updates.tripIdSubmitted = true
         updates.rfqsLastFetchedAt = new Date().toISOString()
       }
-      
+
       // Update status and step based on RFQ data
-      const quotedCount = allRfqFlights.filter((f) => f.rfqStatus === 'quoted').length
+      const quotedCount = allRfqFlights.filter((f) => f.rfqStatus === 'quoted' || (f.totalPrice && f.totalPrice > 0)).length
       if (!updates.status) {
         updates.status = quotedCount > 0 ? 'analyzing_options' : 'requesting_quotes'
       }
@@ -1051,6 +1051,10 @@ export function ChatInterface({
     setIsTripIdLoading(true)
     setTripIdError(undefined)
 
+    // Abort controller with 30s timeout to prevent stuck spinner
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => abortController.abort(), 30000)
+
     try {
       // Build conversation history from active chat messages for context
       // Use ref to avoid stale closure when async function resolves
@@ -1082,6 +1086,7 @@ export function ChatInterface({
           },
           skipMessagePersistence: true,
         }),
+        signal: abortController.signal,
       })
 
       let response = await fetchRfqData()
@@ -1228,7 +1233,8 @@ export function ChatInterface({
       }
 
       // Update chat with RFQ data
-      const quotedCount = newRfqFlights.filter((f) => f.rfqStatus === 'quoted').length
+      // Count flights that have responded: either status 'quoted' or has a non-zero price
+      const quotedCount = newRfqFlights.filter((f) => f.rfqStatus === 'quoted' || (f.totalPrice && f.totalPrice > 0)).length
       const updates: Partial<ChatSession> = {
         tripId,
         tripIdSubmitted: true,
@@ -1272,8 +1278,13 @@ export function ChatInterface({
 
     } catch (error) {
       console.error('[ChatInterface] Error submitting trip ID:', error)
-      setTripIdError(error instanceof Error ? error.message : 'Failed to fetch RFQ data')
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setTripIdError('Request timed out after 30s. Please try again.')
+      } else {
+        setTripIdError(error instanceof Error ? error.message : 'Failed to fetch RFQ data')
+      }
     } finally {
+      clearTimeout(timeoutId)
       setIsTripIdLoading(false)
     }
   }
@@ -2156,6 +2167,8 @@ export function ChatInterface({
                 pipelineData: msg.pipelineData,
                 showProposalSentConfirmation: msg.showProposalSentConfirmation,
                 proposalSentData: msg.proposalSentData,
+                showEmailApprovalRequest: msg.showEmailApprovalRequest,
+                emailApprovalData: msg.emailApprovalData,
               }))
 
               // Merge and sort by timestamp (chronological order)

@@ -24,6 +24,7 @@ import {
 } from '@/lib/utils/api';
 import {
   createProposalWithResolution,
+  findQuoteByAvinodeId,
 } from '@/lib/services/proposal-service';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
@@ -257,8 +258,20 @@ export async function POST(
         const title = `Flight Proposal: ${body.tripDetails.departureAirport.icao} → ${body.tripDetails.arrivalAirport.icao}`;
         const description = `Proposal for ${body.customer.name} - ${body.tripDetails.departureDate}`;
 
-        // Extract quote_id from first selected flight if available
-        const quoteId = body.selectedFlights[0]?.quoteId;
+        // Resolve Avinode quote ID to database UUID
+        // The flight's quoteId is an Avinode ID (e.g., "aquote-393019585"),
+        // but proposals.quote_id expects a UUID referencing quotes(id)
+        const avinodeQuoteId = body.selectedFlights[0]?.quoteId;
+        let quoteId: string | undefined;
+        if (avinodeQuoteId) {
+          const resolvedQuoteId = await findQuoteByAvinodeId(avinodeQuoteId);
+          if (resolvedQuoteId) {
+            quoteId = resolvedQuoteId;
+            console.log('[Generate] Resolved Avinode quote ID to DB UUID:', { avinodeQuoteId, quoteId });
+          } else {
+            console.warn('[Generate] Could not resolve Avinode quote ID to DB UUID:', avinodeQuoteId);
+          }
+        }
 
         // Create draft proposal with automatic request/client resolution
         const draftResult = await createProposalWithResolution(
