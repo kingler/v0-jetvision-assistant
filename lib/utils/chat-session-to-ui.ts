@@ -63,6 +63,7 @@ type ChatSessionRow = {
     arrival_airport: string | null;
     departure_date: string | null;
     return_date: string | null;
+    trip_type: string | null;
     passengers: number | null;
     aircraft_type: string | null;
     budget: number | null;
@@ -232,6 +233,8 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     passengers: request?.passengers || 0,
     date,
     isoDate: request?.departure_date ? request.departure_date.split('T')[0] : undefined,
+    tripType: (request?.trip_type === 'round_trip' ? 'round_trip' : request?.trip_type === 'one_way' ? 'one_way' : undefined) as ChatSession['tripType'],
+    returnDate: request?.return_date ? request.return_date.split('T')[0] : undefined,
     status,
     currentStep,
     totalSteps: 5,

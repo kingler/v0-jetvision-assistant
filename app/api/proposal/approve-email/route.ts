@@ -202,11 +202,13 @@ export async function POST(
     if (proposal.request_id) {
       const { data } = await supabaseAdmin
         .from('requests')
-        .select('departure_airport, arrival_airport, departure_date')
+        .select('departure_airport, arrival_airport, departure_date, trip_type, return_date')
         .eq('id', proposal.request_id)
         .single()
       request_details = data
     }
+
+    const isRoundTrip = (request_details?.trip_type as string) === 'round_trip'
 
     // Send the email
     const emailResult = await sendProposalEmail({
@@ -283,13 +285,20 @@ export async function POST(
       try {
         const dep = request_details?.departure_airport || 'N/A'
         const arr = request_details?.arrival_airport || 'N/A'
-        const confirmationContent = `The proposal for ${dep} → ${arr} was sent to ${body.to.name} at ${body.to.email}.`
+        const routeSymbol = isRoundTrip ? '⇄' : '→'
+        const tripTypeLabel = isRoundTrip ? 'round-trip proposal' : 'proposal'
+        const confirmationContent = `The ${tripTypeLabel} for ${dep} ${routeSymbol} ${arr} was sent to ${body.to.name} at ${body.to.email}.`
 
         const proposalSentData = {
           flightDetails: {
             departureAirport: dep,
             arrivalAirport: arr,
             departureDate: (request_details?.departure_date as string) || 'TBD',
+            tripType: isRoundTrip ? 'round_trip' as const : 'one_way' as const,
+            returnDate: isRoundTrip && request_details?.return_date
+              ? (request_details.return_date as string)
+              : undefined,
+            returnAirport: isRoundTrip ? (dep as string) : undefined,
           },
           client: { name: body.to.name, email: body.to.email },
           pdfUrl: proposal.file_url || '',

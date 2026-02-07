@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateProposal } from '@/lib/pdf';
 import { sendProposalEmail } from '@/lib/services/email-service';
-import { uploadProposalPdf } from '@/lib/supabase/admin';
+import { uploadProposalPdf, supabaseAdmin } from '@/lib/supabase/admin';
 import {
   getAuthenticatedAgent,
   isErrorResponse,
@@ -322,7 +322,27 @@ export async function POST(
     }
 
     // Determine trip type for use throughout the function
-    const isRoundTrip = body.tripDetails.tripType === 'round_trip';
+    // If client didn't send tripType, look it up from the requests table
+    let resolvedTripType = body.tripDetails.tripType;
+    let resolvedReturnDate = body.tripDetails.returnDate;
+    if (!resolvedTripType && body.requestId) {
+      try {
+        const { data: reqData } = await supabaseAdmin
+          .from('requests')
+          .select('trip_type, return_date')
+          .eq('id', body.requestId)
+          .single();
+        if (reqData?.trip_type) {
+          resolvedTripType = reqData.trip_type as 'one_way' | 'round_trip';
+          if (!resolvedReturnDate && reqData.return_date) {
+            resolvedReturnDate = reqData.return_date;
+          }
+        }
+      } catch {
+        // Ignore - use client-provided values
+      }
+    }
+    const isRoundTrip = resolvedTripType === 'round_trip';
     const returnAirport = body.tripDetails.returnAirport || body.tripDetails.departureAirport;
 
     // Normalize passengers value for generateProposal
@@ -543,9 +563,9 @@ export async function POST(
               departureAirport: dep,
               arrivalAirport: arr,
               departureDate: body.tripDetails.departureDate,
-              tripType: body.tripDetails.tripType,
-              returnDate: body.tripDetails.returnDate,
-              returnAirport: body.tripDetails.returnAirport?.icao,
+              tripType: resolvedTripType || 'one_way',
+              returnDate: resolvedReturnDate,
+              returnAirport: isRoundTrip ? (body.tripDetails.returnAirport?.icao || dep) : undefined,
             },
             client: { name: body.customer.name, email: body.customer.email },
             pdfUrl: uploadResult.publicUrl ?? '',

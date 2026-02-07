@@ -1764,7 +1764,10 @@ export function ChatInterface({
             : undefined,
         }
 
-        const confirmationContent = `The proposal for ${dep} → ${arr} was sent to ${emailApprovalData.to.name} at ${emailApprovalData.to.email}.`
+        const isRT = emailApprovalData.flightDetails?.tripType === 'round_trip'
+        const routeSym = isRT ? '⇄' : '→'
+        const tripLabel = isRT ? 'round-trip proposal' : 'proposal'
+        const confirmationContent = `The ${tripLabel} for ${dep} ${routeSym} ${arr} was sent to ${emailApprovalData.to.name} at ${emailApprovalData.to.email}.`
 
         const confirmationMessage = {
           id: result.savedMessageId || `agent-proposal-sent-${Date.now()}`,
