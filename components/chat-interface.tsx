@@ -2575,7 +2575,6 @@ export function ChatInterface({
                         onBookFlight={handleBookFlight}
                         marginPercentage={selectedMarginPercentage}
                         onGoBackFromProposal={() => setSelectedRfqFlightIds([])}
-                        marginPercentage={selectedMarginPercentage}
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
                       />
                     </div>
