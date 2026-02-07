@@ -615,11 +615,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               if (requests && requests.length > 0) {
                 try {
                   // Derive status from fetched details instead of hardcoding
+                  // Only treat as declined with explicit indicators — missing sellerPrice
+                  // could mean pending/unparsed, not necessarily declined
                   const detailsAny = details as any;
                   const isDeclined =
                     detailsAny?.sourcingDisplayStatus === 'Declined' ||
                     detailsAny?.data?.sourcingDisplayStatus === 'Declined' ||
-                    (!detailsAny?.sellerPrice && !detailsAny?.data?.sellerPrice);
+                    detailsAny?.status === 'declined' ||
+                    detailsAny?.data?.status === 'declined';
                   const derivedStatus = isDeclined ? 'declined' : 'quoted';
 
                   const quoteId = await storeOperatorQuote({
@@ -640,13 +643,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
                   console.log('[Avinode Webhook] Quote stored from simple webhook:', quoteId);
 
-                  // Mark webhook as processed
+                  // Mark webhook as processed only after successful storage
                   await supabaseAdmin
                     .from('avinode_webhook_events')
                     .update({ processing_status: 'completed', processed_at: new Date().toISOString() })
                     .eq('avinode_event_id', rawPayload.id);
                 } catch (storeQuoteError) {
                   console.error('[Avinode Webhook] Error storing quote from simple webhook:', storeQuoteError);
+                  // Mark webhook as failed so it can be retried or investigated
+                  await supabaseAdmin
+                    .from('avinode_webhook_events')
+                    .update({ processing_status: 'failed', processed_at: new Date().toISOString() })
+                    .eq('avinode_event_id', rawPayload.id);
                 }
               }
             }

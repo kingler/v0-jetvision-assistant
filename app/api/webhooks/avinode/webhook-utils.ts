@@ -346,11 +346,12 @@ export async function storeOperatorQuote(
 
   // ONEK-175 FIX: Extract sellerPrice (the authoritative operator price)
   // This is the PRIMARY price source - it reflects the operator's latest price including updates
-  const sellerPrice = quoteData?.sellerPrice?.price ||
-    msgDetails?.sellerPrice?.price ||
+  // Use ?? (nullish coalescing) instead of || to preserve legitimate $0 prices
+  const sellerPrice = quoteData?.sellerPrice?.price ??
+    msgDetails?.sellerPrice?.price ??
     0;
-  const sellerCurrency = quoteData?.sellerPrice?.currency ||
-    msgDetails?.sellerPrice?.currency ||
+  const sellerCurrency = quoteData?.sellerPrice?.currency ??
+    msgDetails?.sellerPrice?.currency ??
     null;
 
   console.log('[storeOperatorQuote] Price extraction:', {
@@ -401,19 +402,19 @@ export async function storeOperatorQuote(
       null,
     aircraft_details: quoteData?.aircraft || webhookData.quote?.aircraft || {},
     base_price:
-      sellerPrice ||
-      quoteData?.pricing?.basePrice ||
-      webhookData.quote?.totalPrice?.amount ||
+      sellerPrice ??
+      quoteData?.pricing?.basePrice ??
+      webhookData.quote?.totalPrice?.amount ??
       0,
     total_price:
-      sellerPrice ||
-      quoteData?.pricing?.total ||
-      webhookData.quote?.totalPrice?.amount ||
+      sellerPrice ??
+      quoteData?.pricing?.total ??
+      webhookData.quote?.totalPrice?.amount ??
       0,
     currency:
-      sellerCurrency ||
-      quoteData?.pricing?.currency ||
-      webhookData.quote?.totalPrice?.currency ||
+      sellerCurrency ??
+      quoteData?.pricing?.currency ??
+      webhookData.quote?.totalPrice?.currency ??
       'USD',
     status,
     schedule: quoteData?.schedule || webhookData.quote?.schedule || {},
