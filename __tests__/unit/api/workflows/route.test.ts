@@ -13,15 +13,23 @@ vi.mock('@clerk/nextjs/server', () => ({
   auth: vi.fn(),
 }));
 
-// Mock Supabase
+// Hoist mock variables so they're available in vi.mock factories
+const { mockSupabaseAdmin, mockSupabaseClient } = vi.hoisted(() => ({
+  mockSupabaseAdmin: { from: vi.fn() },
+  mockSupabaseClient: { from: vi.fn() },
+}));
+
+// Mock Supabase admin client (used for user lookup)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: mockSupabaseAdmin,
+}));
+
+// Mock Supabase client (used for workflow queries)
 vi.mock('@/lib/supabase/client', () => ({
-  supabase: {
-    from: vi.fn(),
-  },
+  supabase: mockSupabaseClient,
 }));
 
 import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
 
 // Helper to create workflow_states mock chain
 function createWorkflowStatesMock(data: unknown[], error: unknown = null) {
@@ -105,15 +113,14 @@ describe('GET /api/workflows', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
-      }
-      if (table === 'workflow_states') {
-        return createWorkflowStatesMock(mockWorkflows);
-      }
-    });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue(
+      createIsoAgentsMock({ id: 'user-123', role: 'user' })
+    );
+    // Client for workflow queries
+    mockSupabaseClient.from.mockReturnValue(
+      createWorkflowStatesMock(mockWorkflows)
+    );
 
     const request = new NextRequest('http://localhost:3000/api/workflows');
     const response = await GET(request);
@@ -145,15 +152,14 @@ describe('GET /api/workflows', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
-      }
-      if (table === 'workflow_states') {
-        return createWorkflowStatesMock(mockWorkflows);
-      }
-    });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue(
+      createIsoAgentsMock({ id: 'user-123', role: 'user' })
+    );
+    // Client for workflow queries
+    mockSupabaseClient.from.mockReturnValue(
+      createWorkflowStatesMock(mockWorkflows)
+    );
 
     const request = new NextRequest('http://localhost:3000/api/workflows?request_id=req-specific');
     const response = await GET(request);
@@ -188,15 +194,14 @@ describe('GET /api/workflows', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
-      }
-      if (table === 'workflow_states') {
-        return createWorkflowStatesMock(mockWorkflows);
-      }
-    });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue(
+      createIsoAgentsMock({ id: 'user-123', role: 'user' })
+    );
+    // Client for workflow queries
+    mockSupabaseClient.from.mockReturnValue(
+      createWorkflowStatesMock(mockWorkflows)
+    );
 
     const request = new NextRequest('http://localhost:3000/api/workflows?state=awaiting_quotes');
     const response = await GET(request);
@@ -224,15 +229,14 @@ describe('GET /api/workflows', () => {
       { id: 'workflow-3', request_id: 'req-3', current_state: 'failed' },
     ];
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
-      }
-      if (table === 'workflow_states') {
-        return createWorkflowStatesMock(mockWorkflows);
-      }
-    });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue(
+      createIsoAgentsMock({ id: 'user-123', role: 'user' })
+    );
+    // Client for workflow queries
+    mockSupabaseClient.from.mockReturnValue(
+      createWorkflowStatesMock(mockWorkflows)
+    );
 
     const request = new NextRequest('http://localhost:3000/api/workflows?limit=3');
     const response = await GET(request);
@@ -252,15 +256,14 @@ describe('GET /api/workflows', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
-      }
-      if (table === 'workflow_states') {
-        return createWorkflowStatesMock([]);
-      }
-    });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue(
+      createIsoAgentsMock({ id: 'user-123', role: 'user' })
+    );
+    // Client for workflow queries
+    mockSupabaseClient.from.mockReturnValue(
+      createWorkflowStatesMock([])
+    );
 
     const request = new NextRequest('http://localhost:3000/api/workflows');
     const response = await GET(request);
@@ -295,15 +298,14 @@ describe('GET /api/workflows', () => {
       },
     ];
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
-      }
-      if (table === 'workflow_states') {
-        return createWorkflowStatesMock(mockWorkflows);
-      }
-    });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue(
+      createIsoAgentsMock({ id: 'user-123', role: 'user' })
+    );
+    // Client for workflow queries
+    mockSupabaseClient.from.mockReturnValue(
+      createWorkflowStatesMock(mockWorkflows)
+    );
 
     const request = new NextRequest('http://localhost:3000/api/workflows');
     const response = await GET(request);
@@ -325,15 +327,14 @@ describe('GET /api/workflows', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      if (table === 'iso_agents') {
-        return createIsoAgentsMock({ id: 'user-123', role: 'user' });
-      }
-      if (table === 'workflow_states') {
-        return createWorkflowStatesMock(null as any, { message: 'Database connection failed' });
-      }
-    });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue(
+      createIsoAgentsMock({ id: 'user-123', role: 'user' })
+    );
+    // Client for workflow queries - returns error
+    mockSupabaseClient.from.mockReturnValue(
+      createWorkflowStatesMock(null as any, { message: 'Database connection failed' })
+    );
 
     const request = new NextRequest('http://localhost:3000/api/workflows');
     const response = await GET(request);

@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 vi.mock('@/lib/mcp/clients/avinode-client', () => {
   return {
     AvinodeClient: vi.fn().mockImplementation(() => ({
-      searchFlights: vi.fn().mockImplementation((params: any) => {
+      searchFlights: vi.fn().mockImplementation((params: { aircraft_category?: string; passengers?: number }) => {
         // Base aircraft list
         let aircraft = [
           {
@@ -44,7 +44,8 @@ vi.mock('@/lib/mcp/clients/avinode-client', () => {
 
         // Filter by passenger capacity
         if (params.passengers) {
-          aircraft = aircraft.filter((a) => a.capacity >= params.passengers);
+          const minPassengers = params.passengers;
+          aircraft = aircraft.filter((a) => a.capacity >= minPassengers);
         }
 
         return Promise.resolve({ aircraft });
@@ -210,6 +211,8 @@ describe('AvinodeMCPServer', () => {
   beforeEach(() => {
     // Set valid API key format for testing (avoids isValidApiKey rejection)
     // Keys starting with 'mock_' or 'test_' are explicitly rejected
+    // Set valid API key format for testing (avoids isValidApiKey rejection)
+    // Keys starting with 'mock_' or 'test_' are explicitly rejected
     process.env.AVINODE_API_KEY = 'valid_api_key_12345678';
     server = new AvinodeMCPServer();
   });
@@ -222,7 +225,7 @@ describe('AvinodeMCPServer', () => {
   });
 
   describe('Tool Registration', () => {
-    it('should register all 7 Avinode tools', () => {
+    it('should register all Avinode tools', () => {
       const tools = server.getTools();
       expect(tools).toContain('search_flights');
       expect(tools).toContain('create_rfp');
@@ -231,11 +234,13 @@ describe('AvinodeMCPServer', () => {
       expect(tools).toContain('create_trip');
       expect(tools).toContain('get_rfq');
       expect(tools).toContain('list_trips');
+      expect(tools).toContain('cancel_trip');
+      expect(tools).toContain('get_rfq_raw');
     });
 
-    it('should have exactly 7 tools registered', () => {
+    it('should have exactly 9 tools registered', () => {
       const tools = server.getTools();
-      expect(tools).toHaveLength(7);
+      expect(tools).toHaveLength(9);
     });
   });
 
@@ -275,7 +280,7 @@ describe('AvinodeMCPServer', () => {
       });
 
       // All returned aircraft should be midsize
-      result.aircraft.forEach((aircraft: any) => {
+      result.aircraft.forEach((aircraft: Record<string, unknown>) => {
         expect(aircraft.category).toBe('midsize');
       });
     });
@@ -331,7 +336,7 @@ describe('AvinodeMCPServer', () => {
       });
 
       // All returned aircraft should have capacity >= 12
-      result.aircraft.forEach((aircraft: any) => {
+      result.aircraft.forEach((aircraft: Record<string, unknown>) => {
         expect(aircraft.capacity).toBeGreaterThanOrEqual(12);
       });
     });
@@ -594,7 +599,7 @@ describe('AvinodeMCPServer', () => {
     it('should not expose API keys in errors', async () => {
       try {
         await server.executeTool('search_flights', {});
-      } catch (error: any) {
+      } catch (error: unknown) {
         const errorString = JSON.stringify(error);
         expect(errorString).not.toContain(process.env.AVINODE_API_KEY!);
       }

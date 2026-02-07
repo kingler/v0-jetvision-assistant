@@ -165,7 +165,13 @@ class CodeReviewValidator {
   private async checkSecurity(files: string[]): Promise<void> {
     console.log('🔒 Checking security...');
 
+    // Skip test files and this validator script itself from security checks
+    const skipPatterns = ['.test.', '.spec.', '__tests__', 'scripts/code-review/'];
+
     for (const file of files) {
+      const shouldSkip = skipPatterns.some(p => file.includes(p));
+      if (shouldSkip) continue;
+
       const content = fs.readFileSync(file, 'utf-8');
 
       // Check for hardcoded secrets

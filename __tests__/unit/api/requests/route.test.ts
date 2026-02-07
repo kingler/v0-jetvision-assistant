@@ -14,11 +14,33 @@ vi.mock('@clerk/nextjs/server', () => ({
   auth: vi.fn(),
 }));
 
-// Mock Supabase
-vi.mock('@/lib/supabase/client', () => ({
-  supabase: {
-    from: vi.fn(),
-  },
+// Hoist mock variables so they're available in vi.mock factories
+const { mockSupabaseClient, mockSupabaseAdmin } = vi.hoisted(() => ({
+  mockSupabaseClient: { from: vi.fn() },
+  mockSupabaseAdmin: { from: vi.fn() },
+}));
+
+// Mock Supabase server client (used by route for queries)
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(async () => mockSupabaseClient),
+}));
+
+// Mock Supabase admin client (used by route for user lookup)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: mockSupabaseAdmin,
+}));
+
+// Mock message loading
+vi.mock('@/lib/conversation/message-persistence', () => ({
+  loadMessages: vi.fn().mockResolvedValue([]),
+}));
+
+// Mock MCP server
+vi.mock('@/lib/mcp/avinode-server', () => ({
+  AvinodeMCPServer: vi.fn().mockImplementation(() => ({
+    callTool: vi.fn(),
+    isUsingMockMode: vi.fn().mockReturnValue(true),
+  })),
 }));
 
 // Mock AgentFactory
@@ -36,7 +58,6 @@ vi.mock('@agents/core', () => ({
 }));
 
 import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
 
 describe('GET /api/requests', () => {
   beforeEach(() => {
@@ -56,18 +77,12 @@ describe('GET /api/requests', () => {
   });
 
   it('should return 404 if User not found', async () => {
-    // Mock authenticated user
     vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null
+      userId: 'user-123', sessionId: 'session-123', sessionClaims: null, actor: null, has: () => true, debug: () => null
     });
 
-    // Mock Supabase query returning no User
-    const mockFrom = vi.fn().mockReturnValue({
+    // Mock admin client for user lookup - returns not found
+    mockSupabaseAdmin.from.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({
@@ -77,7 +92,6 @@ describe('GET /api/requests', () => {
         }),
       }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/requests');
     const response = await GET(request);
@@ -88,72 +102,35 @@ describe('GET /api/requests', () => {
   });
 
   it('should return all requests for authenticated user', async () => {
-    // Mock authenticated user
     vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null
+      userId: 'user-123', sessionId: 'session-123', sessionClaims: null, actor: null, has: () => true, debug: () => null
     });
 
-    const mockUser = { id: 'iso-agent-123', clerk_user_id: 'user-123' };
+    const mockUser = { id: 'iso-agent-123', role: 'iso_agent' };
     const mockRequests = [
-      {
-        id: 'req-1',
-        user_id: 'iso-agent-123',
-        client_profile_id: 'client-1',
-        departure_airport: 'KJFK',
-        arrival_airport: 'KLAX',
-        departure_date: '2025-11-01',
-        passengers: 4,
-        status: 'pending',
-      },
-      {
-        id: 'req-2',
-        user_id: 'iso-agent-123',
-        client_profile_id: 'client-2',
-        departure_airport: 'KORD',
-        arrival_airport: 'KSFO',
-        departure_date: '2025-11-05',
-        passengers: 2,
-        status: 'completed',
-      },
+      { id: 'req-1', user_id: 'iso-agent-123', client_profile_id: 'client-1', departure_airport: 'KJFK', arrival_airport: 'KLAX', departure_date: '2025-11-01', passengers: 4, status: 'pending' },
+      { id: 'req-2', user_id: 'iso-agent-123', client_profile_id: 'client-2', departure_airport: 'KORD', arrival_airport: 'KSFO', departure_date: '2025-11-05', passengers: 2, status: 'completed' },
     ];
 
-    let callCount = 0;
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1 && table === 'iso_agents') {
-        // First call for User lookup
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockUser,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      } else if (table === 'requests') {
-        // Second call for requests
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                range: vi.fn().mockResolvedValue({
-                  data: mockRequests,
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-        };
-      }
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockUser, error: null }),
+        }),
+      }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+
+    // Server client for requests query (chained: select.eq.order.range)
+    mockSupabaseClient.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            range: vi.fn().mockResolvedValue({ data: mockRequests, error: null }),
+          }),
+        }),
+      }),
+    });
 
     const request = new NextRequest('http://localhost:3000/api/requests');
     const response = await GET(request);
@@ -166,56 +143,33 @@ describe('GET /api/requests', () => {
   });
 
   it('should filter requests by status', async () => {
-    // Mock authenticated user
     vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null
+      userId: 'user-123', sessionId: 'session-123', sessionClaims: null, actor: null, has: () => true, debug: () => null
     });
 
-    const mockUser = { id: 'iso-agent-123' };
-    const mockRequests = [
-      {
-        id: 'req-1',
-        status: 'completed',
-      },
-    ];
+    const mockUser = { id: 'iso-agent-123', role: 'iso_agent' };
+    const mockRequests = [{ id: 'req-1', status: 'completed' }];
 
-    let callCount = 0;
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockUser,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      } else {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                range: vi.fn().mockReturnValue({
-                  eq: vi.fn().mockResolvedValue({
-                    data: mockRequests,
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
-          }),
-        };
-      }
+    mockSupabaseAdmin.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockUser, error: null }),
+        }),
+      }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+
+    // With status filter: select.eq.order.range returns a thenable with .eq
+    mockSupabaseClient.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            range: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: mockRequests, error: null }),
+            }),
+          }),
+        }),
+      }),
+    });
 
     const request = new NextRequest('http://localhost:3000/api/requests?status=completed');
     const response = await GET(request);
@@ -227,54 +181,30 @@ describe('GET /api/requests', () => {
   });
 
   it('should filter requests by client_id', async () => {
-    // Mock authenticated user
     vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null
+      userId: 'user-123', sessionId: 'session-123', sessionClaims: null, actor: null, has: () => true, debug: () => null
     });
 
-    const mockUser = { id: 'iso-agent-123' };
-    const mockRequests = [
-      {
-        id: 'req-1',
-        client_profile_id: 'client-1',
-      },
-    ];
+    const mockUser = { id: 'iso-agent-123', role: 'iso_agent' };
+    const mockRequests = [{ id: 'req-1', client_profile_id: 'client-1' }];
 
-    let callCount = 0;
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockUser,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      } else {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                range: vi.fn().mockResolvedValue({
-                  data: mockRequests,
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-        };
-      }
+    mockSupabaseAdmin.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockUser, error: null }),
+        }),
+      }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+
+    mockSupabaseClient.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            range: vi.fn().mockResolvedValue({ data: mockRequests, error: null }),
+          }),
+        }),
+      }),
+    });
 
     const request = new NextRequest('http://localhost:3000/api/requests?client_id=client-1');
     const response = await GET(request);
@@ -286,54 +216,30 @@ describe('GET /api/requests', () => {
   });
 
   it('should return a specific request by request_id', async () => {
-    // Mock authenticated user
     vi.mocked(auth).mockResolvedValue({
-      userId: 'user-123',
-      sessionId: 'session-123',
-      sessionClaims: null,
-      actor: null,
-      has: () => true,
-      debug: () => null
+      userId: 'user-123', sessionId: 'session-123', sessionClaims: null, actor: null, has: () => true, debug: () => null
     });
 
-    const mockUser = { id: 'iso-agent-123' };
-    const mockRequest = {
-      id: 'req-specific',
-      user_id: 'iso-agent-123',
-      departure_airport: 'KJFK',
-      status: 'pending',
-    };
+    const mockUser = { id: 'iso-agent-123', role: 'iso_agent' };
+    const mockRequest = { id: 'req-specific', user_id: 'iso-agent-123', departure_airport: 'KJFK', status: 'pending' };
 
-    let callCount = 0;
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockUser,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      } else {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                range: vi.fn().mockResolvedValue({
-                  data: [mockRequest],
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-        };
-      }
+    mockSupabaseAdmin.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockUser, error: null }),
+        }),
+      }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+
+    mockSupabaseClient.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            range: vi.fn().mockResolvedValue({ data: [mockRequest], error: null }),
+          }),
+        }),
+      }),
+    });
 
     const request = new NextRequest('http://localhost:3000/api/requests?request_id=req-specific');
     const response = await GET(request);
@@ -381,7 +287,8 @@ describe('POST /api/requests', () => {
       debug: () => null
     });
 
-    const mockFrom = vi.fn().mockReturnValue({
+    // Admin client for user lookup - returns not found
+    mockSupabaseAdmin.from.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({
@@ -391,7 +298,6 @@ describe('POST /api/requests', () => {
         }),
       }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/requests', {
       method: 'POST',
@@ -421,10 +327,10 @@ describe('POST /api/requests', () => {
       debug: () => null
     });
 
-    const mockUser = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123', role: 'iso_agent' };
     const mockNewRequest = {
       id: 'new-req-123',
-      user_id: 'iso-agent-123',
+      iso_agent_id: 'iso-agent-123',
       client_profile_id: 'client-1',
       departure_airport: 'KJFK',
       arrival_airport: 'KLAX',
@@ -434,36 +340,23 @@ describe('POST /api/requests', () => {
       created_at: new Date().toISOString(),
     };
 
-    let callCount = 0;
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
-        // User lookup
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockUser,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      } else {
-        // Insert request
-        return {
-          insert: vi.fn().mockReturnValue({
-            select: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockNewRequest,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockUser, error: null }),
+        }),
+      }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+
+    // Server client for request insert
+    mockSupabaseClient.from.mockReturnValue({
+      insert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockNewRequest, error: null }),
+        }),
+      }),
+    });
 
     const request = new NextRequest('http://localhost:3000/api/requests', {
       method: 'POST',
@@ -495,10 +388,10 @@ describe('POST /api/requests', () => {
       debug: () => null
     });
 
-    const mockUser = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123', role: 'iso_agent' };
     const mockNewRequest = {
       id: 'new-req-456',
-      user_id: 'iso-agent-123',
+      iso_agent_id: 'iso-agent-123',
       client_profile_id: 'client-1',
       departure_airport: 'KJFK',
       arrival_airport: 'KLAX',
@@ -512,34 +405,23 @@ describe('POST /api/requests', () => {
       created_at: new Date().toISOString(),
     };
 
-    let callCount = 0;
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockUser,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      } else {
-        return {
-          insert: vi.fn().mockReturnValue({
-            select: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockNewRequest,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockUser, error: null }),
+        }),
+      }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+
+    // Server client for request insert
+    mockSupabaseClient.from.mockReturnValue({
+      insert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockNewRequest, error: null }),
+        }),
+      }),
+    });
 
     const request = new NextRequest('http://localhost:3000/api/requests', {
       method: 'POST',
@@ -575,36 +457,28 @@ describe('POST /api/requests', () => {
       debug: () => null
     });
 
-    const mockUser = { id: 'iso-agent-123' };
+    const mockUser = { id: 'iso-agent-123', role: 'iso_agent' };
 
-    let callCount = 0;
-    const mockFrom = vi.fn().mockImplementation((table: string) => {
-      callCount++;
-      if (callCount === 1) {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: mockUser,
-                error: null,
-              }),
-            }),
-          }),
-        };
-      } else {
-        return {
-          insert: vi.fn().mockReturnValue({
-            select: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'Database error', code: 'PGRST500' },
-              }),
-            }),
-          }),
-        };
-      }
+    // Admin client for user lookup
+    mockSupabaseAdmin.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: mockUser, error: null }),
+        }),
+      }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+
+    // Server client for request insert - returns error
+    mockSupabaseClient.from.mockReturnValue({
+      insert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: { message: 'Database error', code: 'PGRST500' },
+          }),
+        }),
+      }),
+    });
 
     const request = new NextRequest('http://localhost:3000/api/requests', {
       method: 'POST',

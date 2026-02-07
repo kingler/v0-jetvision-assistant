@@ -20,27 +20,27 @@ vi.mock('@clerk/nextjs/server', () => ({
   auth: vi.fn(),
 }));
 
-// Mock Supabase client
-const mockSupabaseFrom = vi.fn();
-const mockSupabaseSelect = vi.fn();
-const mockSupabaseEq = vi.fn();
-const mockSupabaseSingle = vi.fn();
+// Hoist mock variables so they're available in vi.mock factory
+const { mockSupabaseSelect, mockSupabaseEq, mockSupabaseSingle, mockSupabaseAdmin } = vi.hoisted(() => ({
+  mockSupabaseSelect: vi.fn(),
+  mockSupabaseEq: vi.fn(),
+  mockSupabaseSingle: vi.fn(),
+  mockSupabaseAdmin: { from: vi.fn() },
+}));
 
-vi.mock('@/lib/supabase/client', () => ({
-  supabase: {
-    from: vi.fn(() => mockSupabaseFrom()),
-  },
+// Mock Supabase admin client (used by getAuthenticatedAgent/getAuthenticatedUser)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: mockSupabaseAdmin,
 }));
 
 import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
 
 describe('lib/utils/api - Authentication Helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
     // Setup default Supabase query chain mock
-    mockSupabaseFrom.mockReturnValue({
+    mockSupabaseAdmin.from.mockReturnValue({
       select: mockSupabaseSelect,
     });
     mockSupabaseSelect.mockReturnValue({
@@ -81,7 +81,7 @@ describe('lib/utils/api - Authentication Helpers', () => {
 
       expect(isErrorResponse(result)).toBe(false);
       expect(result).toEqual(mockISOAgent);
-      expect(mockSupabaseFrom).toHaveBeenCalledWith('iso_agents');
+      expect(mockSupabaseAdmin.from).toHaveBeenCalledWith('iso_agents');
       expect(mockSupabaseSelect).toHaveBeenCalledWith('id');
       expect(mockSupabaseEq).toHaveBeenCalledWith('clerk_user_id', mockClerkUserId);
     });
@@ -163,7 +163,7 @@ describe('lib/utils/api - Authentication Helpers', () => {
       await getAuthenticatedAgent();
 
       // Verify correct table and column usage
-      expect(mockSupabaseFrom).toHaveBeenCalledWith('iso_agents');
+      expect(mockSupabaseAdmin.from).toHaveBeenCalledWith('iso_agents');
       expect(mockSupabaseSelect).toHaveBeenCalledWith('id');
       expect(mockSupabaseEq).toHaveBeenCalledWith('clerk_user_id', mockClerkUserId);
     });
@@ -208,7 +208,7 @@ describe('lib/utils/api - Authentication Helpers', () => {
           clerkUserId: mockClerkUserId,
         });
       }
-      expect(mockSupabaseFrom).toHaveBeenCalledWith('iso_agents');
+      expect(mockSupabaseAdmin.from).toHaveBeenCalledWith('iso_agents');
       expect(mockSupabaseSelect).toHaveBeenCalledWith('id, role');
       expect(mockSupabaseEq).toHaveBeenCalledWith('clerk_user_id', mockClerkUserId);
     });
@@ -314,7 +314,7 @@ describe('lib/utils/api - Authentication Helpers', () => {
       await getAuthenticatedUser();
 
       // Verify correct table and column usage
-      expect(mockSupabaseFrom).toHaveBeenCalledWith('iso_agents');
+      expect(mockSupabaseAdmin.from).toHaveBeenCalledWith('iso_agents');
       expect(mockSupabaseSelect).toHaveBeenCalledWith('id, role');
       expect(mockSupabaseEq).toHaveBeenCalledWith('clerk_user_id', mockClerkUserId);
     });

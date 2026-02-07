@@ -8,32 +8,35 @@ import { NextRequest } from 'next/server';
 import { GET, PATCH } from '@/app/api/users/me/route';
 import { mockUser } from '../../../../utils/mock-factories';
 
-// Mock Supabase client with default resolved values
-const mockSupabaseClient = {
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: null,
-          error: null,
-        }),
-      })),
-    })),
-    update: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
+// Hoist mock variable so it's available in vi.mock factory
+const { mockSupabaseAdmin } = vi.hoisted(() => ({
+  mockSupabaseAdmin: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
           single: vi.fn().mockResolvedValue({
             data: null,
             error: null,
           }),
         })),
       })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: null,
+            }),
+          })),
+        })),
+      })),
     })),
-  })),
-};
+  },
+}));
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => mockSupabaseClient),
+// Mock Supabase admin client (used by both withRBAC/getUserRole and handler)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: mockSupabaseAdmin,
 }));
 
 // Mock Clerk auth
@@ -69,7 +72,7 @@ describe('/api/users/me', () => {
       const mockEqFn2 = vi.fn().mockReturnValueOnce({ single: mockSingleFn2 });
       const mockSelectFn2 = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
 
-      mockSupabaseClient.from = vi.fn()
+      mockSupabaseAdmin.from = vi.fn()
         .mockReturnValueOnce({ select: mockSelectFn1 }) // getUserRole
         .mockReturnValueOnce({ select: mockSelectFn2 }); // actual query
 
@@ -103,7 +106,7 @@ describe('/api/users/me', () => {
       const mockEqFn2 = vi.fn().mockReturnValueOnce({ single: mockSingleFn2 });
       const mockSelectFn2 = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
 
-      mockSupabaseClient.from = vi.fn()
+      mockSupabaseAdmin.from = vi.fn()
         .mockReturnValueOnce({ select: mockSelectFn1 })
         .mockReturnValueOnce({ select: mockSelectFn2 });
 
@@ -140,7 +143,7 @@ describe('/api/users/me', () => {
       const mockEqFn2 = vi.fn().mockReturnValueOnce({ select: mockSelectFn2 });
       const mockUpdateFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
 
-      mockSupabaseClient.from = vi.fn()
+      mockSupabaseAdmin.from = vi.fn()
         .mockReturnValueOnce({ select: mockSelectFn1 }) // getUserRole
         .mockReturnValueOnce({ update: mockUpdateFn }); // actual update
 
@@ -169,7 +172,7 @@ describe('/api/users/me', () => {
       });
       const mockEqFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
       const mockSelectFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
-      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
+      mockSupabaseAdmin.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       const request = new NextRequest('http://localhost:3000/api/users/me', {
         method: 'PATCH',
@@ -209,7 +212,7 @@ describe('/api/users/me', () => {
       const mockEqFn2 = vi.fn().mockReturnValueOnce({ select: mockSelectFn2 });
       const mockUpdateFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
 
-      mockSupabaseClient.from = vi.fn()
+      mockSupabaseAdmin.from = vi.fn()
         .mockReturnValueOnce({ select: mockSelectFn1 }) // getUserRole
         .mockReturnValueOnce({ update: mockUpdateFn }); // actual update
 
