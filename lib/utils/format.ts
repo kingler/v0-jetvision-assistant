@@ -173,6 +173,57 @@ export function formatDate(isoString: string): string {
 }
 
 /**
+ * Format a message timestamp for chat display.
+ *
+ * Shows time only for today's messages, and date + time for older messages.
+ * This matches the standard UX pattern used by Slack, iMessage, WhatsApp.
+ *
+ * @param date - The Date object to format
+ * @returns Formatted timestamp string
+ *
+ * @example
+ * // Today's message
+ * formatMessageTimestamp(new Date()) // '2:30 PM'
+ *
+ * // Older message
+ * formatMessageTimestamp(new Date('2025-01-15T14:30:00')) // 'Jan 15, 2025 at 2:30 PM'
+ *
+ * // Invalid date (epoch fallback)
+ * formatMessageTimestamp(new Date(0)) // 'Jan 1, 1970 at 7:00 PM' (or local equivalent)
+ */
+export function formatMessageTimestamp(date: Date): string {
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    return '';
+  }
+
+  const now = new Date();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isToday) {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  // For non-today dates, show "Jan 15, 2025 at 2:30 PM"
+  const datePart = date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timePart = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+  return `${datePart} at ${timePart}`;
+}
+
+/**
  * Format a number with thousand separators
  *
  * @param num - Number to format

@@ -22,6 +22,7 @@ import {
 } from "../message-components/operator-chat-inline"
 import type { PipelineData } from "@/lib/types/chat-agent"
 import { EmailPreviewCard, type EmailPreviewCardProps } from "@/components/email"
+import { formatMessageTimestamp } from "@/lib/utils/format"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -620,7 +621,7 @@ export function AgentMessage({
 
       {/* Timestamp */}
       <span className="text-xs text-gray-500 dark:text-gray-400">
-        {timestamp.toLocaleTimeString()}
+        {formatMessageTimestamp(timestamp)}
       </span>
     </div>
   )
