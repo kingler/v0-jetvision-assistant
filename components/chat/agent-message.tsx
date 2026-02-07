@@ -619,9 +619,21 @@ export function AgentMessage({
           )
         })()}
 
-      {/* Timestamp */}
+      {/* Timestamp - show time-only for today, date+time for older messages */}
       <span className="text-xs text-gray-500 dark:text-gray-400">
-        {formatMessageTimestamp(timestamp)}
+        {(() => {
+          if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) return ''
+          const now = new Date()
+          const isToday = timestamp.getFullYear() === now.getFullYear() &&
+            timestamp.getMonth() === now.getMonth() &&
+            timestamp.getDate() === now.getDate()
+          if (isToday) {
+            return timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+          }
+          const datePart = timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          const timePart = timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+          return `${datePart} at ${timePart}`
+        })()}
       </span>
     </div>
   )

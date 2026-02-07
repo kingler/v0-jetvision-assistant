@@ -2242,33 +2242,10 @@ export function ChatInterface({
                 return activeChat.currentStep || 1
               })()
 
-              // CRITICAL FIX: Separate proposal confirmation messages from regular messages
-              // Proposal confirmations should appear AFTER FlightSearchProgress (Step 3) because
-              // the "Generate Proposal" button is located within the RFQ flight card in Step 3
-              const { regularMessages, proposalConfirmations } = deduplicatedMessages.reduce(
-                (acc, item) => {
-                  const { message } = item
-                  // Check if this is a proposal confirmation message
-                  const isProposalConfirmation =
-                    (message.showProposalSentConfirmation && message.proposalSentData) ||
-                    (message.content && (
-                      (message.content.toLowerCase().includes('proposal') &&
-                       message.content.toLowerCase().includes('sent')) ||
-                      message.content.toLowerCase().includes('was sent to')
-                    ))
-
-                  if (isProposalConfirmation) {
-                    acc.proposalConfirmations.push(item)
-                  } else {
-                    acc.regularMessages.push(item)
-                  }
-                  return acc
-                },
-                {
-                  regularMessages: [] as Array<{ message: UnifiedMessage; index: number }>,
-                  proposalConfirmations: [] as Array<{ message: UnifiedMessage; index: number }>,
-                }
-              )
+              // All messages (including proposal confirmations) stay in chronological order.
+              // Proposals naturally appear after the trip creation message since they're
+              // generated after the trip exists, so they'll be in messagesAfterProgress.
+              const regularMessages = deduplicatedMessages
 
               // Find the trip creation agent message to render between Steps 1-2 and Steps 3-4
               // Detection strategy (in priority order):
@@ -2529,6 +2506,8 @@ export function ChatInterface({
                             : { icao: 'TBD' },
                           departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
                           passengers: activeChat.passengers || 1,
+                          tripType: activeChat.tripType,
+                          returnDate: activeChat.returnDate,
                           requestId: activeChat.requestId,
                         }}
                         deepLink={activeChat.deepLink}
@@ -2573,6 +2552,8 @@ export function ChatInterface({
                             : { icao: 'TBD' },
                           departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
                           passengers: activeChat.passengers || 1,
+                          tripType: activeChat.tripType,
+                          returnDate: activeChat.returnDate,
                           requestId: activeChat.requestId,
                         }}
                         deepLink={activeChat.deepLink}
@@ -2639,35 +2620,8 @@ export function ChatInterface({
                   {/* Messages AFTER FlightSearchProgress (all subsequent conversation) */}
                   {messagesAfterProgress.map(renderMessage)}
 
-                  {/* Proposal confirmations AFTER FlightSearchProgress */}
-                  {/* This ensures they appear after Step 3 where the "Generate Proposal" button is located */}
-                  {proposalConfirmations.map(({ message, index }) => (
-                    <AgentMessage
-                      key={message.id || `proposal-${index}`}
-                      content={message.content}
-                      timestamp={message.timestamp}
-                      showProposalSentConfirmation={true}
-                      proposalSentData={message.proposalSentData}
-                      // Disable other features for proposal confirmations
-                      showDeepLink={false}
-                      showTripIdInput={false}
-                      showWorkflow={false}
-                      showQuotes={false}
-                      showProposal={false}
-                      showCustomerPreferences={false}
-                      showPipeline={false}
-                      rfqFlights={[]}
-                      selectedRfqFlightIds={[]}
-                      onTripIdSubmit={handleTripIdSubmit}
-                      isTripIdLoading={false}
-                      tripIdSubmitted={false}
-                      onRfqFlightSelectionChange={setSelectedRfqFlightIds}
-                      onReviewAndBook={handleReviewAndBook}
-                      onBookFlight={handleBookFlight}
-                      onViewChat={handleViewChat}
-                      onGenerateProposal={handleGenerateProposal}
-                    />
-                  ))}
+                  {/* Proposal confirmations are now rendered inline via renderMessage */}
+                  {/* in their chronological position within messagesAfterProgress */}
                 </>
               )
             })()}
