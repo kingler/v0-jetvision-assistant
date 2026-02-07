@@ -1697,7 +1697,7 @@ export function ChatInterface({
           body: JSON.stringify({
             requestId: requestIdForSave,
             content: marginSelectionMessage.content,
-            contentType: 'margin_selection',
+            contentType: 'text',
             richContent: { marginSelection: marginSelectionData },
           }),
         }).catch((err) => console.warn('[ChatInterface] Failed to persist margin selection:', err))
@@ -1712,6 +1712,20 @@ export function ChatInterface({
         timestamp: new Date(),
         showEmailApprovalRequest: true,
         emailApprovalData: approvalData,
+      }
+
+      // Persist email preview to DB (fire-and-forget) so it survives chat switch
+      if (requestIdForSave) {
+        fetch('/api/chat-sessions/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId: requestIdForSave,
+            content: emailPreviewMessage.content,
+            contentType: 'email_approval_request',
+            richContent: { emailApproval: approvalData },
+          }),
+        }).catch((err) => console.warn('[ChatInterface] Failed to persist email preview:', err))
       }
 
       // Set approval state

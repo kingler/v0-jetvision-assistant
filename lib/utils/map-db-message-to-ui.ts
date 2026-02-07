@@ -119,9 +119,8 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     }
   }
 
-  // Handle margin_selection contentType
+  // Handle margin_selection: detect by richContent.marginSelection (contentType may be 'text' if DB enum not updated)
   if (
-    msg.contentType === 'margin_selection' &&
     msg.richContent &&
     typeof msg.richContent === 'object' &&
     'marginSelection' in msg.richContent
@@ -142,9 +141,8 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     }
   }
 
-  // Handle email_approval_request contentType
+  // Handle email_approval_request: detect by richContent.emailApproval (robust against contentType variations)
   if (
-    msg.contentType === 'email_approval_request' &&
     msg.richContent &&
     typeof msg.richContent === 'object' &&
     RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent
