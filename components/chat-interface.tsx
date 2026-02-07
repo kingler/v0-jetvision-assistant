@@ -72,6 +72,8 @@ import {
 // Flight request parser utility
 import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
 import { formatDate } from "@/lib/utils/format"
+import { generateEmailDraft } from "@/lib/utils/email-draft-generator"
+import type { EmailApprovalRequestContent } from "@/lib/types/chat"
 
 /**
  * Convert markdown-formatted text to plain text
@@ -160,6 +162,14 @@ export function ChatInterface({
   const [pendingProposalFlightId, setPendingProposalFlightId] = useState<string | null>(null)
   const [pendingProposalQuoteId, setPendingProposalQuoteId] = useState<string | undefined>(undefined)
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false)
+  // Margin percentage selected in customer dialog
+  const [selectedMarginPercentage, setSelectedMarginPercentage] = useState(30)
+
+  // Email approval workflow state (ONEK-178)
+  const [emailApprovalMessageId, setEmailApprovalMessageId] = useState<string | null>(null)
+  const [emailApprovalData, setEmailApprovalData] = useState<EmailApprovalRequestContent | null>(null)
+  const [emailApprovalStatus, setEmailApprovalStatus] = useState<'draft' | 'sending' | 'sent' | 'error'>('draft')
+  const [emailApprovalError, setEmailApprovalError] = useState<string | undefined>()
 
   // Book flight modal state for contract generation
   const [isBookFlightModalOpen, setIsBookFlightModalOpen] = useState(false)
@@ -1345,14 +1355,17 @@ export function ChatInterface({
 
   /**
    * Handle customer selection from dialog
-   * 
+   *
    * Called when a customer is selected in the CustomerSelectionDialog.
-   * Fetches the selected flight data, constructs trip details, and calls
-   * the proposal generation API with 30% profit margin.
-   * 
+   * Generates a draft proposal, uploads PDF, and shows email preview
+   * for user approval before sending (ONEK-178).
+   *
    * @param customer - Selected customer profile from client_profiles table
+   * @param marginPercentage - Profit margin percentage (default 30)
    */
-  const handleCustomerSelected = async (customer: ClientProfile) => {
+  const handleCustomerSelected = async (customer: ClientProfile, marginPercentage?: number) => {
+    const margin = marginPercentage ?? 30
+    setSelectedMarginPercentage(margin)
     if (!pendingProposalFlightId) {
       console.error('[ChatInterface] No pending flight ID for proposal generation')
       return
@@ -1364,16 +1377,47 @@ export function ChatInterface({
     try {
       // Find the selected flight from rfqFlights
       const selectedFlight = rfqFlights.find((f) => f.id === pendingProposalFlightId)
-      
+
       if (!selectedFlight) {
         throw new Error('Selected flight not found')
       }
 
+      // Detect round trip: check if rfqFlights contain both outbound and return legs
+      const hasReturnFlights = rfqFlights.some((f) => f.legType === 'return')
+      const hasOutboundFlights = rfqFlights.some((f) => f.legType === 'outbound')
+      const isRoundTrip = hasOutboundFlights && hasReturnFlights
+
+      // For round trips, find the matching return flight (same operator/base quote)
+      // Flight IDs follow pattern: flight-aquote-NNNNN-seg1 (outbound) / flight-aquote-NNNNN-seg2 (return)
+      let returnFlight: typeof selectedFlight | undefined
+      if (isRoundTrip && selectedFlight.legType === 'outbound') {
+        const baseId = selectedFlight.id.replace(/-seg\d+$/, '')
+        returnFlight = rfqFlights.find(
+          (f) => f.legType === 'return' && f.id.startsWith(baseId)
+        )
+      } else if (isRoundTrip && selectedFlight.legType === 'return') {
+        // User clicked a return flight; find matching outbound
+        const baseId = selectedFlight.id.replace(/-seg\d+$/, '')
+        returnFlight = selectedFlight
+        const outboundMatch = rfqFlights.find(
+          (f) => f.legType === 'outbound' && f.id.startsWith(baseId)
+        )
+        // Swap: outbound becomes the "selected" and return stays as returnFlight
+        if (outboundMatch) {
+          // selectedFlight stays as-is for the return, outboundMatch is the primary
+          // We'll include both in selectedFlights below
+        }
+      }
+
+      // Use flight-level airport data when available (more accurate than chat route)
+      const depAirport = selectedFlight.departureAirport
+      const arrAirport = selectedFlight.arrivalAirport
+
       // Parse route to get departure and arrival airports
       // extractRouteParts returns a tuple [departure, arrival]
       const routeParts = extractRouteParts(activeChat.route)
-      const departureIcao = routeParts[0] || activeChat.route?.split(' → ')[0]?.trim() || ''
-      const arrivalIcao = routeParts[1] || activeChat.route?.split(' → ')[1]?.trim() || ''
+      const departureIcao = depAirport?.icao || routeParts[0] || activeChat.route?.split(' → ')[0]?.trim() || ''
+      const arrivalIcao = arrAirport?.icao || routeParts[1] || activeChat.route?.split(' → ')[1]?.trim() || ''
 
       if (!departureIcao || !arrivalIcao) {
         throw new Error('Invalid route: missing departure or arrival airport')
@@ -1401,20 +1445,33 @@ export function ChatInterface({
         return new Date().toISOString().split('T')[0]
       }
 
-      const tripDetails = {
+      const tripDetails: Record<string, unknown> = {
+        tripType: isRoundTrip ? 'round_trip' as const : 'one_way' as const,
         departureAirport: {
           icao: departureIcao,
-          name: departureIcao, // RouteParts is just [string, string], no name/city info
-          city: '',
+          name: depAirport?.name || departureIcao,
+          city: depAirport?.city || '',
         },
         arrivalAirport: {
           icao: arrivalIcao,
-          name: arrivalIcao, // RouteParts is just [string, string], no name/city info
-          city: '',
+          name: arrAirport?.name || arrivalIcao,
+          city: arrAirport?.city || '',
         },
-        departureDate: getIsoDate(),
+        departureDate: selectedFlight.departureDate || getIsoDate(),
         passengers: activeChat.passengers || 1,
         tripId: activeChat.tripId,
+      }
+
+      // Add return leg details for round trips
+      if (isRoundTrip && returnFlight) {
+        tripDetails.returnDate = returnFlight.departureDate
+        tripDetails.returnAirport = returnFlight.arrivalAirport
+          ? {
+              icao: returnFlight.arrivalAirport.icao,
+              name: returnFlight.arrivalAirport.name || returnFlight.arrivalAirport.icao,
+              city: returnFlight.arrivalAirport.city || '',
+            }
+          : undefined
       }
 
       // Prepare customer data from selected client profile
@@ -1434,7 +1491,7 @@ export function ChatInterface({
           operatorName: selectedFlight.operatorName,
           totalPrice: selectedFlight.totalPrice,
         },
-        margin: '30%',
+        margin: `${margin}%`,
       })
 
       // Resolve requestId (UUID) for persistence; server persists confirmation when provided
@@ -1476,122 +1533,136 @@ export function ChatInterface({
         });
       }
 
-      // Call the proposal send API which generates PDF AND sends email to customer
-      const response = await fetch('/api/proposal/send', {
+      // --- ONEK-178: Two-step flow (generate draft → show email preview → approve → send) ---
+
+      // Step 1: Generate proposal PDF (without sending email)
+      const selectedFlightsForProposal = returnFlight
+        ? [selectedFlight, returnFlight]
+        : [selectedFlight]
+
+      const generateResponse = await fetch('/api/proposal/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer: customerData,
           tripDetails,
-          selectedFlights: [selectedFlight],
-          jetvisionFeePercentage: 30, // 30% profit margin as specified
-          ...(requestIdForSave ? { requestId: requestIdForSave } : {}),
+          selectedFlights: selectedFlightsForProposal,
+          jetvisionFeePercentage: margin,
+          saveDraft: true,
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || `Failed to send proposal: ${response.statusText}`)
+      if (!generateResponse.ok) {
+        const errorData = await generateResponse.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `Failed to generate proposal: ${generateResponse.statusText}`)
       }
 
-      const result = await response.json()
+      const generateResult = await generateResponse.json()
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to send proposal')
+      if (!generateResult.success) {
+        throw new Error(generateResult.error || 'Failed to generate proposal')
       }
 
-      console.log('[ChatInterface] Proposal sent successfully:', {
-        proposalId: result.proposalId,
-        emailSent: result.emailSent,
-        messageId: result.messageId,
-        pricing: result.pricing,
+      console.log('[ChatInterface] Proposal generated, showing email preview:', {
+        proposalId: generateResult.proposalId,
+        dbProposalId: generateResult.dbProposalId,
+        proposalNumber: generateResult.proposalNumber,
+        pricing: generateResult.pricing,
       })
 
-      // Open the PDF in a new tab using Supabase storage URL
-      if (result.pdfUrl) {
-        // Open PDF in new tab using the public storage URL
-        window.open(result.pdfUrl, '_blank')
-
-        // Also trigger download
-        const link = document.createElement('a')
-        link.href = result.pdfUrl
-        link.download = result.fileName || 'proposal.pdf'
-        link.target = '_blank'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      }
-
-      // Build data for ProposalSentConfirmation (inline in chat thread)
-      const proposalSentData = {
-        flightDetails: {
-          departureAirport: departureIcao,
-          arrivalAirport: arrivalIcao,
-          departureDate: tripDetails.departureDate,
-        },
-        client: { name: customerData.name, email: customerData.email },
-        pdfUrl: result.pdfUrl ?? '',
-        fileName: result.fileName,
-        proposalId: result.proposalId,
-        pricing: result.pricing
-          ? { total: result.pricing.total, currency: result.pricing.currency }
-          : undefined,
-      }
-
-      const confirmationContent = result.emailSent
-        ? `The proposal for ${departureIcao} → ${arrivalIcao} was sent to ${customerData.name} at ${customerData.email}.`
-        : `The proposal for ${departureIcao} → ${arrivalIcao} was generated. Email could not be sent (check Gmail configuration).`
-
-      // Use server-persisted message id when available (proposal/send persists when requestId provided)
-      let savedMessageId: string | null =
-        (typeof result.savedMessageId === 'string' && result.savedMessageId.trim() !== ''
-          ? result.savedMessageId
-          : null) ?? null
-
-      // Fallback: persist client-side if server did not persist (e.g. no requestId sent or save failed)
-      if (!savedMessageId && requestIdForSave) {
+      // Step 2: Upload PDF to storage for attachment URL
+      let pdfUrl = ''
+      if (generateResult.pdfBase64) {
         try {
-          const saveRes = await fetch('/api/messages/save', {
+          const uploadResponse = await fetch('/api/proposal/upload-pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              requestId: requestIdForSave,
-              content: confirmationContent,
-              contentType: 'proposal_shared',
-              richContent: { proposalSent: proposalSentData },
+              pdfBase64: generateResult.pdfBase64,
+              fileName: generateResult.fileName,
             }),
           })
-          const saveJson = await saveRes.json().catch(() => ({}))
-          if (saveRes.ok && saveJson.success && saveJson.messageId) {
-            savedMessageId = saveJson.messageId
+          const uploadResult = await uploadResponse.json()
+          if (uploadResult.success && uploadResult.publicUrl) {
+            pdfUrl = uploadResult.publicUrl
           }
-        } catch (saveErr) {
-          console.warn('[ChatInterface] Failed to persist proposal-sent message (fallback):', saveErr)
+        } catch (uploadErr) {
+          console.warn('[ChatInterface] PDF upload failed, continuing without URL:', uploadErr)
         }
       }
-      if (!savedMessageId && !requestIdForSave) {
-        console.warn(
-          '[ChatInterface] Proposal confirmation will not survive refresh: no valid requestId (session may be temp or missing requestId/conversationId).',
-          { requestId: activeChat.requestId, conversationId: activeChat.conversationId, id: activeChat.id }
-        )
+
+      // Step 3: Generate email draft content for preview
+      const emailDraft = generateEmailDraft({
+        customerName: customerData.name,
+        departureAirport: departureIcao,
+        arrivalAirport: arrivalIcao,
+        departureDate: (tripDetails.departureDate as string) || new Date().toISOString().split('T')[0],
+        proposalId: generateResult.proposalId,
+        pricing: generateResult.pricing
+          ? { total: generateResult.pricing.total, currency: generateResult.pricing.currency }
+          : undefined,
+      })
+
+      // Build email approval data for EmailPreviewCard
+      const proposalId = generateResult.dbProposalId || generateResult.proposalId
+      const approvalData: EmailApprovalRequestContent = {
+        proposalId,
+        proposalNumber: generateResult.proposalNumber,
+        to: {
+          email: customerData.email,
+          name: customerData.name,
+        },
+        subject: emailDraft.subject,
+        body: emailDraft.body,
+        attachments: generateResult.fileName
+          ? [{
+              name: generateResult.fileName,
+              url: pdfUrl,
+              type: 'application/pdf',
+            }]
+          : [],
+        flightDetails: {
+          departureAirport: departureIcao,
+          arrivalAirport: arrivalIcao,
+          departureDate: (tripDetails.departureDate as string) || '',
+          passengers: (tripDetails.passengers as number) || 1,
+          tripType: isRoundTrip ? 'round_trip' as const : 'one_way' as const,
+          returnDate: isRoundTrip && returnFlight?.departureDate ? returnFlight.departureDate : undefined,
+          returnAirport: isRoundTrip && returnFlight?.arrivalAirport?.icao
+            ? returnFlight.arrivalAirport.icao
+            : undefined,
+        },
+        pricing: generateResult.pricing
+          ? {
+              subtotal: generateResult.pricing.subtotal,
+              total: generateResult.pricing.total,
+              currency: generateResult.pricing.currency,
+            }
+          : undefined,
+        generatedAt: generateResult.generatedAt,
+        requestId: requestIdForSave || undefined,
       }
 
-      const confirmationMessage = {
-        id: savedMessageId ?? `agent-proposal-sent-${Date.now()}`,
+      // Step 4: Add email preview message to chat
+      const emailPreviewMessageId = `email-preview-${Date.now()}`
+      const emailPreviewMessage = {
+        id: emailPreviewMessageId,
         type: 'agent' as const,
-        content: confirmationContent,
+        content: `I've prepared a proposal for ${customerData.name}. Please review the email below and click "Send Email" when ready.`,
         timestamp: new Date(),
-        showProposalSentConfirmation: true,
-        proposalSentData,
+        showEmailApprovalRequest: true,
+        emailApprovalData: approvalData,
       }
-      const updatedMessages = [...(activeChat.messages || []), confirmationMessage]
-      // Persist selected proposal customer so Book Flight modal can display and use it for contracts
-      // Also update status to proposal_sent for sidebar badge
+
+      // Set approval state
+      setEmailApprovalMessageId(emailPreviewMessageId)
+      setEmailApprovalData(approvalData)
+      setEmailApprovalStatus('draft')
+      setEmailApprovalError(undefined)
+
+      const updatedMessages = [...(activeChat.messages || []), emailPreviewMessage]
       onUpdateChat(activeChat.id, {
         messages: updatedMessages,
-        status: 'proposal_sent' as const,
         customer: {
           name: customerData.name,
           email: customerData.email,
@@ -1610,6 +1681,119 @@ export function ChatInterface({
       setPendingProposalQuoteId(undefined)
     }
   }
+
+  // ===========================================================================
+  // EMAIL APPROVAL HANDLERS (ONEK-178)
+  // ===========================================================================
+
+  /**
+   * Handle email field edit from EmailPreviewCard
+   */
+  const handleEmailEdit = useCallback((field: 'subject' | 'body', value: string) => {
+    setEmailApprovalData(prev => prev ? { ...prev, [field]: value } : null)
+  }, [])
+
+  /**
+   * Handle email send approval from EmailPreviewCard.
+   * Calls /api/proposal/approve-email with the final (possibly edited) content.
+   */
+  const handleEmailSend = useCallback(async () => {
+    if (!emailApprovalData) return
+
+    setEmailApprovalStatus('sending')
+    setEmailApprovalError(undefined)
+
+    try {
+      const response = await fetch('/api/proposal/approve-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposalId: emailApprovalData.proposalId,
+          subject: emailApprovalData.subject,
+          body: emailApprovalData.body,
+          to: emailApprovalData.to,
+          requestId: emailApprovalData.requestId,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send email')
+      }
+
+      setEmailApprovalStatus('sent')
+
+      // Open the PDF if available
+      const pdfAttachment = emailApprovalData.attachments?.find(a => a.type?.includes('pdf'))
+      if (pdfAttachment?.url) {
+        window.open(pdfAttachment.url, '_blank')
+      }
+
+      // Add proposal-sent confirmation message to chat
+      if (activeChat) {
+        const dep = emailApprovalData.flightDetails?.departureAirport || ''
+        const arr = emailApprovalData.flightDetails?.arrivalAirport || ''
+
+        const proposalSentData = {
+          flightDetails: {
+            departureAirport: dep,
+            arrivalAirport: arr,
+            departureDate: emailApprovalData.flightDetails?.departureDate || '',
+            tripType: emailApprovalData.flightDetails?.tripType,
+            returnDate: emailApprovalData.flightDetails?.returnDate,
+            returnAirport: emailApprovalData.flightDetails?.returnAirport,
+          },
+          client: { name: emailApprovalData.to.name, email: emailApprovalData.to.email },
+          pdfUrl: pdfAttachment?.url || '',
+          fileName: pdfAttachment?.name || '',
+          proposalId: emailApprovalData.proposalId,
+          pricing: emailApprovalData.pricing
+            ? { total: emailApprovalData.pricing.total, currency: emailApprovalData.pricing.currency }
+            : undefined,
+        }
+
+        const confirmationContent = `The proposal for ${dep} → ${arr} was sent to ${emailApprovalData.to.name} at ${emailApprovalData.to.email}.`
+
+        const confirmationMessage = {
+          id: result.savedMessageId || `agent-proposal-sent-${Date.now()}`,
+          type: 'agent' as const,
+          content: confirmationContent,
+          timestamp: new Date(),
+          showProposalSentConfirmation: true,
+          proposalSentData,
+        }
+
+        const updatedMessages = [...(activeChat.messages || []), confirmationMessage]
+        onUpdateChat(activeChat.id, {
+          messages: updatedMessages,
+          status: 'proposal_sent' as const,
+        })
+      }
+    } catch (error) {
+      console.error('[ChatInterface] Email approval send failed:', error)
+      setEmailApprovalStatus('error')
+      setEmailApprovalError(error instanceof Error ? error.message : 'Failed to send email')
+    }
+  }, [emailApprovalData, activeChat, onUpdateChat])
+
+  /**
+   * Handle email approval cancel from EmailPreviewCard
+   */
+  const handleEmailCancel = useCallback(() => {
+    // Remove the email approval message from chat
+    if (emailApprovalMessageId && activeChat) {
+      const updatedMessages = (activeChat.messages || []).filter(
+        m => m.id !== emailApprovalMessageId
+      )
+      onUpdateChat(activeChat.id, { messages: updatedMessages })
+    }
+    // Reset email approval state
+    setEmailApprovalMessageId(null)
+    setEmailApprovalData(null)
+    setEmailApprovalStatus('draft')
+    setEmailApprovalError(undefined)
+  }, [emailApprovalMessageId, activeChat, onUpdateChat])
 
   /**
    * Handle review and book action for a single flight
@@ -2296,6 +2480,11 @@ export function ChatInterface({
                         proposalSentData={message.proposalSentData}
                         showEmailApprovalRequest={message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
+                        onEmailEdit={handleEmailEdit}
+                        onEmailSend={handleEmailSend}
+                        onEmailCancel={handleEmailCancel}
+                        emailApprovalStatus={message.showEmailApprovalRequest ? emailApprovalStatus : undefined}
+                        emailApprovalError={message.showEmailApprovalRequest ? emailApprovalError : undefined}
                         onViewRequest={(requestId) => {
                           console.log('[Pipeline] View request:', requestId)
                         }}
@@ -2642,6 +2831,7 @@ export function ChatInterface({
           setPendingBookFlightQuoteId(undefined)
         }}
         onSelect={handleBookingCustomerSelected}
+        showMarginSlider={false}
       />
 
       {/* Book Flight Modal for Contract Generation */}

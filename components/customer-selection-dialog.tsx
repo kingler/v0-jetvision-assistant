@@ -51,10 +51,12 @@ export interface CustomerSelectionDialogProps {
   open: boolean;
   /** Callback when dialog should close */
   onClose: () => void;
-  /** Callback when a customer is selected */
-  onSelect: (customer: ClientProfile) => void;
+  /** Callback when a customer is selected (with optional margin percentage) */
+  onSelect: (customer: ClientProfile, marginPercentage?: number) => void;
   /** Optional initial customer ID to pre-select */
   initialCustomerId?: string;
+  /** Whether to show the profit margin slider (default: true) */
+  showMarginSlider?: boolean;
 }
 
 // =============================================================================
@@ -73,6 +75,7 @@ export function CustomerSelectionDialog({
   onClose,
   onSelect,
   initialCustomerId,
+  showMarginSlider = true,
 }: CustomerSelectionDialogProps) {
   // State for client profiles list
   const [clients, setClients] = useState<ClientProfile[]>([]);
@@ -99,6 +102,8 @@ export function CustomerSelectionDialog({
   });
   // State for form submission
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // State for profit margin percentage
+  const [marginPercentage, setMarginPercentage] = useState(30);
 
   // Refs
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -273,8 +278,8 @@ export function CustomerSelectionDialog({
       return;
     }
 
-    // Call the onSelect callback with the selected customer
-    onSelect(selectedClient);
+    // Call the onSelect callback with the selected customer and margin
+    onSelect(selectedClient, showMarginSlider ? marginPercentage : undefined);
     // Close the dialog
     onClose();
   };
@@ -289,6 +294,7 @@ export function CustomerSelectionDialog({
     setIsDropdownOpen(false);
     setHighlightedIndex(-1);
     setMode('select');
+    setMarginPercentage(30);
     setNewCustomerForm({
       company_name: '',
       contact_name: '',
@@ -594,6 +600,54 @@ export function CustomerSelectionDialog({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Profit Margin Slider - shown when customer is selected */}
+          {!isLoading && mode === 'select' && selectedClient && showMarginSlider && (
+            <div className="space-y-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="margin-slider"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Profit Margin
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={marginPercentage}
+                    onChange={(e) => {
+                      const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                      setMarginPercentage(val);
+                    }}
+                    className="w-16 text-right text-sm font-semibold rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1"
+                  />
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">%</span>
+                </div>
+              </div>
+              <input
+                id="margin-slider"
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={marginPercentage}
+                onChange={(e) => setMarginPercentage(Number(e.target.value))}
+                className="w-full h-2 bg-blue-200 dark:bg-blue-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>0%</span>
+                <span>25%</span>
+                <span>50%</span>
+                <span>75%</span>
+                <span>100%</span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                This margin will be added on top of the operator cost in the client-facing proposal.
+              </p>
             </div>
           )}
 
