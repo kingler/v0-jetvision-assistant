@@ -614,6 +614,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
               if (requests && requests.length > 0) {
                 try {
+                  // Derive status from fetched details instead of hardcoding
+                  const detailsAny = details as any;
+                  const isDeclined =
+                    detailsAny?.sourcingDisplayStatus === 'Declined' ||
+                    detailsAny?.data?.sourcingDisplayStatus === 'Declined' ||
+                    (!detailsAny?.sellerPrice && !detailsAny?.data?.sellerPrice);
+                  const derivedStatus = isDeclined ? 'declined' : 'quoted';
+
                   const quoteId = await storeOperatorQuote({
                     webhookPayload: {
                       event: 'TripRequestSellerResponse',
@@ -622,7 +630,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
                       data: {
                         type: 'TripRequestSellerResponse',
                         trip: { id: tripIdFromHref, href: rawPayload.href },
-                        request: { id: rawPayload.id, href: rawPayload.href, status: 'quoted' },
+                        request: { id: rawPayload.id, href: rawPayload.href, status: derivedStatus },
                         seller: { id: 'unknown', name: 'Unknown', companyId: 'unknown' },
                       },
                     } as AvinodeWebhookPayload,
