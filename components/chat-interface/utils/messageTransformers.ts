@@ -10,6 +10,7 @@
 import type { ChatSession, OperatorMessage } from '@/components/chat-sidebar';
 import type { RFQFlight } from '@/components/avinode/rfq-flight-card';
 import type { UnifiedMessage, OperatorMessageItem } from '../types';
+import { safeParseTimestamp } from '@/lib/utils/format';
 
 /**
  * Chat message from the ChatSession.messages array
@@ -76,7 +77,7 @@ function transformChatMessage(message: ChatMessage): UnifiedMessage {
     id: message.id,
     type: message.type,
     content: message.content,
-    timestamp: message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp),
+    timestamp: safeParseTimestamp(message.timestamp),
     // Agent message features
     showWorkflow: message.showWorkflow,
     showProposal: message.showProposal,
@@ -111,7 +112,7 @@ function transformOperatorMessage(
     id: opMessage.id || `op-${quoteId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     type: 'operator',
     content: opMessage.content,
-    timestamp: new Date(opMessage.timestamp),
+    timestamp: safeParseTimestamp(opMessage.timestamp),
     operatorName,
     operatorQuoteId: quoteId,
     operatorMessageType: opMessage.type,

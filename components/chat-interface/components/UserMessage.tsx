@@ -10,6 +10,7 @@
 'use client';
 
 import React, { memo } from 'react';
+import { formatMessageTimestamp } from '@/lib/utils/format';
 
 export interface UserMessageProps {
   /** Message content to display */
@@ -40,7 +41,7 @@ export const UserMessage = memo(function UserMessage({
         {timestamp && (
           <div className="mt-1 text-right">
             <span className="text-[10px] text-blue-200">
-              {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {formatMessageTimestamp(timestamp)}
             </span>
           </div>
         )}

@@ -53,6 +53,12 @@ export interface ProposalTripDetails {
   passengers: number;
   /** Avinode trip ID if available */
   tripId?: string;
+  /** Trip type: one-way or round-trip */
+  tripType?: 'one_way' | 'round_trip';
+  /** Return date for round-trip (ISO format) */
+  returnDate?: string;
+  /** Return airport for round-trip */
+  returnAirport?: ProposalAirport;
 }
 
 /**
@@ -113,6 +119,9 @@ export interface ProposalSentData {
     departureAirport: string;
     arrivalAirport: string;
     departureDate: string;
+    tripType?: 'one_way' | 'round_trip';
+    returnDate?: string;
+    returnAirport?: string;
   };
   client: {
     name: string;
@@ -257,11 +266,15 @@ export function buildProposalSentData(
   tripDetails: ProposalTripDetails,
   customer: ProposalCustomer
 ): ProposalSentData {
+  const isRoundTrip = tripDetails.tripType === 'round_trip';
   return {
     flightDetails: {
       departureAirport: tripDetails.departureAirport.icao,
       arrivalAirport: tripDetails.arrivalAirport.icao,
       departureDate: tripDetails.departureDate,
+      tripType: tripDetails.tripType,
+      returnDate: tripDetails.returnDate,
+      returnAirport: isRoundTrip ? (tripDetails.returnAirport?.icao || tripDetails.departureAirport.icao) : undefined,
     },
     client: {
       name: customer.name,
@@ -282,13 +295,16 @@ export function buildConfirmationContent(
   tripDetails: ProposalTripDetails,
   customer: ProposalCustomer
 ): string {
-  const route = `${tripDetails.departureAirport.icao} → ${tripDetails.arrivalAirport.icao}`;
+  const isRoundTrip = tripDetails.tripType === 'round_trip';
+  const routeSymbol = isRoundTrip ? '⇄' : '→';
+  const tripLabel = isRoundTrip ? 'round-trip proposal' : 'proposal';
+  const route = `${tripDetails.departureAirport.icao} ${routeSymbol} ${tripDetails.arrivalAirport.icao}`;
 
   if (result.emailSent) {
-    return `The proposal for ${route} was sent to ${customer.name} at ${customer.email}.`;
+    return `The ${tripLabel} for ${route} was sent to ${customer.name} at ${customer.email}.`;
   }
 
-  return `The proposal for ${route} was generated. Email could not be sent (check Gmail configuration).`;
+  return `The ${tripLabel} for ${route} was generated. Email could not be sent (check Gmail configuration).`;
 }
 
 /**

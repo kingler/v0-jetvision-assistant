@@ -10,6 +10,7 @@
 'use client';
 
 import React, { memo } from 'react';
+import { formatMessageTimestamp } from '@/lib/utils/format';
 
 export interface OperatorMessageProps {
   /** Message content */
@@ -103,7 +104,7 @@ export const OperatorMessage = memo(function OperatorMessage({
         {/* Footer with timestamp and view thread link */}
         <div className="mt-1 flex items-center justify-between">
           <span className="text-[10px] text-gray-500 dark:text-gray-400">
-            {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {formatMessageTimestamp(timestamp)}
           </span>
           {quoteId && onViewThread && (
             <button

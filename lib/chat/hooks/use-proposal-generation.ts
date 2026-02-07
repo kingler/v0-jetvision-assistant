@@ -52,6 +52,8 @@ export interface ChatSession {
   isoDate?: string;
   passengers?: number;
   tripId?: string;
+  tripType?: 'one_way' | 'round_trip';
+  returnDate?: string;
   requestId?: string;
   conversationId?: string;
   messages?: ChatMessage[];
@@ -78,6 +80,9 @@ export interface ProposalSentData {
     departureAirport: string;
     arrivalAirport: string;
     departureDate: string;
+    tripType?: 'one_way' | 'round_trip';
+    returnDate?: string;
+    returnAirport?: string;
   };
   client: {
     name: string;
@@ -173,6 +178,7 @@ function buildTripDetails(
   departureIcao: string,
   arrivalIcao: string
 ): ProposalTripDetails {
+  const isRoundTrip = chat.tripType === 'round_trip';
   return {
     departureAirport: {
       icao: departureIcao,
@@ -187,6 +193,9 @@ function buildTripDetails(
     departureDate: getIsoDateFromChat(chat),
     passengers: chat.passengers || 1,
     tripId: chat.tripId,
+    tripType: chat.tripType,
+    returnDate: chat.returnDate,
+    returnAirport: isRoundTrip ? { icao: departureIcao, name: departureIcao, city: '' } : undefined,
   };
 }
 

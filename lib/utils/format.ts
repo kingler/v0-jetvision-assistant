@@ -173,6 +173,83 @@ export function formatDate(isoString: string): string {
 }
 
 /**
+ * Format a message timestamp for chat display.
+ *
+ * Shows time only for today's messages, and date + time for older messages.
+ * This matches the standard UX pattern used by Slack, iMessage, WhatsApp.
+ *
+ * @param date - The Date object to format
+ * @returns Formatted timestamp string
+ *
+ * @example
+ * // Today's message
+ * formatMessageTimestamp(new Date()) // '2:30 PM'
+ *
+ * // Older message
+ * formatMessageTimestamp(new Date('2025-01-15T14:30:00')) // 'Jan 15, 2025 at 2:30 PM'
+ *
+ * // Invalid date (epoch fallback)
+ * formatMessageTimestamp(new Date(0)) // 'Jan 1, 1970 at 7:00 PM' (or local equivalent)
+ */
+export function formatMessageTimestamp(date: Date): string {
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    return '';
+  }
+
+  const now = new Date();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isToday) {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  // For non-today dates, show "Jan 15, 2025 at 2:30 PM"
+  const datePart = date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timePart = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+  return `${datePart} at ${timePart}`;
+}
+
+/**
+ * Safely parse a timestamp value into a Date object.
+ *
+ * Handles Date objects, ISO strings, null, and undefined.
+ * Invalid or missing timestamps fall back to epoch (Date(0)) so they sort
+ * to the start of the timeline rather than scrambling into the present.
+ *
+ * @param timestamp - The value to parse (Date, string, null, or undefined)
+ * @returns A valid Date object (epoch if input was invalid/missing)
+ *
+ * @example
+ * safeParseTimestamp(new Date('2025-01-15T10:30:00Z')) // Date(2025-01-15...)
+ * safeParseTimestamp('2025-01-15T10:30:00Z') // Date(2025-01-15...)
+ * safeParseTimestamp(null) // Date(0) - epoch
+ * safeParseTimestamp(new Date('invalid')) // Date(0) - epoch
+ */
+export function safeParseTimestamp(timestamp: Date | string | undefined | null): Date {
+  const EPOCH = new Date(0);
+  if (!timestamp) return EPOCH;
+  if (timestamp instanceof Date) {
+    return isNaN(timestamp.getTime()) ? EPOCH : timestamp;
+  }
+  const parsed = new Date(timestamp);
+  return isNaN(parsed.getTime()) ? EPOCH : parsed;
+}
+
+/**
  * Format a number with thousand separators
  *
  * @param num - Number to format

@@ -71,7 +71,7 @@ import {
 
 // Flight request parser utility
 import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
-import { formatDate } from "@/lib/utils/format"
+import { formatDate, formatMessageTimestamp, safeParseTimestamp } from "@/lib/utils/format"
 import { generateEmailDraft } from "@/lib/utils/email-draft-generator"
 import type { EmailApprovalRequestContent } from "@/lib/types/chat"
 
@@ -162,8 +162,8 @@ export function ChatInterface({
   const [pendingProposalFlightId, setPendingProposalFlightId] = useState<string | null>(null)
   const [pendingProposalQuoteId, setPendingProposalQuoteId] = useState<string | undefined>(undefined)
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false)
-  // Margin percentage selected in customer dialog
-  const [selectedMarginPercentage, setSelectedMarginPercentage] = useState(30)
+  // Margin percentage selected in customer dialog (default 10% per ONEK-177)
+  const [selectedMarginPercentage, setSelectedMarginPercentage] = useState(10)
 
   // Email approval workflow state (ONEK-178)
   const [emailApprovalMessageId, setEmailApprovalMessageId] = useState<string | null>(null)
@@ -1372,10 +1372,10 @@ export function ChatInterface({
    * for user approval before sending (ONEK-178).
    *
    * @param customer - Selected customer profile from client_profiles table
-   * @param marginPercentage - Profit margin percentage (default 30)
+   * @param marginPercentage - Profit margin percentage (default 10)
    */
   const handleCustomerSelected = async (customer: ClientProfile, marginPercentage?: number) => {
-    const margin = marginPercentage ?? 30
+    const margin = marginPercentage ?? 10
     setSelectedMarginPercentage(margin)
     if (!pendingProposalFlightId) {
       console.error('[ChatInterface] No pending flight ID for proposal generation')
@@ -1764,7 +1764,10 @@ export function ChatInterface({
             : undefined,
         }
 
-        const confirmationContent = `The proposal for ${dep} → ${arr} was sent to ${emailApprovalData.to.name} at ${emailApprovalData.to.email}.`
+        const isRT = emailApprovalData.flightDetails?.tripType === 'round_trip'
+        const routeSym = isRT ? '⇄' : '→'
+        const tripLabel = isRT ? 'round-trip proposal' : 'proposal'
+        const confirmationContent = `The ${tripLabel} for ${dep} ${routeSym} ${arr} was sent to ${emailApprovalData.to.name} at ${emailApprovalData.to.email}.`
 
         const confirmationMessage = {
           id: result.savedMessageId || `agent-proposal-sent-${Date.now()}`,
@@ -2122,17 +2125,6 @@ export function ChatInterface({
                 operatorMessageType?: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
               }
 
-              // Helper to safely parse timestamps, handling invalid/missing values
-              // Prevents Invalid Date from causing unpredictable sort order
-              const safeParseTimestamp = (timestamp: Date | string | undefined | null, fallback: Date): Date => {
-                if (!timestamp) return fallback;
-                if (timestamp instanceof Date) {
-                  return isNaN(timestamp.getTime()) ? fallback : timestamp;
-                }
-                const parsed = new Date(timestamp);
-                return isNaN(parsed.getTime()) ? fallback : parsed;
-              };
-
               // Flatten operator messages from Record<quoteId, messages[]> to array with context
               const flatOperatorMessages: UnifiedMessage[] = Object.entries(activeChat.operatorMessages || {})
                 .flatMap(([quoteId, messages], quoteIndex) => {
@@ -2141,8 +2133,7 @@ export function ChatInterface({
                     id: msg.id || `op-${quoteId}-${msg.timestamp}`,
                     type: 'operator' as const,
                     content: msg.content,
-                    // Use safe parsing with fallback based on indices to maintain order
-                    timestamp: safeParseTimestamp(msg.timestamp, new Date(Date.now() - (1000 * (quoteIndex * 100 + msgIndex)))),
+                    timestamp: safeParseTimestamp(msg.timestamp),
                     operatorName: msg.sender || flight?.operatorName || 'Operator',
                     operatorQuoteId: quoteId,
                     operatorMessageType: msg.type,
@@ -2154,8 +2145,7 @@ export function ChatInterface({
                 id: msg.id,
                 type: msg.type,
                 content: msg.content,
-                // Use index-based fallback to maintain relative order for messages with invalid timestamps
-                timestamp: safeParseTimestamp(msg.timestamp, new Date(Date.now() - (1000 * index))),
+                timestamp: safeParseTimestamp(msg.timestamp),
                 showWorkflow: msg.showWorkflow,
                 showProposal: msg.showProposal,
                 showQuoteStatus: msg.showQuoteStatus,
@@ -2371,7 +2361,7 @@ export function ChatInterface({
                         <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
                           <p className="text-sm leading-relaxed">{message.content}</p>
                           <span className="block mt-1 text-[10px] text-blue-200 text-right">
-                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {formatMessageTimestamp(message.timestamp)}
                           </span>
                         </div>
                       </div>
@@ -2397,7 +2387,7 @@ export function ChatInterface({
                           <p className="text-sm leading-relaxed">{message.content}</p>
                           <div className="mt-1 flex items-center justify-between">
                             <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatMessageTimestamp(message.timestamp)}
                             </span>
                             {message.operatorQuoteId && (
                               <button
@@ -2602,6 +2592,7 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
+                        marginPercentage={selectedMarginPercentage}
                         onGoBackFromProposal={() => setSelectedRfqFlightIds([])}
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
                       />

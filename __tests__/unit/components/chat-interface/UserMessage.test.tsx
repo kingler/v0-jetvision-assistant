@@ -35,8 +35,9 @@ describe('UserMessage', () => {
     const timestamp = new Date('2026-01-31T10:30:00');
     render(<UserMessage content="Test message" timestamp={timestamp} />);
 
-    // Check for time display (format depends on locale)
-    expect(screen.getByText(/10:30/)).toBeInTheDocument();
+    // formatMessageTimestamp shows date+time for non-today, time-only for today
+    // Since the test date is unlikely to be "today", expect date+time format
+    expect(screen.getByText(/10:30 AM/)).toBeInTheDocument();
   });
 
   it('should not display timestamp when not provided', () => {

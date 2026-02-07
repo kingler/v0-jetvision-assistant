@@ -55,7 +55,8 @@ describe('OperatorMessage', () => {
   it('should display timestamp', () => {
     render(<OperatorMessage {...defaultProps} />);
 
-    expect(screen.getByText(/10:30/)).toBeInTheDocument();
+    // formatMessageTimestamp shows date+time for non-today dates
+    expect(screen.getByText(/10:30 AM/)).toBeInTheDocument();
   });
 
   describe('message type badges', () => {
