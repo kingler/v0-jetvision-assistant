@@ -8,29 +8,38 @@ import { NextRequest } from 'next/server';
 import { GET, PATCH } from '@/app/api/users/route';
 import { mockUser } from '../../../utils/mock-factories';
 
-// Mock Supabase client
-const mockSupabaseClient = {
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        single: vi.fn(),
-        range: vi.fn(),
-      })),
-      order: vi.fn(() => ({
-        range: vi.fn(),
-      })),
-      range: vi.fn(),
-    })),
-    update: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
+// Hoist mock variables so they're available in vi.mock factories
+const { mockSupabaseAdmin, mockSupabaseClient } = vi.hoisted(() => ({
+  mockSupabaseAdmin: { from: vi.fn() },
+  mockSupabaseClient: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
           single: vi.fn(),
+          range: vi.fn(),
+        })),
+        order: vi.fn(() => ({
+          range: vi.fn(),
+        })),
+        range: vi.fn(),
+      })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(),
+          })),
         })),
       })),
     })),
-  })),
-};
+  },
+}));
 
+// Mock Supabase admin client (used by withRBAC/getUserRole)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: mockSupabaseAdmin,
+}));
+
+// Mock Supabase server client (used by handler for data queries)
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => mockSupabaseClient),
 }));
@@ -56,26 +65,24 @@ describe('/api/users (Admin)', () => {
         mockUser({ role: 'operator' }),
       ];
 
-      const mockRangeFn = vi.fn().mockResolvedValueOnce({
-        data: mockUsers,
-        error: null,
-        count: 3,
-      });
-
-      const mockOrderFn = vi.fn().mockReturnValueOnce({ range: mockRangeFn });
-      const mockSelectFn = vi.fn().mockReturnValueOnce({ order: mockOrderFn });
-      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
-
-      // Mock getUserRole to return admin
+      // Mock getUserRole via supabaseAdmin (withRBAC)
       const mockSingleFn = vi.fn().mockResolvedValueOnce({
         data: mockUser({ role: 'admin' }),
         error: null,
       });
       const mockEqFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
       const mockSelectFn2 = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
-      mockSupabaseClient.from = vi.fn()
-        .mockReturnValueOnce({ select: mockSelectFn2 }) // getUserRole
-        .mockReturnValueOnce({ select: mockSelectFn }); // actual query
+      mockSupabaseAdmin.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn2 });
+
+      // Mock data query via createClient (handler)
+      const mockRangeFn = vi.fn().mockResolvedValueOnce({
+        data: mockUsers,
+        error: null,
+        count: 3,
+      });
+      const mockOrderFn = vi.fn().mockReturnValueOnce({ range: mockRangeFn });
+      const mockSelectFn = vi.fn().mockReturnValueOnce({ order: mockOrderFn });
+      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       const request = new NextRequest('http://localhost:3000/api/users?page=1&limit=50');
       const response = await GET(request);
@@ -93,7 +100,16 @@ describe('/api/users (Admin)', () => {
 
       const mockUsers = [mockUser({ role: 'admin' })];
 
-      // Route chain is: .from().select().order().range().eq() when role filter is applied
+      // Mock getUserRole via supabaseAdmin (withRBAC)
+      const mockSingleFn = vi.fn().mockResolvedValueOnce({
+        data: mockUser({ role: 'admin' }),
+        error: null,
+      });
+      const mockEqFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
+      const mockSelectFn2 = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
+      mockSupabaseAdmin.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn2 });
+
+      // Mock data query via createClient (handler) with role filter
       const mockEqFn2 = vi.fn().mockResolvedValueOnce({
         data: mockUsers,
         error: null,
@@ -102,17 +118,7 @@ describe('/api/users (Admin)', () => {
       const mockRangeFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
       const mockOrderFn = vi.fn().mockReturnValueOnce({ range: mockRangeFn });
       const mockSelectFn = vi.fn().mockReturnValueOnce({ order: mockOrderFn });
-
-      // Mock getUserRole
-      const mockSingleFn = vi.fn().mockResolvedValueOnce({
-        data: mockUser({ role: 'admin' }),
-        error: null,
-      });
-      const mockEqFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
-      const mockSelectFn2 = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
-      mockSupabaseClient.from = vi.fn()
-        .mockReturnValueOnce({ select: mockSelectFn2 })
-        .mockReturnValueOnce({ select: mockSelectFn });
+      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       const request = new NextRequest('http://localhost:3000/api/users?role=admin');
       const response = await GET(request);
@@ -126,14 +132,14 @@ describe('/api/users (Admin)', () => {
     it('should return 403 for non-admin users', async () => {
       mockAuthFn.mockResolvedValueOnce({ userId: 'user_123' });
 
-      // Mock getUserRole to return non-admin
+      // Mock getUserRole via supabaseAdmin to return non-admin
       const mockSingleFn = vi.fn().mockResolvedValueOnce({
         data: mockUser({ role: 'customer' }),
         error: null,
       });
       const mockEqFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
       const mockSelectFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
-      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
+      mockSupabaseAdmin.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       const request = new NextRequest('http://localhost:3000/api/users');
       const response = await GET(request);
@@ -148,6 +154,16 @@ describe('/api/users (Admin)', () => {
     it('should allow admin to update any user', async () => {
       mockAuthFn.mockResolvedValueOnce({ userId: 'admin_123' });
 
+      // Mock getUserRole via supabaseAdmin (withRBAC)
+      const mockSingleFn2 = vi.fn().mockResolvedValueOnce({
+        data: mockUser({ role: 'admin' }),
+        error: null,
+      });
+      const mockEqFn2 = vi.fn().mockReturnValueOnce({ single: mockSingleFn2 });
+      const mockSelectFn2 = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
+      mockSupabaseAdmin.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn2 });
+
+      // Mock data update via createClient (handler)
       const updatedUser = mockUser({ full_name: 'Updated User', role: 'sales_rep' });
       const mockSingleFn = vi.fn().mockResolvedValueOnce({
         data: updatedUser,
@@ -157,17 +173,6 @@ describe('/api/users (Admin)', () => {
       const mockEqFn = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
       const mockUpdateFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
       mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ update: mockUpdateFn });
-
-      // Mock getUserRole to return admin
-      const mockSingleFn2 = vi.fn().mockResolvedValueOnce({
-        data: mockUser({ role: 'admin' }),
-        error: null,
-      });
-      const mockEqFn2 = vi.fn().mockReturnValueOnce({ single: mockSingleFn2 });
-      const mockSelectFn2 = vi.fn().mockReturnValueOnce({ eq: mockEqFn2 });
-      mockSupabaseClient.from = vi.fn()
-        .mockReturnValueOnce({ select: mockSelectFn2 })
-        .mockReturnValueOnce({ update: mockUpdateFn });
 
       const request = new NextRequest('http://localhost:3000/api/users', {
         method: 'PATCH',
@@ -187,14 +192,14 @@ describe('/api/users (Admin)', () => {
     it('should require userId in request body', async () => {
       mockAuthFn.mockResolvedValueOnce({ userId: 'admin_123' });
 
-      // Mock getUserRole
+      // Mock getUserRole via supabaseAdmin (withRBAC)
       const mockSingleFn = vi.fn().mockResolvedValueOnce({
         data: mockUser({ role: 'admin' }),
         error: null,
       });
       const mockEqFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
       const mockSelectFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
-      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
+      mockSupabaseAdmin.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       const request = new NextRequest('http://localhost:3000/api/users', {
         method: 'PATCH',
@@ -213,14 +218,14 @@ describe('/api/users (Admin)', () => {
     it('should return 403 for non-admin users', async () => {
       mockAuthFn.mockResolvedValueOnce({ userId: 'user_123' });
 
-      // Mock getUserRole to return non-admin
+      // Mock getUserRole via supabaseAdmin to return non-admin
       const mockSingleFn = vi.fn().mockResolvedValueOnce({
         data: mockUser({ role: 'sales_rep' }),
         error: null,
       });
       const mockEqFn = vi.fn().mockReturnValueOnce({ single: mockSingleFn });
       const mockSelectFn = vi.fn().mockReturnValueOnce({ eq: mockEqFn });
-      mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
+      mockSupabaseAdmin.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       const request = new NextRequest('http://localhost:3000/api/users', {
         method: 'PATCH',
