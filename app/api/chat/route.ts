@@ -259,6 +259,29 @@ export async function POST(req: NextRequest) {
         messagePreview: result.message.slice(0, 50),
         hasTripId: !!result.tripId,
       });
+
+      // Check if prepare_proposal_email was called — save with rich contentType so
+      // the EmailPreviewCard survives page refresh / chat switch
+      const emailToolResult = result.toolResults.find(
+        (tr) => tr.name === 'prepare_proposal_email' && tr.success && tr.data
+      );
+      let savedEmailApproval: Record<string, unknown> | undefined;
+      if (emailToolResult) {
+        const d = emailToolResult.data as Record<string, unknown>;
+        savedEmailApproval = {
+          proposalId: d.proposal_id,
+          proposalNumber: d.proposal_number,
+          to: d.to,
+          subject: d.subject,
+          body: d.body,
+          attachments: d.attachments || [],
+          flightDetails: d.flight_details,
+          pricing: d.pricing,
+          generatedAt: d.generated_at,
+          requestId: (d.request_id as string) || conversationId,
+        };
+      }
+
       try {
         // CRITICAL: Use requestId (which is the same as conversationId) to ensure messages are linked correctly
         // In the consolidated schema, conversationId IS the requestId
@@ -266,7 +289,8 @@ export async function POST(req: NextRequest) {
           requestId: conversationId, // Use requestId explicitly to match database schema
           senderType: 'ai_assistant',
           content: result.message,
-          contentType: 'text',
+          contentType: savedEmailApproval ? 'email_approval_request' : 'text',
+          richContent: savedEmailApproval ? { emailApproval: savedEmailApproval } : undefined,
           metadata: {
             toolResults: result.toolResults,
             tripId: result.tripId,

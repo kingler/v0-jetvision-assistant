@@ -23,7 +23,9 @@ type MessageContentType =
   // Email approval workflow types (human-in-the-loop)
   | 'email_approval_request'
   | 'email_approved'
-  | 'email_rejected';
+  | 'email_rejected'
+  // Margin / customer selection summary
+  | 'margin_selection';
 
 /**
  * Interface for saving a message (consolidated schema)

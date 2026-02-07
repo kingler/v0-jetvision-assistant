@@ -4,10 +4,19 @@
  * GET /api/chat-sessions/messages
  * Loads messages for a specific chat session (request)
  *
- * Query parameters:
+ * POST /api/chat-sessions/messages
+ * Persists a client-side generated message (e.g. margin selection summary)
+ *
+ * Query parameters (GET):
  * - session_id (required): Request ID (session ID in consolidated schema)
  * - limit (optional): Maximum number of messages (default: 100)
  * - quote_id (optional): Filter messages by operator quote thread
+ *
+ * Body parameters (POST):
+ * - requestId (required): Request ID
+ * - content (required): Message text
+ * - contentType (optional): Message content type (default: 'text')
+ * - richContent (optional): Structured data for special UI rendering
  *
  * Returns messages array formatted for UI consumption
  *
@@ -19,7 +28,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { loadMessages } from '@/lib/conversation/message-persistence';
+import { loadMessages, saveMessage } from '@/lib/conversation/message-persistence';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -174,6 +183,85 @@ export async function GET(request: NextRequest) {
     console.error('[GET /api/chat-sessions/messages] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error', message: 'An unexpected error occurred' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/chat-sessions/messages
+ *
+ * Persists a client-side generated message (e.g. margin selection summary,
+ * email preview) so it survives page refresh and chat switching.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { requestId, content, contentType, richContent } = body as {
+      requestId?: string;
+      content?: string;
+      contentType?: string;
+      richContent?: Record<string, unknown>;
+    };
+
+    if (!requestId || !content) {
+      return NextResponse.json(
+        { error: 'Missing required fields: requestId, content' },
+        { status: 400 }
+      );
+    }
+
+    // Validate UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(requestId)) {
+      return NextResponse.json({ error: 'Invalid requestId format' }, { status: 400 });
+    }
+
+    // Verify ownership
+    const { data: agent } = await supabaseAdmin
+      .from('iso_agents')
+      .select('id')
+      .eq('clerk_user_id', userId)
+      .single();
+
+    if (!agent) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const { data: req } = await supabaseAdmin
+      .from('requests')
+      .select('iso_agent_id')
+      .eq('id', requestId)
+      .single();
+
+    if (!req || req.iso_agent_id !== agent.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Allowed content types for client-side persistence
+    const allowedTypes = ['text', 'margin_selection', 'email_approval_request'] as const;
+    const safeContentType = allowedTypes.includes(contentType as typeof allowedTypes[number])
+      ? (contentType as typeof allowedTypes[number])
+      : 'text';
+
+    const messageId = await saveMessage({
+      requestId,
+      senderType: 'ai_assistant',
+      content,
+      contentType: safeContentType,
+      richContent: richContent || undefined,
+    });
+
+    return NextResponse.json({ success: true, messageId });
+  } catch (error) {
+    console.error('[POST /api/chat-sessions/messages] Error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

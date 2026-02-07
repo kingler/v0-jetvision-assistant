@@ -163,6 +163,16 @@ export interface ChatSession {
     showPipeline?: boolean
     /** Pipeline data for inline deals/requests view */
     pipelineData?: PipelineData
+    /** Whether to show margin selection summary (customer + service charge) */
+    showMarginSelection?: boolean
+    /** Data for MarginSelectionCard when showMarginSelection is true */
+    marginSelectionData?: {
+      customerName: string
+      customerEmail: string
+      companyName: string
+      marginPercentage: number
+      selectedAt: string
+    }
     /** Whether to show proposal-sent confirmation card inline (after proposal sent) */
     showProposalSentConfirmation?: boolean
     /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */

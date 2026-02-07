@@ -91,7 +91,8 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
   if (
     msg.contentType === 'proposal_shared' ||
     msg.contentType === 'email_approval_request' ||
-    (msg.richContent && (RICH_CONTENT_PROPOSAL_KEY in msg.richContent || RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent))
+    msg.contentType === 'margin_selection' ||
+    (msg.richContent && (RICH_CONTENT_PROPOSAL_KEY in msg.richContent || RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent || 'marginSelection' in msg.richContent))
   ) {
     console.log('[mapDbMessageToChatMessage] Special message detected:', {
       id: msg.id,
@@ -114,6 +115,29 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
         ...base,
         showProposalSentConfirmation: true,
         proposalSentData: proposalSent as ProposalSentConfirmationProps,
+      };
+    }
+  }
+
+  // Handle margin_selection contentType
+  if (
+    msg.contentType === 'margin_selection' &&
+    msg.richContent &&
+    typeof msg.richContent === 'object' &&
+    'marginSelection' in msg.richContent
+  ) {
+    const marginData = msg.richContent.marginSelection;
+    if (marginData && typeof marginData === 'object') {
+      return {
+        ...base,
+        showMarginSelection: true,
+        marginSelectionData: marginData as {
+          customerName: string;
+          customerEmail: string;
+          companyName: string;
+          marginPercentage: number;
+          selectedAt: string;
+        },
       };
     }
   }

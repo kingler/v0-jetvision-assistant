@@ -171,6 +171,24 @@ export function ChatInterface({
   const [emailApprovalStatus, setEmailApprovalStatus] = useState<'draft' | 'sending' | 'sent' | 'error'>('draft')
   const [emailApprovalError, setEmailApprovalError] = useState<string | undefined>()
 
+  // Restore email approval state when switching chats (ONEK-185)
+  // Scans loaded messages for an email_approval_request so the EmailPreviewCard
+  // and "Send Email" handler work after chat switch or page refresh.
+  useEffect(() => {
+    const emailMsg = (activeChat.messages || []).find(
+      (msg) => msg.showEmailApprovalRequest && msg.emailApprovalData
+    )
+    if (emailMsg) {
+      setEmailApprovalMessageId(emailMsg.id)
+      setEmailApprovalData(emailMsg.emailApprovalData as EmailApprovalRequestContent)
+      setEmailApprovalStatus('draft')
+    } else {
+      setEmailApprovalMessageId(null)
+      setEmailApprovalData(null)
+      setEmailApprovalStatus('draft')
+    }
+  }, [activeChat.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Book flight modal state for contract generation
   const [isBookFlightModalOpen, setIsBookFlightModalOpen] = useState(false)
   const [bookFlightData, setBookFlightData] = useState<RFQFlight | null>(null)
@@ -1654,7 +1672,38 @@ export function ChatInterface({
         requestId: requestIdForSave || undefined,
       }
 
-      // Step 4: Add email preview message to chat
+      // Step 4a: Add margin selection summary message to chat
+      const marginSelectionData = {
+        customerName: customer.contact_name,
+        customerEmail: customer.email,
+        companyName: customer.company_name,
+        marginPercentage: margin,
+        selectedAt: new Date().toISOString(),
+      }
+      const marginSelectionMessage = {
+        id: `margin-${Date.now()}`,
+        type: 'agent' as const,
+        content: `Customer: ${customer.contact_name} (${customer.company_name}). Service charge: ${margin}%.`,
+        timestamp: new Date(),
+        showMarginSelection: true,
+        marginSelectionData,
+      }
+
+      // Persist margin selection to DB (fire-and-forget)
+      if (requestIdForSave) {
+        fetch('/api/chat-sessions/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId: requestIdForSave,
+            content: marginSelectionMessage.content,
+            contentType: 'margin_selection',
+            richContent: { marginSelection: marginSelectionData },
+          }),
+        }).catch((err) => console.warn('[ChatInterface] Failed to persist margin selection:', err))
+      }
+
+      // Step 4b: Add email preview message to chat
       const emailPreviewMessageId = `email-preview-${Date.now()}`
       const emailPreviewMessage = {
         id: emailPreviewMessageId,
@@ -1671,7 +1720,7 @@ export function ChatInterface({
       setEmailApprovalStatus('draft')
       setEmailApprovalError(undefined)
 
-      const updatedMessages = [...(activeChat.messages || []), emailPreviewMessage]
+      const updatedMessages = [...(activeChat.messages || []), marginSelectionMessage, emailPreviewMessage]
       onUpdateChat(activeChat.id, {
         messages: updatedMessages,
         customer: {
@@ -2114,6 +2163,14 @@ export function ChatInterface({
                 deepLinkData?: { tripId?: string; deepLink?: string }
                 showPipeline?: boolean
                 pipelineData?: PipelineData
+                showMarginSelection?: boolean
+                marginSelectionData?: {
+                  customerName: string
+                  customerEmail: string
+                  companyName: string
+                  marginPercentage: number
+                  selectedAt: string
+                }
                 showProposalSentConfirmation?: boolean
                 proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
                 // Email approval workflow properties (human-in-the-loop)
@@ -2155,6 +2212,8 @@ export function ChatInterface({
                 deepLinkData: msg.deepLinkData,
                 showPipeline: msg.showPipeline,
                 pipelineData: msg.pipelineData,
+                showMarginSelection: msg.showMarginSelection,
+                marginSelectionData: msg.marginSelectionData,
                 showProposalSentConfirmation: msg.showProposalSentConfirmation,
                 proposalSentData: msg.proposalSentData,
                 showEmailApprovalRequest: msg.showEmailApprovalRequest,
@@ -2179,6 +2238,12 @@ export function ChatInterface({
 
                 // Always keep proposal-sent confirmation messages (inline UI)
                 if (message.showProposalSentConfirmation && message.proposalSentData) {
+                  acc.push({ message, index })
+                  return acc
+                }
+
+                // Always keep margin selection summary messages (inline UI)
+                if (message.showMarginSelection && message.marginSelectionData) {
                   acc.push({ message, index })
                   return acc
                 }
@@ -2456,6 +2521,8 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         showPipeline={message.showPipeline}
                         pipelineData={message.pipelineData}
+                        showMarginSelection={message.showMarginSelection}
+                        marginSelectionData={message.marginSelectionData}
                         showProposalSentConfirmation={message.showProposalSentConfirmation}
                         proposalSentData={message.proposalSentData}
                         showEmailApprovalRequest={message.showEmailApprovalRequest}

@@ -15,6 +15,7 @@ import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "../chat-sidebar"
 import { PipelineDashboard } from "../message-components/pipeline-dashboard"
 import { ProposalSentConfirmation } from "@/components/proposal/proposal-sent-confirmation"
+import { MarginSelectionCard, type MarginSelectionData } from "@/components/chat/margin-selection-card"
 import {
   OperatorChatsInline,
   type FlightContext,
@@ -203,6 +204,10 @@ export interface AgentMessageProps {
   onViewOperatorThread?: (quoteId: string) => void
   /** Callback when "Reply" is clicked for operator messages */
   onReplyToOperator?: (quoteId: string) => void
+  /** Whether to show margin selection summary card */
+  showMarginSelection?: boolean
+  /** Data for MarginSelectionCard when showMarginSelection is true */
+  marginSelectionData?: MarginSelectionData
   /** Whether to show proposal-sent confirmation card inline (after proposal sent) */
   showProposalSentConfirmation?: boolean
   /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */
@@ -289,6 +294,8 @@ export function AgentMessage({
   operatorFlightContext,
   onViewOperatorThread,
   onReplyToOperator,
+  showMarginSelection,
+  marginSelectionData,
   showProposalSentConfirmation,
   proposalSentData,
   showEmailApprovalRequest,
@@ -524,6 +531,13 @@ export function AgentMessage({
       )}
 
       {/* Email Approval Request - human-in-the-loop email review */}
+      {/* Margin Selection Summary - inline record of customer + service charge */}
+      {showMarginSelection && marginSelectionData && (
+        <div className="mt-4 w-full">
+          <MarginSelectionCard {...marginSelectionData} />
+        </div>
+      )}
+
       {showEmailApprovalRequest && emailApprovalData && (
         <div className="mt-4 w-full">
           <EmailPreviewCard
