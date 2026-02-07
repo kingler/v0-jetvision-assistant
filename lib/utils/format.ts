@@ -224,6 +224,32 @@ export function formatMessageTimestamp(date: Date): string {
 }
 
 /**
+ * Safely parse a timestamp value into a Date object.
+ *
+ * Handles Date objects, ISO strings, null, and undefined.
+ * Invalid or missing timestamps fall back to epoch (Date(0)) so they sort
+ * to the start of the timeline rather than scrambling into the present.
+ *
+ * @param timestamp - The value to parse (Date, string, null, or undefined)
+ * @returns A valid Date object (epoch if input was invalid/missing)
+ *
+ * @example
+ * safeParseTimestamp(new Date('2025-01-15T10:30:00Z')) // Date(2025-01-15...)
+ * safeParseTimestamp('2025-01-15T10:30:00Z') // Date(2025-01-15...)
+ * safeParseTimestamp(null) // Date(0) - epoch
+ * safeParseTimestamp(new Date('invalid')) // Date(0) - epoch
+ */
+export function safeParseTimestamp(timestamp: Date | string | undefined | null): Date {
+  const EPOCH = new Date(0);
+  if (!timestamp) return EPOCH;
+  if (timestamp instanceof Date) {
+    return isNaN(timestamp.getTime()) ? EPOCH : timestamp;
+  }
+  const parsed = new Date(timestamp);
+  return isNaN(parsed.getTime()) ? EPOCH : parsed;
+}
+
+/**
  * Format a number with thousand separators
  *
  * @param num - Number to format

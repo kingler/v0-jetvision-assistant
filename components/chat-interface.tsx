@@ -71,7 +71,7 @@ import {
 
 // Flight request parser utility
 import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
-import { formatDate, formatMessageTimestamp } from "@/lib/utils/format"
+import { formatDate, formatMessageTimestamp, safeParseTimestamp } from "@/lib/utils/format"
 import { generateEmailDraft } from "@/lib/utils/email-draft-generator"
 import type { EmailApprovalRequestContent } from "@/lib/types/chat"
 
@@ -2121,19 +2121,6 @@ export function ChatInterface({
                 operatorQuoteId?: string
                 operatorMessageType?: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
               }
-
-              // Helper to safely parse timestamps, handling invalid/missing values
-              // Invalid/missing timestamps fall back to epoch (Date(0)) so they sort
-              // to the start of the timeline rather than scrambling into the present
-              const safeParseTimestamp = (timestamp: Date | string | undefined | null): Date => {
-                const EPOCH = new Date(0);
-                if (!timestamp) return EPOCH;
-                if (timestamp instanceof Date) {
-                  return isNaN(timestamp.getTime()) ? EPOCH : timestamp;
-                }
-                const parsed = new Date(timestamp);
-                return isNaN(parsed.getTime()) ? EPOCH : parsed;
-              };
 
               // Flatten operator messages from Record<quoteId, messages[]> to array with context
               const flatOperatorMessages: UnifiedMessage[] = Object.entries(activeChat.operatorMessages || {})

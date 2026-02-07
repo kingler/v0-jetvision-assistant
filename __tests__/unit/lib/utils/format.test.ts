@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { formatMessageTimestamp } from '@/lib/utils/format';
+import { formatMessageTimestamp, safeParseTimestamp } from '@/lib/utils/format';
 
 describe('formatMessageTimestamp', () => {
   afterEach(() => {
@@ -91,5 +91,37 @@ describe('formatMessageTimestamp', () => {
 
     // Should show date since it's yesterday
     expect(result).toMatch(/Feb 6, 2026 at 11:59 PM/);
+  });
+});
+
+describe('safeParseTimestamp', () => {
+  it('should pass through valid Date objects unchanged', () => {
+    const date = new Date('2026-01-15T10:30:00Z');
+    expect(safeParseTimestamp(date).getTime()).toBe(date.getTime());
+  });
+
+  it('should parse valid ISO strings into Date objects', () => {
+    const result = safeParseTimestamp('2026-01-15T10:30:00Z');
+    expect(result.getTime()).toBe(new Date('2026-01-15T10:30:00Z').getTime());
+  });
+
+  it('should return epoch for null', () => {
+    expect(safeParseTimestamp(null).getTime()).toBe(0);
+  });
+
+  it('should return epoch for undefined', () => {
+    expect(safeParseTimestamp(undefined).getTime()).toBe(0);
+  });
+
+  it('should return epoch for Invalid Date objects', () => {
+    expect(safeParseTimestamp(new Date('garbage')).getTime()).toBe(0);
+  });
+
+  it('should return epoch for invalid strings', () => {
+    expect(safeParseTimestamp('not-a-date').getTime()).toBe(0);
+  });
+
+  it('should return epoch for empty string', () => {
+    expect(safeParseTimestamp('').getTime()).toBe(0);
   });
 });
