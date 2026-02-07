@@ -1428,7 +1428,21 @@ function transformToRFQFlights(rfqData, tripId) {
         departureDate: rfqDepartureDate || 'MISSING',
         passengers: rfqPassengers || 'MISSING',
     });
-    return quotes.map((quote, index) => {
+    // Detect multi-segment trip (round trip / multi-city)
+    const allSegments = Array.isArray(rfqData.segments) ? rfqData.segments : [];
+    const isMultiSegment = allSegments.length > 1;
+    if (isMultiSegment) {
+        console.log('[transformToRFQFlights] 🔄 Multi-segment trip detected:', {
+            segmentCount: allSegments.length,
+            segments: allSegments.map((s, i) => ({
+                index: i,
+                departure: s.startAirportDetails?.icao || s.startAirport?.icao || s.startAirport?.searchValue || 'N/A',
+                arrival: s.endAirportDetails?.icao || s.endAirport?.icao || s.endAirport?.searchValue || 'N/A',
+                date: s.dateTime?.date || s.departureDateTime?.dateTimeLocal || 'N/A',
+            })),
+        });
+    }
+    const flights = quotes.map((quote, index) => {
         // Derive RFQ status from quote response
         // When operator responds with a quote, status should be 'quoted'
         // When operator declines, status should be 'declined'
@@ -1762,6 +1776,58 @@ function transformToRFQFlights(rfqData, tripId) {
         });
         return finalRFQFlight;
     }).filter((flight) => flight !== null);
+    // For multi-segment trips (round trips), expand flights per segment
+    // Each operator quote covers the full trip, so we create a flight entry per segment
+    // with correct route data and leg type/sequence
+    if (isMultiSegment && flights.length > 0) {
+        const getIcaoFromAirport = (airport) => {
+            if (!airport)
+                return 'N/A';
+            if (typeof airport === 'string')
+                return airport;
+            return airport.icao || airport.searchValue || airport.code || 'N/A';
+        };
+        const expandedFlights = [];
+        for (let segIdx = 0; segIdx < allSegments.length; segIdx++) {
+            const seg = allSegments[segIdx];
+            const segDep = seg.startAirportDetails || seg.startAirport;
+            const segArr = seg.endAirportDetails || seg.endAirport;
+            const segDate = seg.dateTime?.date || seg.departureDateTime?.dateTimeLocal;
+            const segPax = seg.paxCount ? parseInt(seg.paxCount, 10) : undefined;
+            const depIcao = getIcaoFromAirport(segDep);
+            const arrIcao = getIcaoFromAirport(segArr);
+            const legType = segIdx === 0 ? 'outbound' : 'return';
+            const legSequence = segIdx + 1;
+            for (const flight of flights) {
+                expandedFlights.push({
+                    ...flight,
+                    id: `${flight.id}-seg${legSequence}`,
+                    departureAirport: {
+                        icao: depIcao,
+                        name: segDep?.name || depIcao,
+                        city: segDep?.city,
+                    },
+                    arrivalAirport: {
+                        icao: arrIcao,
+                        name: segArr?.name || arrIcao,
+                        city: segArr?.city,
+                    },
+                    departureDate: segDate || flight.departureDate,
+                    legType,
+                    legSequence,
+                });
+            }
+        }
+        console.log('[transformToRFQFlights] 🔄 Multi-segment expansion:', {
+            originalFlights: flights.length,
+            segments: allSegments.length,
+            expandedFlights: expandedFlights.length,
+            outbound: expandedFlights.filter(f => f.legType === 'outbound').length,
+            return: expandedFlights.filter(f => f.legType === 'return').length,
+        });
+        return expandedFlights;
+    }
+    return flights;
 }
 /**
  * Get RFQ details including status and quotes
@@ -2035,38 +2101,41 @@ async function getRFQ(params) {
                                     latestquote: true,
                                 },
                             });
-                            // Extract quote data from response (handle multiple nested data structures)
-                            // Avinode API response can be at different nesting levels depending on endpoint version:
-                            // - quoteResponse (if avinodeClient.get already unwrapped)
-                            // - quoteResponse.data (single level wrap)
-                            // - quoteResponse.data.data (double level wrap - seen in some API versions)
-                            let quoteData = quoteResponse;
-                            // Check for nested .data and unwrap if sellerPrice is deeper
-                            if (quoteData?.data && !quoteData?.sellerPrice) {
-                                // Check if .data has sellerPrice (single wrap)
-                                if (quoteData.data.sellerPrice) {
-                                    quoteData = quoteData.data;
+                            // ONEK-175 FIX: Improved response unwrapping for /quotes/{quoteId}
+                            // avinodeClient.get() returns response.data (Axios-unwrapped), so we may have:
+                            // Level 0: { id, sellerPrice, ... } (direct quote object)
+                            // Level 1: { data: { id, sellerPrice, ... } } (single wrap)
+                            // Level 2: { data: { data: { id, sellerPrice, ... } } } (double wrap)
+                            // Use same approach as getQuote() for consistency
+                            const raw = quoteResponse;
+                            const payload = raw?.data ?? raw;
+                            let quoteData = payload?.data ?? payload;
+                            // Safety net: If sellerPrice still not found, search deeper
+                            if (!quoteData?.sellerPrice) {
+                                if (raw?.sellerPrice) {
+                                    quoteData = raw;
                                 }
-                                // Check if .data.data has sellerPrice (double wrap)
-                                else if (quoteData.data?.data?.sellerPrice) {
-                                    quoteData = quoteData.data.data;
+                                else if (raw?.data?.sellerPrice) {
+                                    quoteData = raw.data;
                                 }
-                                // Otherwise just use .data
-                                else if (typeof quoteData.data === 'object') {
-                                    quoteData = quoteData.data;
+                                else if (raw?.data?.data?.sellerPrice) {
+                                    quoteData = raw.data.data;
                                 }
                             }
-                            // DEBUG: Log the extraction process
+                            // ONEK-175: If sellerPrice still not found but sellerPriceWithoutCommission exists,
+                            // promote it to sellerPrice so the price extraction chain finds it
+                            if (!quoteData?.sellerPrice && quoteData?.sellerPriceWithoutCommission) {
+                                quoteData.sellerPrice = quoteData.sellerPriceWithoutCommission;
+                                console.log('[getRFQ] Using sellerPriceWithoutCommission as sellerPrice for', quoteId);
+                            }
+                            // Log the extraction result
                             console.log('[getRFQ] Quote data extraction for', quoteId, ':', {
-                                responseType: typeof quoteResponse,
-                                responseKeys: quoteResponse ? Object.keys(quoteResponse).slice(0, 10) : [],
-                                hasDataProperty: !!quoteResponse?.data,
-                                hasSellerPriceAtRoot: !!quoteResponse?.sellerPrice,
-                                hasSellerPriceInData: !!quoteResponse?.data?.sellerPrice,
-                                hasSellerPriceInDataData: !!quoteResponse?.data?.data?.sellerPrice,
-                                finalQuoteDataKeys: quoteData ? Object.keys(quoteData).slice(0, 10) : [],
-                                finalSellerPrice: quoteData?.sellerPrice,
+                                hasSellerPrice: !!quoteData?.sellerPrice,
+                                sellerPriceValue: quoteData?.sellerPrice?.price,
+                                sellerPriceCurrency: quoteData?.sellerPrice?.currency,
+                                hasSellerPriceWithoutCommission: !!quoteData?.sellerPriceWithoutCommission,
                                 finalId: quoteData?.id,
+                                finalKeys: quoteData ? Object.keys(quoteData).slice(0, 15) : [],
                             });
                             return quoteData;
                         }
@@ -2381,12 +2450,15 @@ async function getQuote(params) {
     if (!params.quote_id) {
         throw new Error('quote_id is required');
     }
+    // ONEK-175: Add latestquote and quotebreakdown params for consistent behavior with getRFQ
     const response = await avinodeClient.get(`/quotes/${params.quote_id}`, {
         params: {
             taildetails: true,
             typedetails: true,
             tailphotos: true,
             typephotos: true,
+            quotebreakdown: true,
+            latestquote: true,
         },
     });
     const payload = response?.data ?? response;

@@ -481,6 +481,20 @@ export interface RFQFlight {
     avinodeDeepLink?: string;
     /** Message ID for retrieving specific operator messages (from webhook events) */
     messageId?: string;
+    /**
+     * Leg type for round-trip proposals
+     * - 'outbound': First leg (departure to destination)
+     * - 'return': Return leg (destination back to origin)
+     * Default: 'outbound' for backward compatibility
+     */
+    legType?: 'outbound' | 'return';
+    /**
+     * Leg sequence number for multi-leg trips
+     * - 1: First leg (outbound)
+     * - 2: Second leg (return)
+     * Used for ordering and grouping in proposals
+     */
+    legSequence?: number;
 }
 /**
  * Create Empty Leg Watch Parameters

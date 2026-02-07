@@ -1478,7 +1478,22 @@ export class AvinodeClient {
     const rfqArrivalAirport = rfqRoute?.arrivalAirport;
     const rfqDepartureDate = rfqRoute?.departureDate;
 
-    return quotes.map((quote: any, index: number) => {
+    // Detect multi-segment trip (round trip / multi-city)
+    const allSegments = Array.isArray(rfqData.segments) ? rfqData.segments : [];
+    const isMultiSegment = allSegments.length > 1;
+
+    if (isMultiSegment) {
+      this.logger.info('Multi-segment trip detected', {
+        segmentCount: allSegments.length,
+        segments: allSegments.map((s: any, i: number) => ({
+          index: i,
+          departure: s.startAirportDetails?.icao || s.startAirport?.icao || 'N/A',
+          arrival: s.endAirportDetails?.icao || s.endAirport?.icao || 'N/A',
+        })),
+      });
+    }
+
+    const flights = quotes.map((quote: any, index: number) => {
       // Derive RFQ status using helper method
       const rfqStatus = this.deriveRfqStatus(quote);
       const hasQuote = rfqStatus === 'quoted';
@@ -1562,6 +1577,57 @@ export class AvinodeClient {
         avinodeDeepLink: viewInAvinodeHref,
       };
     });
+
+    // For multi-segment trips (round trips), expand flights per segment
+    // Each operator quote covers the full trip, so create a flight entry per segment
+    // with correct route data and leg type/sequence
+    if (isMultiSegment && flights.length > 0) {
+      const normalizeAirport = (airport: any): { icao: string; name?: string; city?: string } | undefined => {
+        if (!airport) return undefined;
+        if (!airport.icao && !airport.searchValue) return undefined;
+        return {
+          icao: airport.icao || airport.searchValue || 'N/A',
+          name: airport.name,
+          city: airport.city,
+        };
+      };
+
+      const expandedFlights: RFQFlight[] = [];
+
+      for (let segIdx = 0; segIdx < allSegments.length; segIdx++) {
+        const seg = allSegments[segIdx];
+        const segDep = normalizeAirport(seg.startAirportDetails || seg.startAirport);
+        const segArr = normalizeAirport(seg.endAirportDetails || seg.endAirport);
+        const segDate = seg.dateTime?.date ||
+          seg.departureDateTime?.dateTimeLocal?.split('T')[0] ||
+          seg.departureDateTime?.dateTimeUTC?.split('T')[0];
+
+        const legType: 'outbound' | 'return' = segIdx === 0 ? 'outbound' : 'return';
+        const legSequence = segIdx + 1;
+
+        for (const flight of flights) {
+          expandedFlights.push({
+            ...flight,
+            id: `${flight.id}-seg${legSequence}`,
+            departureAirport: segDep || flight.departureAirport,
+            arrivalAirport: segArr || flight.arrivalAirport,
+            departureDate: segDate || flight.departureDate,
+            legType,
+            legSequence,
+          });
+        }
+      }
+
+      this.logger.info('Multi-segment expansion complete', {
+        originalFlights: flights.length,
+        segments: allSegments.length,
+        expandedFlights: expandedFlights.length,
+      });
+
+      return expandedFlights;
+    }
+
+    return flights;
   }
 
   /**

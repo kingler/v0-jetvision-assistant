@@ -1590,7 +1590,23 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     passengers: rfqPassengers || 'MISSING',
   });
 
-  return quotes.map((quote: any, index: number): RFQFlight | null => {
+  // Detect multi-segment trip (round trip / multi-city)
+  const allSegments = Array.isArray(rfqData.segments) ? rfqData.segments : [];
+  const isMultiSegment = allSegments.length > 1;
+
+  if (isMultiSegment) {
+    console.log('[transformToRFQFlights] 🔄 Multi-segment trip detected:', {
+      segmentCount: allSegments.length,
+      segments: allSegments.map((s: any, i: number) => ({
+        index: i,
+        departure: s.startAirportDetails?.icao || s.startAirport?.icao || s.startAirport?.searchValue || 'N/A',
+        arrival: s.endAirportDetails?.icao || s.endAirport?.icao || s.endAirport?.searchValue || 'N/A',
+        date: s.dateTime?.date || s.departureDateTime?.dateTimeLocal || 'N/A',
+      })),
+    });
+  }
+
+  const flights = quotes.map((quote: any, index: number): RFQFlight | null => {
     // Derive RFQ status from quote response
     // When operator responds with a quote, status should be 'quoted'
     // When operator declines, status should be 'declined'
@@ -1939,6 +1955,65 @@ function transformToRFQFlights(rfqData: any, tripId?: string): RFQFlight[] {
     
     return finalRFQFlight
   }).filter((flight): flight is RFQFlight => flight !== null);
+
+  // For multi-segment trips (round trips), expand flights per segment
+  // Each operator quote covers the full trip, so we create a flight entry per segment
+  // with correct route data and leg type/sequence
+  if (isMultiSegment && flights.length > 0) {
+    const getIcaoFromAirport = (airport: any): string => {
+      if (!airport) return 'N/A';
+      if (typeof airport === 'string') return airport;
+      return airport.icao || airport.searchValue || airport.code || 'N/A';
+    };
+
+    const expandedFlights: RFQFlight[] = [];
+
+    for (let segIdx = 0; segIdx < allSegments.length; segIdx++) {
+      const seg = allSegments[segIdx];
+      const segDep = seg.startAirportDetails || seg.startAirport;
+      const segArr = seg.endAirportDetails || seg.endAirport;
+      const segDate = seg.dateTime?.date || seg.departureDateTime?.dateTimeLocal;
+      const segPax = seg.paxCount ? parseInt(seg.paxCount, 10) : undefined;
+
+      const depIcao = getIcaoFromAirport(segDep);
+      const arrIcao = getIcaoFromAirport(segArr);
+
+      const legType: 'outbound' | 'return' = segIdx === 0 ? 'outbound' : 'return';
+      const legSequence = segIdx + 1;
+
+      for (const flight of flights) {
+        expandedFlights.push({
+          ...flight,
+          id: `${flight.id}-seg${legSequence}`,
+          departureAirport: {
+            icao: depIcao,
+            name: segDep?.name || depIcao,
+            city: segDep?.city,
+          },
+          arrivalAirport: {
+            icao: arrIcao,
+            name: segArr?.name || arrIcao,
+            city: segArr?.city,
+          },
+          departureDate: segDate || flight.departureDate,
+          legType,
+          legSequence,
+        });
+      }
+    }
+
+    console.log('[transformToRFQFlights] 🔄 Multi-segment expansion:', {
+      originalFlights: flights.length,
+      segments: allSegments.length,
+      expandedFlights: expandedFlights.length,
+      outbound: expandedFlights.filter(f => f.legType === 'outbound').length,
+      return: expandedFlights.filter(f => f.legType === 'return').length,
+    });
+
+    return expandedFlights;
+  }
+
+  return flights;
 }
 
 /**

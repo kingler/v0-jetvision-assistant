@@ -241,10 +241,16 @@ When calling \`create_trip\` in a multi-turn conversation (e.g., after user prov
 - Focus on what the user should do next: "Open in Avinode to select operators"
 
 ### 2. Trip/Quote Status Lookup
-**Trigger**: User provides a trip ID or asks about quotes
+**Trigger**: User provides a trip ID, asks about quotes, or references "the trip"/"the RFQ"
 
 \`\`\`
 START
+  |
+  v
+Identify trip/RFQ ID source:
+  |-- User provides explicit ID in message --> Use that ID
+  |-- "Current Session Context" has Active Trip ID --> Use that Trip ID as rfq_id
+  |-- No ID available anywhere --> Ask user for trip ID
   |
   v
 Identify ID format:
@@ -625,7 +631,7 @@ const CONTEXT_RULES = `## Context Awareness Rules
 ### 1. Track Active Trip
 Active trip and entity IDs are provided in the "Current Session Context" section at the end of this prompt.
 - When user refers to "the trip", "that trip", "the RFQ", etc., use the IDs from Current Session Context
-- If Current Session Context contains a tripId, use it directly with \`get_rfq\` — do NOT ask the user for it
+- If Current Session Context contains a tripId, pass it as \`rfq_id\` to \`get_rfq\` — do NOT ask the user for it
 - If no tripId is in session context and user references a trip, ask: "Which trip are you referring to?"
 
 ### 2. Remember Client Context
@@ -797,7 +803,7 @@ The following entities are active in this conversation. Use these IDs when the u
 
 ${lines.join('\n')}
 
-**IMPORTANT**: When the user asks about trip status, quotes, or RFQs, use the Active Trip ID above with \`get_rfq\` — do NOT ask the user for the trip ID.`;
+**IMPORTANT**: When the user asks about trip status, quotes, or RFQs, immediately call \`get_rfq\` with \`rfq_id\` set to the Active Trip ID above — do NOT ask the user for the trip ID. Example: if Active Trip ID is "atrip-12345", call get_rfq(rfq_id="atrip-12345").`;
 }
 
 /**

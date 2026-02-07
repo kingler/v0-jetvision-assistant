@@ -399,7 +399,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
                      */
                     const totalCount = session.rfqFlights?.length || 0
                     const respondedCount = session.rfqFlights?.filter(
-                      (rfq) => rfq.rfqStatus === 'quoted'
+                      (rfq) => rfq.rfqStatus === 'quoted' || (rfq.totalPrice && rfq.totalPrice > 0)
                     ).length || 0
                     
                     // Show responded count (primary) / total count (if available)

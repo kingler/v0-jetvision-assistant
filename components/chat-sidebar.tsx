@@ -178,6 +178,9 @@ export interface ChatSession {
         arrivalAirport: string
         departureDate: string
         passengers?: number
+        tripType?: 'one_way' | 'round_trip'
+        returnDate?: string
+        returnAirport?: string
       }
       pricing?: { subtotal: number; total: number; currency: string }
       generatedAt?: string

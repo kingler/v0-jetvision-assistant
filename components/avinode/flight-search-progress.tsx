@@ -931,6 +931,7 @@ export function FlightSearchProgress({
                           onReviewAndBook={onReviewAndBook}
                           onGenerateProposal={onGenerateProposal}
                           onBookFlight={onBookFlight}
+                          groupByLeg={rfqFlights.some(f => f.legType != null)}
                         />
                       ) : (
                         /* Show loading state inside the content area if we're loading but have no flights yet */

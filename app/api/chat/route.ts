@@ -191,6 +191,14 @@ export async function POST(req: NextRequest) {
       workingMemory.tripId = workingMemory.tripId || requestTripId || context?.tripId;
     }
 
+    console.log('[Chat API] Working memory loaded:', {
+      conversationId,
+      tripId: workingMemory.tripId || null,
+      rfqId: workingMemory.rfqId || null,
+      workflowStage: workingMemory.workflowStage || null,
+      fieldCount: Object.keys(workingMemory).length,
+    });
+
     // 5. Save user message (skip if explicitly requested for background operations like get_rfq)
     // This prevents cluttering conversation history with technical tool calls
     if (!skipMessagePersistence) {
@@ -323,6 +331,14 @@ export async function POST(req: NextRequest) {
       if (result.rfpData.return_date) workingMemory.returnDate = result.rfpData.return_date;
     }
     workingMemory.lastUpdated = new Date().toISOString();
+
+    console.log('[Chat API] Working memory updated:', {
+      conversationId,
+      tripId: workingMemory.tripId || null,
+      rfqId: workingMemory.rfqId || null,
+      workflowStage: workingMemory.workflowStage || null,
+      fieldCount: Object.keys(workingMemory).length,
+    });
 
     // 8. Update request with trip info and flight details if created
     if (result.tripId || result.rfpData) {
