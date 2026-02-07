@@ -166,6 +166,31 @@ export async function POST(req: NextRequest) {
       console.log('[Chat API] Reusing request:', { conversationId, historyLength: conversationHistory?.length ?? 0 });
     }
 
+    // 4b. Load working memory from request's workflow_state
+    let workingMemory: Record<string, unknown> = {};
+    {
+      const { data: reqRow } = await supabaseAdmin
+        .from('requests')
+        .select('workflow_state, avinode_trip_id, avinode_rfq_id, avinode_deep_link')
+        .eq('id', conversationId)
+        .single();
+
+      if (reqRow) {
+        const ws = (reqRow.workflow_state as Record<string, unknown>) || {};
+        workingMemory = {
+          ...ws,
+          ...(reqRow.avinode_trip_id ? { tripId: reqRow.avinode_trip_id } : {}),
+          ...(reqRow.avinode_rfq_id ? { rfqId: reqRow.avinode_rfq_id } : {}),
+          ...(reqRow.avinode_deep_link ? { deepLink: reqRow.avinode_deep_link } : {}),
+        };
+      }
+    }
+
+    // Merge any tripId from the request into working memory (e.g. from URL params)
+    if (requestTripId || context?.tripId) {
+      workingMemory.tripId = workingMemory.tripId || requestTripId || context?.tripId;
+    }
+
     // 5. Save user message (skip if explicitly requested for background operations like get_rfq)
     // This prevents cluttering conversation history with technical tool calls
     if (!skipMessagePersistence) {
@@ -216,8 +241,8 @@ export async function POST(req: NextRequest) {
       isConnected: () => true,
     });
 
-    // Execute agent
-    const result = await agent.execute(message, conversationHistory);
+    // Execute agent with working memory for cross-turn context
+    const result = await agent.execute(message, conversationHistory, workingMemory);
 
     // 7. Save assistant response (skip when skipMessagePersistence is true, e.g. background RFQ refreshes)
     if (!skipMessagePersistence) {
@@ -256,6 +281,48 @@ export async function POST(req: NextRequest) {
     } else {
       console.log('[Chat API] Skipping assistant message persistence for:', { conversationId, messagePreview: result.message.slice(0, 50) });
     }
+
+    // 7b. Update working memory from tool results
+    for (const tr of result.toolResults) {
+      if (tr.name === 'create_trip' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        if (data.trip_id) workingMemory.tripId = data.trip_id;
+        if (data.deep_link) workingMemory.deepLink = data.deep_link;
+        workingMemory.workflowStage = 'trip_created';
+      }
+      if (tr.name === 'get_rfq' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        if (data.trip_id) workingMemory.tripId = data.trip_id;
+        if (data.rfq_id) workingMemory.rfqId = data.rfq_id;
+        const flights = data.flights as unknown[] | undefined;
+        if (flights && flights.length > 0) {
+          workingMemory.quotesReceived = flights.length;
+          workingMemory.workflowStage = 'quotes_received';
+        }
+      }
+      if (tr.name === 'get_client' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        if (data.id) workingMemory.clientId = data.id;
+        if (data.email) workingMemory.clientEmail = data.email;
+        if (data.contact_name) workingMemory.clientName = data.contact_name;
+      }
+      if (tr.name === 'prepare_proposal_email' && tr.success) {
+        workingMemory.workflowStage = 'proposal_ready';
+      }
+      if ((tr.name === 'send_proposal_email' || tr.name === 'send_email') && tr.success) {
+        workingMemory.workflowStage = 'proposal_sent';
+      }
+    }
+
+    // Capture rfpData into working memory
+    if (result.rfpData) {
+      if (result.rfpData.departure_airport) workingMemory.departureAirport = result.rfpData.departure_airport;
+      if (result.rfpData.arrival_airport) workingMemory.arrivalAirport = result.rfpData.arrival_airport;
+      if (result.rfpData.departure_date) workingMemory.departureDate = result.rfpData.departure_date;
+      if (result.rfpData.passengers) workingMemory.passengers = result.rfpData.passengers;
+      if (result.rfpData.return_date) workingMemory.returnDate = result.rfpData.return_date;
+    }
+    workingMemory.lastUpdated = new Date().toISOString();
 
     // 8. Update request with trip info and flight details if created
     if (result.tripId || result.rfpData) {
@@ -302,6 +369,7 @@ export async function POST(req: NextRequest) {
       iso_agent_id: isoAgentId,
       session_status: 'active',
       conversation_type: conversationType,
+      workflow_state: workingMemory,
       ...(result.tripId ? { avinode_trip_id: result.tripId } : {}),
     };
     await createOrUpdateChatSession(sessionData, conversationId);

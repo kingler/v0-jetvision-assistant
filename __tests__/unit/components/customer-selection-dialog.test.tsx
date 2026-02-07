@@ -430,7 +430,7 @@ describe('CustomerSelectionDialog', () => {
       const confirmButton = screen.getByRole('button', { name: 'Generate Proposal' });
       await user.click(confirmButton);
 
-      expect(mockOnSelect).toHaveBeenCalledWith(mockClients[0]);
+      expect(mockOnSelect).toHaveBeenCalledWith(mockClients[0], expect.any(Number));
       expect(mockOnClose).toHaveBeenCalled();
     });
 

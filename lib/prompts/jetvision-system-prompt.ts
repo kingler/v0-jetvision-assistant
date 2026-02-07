@@ -623,10 +623,10 @@ When showing client info:
 const CONTEXT_RULES = `## Context Awareness Rules
 
 ### 1. Track Active Trip
-When a trip is created or referenced in conversation:
-- Remember the trip_id for follow-up questions
-- If user says "that trip" or "the trip", use the most recent trip_id
-- If ambiguous, confirm: "Are you referring to trip [ID]?"
+Active trip and entity IDs are provided in the "Current Session Context" section at the end of this prompt.
+- When user refers to "the trip", "that trip", "the RFQ", etc., use the IDs from Current Session Context
+- If Current Session Context contains a tripId, use it directly with \`get_rfq\` — do NOT ask the user for it
+- If no tripId is in session context and user references a trip, ask: "Which trip are you referring to?"
 
 ### 2. Remember Client Context
 When a client is mentioned:
@@ -753,6 +753,64 @@ const AIRPORT_REFERENCE = `## Common Airport Codes (Quick Reference)
 | Aspen | KASE | ASE | Aspen-Pitkin |
 
 **Note**: ICAO codes in US start with 'K'. If user provides 3-letter IATA code, prepend 'K' for US airports.`;
+
+// =============================================================================
+// WORKING MEMORY INJECTION
+// =============================================================================
+
+/**
+ * Render working memory as a delimited block for injection into system prompt.
+ * Only includes fields that have values.
+ */
+export function renderWorkingMemory(memory: Record<string, unknown> | null | undefined): string {
+  if (!memory || Object.keys(memory).length === 0) return '';
+
+  const lines: string[] = [];
+
+  const fields: Array<[string, string]> = [
+    ['tripId', 'Active Trip ID'],
+    ['rfqId', 'Active RFQ ID'],
+    ['deepLink', 'Avinode Deep Link'],
+    ['clientId', 'Client ID'],
+    ['clientEmail', 'Client Email'],
+    ['clientName', 'Client Name'],
+    ['departureAirport', 'Departure Airport'],
+    ['arrivalAirport', 'Arrival Airport'],
+    ['departureDate', 'Departure Date'],
+    ['returnDate', 'Return Date'],
+    ['passengers', 'Passengers'],
+    ['workflowStage', 'Workflow Stage'],
+    ['quotesReceived', 'Quotes Received'],
+  ];
+
+  for (const [key, label] of fields) {
+    const value = memory[key];
+    if (value !== undefined && value !== null && value !== '') {
+      lines.push(`- ${label}: ${value}`);
+    }
+  }
+
+  if (lines.length === 0) return '';
+
+  return `## Current Session Context
+The following entities are active in this conversation. Use these IDs when the user refers to "the trip", "the RFQ", "the client", etc.
+
+${lines.join('\n')}
+
+**IMPORTANT**: When the user asks about trip status, quotes, or RFQs, use the Active Trip ID above with \`get_rfq\` — do NOT ask the user for the trip ID.`;
+}
+
+/**
+ * Build system prompt with working memory injected
+ */
+export function buildSystemPromptWithWorkingMemory(
+  workingMemory?: Record<string, unknown> | null
+): string {
+  const base = buildCompleteSystemPrompt();
+  const memoryBlock = renderWorkingMemory(workingMemory);
+  if (!memoryBlock) return base;
+  return base + '\n\n---\n\n' + memoryBlock;
+}
 
 // =============================================================================
 // PROMPT BUILDER FUNCTIONS

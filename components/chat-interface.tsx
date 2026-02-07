@@ -111,6 +111,8 @@ export function ChatInterface({
   const [streamError, setStreamError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const workflowRef = useRef<HTMLDivElement>(null)
+  const activeChatRef = useRef(activeChat)
+  activeChatRef.current = activeChat
   const latestMessagesRef = useRef(activeChat.messages)
   const abortControllerRef = useRef<AbortController | null>(null)
   // Track which chat ID we've already made the initial API call for
@@ -1041,19 +1043,21 @@ export function ChatInterface({
 
     try {
       // Build conversation history from active chat messages for context
-      const conversationHistory = (activeChat.messages || []).map((msg) => ({
+      // Use ref to avoid stale closure when async function resolves
+      const chat = activeChatRef.current
+      const conversationHistory = (chat.messages || []).map((msg) => ({
         role: msg.type === "user" ? "user" as const : "assistant" as const,
         content: msg.content,
       }))
 
       console.log('[ChatInterface] 📡 Calling get_rfq for TripID:', {
         tripId,
-        chatId: activeChat.id,
+        chatId: chat.id,
         hasConversationHistory: conversationHistory.length > 0,
         historyLength: conversationHistory.length,
       })
 
-      const convOrReqId = activeChat.conversationId || activeChat.requestId
+      const convOrReqId = chat.conversationId || chat.requestId
       const fetchRfqData = () => fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1121,8 +1125,8 @@ export function ChatInterface({
         if (toolCall.name === 'get_rfq') {
           console.log('[ChatInterface] 📦 get_rfq tool call result:', {
             success: !!toolCall.result,
-            hasError: !!((toolCall.result as any)?.error),
-            error: ((toolCall.result as any)?.error),
+            hasError: !!(toolCall.result?.error),
+            error: (toolCall.result?.error),
             resultType: typeof toolCall.result,
             resultKeys: toolCall.result && typeof toolCall.result === 'object' ? Object.keys(toolCall.result) : [],
           })
@@ -1143,11 +1147,11 @@ export function ChatInterface({
         for (const rfq of result.rfqData.rfqs) {
           if (rfq.quotes && rfq.quotes.length > 0) {
             for (const quote of rfq.quotes) {
-              const flight = convertQuoteToRFQFlight(quote, routeParts, activeChat.date)
+              const flight = convertQuoteToRFQFlight(quote, routeParts, chat.date)
               if (flight) newRfqFlights.push(flight)
             }
           } else {
-            const flight = convertRfqToRFQFlight(rfq, routeParts, activeChat.date)
+            const flight = convertRfqToRFQFlight(rfq, routeParts, chat.date)
             newRfqFlights.push(flight)
           }
         }
@@ -1234,8 +1238,8 @@ export function ChatInterface({
         } : {
           // Ensure existing requestId is explicitly preserved (defensive coding)
           // This handles cases where the session already has a valid requestId from sidebar load
-          ...(activeChat.requestId ? { requestId: activeChat.requestId } : {}),
-          ...(activeChat.conversationId ? { conversationId: activeChat.conversationId } : {}),
+          ...(chat.requestId ? { requestId: chat.requestId } : {}),
+          ...(chat.conversationId ? { conversationId: chat.conversationId } : {}),
         }),
       }
 
@@ -1247,13 +1251,13 @@ export function ChatInterface({
         currentStep: updates.currentStep,
         conversationId: result.conversationId || 'not returned',
         requestIdSynced: !!result.conversationId,
-        existingRequestId: activeChat.requestId || 'none',
-        existingConversationId: activeChat.conversationId || 'none',
+        existingRequestId: chat.requestId || 'none',
+        existingConversationId: chat.conversationId || 'none',
         finalRequestId: updates.requestId || 'not set',
         hasAgentSummary: !!result.content,
       })
 
-      onUpdateChat(activeChat.id, updates)
+      onUpdateChat(chat.id, updates)
       setTripIdSubmitted(true)
 
     } catch (error) {

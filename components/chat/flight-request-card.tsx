@@ -52,6 +52,16 @@ interface FlightRequestCardProps {
  * Fixed width of 300px to fit within the 320px sidebar with padding.
  */
 export const FlightRequestCard = React.memo(function FlightRequestCard({ session, isActive, onClick, onDelete, onCancel, onArchive }: FlightRequestCardProps) {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[FlightRequestCard] render:', {
+      id: session.id,
+      status: session.status,
+      rfqFlights: session.rfqFlights?.length || 0,
+      quotesReceived: session.quotesReceived,
+      isActive,
+    })
+  }
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [showArchiveDialog, setShowArchiveDialog] = useState(false)
@@ -546,5 +556,29 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
         </DialogContent>
       </Dialog>
     </Card>
+  )
+}, (prevProps, nextProps) => {
+  // Custom comparison - only re-render when visible data changes
+  const p = prevProps.session
+  const n = nextProps.session
+  return (
+    p.id === n.id &&
+    p.status === n.status &&
+    p.currentStep === n.currentStep &&
+    p.rfqFlights?.length === n.rfqFlights?.length &&
+    p.quotesReceived === n.quotesReceived &&
+    p.quotesTotal === n.quotesTotal &&
+    p.rfqsLastFetchedAt === n.rfqsLastFetchedAt &&
+    p.route === n.route &&
+    p.date === n.date &&
+    p.passengers === n.passengers &&
+    p.generatedName === n.generatedName &&
+    p.aircraft === n.aircraft &&
+    p.operator === n.operator &&
+    p.tripId === n.tripId &&
+    p.deepLink === n.deepLink &&
+    p.operatorMessages === n.operatorMessages &&
+    p.lastMessagesReadAt === n.lastMessagesReadAt &&
+    prevProps.isActive === nextProps.isActive
   )
 })

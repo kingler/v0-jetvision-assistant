@@ -535,6 +535,37 @@ export interface ConversationState {
   updatedAt: string;
 }
 
+/**
+ * Structured working memory for cross-turn entity retention.
+ * Stored in requests.workflow_state JSONB column.
+ * Injected into system prompt so the LLM always has access to key IDs.
+ */
+export interface WorkingMemory {
+  // Trip & RFQ tracking
+  tripId?: string;
+  rfqId?: string;
+  deepLink?: string;
+
+  // Client context
+  clientId?: string;
+  clientEmail?: string;
+  clientName?: string;
+
+  // Flight details (from create_trip)
+  departureAirport?: string;
+  arrivalAirport?: string;
+  departureDate?: string;
+  returnDate?: string;
+  passengers?: number;
+
+  // Workflow state
+  workflowStage?: 'gathering_info' | 'trip_created' | 'awaiting_quotes' | 'quotes_received' | 'proposal_ready' | 'proposal_sent';
+  quotesReceived?: number;
+
+  // Metadata
+  lastUpdated?: string;
+}
+
 // =============================================================================
 // OPENAI TOOL DEFINITIONS (for function calling)
 // =============================================================================

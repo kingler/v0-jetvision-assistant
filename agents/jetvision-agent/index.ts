@@ -15,7 +15,7 @@ import type { AgentContext, ToolResult, ToolName } from './types';
 import { ALL_TOOLS } from './tools';
 import { ToolExecutor, createToolExecutor } from './tool-executor';
 import {
-  buildCompleteSystemPrompt,
+  buildSystemPromptWithWorkingMemory,
   detectForcedTool,
   detectForcedToolFromContext,
   detectIntentWithHistory,
@@ -73,7 +73,8 @@ export class JetvisionAgent {
    */
   async execute(
     userMessage: string,
-    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+    workingMemory?: Record<string, unknown> | null
   ): Promise<{
     message: string;
     toolResults: ToolResult[];
@@ -91,7 +92,7 @@ export class JetvisionAgent {
     // Detect intent from message AND conversation history
     // This fixes the multi-turn bug where clarification responses lose context
     const intent = detectIntentWithHistory(userMessage, conversationHistory);
-    let systemPrompt = buildCompleteSystemPrompt();
+    let systemPrompt = buildSystemPromptWithWorkingMemory(workingMemory);
 
     // Append intent-specific instructions if detected
     if (intent) {

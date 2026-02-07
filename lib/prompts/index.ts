@@ -9,6 +9,8 @@
 // Re-export from jetvision-system-prompt
 export {
   buildCompleteSystemPrompt,
+  buildSystemPromptWithWorkingMemory,
+  renderWorkingMemory,
   buildSystemPromptWithIntent as buildSystemPromptWithIntentBase,
   detectForcedTool,
   detectForcedToolFromContext,
