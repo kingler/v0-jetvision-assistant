@@ -46,7 +46,7 @@ export interface EmailPreviewCardProps {
   }
   /** Email subject */
   subject: string
-  /** Email body (HTML) */
+  /** Email body (plain text) */
   body: string
   /** Attachments */
   attachments: Array<{
@@ -95,10 +95,10 @@ function formatFileSize(bytes?: number): string {
 }
 
 /**
- * Strip HTML tags for plain text preview
+ * Strip HTML tags for plain text display, preserving line breaks
  */
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  return html.replace(/<[^>]*>/g, '').trim()
 }
 
 export function EmailPreviewCard({
@@ -117,17 +117,20 @@ export function EmailPreviewCard({
   error,
   generatedAt,
 }: EmailPreviewCardProps) {
+  // Strip any legacy HTML from body for consistent plain text handling
+  const cleanInitialBody = stripHtml(initialBody)
+
   // State
   const [isEditing, setIsEditing] = useState(false)
   const [editedSubject, setEditedSubject] = useState(initialSubject)
-  const [editedBody, setEditedBody] = useState(initialBody)
+  const [editedBody, setEditedBody] = useState(cleanInitialBody)
   const [isSending, setIsSending] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
   // Computed values
   const displaySubject = isEditing ? editedSubject : initialSubject
-  const displayBody = isEditing ? editedBody : initialBody
-  const hasChanges = editedSubject !== initialSubject || editedBody !== initialBody
+  const displayBody = isEditing ? editedBody : cleanInitialBody
+  const hasChanges = editedSubject !== initialSubject || editedBody !== cleanInitialBody
   const currentError = error || localError
 
   /**
@@ -149,9 +152,9 @@ export function EmailPreviewCard({
    */
   const handleDiscardChanges = useCallback(() => {
     setEditedSubject(initialSubject)
-    setEditedBody(initialBody)
+    setEditedBody(cleanInitialBody)
     setIsEditing(false)
-  }, [initialSubject, initialBody])
+  }, [initialSubject, cleanInitialBody])
 
   /**
    * Handle send email
@@ -284,13 +287,12 @@ export function EmailPreviewCard({
               value={editedBody}
               onChange={(e) => setEditedBody(e.target.value)}
               className="text-sm min-h-[200px] font-mono"
-              placeholder="Email body (HTML supported)..."
+              placeholder="Email body..."
             />
           ) : (
-            <div
-              className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded px-3 py-3 max-h-[300px] overflow-y-auto prose prose-sm dark:prose-invert prose-p:my-2"
-              dangerouslySetInnerHTML={{ __html: displayBody }}
-            />
+            <div className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded px-3 py-3 max-h-[300px] overflow-y-auto whitespace-pre-wrap">
+              {displayBody}
+            </div>
           )}
         </div>
 

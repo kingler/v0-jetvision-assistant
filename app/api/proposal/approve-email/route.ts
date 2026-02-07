@@ -46,7 +46,7 @@ interface ApproveEmailRequest {
   proposalId: string
   /** Final email subject (may be edited) */
   subject: string
-  /** Final email body (HTML, may be edited) */
+  /** Final email body (plain text, may be edited) */
   body: string
   /** Recipient information */
   to: {

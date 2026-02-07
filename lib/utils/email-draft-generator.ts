@@ -28,7 +28,7 @@ export interface EmailDraft {
 
 /**
  * Generate email draft content for proposal preview.
- * Produces subject and HTML body matching the server-side template.
+ * Produces subject and plain text body matching the server-side template.
  */
 export function generateEmailDraft(options: EmailDraftOptions): EmailDraft {
   const {
@@ -42,11 +42,19 @@ export function generateEmailDraft(options: EmailDraftOptions): EmailDraft {
 
   const subject = `Jetvision Charter Proposal: ${departureAirport} → ${arrivalAirport}`;
 
-  const formattedDate = new Date(departureDate).toLocaleDateString('en-US', {
+  // Parse YYYY-MM-DD as UTC components to avoid timezone-induced off-by-one errors
+  // (e.g., new Date("2026-03-25") creates UTC midnight, which in US timezones
+  // shifts to Mar 24 — showing the wrong weekday and date)
+  const dateOnlyMatch = departureDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const dateObj = dateOnlyMatch
+    ? new Date(Date.UTC(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3])))
+    : new Date(departureDate);
+  const formattedDate = dateObj.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'UTC',
   });
 
   const pricingLine = pricing
@@ -63,11 +71,11 @@ Thank you for considering Jetvision for your private charter needs.
 
 Please find attached your customized proposal for your upcoming trip:
 
-<strong>Trip Details:</strong>
+Trip Details:
 • Route: ${departureAirport} → ${arrivalAirport}
 • Date: ${formattedDate}${pricingLine}
 
-<strong>Proposal ID:</strong> ${proposalId}
+Proposal ID: ${proposalId}
 
 The attached PDF contains detailed information about your selected aircraft options, pricing breakdown, and terms of service.
 
