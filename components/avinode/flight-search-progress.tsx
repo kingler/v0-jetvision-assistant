@@ -162,6 +162,8 @@ export interface FlightSearchProgressProps {
       tripId?: string;
     };
   }) => Promise<{ success: boolean; error?: string }>;
+  /** Jetvision service charge percentage for internal cost breakdown */
+  marginPercentage?: number;
   /** Callback when user goes back from Step 4 */
   onGoBackFromProposal?: () => void;
   /** Which steps to render: 'steps-1-2', 'steps-3-4', or 'all' (default) */
@@ -360,6 +362,7 @@ export function FlightSearchProgress({
   onBookFlight,
   onGeneratePreview,
   onSendProposal,
+  marginPercentage,
   onGoBackFromProposal,
   renderMode = 'all',
   className,
@@ -976,6 +979,7 @@ export function FlightSearchProgress({
                   passengers: flightRequest.passengers,
                   tripId: tripId,
                 }}
+                marginPercentage={marginPercentage}
                 customerEmail={customerEmail}
                 customerName={customerName}
                 onGeneratePreview={onGeneratePreview}

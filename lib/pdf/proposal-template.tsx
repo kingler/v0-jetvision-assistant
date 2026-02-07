@@ -672,40 +672,7 @@ function PricingSection({
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Pricing Summary</Text>
       <View style={styles.pricingTable}>
-        {/* Per-leg breakdown for round-trip */}
-        {showLegBreakdown && (
-          <>
-            <View style={styles.pricingRow}>
-              <Text>Charter Cost</Text>
-              <Text>{formatPrice(pricing.subtotal, pricing.currency)}</Text>
-            </View>
-            <View style={styles.pricingSubtotal}>
-              <Text>Outbound Leg</Text>
-              <Text>{formatPrice(pricing.outboundCost!, pricing.currency)}</Text>
-            </View>
-            <View style={styles.pricingSubtotal}>
-              <Text>Return Leg</Text>
-              <Text>{formatPrice(pricing.returnCost!, pricing.currency)}</Text>
-            </View>
-          </>
-        )}
-
-        {/* Standard breakdown for one-way */}
-        {!showLegBreakdown && (
-          <View style={styles.pricingRow}>
-            <Text>Charter Cost</Text>
-            <Text>{formatPrice(pricing.subtotal, pricing.currency)}</Text>
-          </View>
-        )}
-
-        <View style={styles.pricingRow}>
-          <Text>Jetvision Service Fee</Text>
-          <Text>{formatPrice(pricing.jetvisionFee, pricing.currency)}</Text>
-        </View>
-        <View style={styles.pricingRow}>
-          <Text>Taxes & Fees</Text>
-          <Text>{formatPrice(pricing.taxes, pricing.currency)}</Text>
-        </View>
+        {/* Client-facing PDF: show only total cost (no operator/service fee breakdown) */}
         <View style={styles.pricingTotal}>
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>

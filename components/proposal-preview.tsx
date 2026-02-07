@@ -110,7 +110,7 @@ export function ProposalPreview({
           </div>
           <Separator />
           <div className="flex items-center justify-between">
-            <span className="font-semibold">Total Price:</span>
+            <span className="font-semibold">Total Cost:</span>
             <span className="text-lg font-bold text-blue-600">
               {proposal.totalPrice ? `$${proposal.totalPrice.toLocaleString()}` : "Price TBD"}
             </span>
@@ -154,12 +154,12 @@ export function ProposalPreview({
                 <span>${proposal.basePrice.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>Jetvision Margin:</span>
+                <span>Jetvision Service Fee:</span>
                 <span>+ ${(proposal.margin || 0).toLocaleString()}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-medium">
-                <span>Client Price:</span>
+                <span>Total Cost:</span>
                 <span>${(proposal.totalPrice || 0).toLocaleString()}</span>
               </div>
               <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-700">

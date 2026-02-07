@@ -62,6 +62,8 @@ export interface SendProposalStepProps {
     passengers: number;
     tripId?: string;
   };
+  /** Jetvision service charge percentage (e.g. 10 for 10%). Used for internal cost breakdown display. */
+  marginPercentage?: number;
   customerEmail?: string;
   customerName?: string;
   onGeneratePreview?: (data: {
@@ -241,6 +243,7 @@ function StatusIndicator({ status, error }: StatusIndicatorProps) {
 export function SendProposalStep({
   selectedFlights,
   tripDetails,
+  marginPercentage = 10,
   customerEmail: initialEmail = '',
   customerName: initialName = '',
   onGeneratePreview,
@@ -256,6 +259,8 @@ export function SendProposalStep({
 
   const hasFlights = selectedFlights.length > 0;
   const { total: totalPrice, currency } = calculateTotalPrice(selectedFlights);
+  const serviceFee = totalPrice * (marginPercentage / 100);
+  const totalWithFee = totalPrice + serviceFee;
 
   const validateEmail = useCallback((emailValue: string): boolean => {
     if (!emailValue.trim()) {
@@ -412,11 +417,29 @@ export function SendProposalStep({
               <CompactFlightItem key={flight.id} flight={flight} />
             ))}
           </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Total</span>
-              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+          {/* Internal cost breakdown — not shown to client */}
+          <div className="bg-amber-50 dark:bg-amber-900/20 px-4 py-3 border-t border-gray-200 dark:border-gray-700 space-y-1.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
+              Internal Only
+            </p>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Operator Cost</span>
+              <span className="font-medium text-foreground">
                 {formatPrice(totalPrice, currency)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                Jetvision Service Fee ({marginPercentage}%)
+              </span>
+              <span className="font-medium text-foreground">
+                {formatPrice(serviceFee, currency)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-amber-200 dark:border-amber-800">
+              <span className="text-sm font-semibold text-foreground">Total Cost</span>
+              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                {formatPrice(totalWithFee, currency)}
               </span>
             </div>
           </div>

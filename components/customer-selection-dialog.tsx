@@ -102,8 +102,10 @@ export function CustomerSelectionDialog({
   });
   // State for form submission
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // State for profit margin percentage
-  const [marginPercentage, setMarginPercentage] = useState(30);
+  // State for profit margin percentage (default 10% per ONEK-177)
+  const [marginPercentage, setMarginPercentage] = useState(10);
+  // Whether the user is entering a custom margin value
+  const [isCustomMargin, setIsCustomMargin] = useState(false);
 
   // Refs
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -603,50 +605,63 @@ export function CustomerSelectionDialog({
             </div>
           )}
 
-          {/* Profit Margin Slider - shown when customer is selected */}
+          {/* Service Charge Selector - shown when customer is selected */}
           {!isLoading && mode === 'select' && selectedClient && showMarginSlider && (
             <div className="space-y-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="margin-slider"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Profit Margin
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={marginPercentage}
-                    onChange={(e) => {
-                      const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
-                      setMarginPercentage(val);
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Jetvision Service Charge
+              </label>
+              <div className="flex items-center gap-2">
+                {[8, 10, 20].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setMarginPercentage(preset);
+                      setIsCustomMargin(false);
                     }}
-                    className="w-16 text-right text-sm font-semibold rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1"
-                  />
-                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">%</span>
-                </div>
-              </div>
-              <input
-                id="margin-slider"
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={marginPercentage}
-                onChange={(e) => setMarginPercentage(Number(e.target.value))}
-                className="w-full h-2 bg-blue-200 dark:bg-blue-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>0%</span>
-                <span>25%</span>
-                <span>50%</span>
-                <span>75%</span>
-                <span>100%</span>
+                    className={cn(
+                      'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors',
+                      !isCustomMargin && marginPercentage === preset
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    )}
+                  >
+                    {preset}%
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setIsCustomMargin(true)}
+                  className={cn(
+                    'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors',
+                    isCustomMargin
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  )}
+                >
+                  Custom
+                </button>
+                {isCustomMargin && (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={marginPercentage}
+                      onChange={(e) => {
+                        const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                        setMarginPercentage(val);
+                      }}
+                      autoFocus
+                      className="w-16 text-right text-sm font-semibold rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1"
+                    />
+                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">%</span>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                This margin will be added on top of the operator cost in the client-facing proposal.
+                This charge is added on top of the operator cost. The client proposal shows only the total.
               </p>
             </div>
           )}
