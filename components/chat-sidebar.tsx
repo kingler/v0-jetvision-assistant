@@ -80,7 +80,7 @@ export interface ChatSession {
   isoDate?: string
   /** Trip type: one-way or round-trip */
   tripType?: 'one_way' | 'round_trip'
-  /** Return date for round-trip (ISO format YYYY-MM-DD) */
+  /** Return date for round-trip flights (YYYY-MM-DD) */
   returnDate?: string
   status: "proposal_ready" | "proposal_sent" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"
   currentStep: number

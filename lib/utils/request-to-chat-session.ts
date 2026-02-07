@@ -139,7 +139,8 @@ export function requestToChatSession(
     aircraft: request.aircraft_type || undefined,
 
     // Trip type for round-trip support
-    tripType: (request.trip_type === 'round_trip' ? 'round_trip' : request.trip_type === 'one_way' ? 'one_way' : undefined) as ChatSession['tripType'],
+    // Infer round_trip if return_date exists even when trip_type is 'single_leg'
+    tripType: (request.trip_type === 'round_trip' || request.return_date ? 'round_trip' : request.trip_type === 'one_way' || request.trip_type === 'single_leg' ? 'one_way' : undefined) as ChatSession['tripType'],
     returnDate: request.return_date ? (typeof request.return_date === 'string' ? request.return_date.split('T')[0] : undefined) : undefined,
 
     // Avinode integration fields

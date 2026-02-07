@@ -151,7 +151,7 @@ export function DynamicChatHeader({
             {displayName}
           </h2>
           <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {activeChat.route && <span>{activeChat.route}</span>}
+            {activeChat.route && <span>{activeChat.tripType === 'round_trip' ? activeChat.route.replace(' → ', ' ⇄ ') : activeChat.route}</span>}
             {activeChat.passengers && (
               <>
                 <span className="text-gray-400 dark:text-gray-500">•</span>
@@ -165,7 +165,13 @@ export function DynamicChatHeader({
                   {(() => {
                     // Format ISO date (YYYY-MM-DD) or formatted date string for display
                     try {
-                      return formatDate(activeChat.date)
+                      const dep = formatDate(activeChat.date)
+                      if (activeChat.tripType === 'round_trip' && activeChat.returnDate) {
+                        try {
+                          return `${dep} – ${formatDate(activeChat.returnDate)}`
+                        } catch { /* fall through */ }
+                      }
+                      return dep
                     } catch {
                       // If parsing fails, use as-is (might already be formatted)
                     }

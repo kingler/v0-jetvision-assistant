@@ -61,6 +61,8 @@ export interface FlightRequestDetails {
   };
   departureDate: string;
   passengers: number;
+  tripType?: 'one_way' | 'round_trip';
+  returnDate?: string;
   aircraftPreferences?: string;
   specialRequirements?: string;
   requestId?: string;
@@ -624,14 +626,23 @@ export function FlightSearchProgress({
                 </div>
 
                 {/* Flight Details Grid */}
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className={`grid ${flightRequest.tripType === 'round_trip' && flightRequest.returnDate ? 'grid-cols-3' : 'grid-cols-2'} gap-2 text-sm`}>
                   <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2">
                     <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
-                      <p className="text-xs text-muted-foreground">Date</p>
+                      <p className="text-xs text-muted-foreground">{flightRequest.tripType === 'round_trip' ? 'Depart' : 'Date'}</p>
                       <p className="font-medium text-xs text-gray-900 dark:text-gray-100">{formatDate(flightRequest.departureDate)}</p>
                     </div>
                   </div>
+                  {flightRequest.tripType === 'round_trip' && flightRequest.returnDate && (
+                    <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Return</p>
+                        <p className="font-medium text-xs text-gray-900 dark:text-gray-100">{formatDate(flightRequest.returnDate)}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2">
                     <Users className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div>

@@ -261,3 +261,21 @@ export function safeParseTimestamp(timestamp: Date | string | undefined | null):
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat('en-US').format(num);
 }
+
+/**
+ * Formats a message timestamp for display in chat messages.
+ * Shows time in 12-hour format with AM/PM.
+ *
+ * @example
+ * formatMessageTimestamp(new Date()) // '2:30 PM'
+ */
+export function formatMessageTimestamp(date: Date): string {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}

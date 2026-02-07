@@ -233,7 +233,8 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     passengers: request?.passengers || 0,
     date,
     isoDate: request?.departure_date ? request.departure_date.split('T')[0] : undefined,
-    tripType: (request?.trip_type === 'round_trip' ? 'round_trip' : request?.trip_type === 'one_way' ? 'one_way' : undefined) as ChatSession['tripType'],
+    // Infer round_trip if return_date exists even when trip_type is 'single_leg'
+    tripType: (request?.trip_type === 'round_trip' || request?.return_date ? 'round_trip' : request?.trip_type === 'one_way' || request?.trip_type === 'single_leg' ? 'one_way' : undefined) as ChatSession['tripType'],
     returnDate: request?.return_date ? request.return_date.split('T')[0] : undefined,
     status,
     currentStep,

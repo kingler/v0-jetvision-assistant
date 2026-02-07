@@ -330,7 +330,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
         {/* Route and passenger info - show if we have route data OR tripId */}
         {(session.tripId || (session.route && session.route !== 'Select route')) && (
           <div className="space-y-1 mb-2 min-w-0 w-full overflow-hidden">
-            <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{session.route}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{session.tripType === 'round_trip' ? session.route?.replace(' → ', ' ⇄ ') : session.route}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
               {session.passengers} passenger{session.passengers !== 1 ? 's' : ''} • {(() => {
                 // Format ISO date (YYYY-MM-DD) or formatted date string for display
