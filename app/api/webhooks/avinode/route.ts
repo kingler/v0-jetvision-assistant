@@ -7,7 +7,7 @@ import type {
 } from '@/lib/types/avinode-webhooks';
 import { supabaseAdmin, findRequestByTripId } from '@/lib/supabase';
 import type { Json } from '@/lib/types/database';
-import { storeOperatorQuote } from './webhook-utils';
+import { storeOperatorQuote, fetchMessageDetails } from './webhook-utils';
 
 /**
  * Avinode Webhook Handler
@@ -198,10 +198,30 @@ async function handleSellerResponse(
       });
 
       try {
-        // Store quote in database
+        // ONEK-175 FIX: Fetch full quote details from Avinode API using quote.href
+        // The webhook payload contains basic price info but the href endpoint has
+        // the authoritative sellerPrice (including operator price updates)
+        let messageDetails = null;
+        if (quote.href) {
+          try {
+            messageDetails = await fetchMessageDetails(quote.href, {
+              maxRetries: 2,
+              initialDelayMs: 500,
+            });
+            console.log('[Avinode Webhook] Fetched quote details from href:', {
+              quoteId: quote.id,
+              hasSellerPrice: !!(messageDetails as any)?.sellerPrice,
+              sellerPrice: (messageDetails as any)?.sellerPrice?.price,
+            });
+          } catch (fetchError) {
+            console.warn('[Avinode Webhook] Failed to fetch quote details from href, using webhook data:', fetchError);
+          }
+        }
+
+        // Store quote in database with fetched details (or null if fetch failed)
         const quoteId = await storeOperatorQuote({
           webhookPayload: payload,
-          messageDetails: null, // We can fetch this later if needed
+          messageDetails,
           requestId: requestRecord.id,
         });
 
@@ -544,17 +564,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // For simple format, we need to fetch data from href
     // Per Avinode docs: "always use the URL provided in the notification payload"
     if (isSimpleFormat) {
-      console.log('[Avinode Webhook] Simple format - storing notification for async processing');
+      console.log('[Avinode Webhook] Simple format - fetching data from href');
 
-      // Store the webhook notification for processing
-      // The actual data should be fetched from the href URL
+      // Store the webhook notification
+      const tripIdFromHref = extractTripIdFromHref(rawPayload.href);
       try {
         const { error: webhookError } = await supabaseAdmin
           .from('avinode_webhook_events')
           .insert({
             event_type: mapTypeToEventType(rawPayload.type),
             avinode_event_id: rawPayload.id,
-            avinode_trip_id: extractTripIdFromHref(rawPayload.href),
+            avinode_trip_id: tripIdFromHref,
             raw_payload: rawPayload as Json,
             processing_status: 'pending',
             received_at: new Date().toISOString(),
@@ -562,11 +582,78 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
         if (webhookError) {
           console.error('[Avinode Webhook] Error storing simple webhook:', webhookError);
-        } else {
-          console.log('[Avinode Webhook] Simple webhook stored successfully');
         }
       } catch (storeError) {
         console.error('[Avinode Webhook] Error storing webhook:', storeError);
+      }
+
+      // ONEK-175 FIX: For 'rfqs' type, fetch the full data from href and process it
+      // This ensures operator price updates are captured even in simple format webhooks
+      if (rawPayload.type === 'rfqs' && rawPayload.href) {
+        try {
+          const details = await fetchMessageDetails(rawPayload.href, {
+            maxRetries: 2,
+            initialDelayMs: 500,
+          });
+
+          if (details) {
+            console.log('[Avinode Webhook] Fetched RFQ details from href:', {
+              id: rawPayload.id,
+              hasSellerPrice: !!(details as any)?.sellerPrice,
+              sellerPrice: (details as any)?.sellerPrice?.price,
+            });
+
+            // Find the request by trip ID to store the updated quote
+            if (tripIdFromHref) {
+              const { data: requests } = await supabaseAdmin
+                .from('requests')
+                .select('id, iso_agent_id')
+                .eq('avinode_trip_id', tripIdFromHref)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+              if (requests && requests.length > 0) {
+                try {
+                  // Derive status from fetched details instead of hardcoding
+                  const detailsAny = details as any;
+                  const isDeclined =
+                    detailsAny?.sourcingDisplayStatus === 'Declined' ||
+                    detailsAny?.data?.sourcingDisplayStatus === 'Declined' ||
+                    (!detailsAny?.sellerPrice && !detailsAny?.data?.sellerPrice);
+                  const derivedStatus = isDeclined ? 'declined' : 'quoted';
+
+                  const quoteId = await storeOperatorQuote({
+                    webhookPayload: {
+                      event: 'TripRequestSellerResponse',
+                      eventId: rawPayload.id,
+                      timestamp: new Date().toISOString(),
+                      data: {
+                        type: 'TripRequestSellerResponse',
+                        trip: { id: tripIdFromHref, href: rawPayload.href },
+                        request: { id: rawPayload.id, href: rawPayload.href, status: derivedStatus },
+                        seller: { id: 'unknown', name: 'Unknown', companyId: 'unknown' },
+                      },
+                    } as AvinodeWebhookPayload,
+                    messageDetails: details,
+                    requestId: requests[0].id,
+                  });
+
+                  console.log('[Avinode Webhook] Quote stored from simple webhook:', quoteId);
+
+                  // Mark webhook as processed
+                  await supabaseAdmin
+                    .from('avinode_webhook_events')
+                    .update({ processing_status: 'completed', processed_at: new Date().toISOString() })
+                    .eq('avinode_event_id', rawPayload.id);
+                } catch (storeQuoteError) {
+                  console.error('[Avinode Webhook] Error storing quote from simple webhook:', storeQuoteError);
+                }
+              }
+            }
+          }
+        } catch (fetchError) {
+          console.warn('[Avinode Webhook] Failed to fetch details from href (will be processed later):', fetchError);
+        }
       }
     } else {
       // Extended format - process directly

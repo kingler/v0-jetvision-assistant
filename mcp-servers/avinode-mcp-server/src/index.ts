@@ -2233,40 +2233,42 @@ async function getRFQ(params: GetRFQParams) {
                   },
                 });
                 
-                // Extract quote data from response (handle multiple nested data structures)
-                // Avinode API response can be at different nesting levels depending on endpoint version:
-                // - quoteResponse (if avinodeClient.get already unwrapped)
-                // - quoteResponse.data (single level wrap)
-                // - quoteResponse.data.data (double level wrap - seen in some API versions)
-                let quoteData = quoteResponse as any;
+                // ONEK-175 FIX: Improved response unwrapping for /quotes/{quoteId}
+                // avinodeClient.get() returns response.data (Axios-unwrapped), so we may have:
+                // Level 0: { id, sellerPrice, ... } (direct quote object)
+                // Level 1: { data: { id, sellerPrice, ... } } (single wrap)
+                // Level 2: { data: { data: { id, sellerPrice, ... } } } (double wrap)
+                // Use same approach as getQuote() for consistency
+                const raw = quoteResponse as any;
+                const payload = raw?.data ?? raw;
+                let quoteData = payload?.data ?? payload;
 
-                // Check for nested .data and unwrap if sellerPrice is deeper
-                if (quoteData?.data && !quoteData?.sellerPrice) {
-                  // Check if .data has sellerPrice (single wrap)
-                  if (quoteData.data.sellerPrice) {
-                    quoteData = quoteData.data;
-                  }
-                  // Check if .data.data has sellerPrice (double wrap)
-                  else if (quoteData.data?.data?.sellerPrice) {
-                    quoteData = quoteData.data.data;
-                  }
-                  // Otherwise just use .data
-                  else if (typeof quoteData.data === 'object') {
-                    quoteData = quoteData.data;
+                // Safety net: If sellerPrice still not found, search deeper
+                if (!quoteData?.sellerPrice) {
+                  if (raw?.sellerPrice) {
+                    quoteData = raw;
+                  } else if (raw?.data?.sellerPrice) {
+                    quoteData = raw.data;
+                  } else if (raw?.data?.data?.sellerPrice) {
+                    quoteData = raw.data.data;
                   }
                 }
 
-                // DEBUG: Log the extraction process
+                // ONEK-175: If sellerPrice still not found but sellerPriceWithoutCommission exists,
+                // promote it to sellerPrice so the price extraction chain finds it
+                if (!quoteData?.sellerPrice && quoteData?.sellerPriceWithoutCommission) {
+                  quoteData.sellerPrice = quoteData.sellerPriceWithoutCommission;
+                  console.log('[getRFQ] Using sellerPriceWithoutCommission as sellerPrice for', quoteId);
+                }
+
+                // Log the extraction result
                 console.log('[getRFQ] Quote data extraction for', quoteId, ':', {
-                  responseType: typeof quoteResponse,
-                  responseKeys: quoteResponse ? Object.keys(quoteResponse as any).slice(0, 10) : [],
-                  hasDataProperty: !!(quoteResponse as any)?.data,
-                  hasSellerPriceAtRoot: !!(quoteResponse as any)?.sellerPrice,
-                  hasSellerPriceInData: !!(quoteResponse as any)?.data?.sellerPrice,
-                  hasSellerPriceInDataData: !!(quoteResponse as any)?.data?.data?.sellerPrice,
-                  finalQuoteDataKeys: quoteData ? Object.keys(quoteData).slice(0, 10) : [],
-                  finalSellerPrice: quoteData?.sellerPrice,
+                  hasSellerPrice: !!quoteData?.sellerPrice,
+                  sellerPriceValue: quoteData?.sellerPrice?.price,
+                  sellerPriceCurrency: quoteData?.sellerPrice?.currency,
+                  hasSellerPriceWithoutCommission: !!quoteData?.sellerPriceWithoutCommission,
                   finalId: quoteData?.id,
+                  finalKeys: quoteData ? Object.keys(quoteData).slice(0, 15) : [],
                 });
 
                 return quoteData;
@@ -2608,12 +2610,15 @@ async function getQuote(params: GetQuoteParams) {
     throw new Error('quote_id is required');
   }
 
+  // ONEK-175: Add latestquote and quotebreakdown params for consistent behavior with getRFQ
   const response = await avinodeClient.get(`/quotes/${params.quote_id}`, {
     params: {
       taildetails: true,
       typedetails: true,
       tailphotos: true,
       typephotos: true,
+      quotebreakdown: true,
+      latestquote: true,
     },
   });
 
