@@ -37,20 +37,9 @@ export function SettingsDropdownMenu() {
   const [enableDemandPricing, setEnableDemandPricing] = useState(false)
   const [enableTieredRates, setEnableTieredRates] = useState(false)
 
-  // Debug logging (remove after fixing)
-  if (typeof window !== 'undefined') {
-    console.log('[SettingsDropdownMenu] Debug:', { role, isAdmin, loading })
-  }
-
   // Only show settings for admin users
   if (loading) return null
-  if (!isAdmin) {
-    // Debug: Log why settings button is hidden
-    if (typeof window !== 'undefined') {
-      console.log('[SettingsDropdownMenu] Hidden - user role:', role, 'isAdmin:', isAdmin)
-    }
-    return null
-  }
+  if (!isAdmin) return null
 
   // Sample calculation
   const operatorCost = 10000

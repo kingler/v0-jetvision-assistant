@@ -91,96 +91,13 @@ export default function JetvisionAgent() {
         const dbSessions = data.sessions || []
         const sessions = chatSessionsToUIFormat(dbSessions)
 
-        // DEBUG: Log sessions with requestId info to trace persistence issues
-        console.log('[JetvisionAgent] 🔍 Sessions loaded with requestId:', sessions.map(s => ({
-          id: s.id,
-          tripId: s.tripId,
-          requestId: s.requestId,
-          conversationId: s.conversationId,
-          hasValidRequestId: s.requestId ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.requestId) : false,
-        })));
-
-        // Load messages for each session directly via API
-        // This ensures reliable message retrieval, especially for older sessions that might be outside the 50-request limit
-        const sessionsWithMessages = await Promise.all(
-          sessions.map(async (session) => {
-            const requestKey = session.requestId || session.conversationId
-            if (!requestKey) return session
-
-            // Validate UUID format before making API call
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-            if (!uuidRegex.test(requestKey)) {
-              console.warn('[JetvisionAgent] Skipping message load - invalid UUID:', {
-                requestKey,
-                sessionId: session.id,
-              })
-              return session
-            }
-
-            try {
-              // Fetch messages directly for this session
-              const messagesResponse = await fetch(
-                `/api/chat-sessions/messages?session_id=${encodeURIComponent(requestKey)}&limit=100`,
-                {
-                  method: 'GET',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                }
-              )
-
-              if (messagesResponse.ok) {
-                const messagesData = await messagesResponse.json()
-                const messages = messagesData.messages || []
-
-                if (messages.length > 0) {
-                  // Transform messages to DbMessageLike format for mapDbMessageToChatMessage
-                  const transformedMessages = messages.map((msg: {
-                    id: string;
-                    type?: 'user' | 'agent';
-                    content: string;
-                    timestamp?: string;
-                    senderName?: string | null;
-                    contentType?: string;
-                    richContent?: Record<string, unknown> | null;
-                  }) => ({
-                    id: msg.id,
-                    type: msg.type,
-                    content: msg.content,
-                    timestamp: msg.timestamp,
-                    senderType: msg.type === 'user' ? 'iso_agent' : 'ai_assistant',
-                    contentType: msg.contentType,
-                    richContent: msg.richContent ?? null,
-                  } as DbMessageLike)).map((msg: DbMessageLike) => mapDbMessageToChatMessage(msg))
-
-                  return {
-                    ...session,
-                    messages: transformedMessages,
-                  }
-                }
-              } else {
-                console.warn('[JetvisionAgent] Failed to load messages for session:', {
-                  requestKey,
-                  sessionId: session.id,
-                  status: messagesResponse.status,
-                })
-              }
-            } catch (error) {
-              console.warn('[JetvisionAgent] Error loading messages for session:', {
-                requestKey,
-                sessionId: session.id,
-                error,
-              })
-            }
-
-            return session
-          })
-        )
+        // Messages are loaded on-demand when a session is clicked (via loadMessagesForSession)
+        // This avoids firing hundreds of API calls on page load (ONEK-204)
 
         // Update state with loaded sessions, ensuring no duplicates
         // Deduplicate by tripId (when present) OR session ID
         // This prevents multiple cards for the same Avinode trip
-        const uniqueSessions = sessionsWithMessages.filter((session, index, self) => {
+        const uniqueSessions = sessions.filter((session, index, self) => {
           // If session has tripId, deduplicate by tripId (keep the first one with this tripId)
           if (session.tripId) {
             return index === self.findIndex((s) => s.tripId === session.tripId)
@@ -196,8 +113,8 @@ export default function JetvisionAgent() {
         setActiveChatId(null)
 
         console.log('[JetvisionAgent] Loaded chat sessions:', {
-          count: sessionsWithMessages.length,
-          sessionIds: sessionsWithMessages.map(s => s.id),
+          count: uniqueSessions.length,
+          sessionIds: uniqueSessions.map(s => s.id),
         })
       } catch (error) {
         // Handle unexpected errors

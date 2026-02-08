@@ -97,12 +97,6 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     msg.contentType === 'deal_closed' ||
     (msg.richContent && (RICH_CONTENT_PROPOSAL_KEY in msg.richContent || RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent || 'marginSelection' in msg.richContent || 'contractSent' in msg.richContent || 'paymentConfirmed' in msg.richContent || 'dealClosed' in msg.richContent))
   ) {
-    console.log('[mapDbMessageToChatMessage] Special message detected:', {
-      id: msg.id,
-      contentType: msg.contentType,
-      hasRichContent: !!msg.richContent,
-      richContentKeys: msg.richContent ? Object.keys(msg.richContent) : [],
-    });
   }
 
   // Handle proposal_shared contentType

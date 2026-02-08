@@ -52,15 +52,6 @@ interface FlightRequestCardProps {
  * Fixed width of 300px to fit within the 320px sidebar with padding.
  */
 export const FlightRequestCard = React.memo(function FlightRequestCard({ session, isActive, onClick, onDelete, onCancel, onArchive }: FlightRequestCardProps) {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[FlightRequestCard] render:', {
-      id: session.id,
-      status: session.status,
-      rfqFlights: session.rfqFlights?.length || 0,
-      quotesReceived: session.quotesReceived,
-      isActive,
-    })
-  }
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
