@@ -23,6 +23,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 
 // UI Components
 import { AgentMessage } from "./chat/agent-message"
+import { AgentMessageV2 } from "./chat/agent-message-v2"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
@@ -875,6 +876,8 @@ export function ChatInterface({
       showQuotes: quotes.length > 0 || (result.rfqData?.flights?.length ?? 0) > 0,
       showPipeline: !!result.pipelineData,
       pipelineData: result.pipelineData,
+      // MCP UI registry: pass tool results for feature-flagged rendering
+      toolResults: result.toolResults,
     }
 
     // Update chat with new data
@@ -2190,6 +2193,8 @@ export function ChatInterface({
                 // Email approval workflow properties (human-in-the-loop)
                 showEmailApprovalRequest?: boolean
                 emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
+                // MCP UI tool results (feature-flagged)
+                toolResults?: Array<{ name: string; input: Record<string, unknown>; result: Record<string, unknown> }>
                 // Operator message properties
                 operatorName?: string
                 operatorQuoteId?: string
@@ -2232,6 +2237,7 @@ export function ChatInterface({
                 proposalSentData: msg.proposalSentData,
                 showEmailApprovalRequest: msg.showEmailApprovalRequest,
                 emailApprovalData: msg.emailApprovalData,
+                toolResults: msg.toolResults,
               }))
 
               // Merge and sort by timestamp (chronological order)
@@ -2461,6 +2467,21 @@ export function ChatInterface({
                           </div>
                         </div>
                       </div>
+                    ) : process.env.NEXT_PUBLIC_ENABLE_MCP_UI === 'true' && message.toolResults?.length ? (
+                      // MCP UI Registry path: render AgentMessageV2 with tool results
+                      <AgentMessageV2
+                        content={stripMarkdown(message.content)}
+                        timestamp={message.timestamp}
+                        toolResults={message.toolResults}
+                        actionContext={{
+                          sendMessage: (msg: string) => {
+                            setInputValue(msg)
+                            setTimeout(() => handleSendMessage(), 100)
+                          },
+                          sessionId: activeChat.id,
+                        }}
+                        isProcessing={isProcessing}
+                      />
                     ) : (
                       // Agent message - existing AgentMessage component
                       // CRITICAL: Prevent AgentMessage from rendering FlightSearchProgress when we're already showing it after the user message

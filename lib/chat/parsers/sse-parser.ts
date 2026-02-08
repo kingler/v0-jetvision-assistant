@@ -12,6 +12,7 @@ import type {
   SSEStreamData,
   SSEParseResult,
   ToolCallResult,
+  ToolResultWithInput,
   TripData,
   RFPData,
   RFQData,
@@ -196,6 +197,11 @@ function processSSEData(
       for (const toolCall of data.tool_calls) {
         handlers.onToolCall?.(toolCall);
       }
+    }
+
+    // Extract tool results with input (for MCP UI registry)
+    if (data.tool_results && Array.isArray(data.tool_results)) {
+      result.toolResults = data.tool_results;
     }
 
     // Extract trip data

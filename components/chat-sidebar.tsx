@@ -240,6 +240,8 @@ export interface ChatSession {
       contractSentAt?: string
       paymentReceivedAt?: string
     }
+    /** Tool results with input for MCP UI registry rendering (feature-flagged) */
+    toolResults?: Array<{ name: string; input: Record<string, unknown>; result: Record<string, unknown> }>
   }>
   /** Flag to indicate this chat needs an initial API call (set when created from landing page) */
   needsInitialApiCall?: boolean
@@ -284,11 +286,11 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
   const validSessions = chatSessions.filter(isValidSession);
 
   return (
-    <div className="w-80 sm:w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full overflow-x-hidden">
+    <div className="w-full min-w-[280px] max-w-[360px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full overflow-x-hidden">
       {/* Header */}
       <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">Open Chats</h2>
+          <h2 className="font-semibold text-[clamp(0.875rem,2vw,1rem)] text-gray-900 dark:text-white">Open Chats</h2>
           <Button
             size="sm"
             variant="outline"
@@ -299,7 +301,7 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
             New
           </Button>
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-gray-500 dark:text-gray-400">
           {validSessions.length} active flight request{validSessions.length !== 1 ? "s" : ""}
         </p>
       </div>
@@ -337,7 +339,7 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
 
       {/* Footer */}
       <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-800">
-        <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+        <div className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-gray-500 dark:text-gray-400 space-y-1">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
             <span>Proposal Sent</span>

@@ -39,6 +39,8 @@ export interface SSEStreamData {
   error?: string | { code: string; message: string; recoverable: boolean };
   message?: string;
   tool_calls?: ToolCallResult[];
+  /** Tool results with input params for MCP UI registry rendering */
+  tool_results?: ToolResultWithInput[];
   trip_data?: TripData;
   rfp_data?: RFPData;
   rfq_data?: RFQData;
@@ -59,6 +61,15 @@ export interface SSEStreamData {
 export interface ToolCallResult {
   name: string;
   result?: Record<string, unknown>;
+}
+
+/**
+ * Tool result with input params for MCP UI registry rendering
+ */
+export interface ToolResultWithInput {
+  name: string;
+  input: Record<string, unknown>;
+  result: Record<string, unknown>;
 }
 
 /**
@@ -395,6 +406,8 @@ export interface SSEParseResult {
   done: boolean;
   error?: string;
   toolCalls: ToolCallResult[];
+  /** Tool results with input params for MCP UI registry rendering */
+  toolResults?: ToolResultWithInput[];
   tripData?: TripData;
   rfpData?: RFPData;
   rfqData?: RFQData;
@@ -429,6 +442,8 @@ export interface ChatMessage {
   showEmailApprovalRequest?: boolean;
   /** Email approval data from prepare_proposal_email tool */
   emailApprovalData?: EmailApprovalData;
+  /** Tool results with input for MCP UI registry rendering (feature-flagged) */
+  toolResults?: ToolResultWithInput[];
 }
 
 /**
