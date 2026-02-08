@@ -15,6 +15,7 @@ import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "../chat-sidebar"
 import { PipelineDashboard } from "../message-components/pipeline-dashboard"
 import { ProposalSentConfirmation } from "@/components/proposal/proposal-sent-confirmation"
+import { ContractSentConfirmation } from "@/components/contract/contract-sent-confirmation"
 import { MarginSelectionCard, type MarginSelectionData } from "@/components/chat/margin-selection-card"
 import {
   OperatorChatsInline,
@@ -212,6 +213,10 @@ export interface AgentMessageProps {
   showProposalSentConfirmation?: boolean
   /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */
   proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
+  /** Whether to show contract-sent confirmation card inline (after contract sent via Book Flight) */
+  showContractSentConfirmation?: boolean
+  /** Data for ContractSentConfirmation when showContractSentConfirmation is true */
+  contractSentData?: import('@/components/contract/contract-sent-confirmation').ContractSentConfirmationProps
   /** Whether to show email approval request card (human-in-the-loop) */
   showEmailApprovalRequest?: boolean
   /** Data for EmailPreviewCard when showEmailApprovalRequest is true */
@@ -298,6 +303,8 @@ export function AgentMessage({
   marginSelectionData,
   showProposalSentConfirmation,
   proposalSentData,
+  showContractSentConfirmation,
+  contractSentData,
   showEmailApprovalRequest,
   emailApprovalData,
   onEmailEdit,
@@ -564,6 +571,13 @@ export function AgentMessage({
       {showProposalSentConfirmation && proposalSentData && (
         <div className="mt-4 w-full">
           <ProposalSentConfirmation {...proposalSentData} />
+        </div>
+      )}
+
+      {/* Contract Sent Confirmation - inline after contract is sent via Book Flight */}
+      {showContractSentConfirmation && contractSentData && (
+        <div className="mt-4 w-full">
+          <ContractSentConfirmation {...contractSentData} />
         </div>
       )}
 

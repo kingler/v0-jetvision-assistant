@@ -410,8 +410,8 @@ export function ChatInterfaceRefactored({
             tripId: activeChat.tripId,
           }}
           requestId={activeChat.requestId || ''}
-          onContractSent={(contractId, contractNumber) => {
-            console.log('[ChatInterfaceRefactored] Contract sent:', { contractId, contractNumber });
+          onContractSent={(contractData) => {
+            console.log('[ChatInterfaceRefactored] Contract sent:', contractData);
             setIsBookFlightModalOpen(false);
             setBookFlightData(null);
           }}

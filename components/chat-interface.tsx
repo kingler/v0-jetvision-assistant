@@ -1692,7 +1692,7 @@ export function ChatInterface({
         marginSelectionData,
       }
 
-      // Persist margin selection to DB (fire-and-forget)
+      // Persist margin selection to DB and sync ID for dedup on reload
       if (requestIdForSave) {
         fetch('/api/chat-sessions/messages', {
           method: 'POST',
@@ -1703,7 +1703,14 @@ export function ChatInterface({
             contentType: 'text',
             richContent: { marginSelection: marginSelectionData },
           }),
-        }).catch((err) => console.warn('[ChatInterface] Failed to persist margin selection:', err))
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data?.id) {
+              marginSelectionMessage.id = data.id
+            }
+          })
+          .catch((err) => console.warn('[ChatInterface] Failed to persist margin selection:', err))
       }
 
       // Step 4b: Add email preview message to chat
@@ -1717,7 +1724,7 @@ export function ChatInterface({
         emailApprovalData: approvalData,
       }
 
-      // Persist email preview to DB (fire-and-forget) so it survives chat switch
+      // Persist email preview to DB and sync ID for dedup on reload
       if (requestIdForSave) {
         fetch('/api/chat-sessions/messages', {
           method: 'POST',
@@ -1728,7 +1735,14 @@ export function ChatInterface({
             contentType: 'email_approval_request',
             richContent: { emailApproval: approvalData },
           }),
-        }).catch((err) => console.warn('[ChatInterface] Failed to persist email preview:', err))
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data?.id) {
+              emailPreviewMessage.id = data.id
+            }
+          })
+          .catch((err) => console.warn('[ChatInterface] Failed to persist email preview:', err))
       }
 
       // Set approval state
@@ -1844,7 +1858,22 @@ export function ChatInterface({
           proposalSentData,
         }
 
-        const updatedMessages = [...(activeChat.messages || []), confirmationMessage]
+        // Replace email preview and margin selection with confirmation (not append)
+        const existingMessages = activeChat.messages || []
+        let replaced = false
+        const updatedMessages = existingMessages.reduce<typeof existingMessages>((acc, m) => {
+          if (m.showEmailApprovalRequest) {
+            acc.push(confirmationMessage)
+            replaced = true
+            return acc
+          }
+          if (m.showMarginSelection) return acc
+          acc.push(m)
+          return acc
+        }, [])
+        if (!replaced) {
+          updatedMessages.push(confirmationMessage)
+        }
         onUpdateChat(activeChat.id, {
           messages: updatedMessages,
           status: 'proposal_sent' as const,
@@ -1976,20 +2005,43 @@ export function ChatInterface({
   /**
    * Handle contract sent - called when contract is successfully sent from the modal
    */
-  const handleContractSent = useCallback((contractId: string, contractNumber: string) => {
-    console.log('[ChatInterface] Contract sent:', { contractId, contractNumber })
+  const handleContractSent = useCallback((contractData: {
+    contractId: string;
+    contractNumber: string;
+    pdfUrl: string;
+    customerName: string;
+    customerEmail: string;
+    flightRoute: string;
+    departureDate: string;
+    totalAmount: number;
+    currency: string;
+  }) => {
+    console.log('[ChatInterface] Contract sent:', contractData)
 
     // Close the modal
     setIsBookFlightModalOpen(false)
     setBookFlightData(null)
 
-    // Add a system message indicating the contract was sent
+    // Add a rich contract-sent confirmation message to the chat thread
     const contractSentMessage = {
       id: `msg-${Date.now()}`,
       type: 'agent' as const,
-      content: `✅ Contract ${contractNumber} has been generated and sent to the customer. You can track the contract status in the contracts section.`,
+      content: `Contract ${contractData.contractNumber} has been generated and sent to ${contractData.customerName} at ${contractData.customerEmail}.`,
       timestamp: new Date(),
       showWorkflow: false,
+      showContractSentConfirmation: true,
+      contractSentData: {
+        contractId: contractData.contractId,
+        contractNumber: contractData.contractNumber,
+        customerName: contractData.customerName,
+        customerEmail: contractData.customerEmail,
+        flightRoute: contractData.flightRoute,
+        departureDate: contractData.departureDate,
+        totalAmount: contractData.totalAmount,
+        currency: contractData.currency,
+        pdfUrl: contractData.pdfUrl,
+        status: 'sent' as const,
+      },
     }
 
     onUpdateChat(activeChat.id, {
@@ -2190,6 +2242,8 @@ export function ChatInterface({
                 }
                 showProposalSentConfirmation?: boolean
                 proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
+                showContractSentConfirmation?: boolean
+                contractSentData?: import('@/components/contract/contract-sent-confirmation').ContractSentConfirmationProps
                 // Email approval workflow properties (human-in-the-loop)
                 showEmailApprovalRequest?: boolean
                 emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
@@ -2235,6 +2289,8 @@ export function ChatInterface({
                 marginSelectionData: msg.marginSelectionData,
                 showProposalSentConfirmation: msg.showProposalSentConfirmation,
                 proposalSentData: msg.proposalSentData,
+                showContractSentConfirmation: msg.showContractSentConfirmation,
+                contractSentData: msg.contractSentData,
                 showEmailApprovalRequest: msg.showEmailApprovalRequest,
                 emailApprovalData: msg.emailApprovalData,
                 toolResults: msg.toolResults,
@@ -2258,6 +2314,12 @@ export function ChatInterface({
 
                 // Always keep proposal-sent confirmation messages (inline UI)
                 if (message.showProposalSentConfirmation && message.proposalSentData) {
+                  acc.push({ message, index })
+                  return acc
+                }
+
+                // Always keep contract-sent confirmation messages (inline UI)
+                if (message.showContractSentConfirmation && message.contractSentData) {
                   acc.push({ message, index })
                   return acc
                 }
@@ -2560,6 +2622,8 @@ export function ChatInterface({
                         marginSelectionData={message.marginSelectionData}
                         showProposalSentConfirmation={message.showProposalSentConfirmation}
                         proposalSentData={message.proposalSentData}
+                        showContractSentConfirmation={message.showContractSentConfirmation}
+                        contractSentData={message.contractSentData}
                         showEmailApprovalRequest={message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}
