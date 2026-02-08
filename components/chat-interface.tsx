@@ -1706,8 +1706,8 @@ export function ChatInterface({
         })
           .then(res => res.json())
           .then(data => {
-            if (data?.id) {
-              marginSelectionMessage.id = data.id
+            if (data?.messageId) {
+              marginSelectionMessage.id = data.messageId
             }
           })
           .catch((err) => console.warn('[ChatInterface] Failed to persist margin selection:', err))
@@ -1738,8 +1738,8 @@ export function ChatInterface({
         })
           .then(res => res.json())
           .then(data => {
-            if (data?.id) {
-              emailPreviewMessage.id = data.id
+            if (data?.messageId) {
+              emailPreviewMessage.id = data.messageId
             }
           })
           .catch((err) => console.warn('[ChatInterface] Failed to persist email preview:', err))
@@ -1870,8 +1870,10 @@ export function ChatInterface({
         let replaced = false
         const updatedMessages = existingMessages.reduce<typeof existingMessages>((acc, m) => {
           if (m.showEmailApprovalRequest) {
-            acc.push(confirmationMessage)
-            replaced = true
+            if (!replaced) {
+              acc.push(confirmationMessage)
+              replaced = true
+            }
             return acc
           }
           if (m.showMarginSelection) return acc
