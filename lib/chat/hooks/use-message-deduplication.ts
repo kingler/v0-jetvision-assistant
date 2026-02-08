@@ -24,6 +24,8 @@ export interface DeduplicatableMessage {
   timestamp: Date;
   showProposalSentConfirmation?: boolean;
   proposalSentData?: unknown;
+  showMarginSelection?: boolean;
+  marginSelectionData?: unknown;
 }
 
 /**
@@ -293,11 +295,29 @@ export function useMessageDeduplication(
           return true;
         }
 
-        // Always keep proposal confirmation messages
+        // Deduplicate proposal confirmation messages by proposalId or content
         if (message.showProposalSentConfirmation && message.proposalSentData) {
-          if (seenIds.has(message.id)) {
-            return false;
-          }
+          const proposalData = message.proposalSentData as { proposalId?: string };
+          const isDupe = Array.from(seenIds.values()).some((existing) => {
+            if (!existing.showProposalSentConfirmation || !existing.proposalSentData) return false;
+            const existingData = existing.proposalSentData as { proposalId?: string };
+            if (proposalData.proposalId && existingData.proposalId) {
+              return proposalData.proposalId === existingData.proposalId;
+            }
+            return existing.content === message.content;
+          });
+          if (isDupe) return false;
+          seenIds.set(message.id, message);
+          return true;
+        }
+
+        // Deduplicate margin selection messages by content
+        if (message.showMarginSelection && message.marginSelectionData) {
+          const isDupe = Array.from(seenIds.values()).some((existing) =>
+            existing.showMarginSelection &&
+            existing.content === message.content
+          );
+          if (isDupe) return false;
           seenIds.set(message.id, message);
           return true;
         }
