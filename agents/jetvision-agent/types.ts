@@ -468,6 +468,8 @@ export interface ToolResult<T extends ToolName = ToolName> {
   success: boolean;
   data?: AllTools[T]['result'];
   error?: string;
+  /** Original input parameters passed to the tool (for MCP UI registry rendering) */
+  input?: Record<string, unknown>;
 }
 
 // =============================================================================

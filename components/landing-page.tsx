@@ -108,6 +108,7 @@ export function LandingPage({ onStartChat, userName, userContext }: LandingPageP
               height={140}
               priority
               className="h-[112px] sm:h-[140px] w-auto"
+              style={{ width: 'auto', height: 'auto' }}
             />
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">

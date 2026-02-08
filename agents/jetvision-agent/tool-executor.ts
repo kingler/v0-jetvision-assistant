@@ -116,6 +116,7 @@ export class ToolExecutor {
         name,
         success: true,
         data: data as ToolResult<T>['data'],
+        input: params,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -125,6 +126,7 @@ export class ToolExecutor {
         name,
         success: false,
         error: errorMessage,
+        input: params,
       };
     }
   }

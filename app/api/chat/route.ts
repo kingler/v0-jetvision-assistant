@@ -420,6 +420,13 @@ export async function POST(req: NextRequest) {
       result: tr.success ? tr.data : { error: tr.error },
     }));
 
+    // 10b. Build tool_results with input for MCP UI registry (feature-flagged frontend)
+    const toolResults = result.toolResults.map((tr) => ({
+      name: tr.name,
+      input: tr.input || {},
+      result: tr.success ? (tr.data as Record<string, unknown>) || {} : { error: tr.error },
+    }));
+
     // 11. Extract rfq_data from get_rfq tool results
     let rfqData: {
       quotes?: unknown[];
@@ -585,6 +592,7 @@ export async function POST(req: NextRequest) {
       yield JSON.stringify({
         done: true,
         tool_calls: toolCalls,
+        tool_results: toolResults,
         conversation_id: conversationId,
         chat_session_id: conversationId,
         conversation_type: conversationType,
