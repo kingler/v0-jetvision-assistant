@@ -23,7 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Search, X, Check, ChevronDown, Plus, ArrowLeft } from 'lucide-react';
+import { Loader2, Search, X, Check, ChevronDown, Plus, ArrowLeft, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
@@ -57,6 +57,8 @@ export interface CustomerSelectionDialogProps {
   initialCustomerId?: string;
   /** Whether to show the profit margin slider (default: true) */
   showMarginSlider?: boolean;
+  /** Locked customer ID — when set, only this customer can be selected */
+  lockedCustomerId?: string;
 }
 
 // =============================================================================
@@ -76,6 +78,7 @@ export function CustomerSelectionDialog({
   onSelect,
   initialCustomerId,
   showMarginSlider = true,
+  lockedCustomerId,
 }: CustomerSelectionDialogProps) {
   // State for client profiles list
   const [clients, setClients] = useState<ClientProfile[]>([]);
@@ -543,21 +546,27 @@ export function CustomerSelectionDialog({
                           No customers match "{searchQuery}"
                         </li>
                       ) : (
-                        filteredClients.map((client, index) => (
+                        filteredClients.map((client, index) => {
+                          const isLocked = lockedCustomerId != null && client.id !== lockedCustomerId;
+                          return (
                           <li
                             key={client.id}
                             data-item
                             role="option"
                             aria-selected={selectedClient?.id === client.id}
+                            aria-disabled={isLocked}
                             className={cn(
-                              'cursor-pointer px-3 py-2.5 transition-colors',
-                              highlightedIndex === index &&
+                              'px-3 py-2.5 transition-colors',
+                              isLocked
+                                ? 'cursor-not-allowed opacity-50'
+                                : 'cursor-pointer',
+                              !isLocked && highlightedIndex === index &&
                                 'bg-gray-100 dark:bg-gray-800',
                               selectedClient?.id === client.id &&
                                 'bg-orange-50 dark:bg-orange-900/20'
                             )}
-                            onClick={() => handleSelectClient(client)}
-                            onMouseEnter={() => setHighlightedIndex(index)}
+                            onClick={() => !isLocked && handleSelectClient(client)}
+                            onMouseEnter={() => !isLocked && setHighlightedIndex(index)}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex flex-col">
@@ -568,12 +577,15 @@ export function CustomerSelectionDialog({
                                   {client.contact_name} • {client.email}
                                 </span>
                               </div>
-                              {selectedClient?.id === client.id && (
+                              {lockedCustomerId === client.id ? (
+                                <Lock className="h-4 w-4 text-amber-500" />
+                              ) : selectedClient?.id === client.id ? (
                                 <Check className="h-4 w-4 text-orange-500" />
-                              )}
+                              ) : null}
                             </div>
                           </li>
-                        ))
+                          );
+                        })
                       )}
                     </ul>
                   </div>

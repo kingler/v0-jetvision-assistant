@@ -179,6 +179,10 @@ export class ToolExecutor {
         return this.createProposal(params);
       case 'get_proposal':
         return this.getProposal(params);
+      case 'generate_contract':
+        return this.generateContract(params);
+      case 'confirm_payment':
+        return this.confirmPayment(params);
       default:
         throw new Error(`Unknown database tool: ${name}`);
     }
@@ -419,6 +423,86 @@ export class ToolExecutor {
     }
 
     throw new Error('Either proposal_id or request_id is required');
+  }
+
+  private async generateContract(params: Record<string, unknown>): Promise<unknown> {
+    const { proposal_id, request_id } = params;
+
+    if (!proposal_id || !request_id) {
+      throw new Error('proposal_id and request_id are required');
+    }
+
+    // Fetch the proposal to get pricing and customer data
+    const proposal = await getProposalById(proposal_id as string);
+    if (!proposal) {
+      throw new Error(`Proposal not found: ${proposal_id}`);
+    }
+
+    // Create contract record via service
+    const { createContract } = await import('@/lib/services/contract-service');
+
+    const contract = await createContract({
+      request_id: request_id as string,
+      iso_agent_id: this.context.isoAgentId,
+      proposal_id: proposal_id as string,
+      customer: {
+        name: proposal.sent_to_name || 'Customer',
+        email: proposal.sent_to_email || '',
+      },
+      flightDetails: {
+        departureAirport: { icao: (proposal.metadata as Record<string, unknown>)?.departure_airport as string || '' },
+        arrivalAirport: { icao: (proposal.metadata as Record<string, unknown>)?.arrival_airport as string || '' },
+        departureDate: (proposal.metadata as Record<string, unknown>)?.departure_date as string || '',
+        aircraftType: (proposal.metadata as Record<string, unknown>)?.aircraft_type as string || '',
+        passengers: (proposal.metadata as Record<string, unknown>)?.passengers as number || 1,
+      },
+      pricing: {
+        flightCost: proposal.total_amount || 0,
+        federalExciseTax: 0,
+        domesticSegmentFee: 0,
+        subtotal: proposal.total_amount || 0,
+        creditCardFeePercentage: 0,
+        totalAmount: proposal.final_amount || proposal.total_amount || 0,
+        currency: 'USD',
+      },
+    });
+
+    return {
+      contractId: contract.id,
+      contractNumber: contract.contract_number,
+      status: contract.status,
+      message: `Contract ${contract.contract_number} created successfully`,
+    };
+  }
+
+  private async confirmPayment(params: Record<string, unknown>): Promise<unknown> {
+    const { contract_id, payment_amount, payment_method, payment_reference } = params;
+
+    if (!contract_id || !payment_amount || !payment_method || !payment_reference) {
+      throw new Error('contract_id, payment_amount, payment_method, and payment_reference are required');
+    }
+
+    const { updateContractPayment, completeContract } = await import('@/lib/services/contract-service');
+
+    // Record payment
+    const paymentResult = await updateContractPayment(contract_id as string, {
+      payment_reference: payment_reference as string,
+      payment_amount: payment_amount as number,
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_method: payment_method as 'wire' | 'credit_card',
+    });
+
+    // Complete the contract
+    const completed = await completeContract(contract_id as string);
+
+    return {
+      contractId: paymentResult.id,
+      contractNumber: paymentResult.contract_number,
+      status: completed.status,
+      paymentReference: paymentResult.payment_reference,
+      paymentAmount: paymentResult.payment_amount,
+      message: `Payment of ${payment_amount} recorded. Contract ${paymentResult.contract_number} is now complete.`,
+    };
   }
 
   // ===========================================================================

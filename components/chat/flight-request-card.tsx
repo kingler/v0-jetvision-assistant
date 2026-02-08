@@ -169,7 +169,6 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
    * Check if session can be archived (only when status is completed/booked)
    */
   const canArchive = (): boolean => {
-    // Can archive when status is terminal (proposal_ready, proposal_sent)
     const inProgress = session.status === 'understanding_request' ||
                       session.status === 'searching_aircraft' ||
                       session.status === 'requesting_quotes' ||
@@ -181,14 +180,19 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
    */
   const getWorkflowIcon = (step: number, status: string) => {
     const IconComponent = workflowSteps[step as keyof typeof workflowSteps]?.icon || Clock
+    const currentStep = getCurrentStepNumber(status)
 
-    if ((status === "proposal_ready" || status === "proposal_sent") && step <= 5) {
+    // Terminal status: all steps complete
+    if (status === "closed_won") {
       return <CheckCircle className="w-4 h-4 text-green-500" />
-    } else if (status === "requesting_quotes" && step === 3) {
-      return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
-    } else if (step < getCurrentStepNumber(status)) {
+    }
+
+    if (step < currentStep) {
       return <CheckCircle className="w-4 h-4 text-green-500" />
-    } else if (step === getCurrentStepNumber(status)) {
+    } else if (step === currentStep) {
+      if (status === "requesting_quotes") {
+        return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
+      }
       return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
     } else {
       return <IconComponent className="w-4 h-4 text-gray-400" />
@@ -209,8 +213,17 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
       case "analyzing_options":
         return 4
       case "proposal_ready":
-      case "proposal_sent":
         return 5
+      case "proposal_sent":
+        return 6
+      case "contract_generated":
+        return 7
+      case "contract_sent":
+        return 8
+      case "payment_pending":
+        return 9
+      case "closed_won":
+        return 10
       default:
         return 1
     }
@@ -220,30 +233,55 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
    * Get status badge component
    */
   const getStatusBadge = () => {
-    if (session.status === "proposal_sent") {
-      return (
-        <Badge variant="default" className="bg-blue-500 text-xs">
-          Proposal Sent
-        </Badge>
-      )
-    } else if (session.status === "proposal_ready") {
-      return (
-        <Badge variant="default" className="bg-green-500 text-xs">
-          Proposal Ready
-        </Badge>
-      )
-    } else if (session.status === "requesting_quotes") {
-      return (
-        <Badge variant="default" className="bg-cyan-500 text-xs">
-          Quotes {session.quotesReceived || 0}/{session.quotesTotal || 5}
-        </Badge>
-      )
-    } else {
-      return (
-        <Badge variant="secondary" className="bg-gray-400 text-white text-xs">
-          Pending
-        </Badge>
-      )
+    switch (session.status) {
+      case "closed_won":
+        return (
+          <Badge variant="default" className="bg-green-600 text-xs">
+            Closed Won
+          </Badge>
+        )
+      case "payment_pending":
+        return (
+          <Badge variant="default" className="bg-amber-500 text-xs">
+            Payment Pending
+          </Badge>
+        )
+      case "contract_sent":
+        return (
+          <Badge variant="default" className="bg-indigo-500 text-xs">
+            Contract Sent
+          </Badge>
+        )
+      case "contract_generated":
+        return (
+          <Badge variant="default" className="bg-blue-600 text-xs">
+            Contract Ready
+          </Badge>
+        )
+      case "proposal_sent":
+        return (
+          <Badge variant="default" className="bg-blue-500 text-xs">
+            Proposal Sent
+          </Badge>
+        )
+      case "proposal_ready":
+        return (
+          <Badge variant="default" className="bg-green-500 text-xs">
+            Proposal Ready
+          </Badge>
+        )
+      case "requesting_quotes":
+        return (
+          <Badge variant="default" className="bg-cyan-500 text-xs">
+            Quotes {session.quotesReceived || 0}/{session.quotesTotal || 5}
+          </Badge>
+        )
+      default:
+        return (
+          <Badge variant="secondary" className="bg-gray-400 text-white text-xs">
+            Pending
+          </Badge>
+        )
     }
   }
 

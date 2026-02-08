@@ -92,7 +92,10 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     msg.contentType === 'proposal_shared' ||
     msg.contentType === 'email_approval_request' ||
     msg.contentType === 'margin_selection' ||
-    (msg.richContent && (RICH_CONTENT_PROPOSAL_KEY in msg.richContent || RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent || 'marginSelection' in msg.richContent))
+    msg.contentType === 'contract_shared' ||
+    msg.contentType === 'payment_confirmed' ||
+    msg.contentType === 'deal_closed' ||
+    (msg.richContent && (RICH_CONTENT_PROPOSAL_KEY in msg.richContent || RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent || 'marginSelection' in msg.richContent || 'contractSent' in msg.richContent || 'paymentConfirmed' in msg.richContent || 'dealClosed' in msg.richContent))
   ) {
     console.log('[mapDbMessageToChatMessage] Special message detected:', {
       id: msg.id,
@@ -158,6 +161,54 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
           emailApprovalData: emailData,
         };
       }
+    }
+  }
+
+  // Handle contract_shared: detect by richContent.contractSent
+  if (
+    msg.richContent &&
+    typeof msg.richContent === 'object' &&
+    'contractSent' in msg.richContent
+  ) {
+    const contractData = msg.richContent.contractSent;
+    if (contractData && typeof contractData === 'object') {
+      return {
+        ...base,
+        showContractSentConfirmation: true,
+        contractSentData: contractData as ChatMessageUI['contractSentData'],
+      };
+    }
+  }
+
+  // Handle payment_confirmed: detect by richContent.paymentConfirmed
+  if (
+    msg.richContent &&
+    typeof msg.richContent === 'object' &&
+    'paymentConfirmed' in msg.richContent
+  ) {
+    const paymentData = msg.richContent.paymentConfirmed;
+    if (paymentData && typeof paymentData === 'object') {
+      return {
+        ...base,
+        showPaymentConfirmation: true,
+        paymentConfirmationData: paymentData as ChatMessageUI['paymentConfirmationData'],
+      };
+    }
+  }
+
+  // Handle deal_closed: detect by richContent.dealClosed
+  if (
+    msg.richContent &&
+    typeof msg.richContent === 'object' &&
+    'dealClosed' in msg.richContent
+  ) {
+    const closedData = msg.richContent.dealClosed;
+    if (closedData && typeof closedData === 'object') {
+      return {
+        ...base,
+        showClosedWon: true,
+        closedWonData: closedData as ChatMessageUI['closedWonData'],
+      };
     }
   }
 

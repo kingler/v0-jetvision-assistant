@@ -1,8 +1,9 @@
 "use client"
 
 import React from "react"
-import { UserCheck, Percent } from "lucide-react"
+import { UserCheck, Percent, Pencil } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
 export interface MarginSelectionData {
   customerName: string
@@ -10,6 +11,8 @@ export interface MarginSelectionData {
   companyName: string
   marginPercentage: number
   selectedAt: string
+  /** Callback to open margin edit modal */
+  onEditMargin?: () => void
 }
 
 /**
@@ -23,6 +26,7 @@ export function MarginSelectionCard({
   companyName,
   marginPercentage,
   selectedAt,
+  onEditMargin,
 }: MarginSelectionData) {
   const PRESETS = [5, 10, 15, 20]
   const isPreset = PRESETS.includes(marginPercentage)
@@ -42,9 +46,22 @@ export function MarginSelectionCard({
     <Card className="w-full bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
       <CardContent className="p-4 space-y-2">
         {/* Header */}
-        <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
-          <UserCheck className="h-4 w-4" />
-          <span>Customer &amp; Service Charge Selected</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
+            <UserCheck className="h-4 w-4" />
+            <span>Customer &amp; Service Charge Selected</span>
+          </div>
+          {onEditMargin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEditMargin}
+              className="h-7 px-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+            >
+              <Pencil className="h-3 w-3 mr-1" />
+              Edit
+            </Button>
+          )}
         </div>
 
         {/* Details */}

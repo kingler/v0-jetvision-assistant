@@ -1,8 +1,9 @@
 "use client"
 
 import React from "react"
-import { FileText, CheckCircle2 } from "lucide-react"
+import { FileText, CheckCircle2, Pencil, ScrollText } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 /**
@@ -47,6 +48,10 @@ export interface ProposalSentConfirmationProps {
     /** Return leg cost for round-trip */
     returnCost?: number
   }
+  /** Callback to open margin edit modal */
+  onEditMargin?: () => void
+  /** Callback to generate contract from this proposal */
+  onGenerateContract?: () => void
 }
 
 /**
@@ -65,6 +70,8 @@ export function ProposalSentConfirmation({
   fileName,
   proposalId,
   pricing,
+  onEditMargin,
+  onGenerateContract,
 }: ProposalSentConfirmationProps) {
   /**
    * Format date for display (e.g., "Jan 26, 2026")
@@ -255,6 +262,33 @@ export function ProposalSentConfirmation({
             </span>
           )}
         </div>
+
+        {/* Action Buttons */}
+        {(onEditMargin || onGenerateContract) && (
+          <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+            {onEditMargin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onEditMargin}
+                className="text-xs"
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit Margin
+              </Button>
+            )}
+            {onGenerateContract && (
+              <Button
+                size="sm"
+                onClick={onGenerateContract}
+                className="text-xs"
+              >
+                <ScrollText className="h-3.5 w-3.5 mr-1.5" />
+                Generate Contract
+              </Button>
+            )}
+          </div>
+        )}
         </CardContent>
       </Card>
 

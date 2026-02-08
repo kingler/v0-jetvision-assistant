@@ -497,6 +497,57 @@ export const DATABASE_TOOLS: OpenAIToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'generate_contract',
+      description: 'Generate a contract from an accepted proposal. Creates a contract record and generates a PDF. Use this after a proposal has been sent and the customer is ready to proceed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          proposal_id: {
+            type: 'string',
+            description: 'The proposal UUID to generate a contract from',
+          },
+          request_id: {
+            type: 'string',
+            description: 'The flight request UUID',
+          },
+        },
+        required: ['proposal_id', 'request_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'confirm_payment',
+      description: 'Record payment received for a contract and close the deal. Use this when the customer has paid.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contract_id: {
+            type: 'string',
+            description: 'The contract UUID',
+          },
+          payment_amount: {
+            type: 'number',
+            description: 'Payment amount received',
+          },
+          payment_method: {
+            type: 'string',
+            enum: ['wire', 'credit_card', 'check'],
+            description: 'How payment was received',
+          },
+          payment_reference: {
+            type: 'string',
+            description: 'Payment reference or transaction ID',
+          },
+        },
+        required: ['contract_id', 'payment_amount', 'payment_method', 'payment_reference'],
+      },
+    },
+  },
 ];
 
 // =============================================================================
@@ -669,6 +720,8 @@ export const TOOL_CATEGORIES: Record<string, 'avinode' | 'database' | 'gmail'> =
   list_preferred_operators: 'database',
   create_proposal: 'database',
   get_proposal: 'database',
+  generate_contract: 'database',
+  confirm_payment: 'database',
 
   // Gmail tools
   send_email: 'gmail',

@@ -82,7 +82,7 @@ export interface ChatSession {
   tripType?: 'one_way' | 'round_trip'
   /** Return date for round-trip flights (YYYY-MM-DD) */
   returnDate?: string
-  status: "proposal_ready" | "proposal_sent" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options"
+  status: "proposal_ready" | "proposal_sent" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options" | "contract_generated" | "contract_sent" | "payment_pending" | "closed_won"
   currentStep: number
   totalSteps: number
   aircraft?: string
@@ -199,6 +199,46 @@ export interface ChatSession {
       pricing?: { subtotal: number; total: number; currency: string }
       generatedAt?: string
       requestId?: string
+    }
+    /** Whether to show contract-sent confirmation card */
+    showContractSentConfirmation?: boolean
+    /** Data for ContractSentConfirmation card */
+    contractSentData?: {
+      contractId: string
+      contractNumber: string
+      customerName: string
+      customerEmail: string
+      flightRoute: string
+      departureDate: string
+      totalAmount: number
+      currency: string
+      pdfUrl?: string
+      status: 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed'
+    }
+    /** Whether to show payment confirmation card */
+    showPaymentConfirmation?: boolean
+    /** Data for payment confirmation */
+    paymentConfirmationData?: {
+      contractId: string
+      contractNumber: string
+      paymentAmount: number
+      paymentMethod: string
+      paymentReference: string
+      paidAt: string
+      currency: string
+    }
+    /** Whether to show closed-won (deal complete) card */
+    showClosedWon?: boolean
+    /** Data for ClosedWonConfirmation card */
+    closedWonData?: {
+      contractNumber: string
+      customerName: string
+      flightRoute: string
+      dealValue: number
+      currency: string
+      proposalSentAt?: string
+      contractSentAt?: string
+      paymentReceivedAt?: string
     }
   }>
   /** Flag to indicate this chat needs an initial API call (set when created from landing page) */

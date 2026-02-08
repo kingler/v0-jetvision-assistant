@@ -12,6 +12,10 @@ export const WorkflowStatus = {
   ANALYZING_OPTIONS: 'analyzing_options',
   PROPOSAL_READY: 'proposal_ready',
   PROPOSAL_SENT: 'proposal_sent',
+  CONTRACT_GENERATED: 'contract_generated',
+  CONTRACT_SENT: 'contract_sent',
+  PAYMENT_PENDING: 'payment_pending',
+  CLOSED_WON: 'closed_won',
 } as const;
 
 export type WorkflowStatusType = typeof WorkflowStatus[keyof typeof WorkflowStatus];
@@ -69,6 +73,11 @@ export const WorkflowStep = {
   REQUESTING_QUOTES: 3,
   ANALYZING: 4,
   PROPOSAL: 5,
+  PROPOSAL_SENT: 6,
+  CONTRACT_GENERATED: 7,
+  CONTRACT_SENT: 8,
+  PAYMENT_PENDING: 9,
+  CLOSED_WON: 10,
 } as const;
 
 /**
@@ -80,7 +89,11 @@ export const StatusToStep: Record<WorkflowStatusType, number> = {
   [WorkflowStatus.REQUESTING_QUOTES]: WorkflowStep.REQUESTING_QUOTES,
   [WorkflowStatus.ANALYZING_OPTIONS]: WorkflowStep.ANALYZING,
   [WorkflowStatus.PROPOSAL_READY]: WorkflowStep.PROPOSAL,
-  [WorkflowStatus.PROPOSAL_SENT]: WorkflowStep.PROPOSAL,
+  [WorkflowStatus.PROPOSAL_SENT]: WorkflowStep.PROPOSAL_SENT,
+  [WorkflowStatus.CONTRACT_GENERATED]: WorkflowStep.CONTRACT_GENERATED,
+  [WorkflowStatus.CONTRACT_SENT]: WorkflowStep.CONTRACT_SENT,
+  [WorkflowStatus.PAYMENT_PENDING]: WorkflowStep.PAYMENT_PENDING,
+  [WorkflowStatus.CLOSED_WON]: WorkflowStep.CLOSED_WON,
 };
 
 /**
