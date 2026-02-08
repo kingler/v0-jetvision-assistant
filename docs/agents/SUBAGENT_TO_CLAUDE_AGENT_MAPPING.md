@@ -4,7 +4,6 @@
 **Purpose**: Map Linear SubAgent roles to available Claude Code specialized agents for task execution
 
 ---
-
 ## Overview
 
 This document maps the 5 Linear SubAgent roles to the available Claude Code specialized agents. When executing tasks from Linear, use the appropriate Claude Code agent based on the SubAgent label.

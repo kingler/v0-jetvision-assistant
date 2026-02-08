@@ -21,6 +21,9 @@ import {
   radii,
   shadows,
   zIndex,
+  fontSizes,
+  fontWeights,
+  lineHeights,
 } from './tokens';
 
 /**
@@ -33,6 +36,9 @@ export type TailwindTheme = {
   borderRadius: Record<string, string>;
   boxShadow: Record<string, string>;
   zIndex: Record<string, string>;
+  fontSize: Record<string, string | [string, { lineHeight: string }]>;
+  fontWeight: Record<string, number>;
+  lineHeight: Record<string, number>;
 }
 
 /**
@@ -174,6 +180,58 @@ export function getTailwindTheme(): TailwindTheme {
       popover: String(zIndex.popover),
       tooltip: String(zIndex.tooltip),
       notification: String(zIndex.notification),
+    },
+
+    // Font sizes from tokens
+    fontSize: {
+      // Body sizes (static)
+      lg: fontSizes.lg,
+      base: fontSizes.base,
+      sm: fontSizes.sm,
+      xs: fontSizes.xs,
+      xxs: fontSizes.xxs,
+
+      // Headings (responsive - use with responsive classes)
+      'h1-mobile': fontSizes.h1.mobile,
+      'h1-desktop': fontSizes.h1.desktop,
+      'h2-mobile': fontSizes.h2.mobile,
+      'h2-desktop': fontSizes.h2.desktop,
+      'h3-mobile': fontSizes.h3.mobile,
+      'h3-desktop': fontSizes.h3.desktop,
+      'h4-mobile': fontSizes.h4.mobile,
+      'h4-desktop': fontSizes.h4.desktop,
+      'h5-mobile': fontSizes.h5.mobile,
+      'h5-desktop': fontSizes.h5.desktop,
+      'h6-mobile': fontSizes.h6.mobile,
+      'h6-desktop': fontSizes.h6.desktop,
+
+      // Display sizes (responsive)
+      'display-xl-mobile': fontSizes.display.xl.mobile,
+      'display-xl-desktop': fontSizes.display.xl.desktop,
+      'display-lg-mobile': fontSizes.display.lg.mobile,
+      'display-lg-desktop': fontSizes.display.lg.desktop,
+      'display-md-mobile': fontSizes.display.md.mobile,
+      'display-md-desktop': fontSizes.display.md.desktop,
+      'display-sm-mobile': fontSizes.display.sm.mobile,
+      'display-sm-desktop': fontSizes.display.sm.desktop,
+    },
+
+    // Font weights from tokens
+    fontWeight: {
+      normal: fontWeights.normal,
+      medium: fontWeights.medium,
+      semibold: fontWeights.semibold,
+      bold: fontWeights.bold,
+    },
+
+    // Line heights from tokens
+    lineHeight: {
+      none: lineHeights.none,
+      tight: lineHeights.tight,
+      snug: lineHeights.snug,
+      normal: lineHeights.normal,
+      relaxed: lineHeights.relaxed,
+      loose: lineHeights.loose,
     },
   };
 }

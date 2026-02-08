@@ -148,34 +148,34 @@ export const RichMarkdown = memo<RichMarkdownProps>(function RichMarkdown({
         );
       },
 
-      // Style headings
+      // Style headings with responsive typography
       h1: ({ children, ...props }) => (
-        <h1 className="text-3xl font-bold mt-6 mb-4 first:mt-0" {...props}>
+        <h1 className="text-responsive-h3 md:text-responsive-h1 font-bold mt-6 mb-4 first:mt-0" {...props}>
           {children}
         </h1>
       ),
       h2: ({ children, ...props }) => (
-        <h2 className="text-2xl font-semibold mt-5 mb-3 first:mt-0" {...props}>
+        <h2 className="text-responsive-h4 md:text-responsive-h2 font-semibold mt-5 mb-3 first:mt-0" {...props}>
           {children}
         </h2>
       ),
       h3: ({ children, ...props }) => (
-        <h3 className="text-xl font-semibold mt-4 mb-2 first:mt-0" {...props}>
+        <h3 className="text-responsive-h5 md:text-responsive-h3 font-semibold mt-4 mb-2 first:mt-0" {...props}>
           {children}
         </h3>
       ),
       h4: ({ children, ...props }) => (
-        <h4 className="text-lg font-medium mt-3 mb-2 first:mt-0" {...props}>
+        <h4 className="text-base md:text-responsive-h4 font-medium mt-3 mb-2 first:mt-0" {...props}>
           {children}
         </h4>
       ),
       h5: ({ children, ...props }) => (
-        <h5 className="text-base font-medium mt-3 mb-2 first:mt-0" {...props}>
+        <h5 className="text-sm md:text-responsive-h5 font-medium mt-3 mb-2 first:mt-0" {...props}>
           {children}
         </h5>
       ),
       h6: ({ children, ...props }) => (
-        <h6 className="text-sm font-medium mt-3 mb-2 first:mt-0" {...props}>
+        <h6 className="text-xs md:text-responsive-h6 font-medium mt-3 mb-2 first:mt-0" {...props}>
           {children}
         </h6>
       ),

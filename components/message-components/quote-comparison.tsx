@@ -25,11 +25,11 @@ export function QuoteComparison({ quotes, onSelectQuote, onCompare, className }:
   return (
     <div className={`space-y-4 ${className || ''}`}>
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">
+        <h3 className="text-base md:text-lg font-semibold">
           Quote Comparison ({quotes.length} options)
         </h3>
         {onCompare && (
-          <Button variant="outline" size="sm" onClick={onCompare}>
+          <Button variant="outline" size="sm" onClick={onCompare} className="min-h-[44px] md:min-h-0">
             <ArrowUpDown className="h-4 w-4 mr-2" />
             Detailed Compare
           </Button>

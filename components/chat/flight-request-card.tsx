@@ -5,13 +5,13 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@/components/ui/responsive-modal"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -517,82 +517,88 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
       </CardContent>
 
       {/* Cancel confirmation dialog */}
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel RFQ</DialogTitle>
-            <DialogDescription>
+      <ResponsiveModal open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <ResponsiveModalContent className="sm:max-w-md">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Cancel RFQ</ResponsiveModalTitle>
+            <ResponsiveModalDescription>
               Are you sure you want to cancel this RFQ? This will notify all operators and close the request for quotes.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+            </ResponsiveModalDescription>
+          </ResponsiveModalHeader>
+          <ResponsiveModalFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setShowCancelDialog(false)}
+              className="min-h-[44px] md:min-h-0"
             >
               Cancel
             </Button>
             <Button
               variant="default"
               onClick={handleConfirmCancel}
+              className="min-h-[44px] md:min-h-0"
             >
               Cancel RFQ
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
 
       {/* Delete confirmation dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Chat Session</DialogTitle>
-            <DialogDescription>
+      <ResponsiveModal open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <ResponsiveModalContent className="sm:max-w-md">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Delete Chat Session</ResponsiveModalTitle>
+            <ResponsiveModalDescription>
               Are you sure you want to delete this chat session? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+            </ResponsiveModalDescription>
+          </ResponsiveModalHeader>
+          <ResponsiveModalFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setShowDeleteDialog(false)}
+              className="min-h-[44px] md:min-h-0"
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
+              className="min-h-[44px] md:min-h-0"
             >
               Delete
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
 
       {/* Archive confirmation dialog */}
-      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Archive Chat Session</DialogTitle>
-            <DialogDescription>
+      <ResponsiveModal open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <ResponsiveModalContent className="sm:max-w-md">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Archive Chat Session</ResponsiveModalTitle>
+            <ResponsiveModalDescription>
               Are you sure you want to archive this chat session? Archived sessions are saved for reference but will be moved out of your active chats.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+            </ResponsiveModalDescription>
+          </ResponsiveModalHeader>
+          <ResponsiveModalFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setShowArchiveDialog(false)}
+              className="min-h-[44px] md:min-h-0"
             >
               Cancel
             </Button>
             <Button
               variant="default"
               onClick={handleConfirmArchive}
+              className="min-h-[44px] md:min-h-0"
             >
               Archive
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
     </Card>
   )
 }, (prevProps, nextProps) => {

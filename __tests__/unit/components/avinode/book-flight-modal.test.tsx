@@ -189,7 +189,7 @@ describe('BookFlightModal', () => {
         />
       );
 
-      const previewBtn = screen.getByRole('button', { name: /Preview Contract/i });
+      const previewBtn = screen.getByRole('button', { name: /Preview/i });
       const sendBtn = screen.getByRole('button', { name: /Send Contract/i });
       expect(previewBtn).not.toBeDisabled();
       expect(sendBtn).not.toBeDisabled();
@@ -207,7 +207,7 @@ describe('BookFlightModal', () => {
         />
       );
 
-      const previewBtn = screen.getByRole('button', { name: /Preview Contract/i });
+      const previewBtn = screen.getByRole('button', { name: /Preview/i });
       const sendBtn = screen.getByRole('button', { name: /Send Contract/i });
       expect(previewBtn).toBeDisabled();
       expect(sendBtn).toBeDisabled();
@@ -225,7 +225,7 @@ describe('BookFlightModal', () => {
         />
       );
 
-      const previewBtn = screen.getByRole('button', { name: /Preview Contract/i });
+      const previewBtn = screen.getByRole('button', { name: /Preview/i });
       const sendBtn = screen.getByRole('button', { name: /Send Contract/i });
       expect(previewBtn).toBeDisabled();
       expect(sendBtn).toBeDisabled();

@@ -39,7 +39,7 @@ export function AvinodeDeepLinks({ links, onLinkClick }: AvinodeDeepLinksProps) 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Avinode Actions</CardTitle>
+        <CardTitle className="text-base md:text-lg font-semibold">Avinode Actions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Search Link - Primary Action */}
@@ -48,15 +48,15 @@ export function AvinodeDeepLinks({ links, onLinkClick }: AvinodeDeepLinksProps) 
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => handleLinkClick('search')}
-          className="flex items-start gap-3 rounded-lg border border-primary/50 bg-primary/5 p-4 transition-colors hover:bg-accent/50"
+          className="flex items-start gap-3 rounded-lg border border-primary/50 bg-primary/5 p-3 md:p-4 transition-colors hover:bg-accent/50 min-h-[44px]"
         >
           <Search className="h-5 w-5 mt-0.5 text-primary flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-medium">Search in Avinode</span>
+              <span className="text-sm md:text-base font-medium">Search in Avinode</span>
               <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs md:text-sm text-muted-foreground mt-1">
               {links.searchInAvinode.description}
             </p>
             <p className="text-xs text-muted-foreground mt-1 truncate">

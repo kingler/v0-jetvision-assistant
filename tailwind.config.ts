@@ -1,5 +1,6 @@
 import type { Config } from 'tailwindcss';
 import { getTailwindTheme } from './lib/design-system';
+import { responsiveTypographyPlugin } from './lib/design-system/tailwind-plugin';
 
 /**
  * Tailwind CSS Configuration
@@ -12,6 +13,8 @@ import { getTailwindTheme } from './lib/design-system';
  * - Semantic: bg-success, bg-warning, bg-error, bg-info
  * - Shadows: shadow-primary, shadow-accent
  * - Z-index: z-dropdown, z-modal, z-tooltip
+ * - Typography: text-responsive-h1, text-responsive-h2, etc.
+ * - Display: text-responsive-display-xl, text-responsive-display-lg, etc.
  */
 const config: Config = {
   darkMode: 'class',
@@ -24,7 +27,7 @@ const config: Config = {
     // Type assertion needed as TailwindTheme is more specific than Config['theme']['extend']
     extend: getTailwindTheme() as Config['theme'],
   },
-  plugins: [],
+  plugins: [responsiveTypographyPlugin],
 };
 
 export default config;

@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -413,22 +413,22 @@ export function OperatorMessageThread({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
+    <ResponsiveModal open={isOpen} onOpenChange={onClose}>
+      <ResponsiveModalContent
         className={cn(
-          "max-w-2xl w-full h-[80vh] max-h-[800px]",
+          "sm:max-w-2xl w-full h-[85vh] sm:h-[80vh] max-h-[800px]",
           "flex flex-col p-0"
         )}
       >
         {/* Header */}
-        <DialogHeader className="p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
+        <ResponsiveModalHeader className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle className="text-lg font-semibold">
+              <ResponsiveModalTitle className="text-base sm:text-lg font-semibold">
                 Operator Messages
-              </DialogTitle>
+              </ResponsiveModalTitle>
               {operatorName && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
                   {operatorName}
                 </p>
               )}
@@ -437,23 +437,23 @@ export function OperatorMessageThread({
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
             >
               <X className="w-4 h-4" />
             </Button>
           </div>
-        </DialogHeader>
+        </ResponsiveModalHeader>
 
         {/* Messages Area */}
         <ScrollArea
           ref={scrollAreaRef}
-          className="flex-1 p-6"
+          className="flex-1 p-4 sm:p-6"
         >
           {/* Loading State */}
           {isLoading && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-              <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+              <span className="ml-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                 Loading messages...
               </span>
             </div>
@@ -464,12 +464,13 @@ export function OperatorMessageThread({
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <AlertCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">{error}</span>
+                <span className="text-xs sm:text-sm font-medium">{error}</span>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={fetchMessages}
+                className="min-h-[44px] md:min-h-0"
               >
                 Retry
               </Button>
@@ -480,7 +481,7 @@ export function OperatorMessageThread({
           {!isLoading && !error && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Plane className="w-12 h-12 text-gray-400 mb-3" />
-              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">
                 No messages yet
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
@@ -591,21 +592,21 @@ export function OperatorMessageThread({
 
         {/* Message Input */}
         {tripId ? (
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+          <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
             <div className="flex gap-2">
               <Input
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Type a message to the operator..."
-                className="flex-1"
+                className="flex-1 text-sm min-h-[44px] md:min-h-0"
                 disabled={isSending}
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={!messageInput.trim() || isSending}
                 size="sm"
-                className="px-3"
+                className="px-3 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
               >
                 {isSending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -616,13 +617,13 @@ export function OperatorMessageThread({
             </div>
           </div>
         ) : requestId ? (
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
-            <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+            <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               <p>Message sending requires a trip ID. You can view messages but cannot reply at this time.</p>
             </div>
           </div>
         ) : null}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

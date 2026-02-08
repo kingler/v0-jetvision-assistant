@@ -72,6 +72,9 @@ export {
 export { getTailwindTheme } from './tailwind-theme';
 export type { TailwindTheme } from './tailwind-theme';
 
+// Export Tailwind plugin
+export { responsiveTypographyPlugin } from './tailwind-plugin';
+
 // Export Tailwind helper utilities
 export {
   cn,
