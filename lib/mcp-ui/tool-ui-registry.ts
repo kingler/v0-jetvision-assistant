@@ -24,6 +24,9 @@ import { ProposalPreview } from '@/components/message-components/proposal-previe
 import { PipelineDashboard } from '@/components/message-components/pipeline-dashboard';
 import { OperatorChatInline } from '@/components/message-components/operator-chat-inline';
 
+// Airport lookup for enriching ICAO-only data with city/name
+import { getAirportByIcao } from '@/lib/airports/airport-database';
+
 // Types
 import type { RFQFlight } from '@/lib/chat/types';
 
@@ -255,14 +258,20 @@ function normalizeAirport(
   airport: unknown
 ): { icao: string; name: string; city: string } {
   if (typeof airport === 'string') {
+    const lookup = getAirportByIcao(airport);
+    if (lookup) {
+      return { icao: airport, name: lookup.name, city: lookup.city };
+    }
     return { icao: airport, name: airport, city: '' };
   }
   if (airport && typeof airport === 'object') {
     const a = airport as Record<string, unknown>;
+    const icao = (a.icao as string) || '';
+    const lookup = icao ? getAirportByIcao(icao) : undefined;
     return {
-      icao: (a.icao as string) || '',
-      name: (a.name as string) || (a.icao as string) || '',
-      city: (a.city as string) || '',
+      icao,
+      name: (a.name as string) || lookup?.name || icao,
+      city: (a.city as string) || lookup?.city || '',
     };
   }
   return { icao: '', name: 'Unknown', city: '' };
