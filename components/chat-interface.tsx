@@ -1692,7 +1692,7 @@ export function ChatInterface({
         marginSelectionData,
       }
 
-      // Persist margin selection to DB (fire-and-forget)
+      // Persist margin selection to DB and sync ID for dedup on reload
       if (requestIdForSave) {
         fetch('/api/chat-sessions/messages', {
           method: 'POST',
@@ -1703,7 +1703,14 @@ export function ChatInterface({
             contentType: 'text',
             richContent: { marginSelection: marginSelectionData },
           }),
-        }).catch((err) => console.warn('[ChatInterface] Failed to persist margin selection:', err))
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data?.messageId) {
+              marginSelectionMessage.id = data.messageId
+            }
+          })
+          .catch((err) => console.warn('[ChatInterface] Failed to persist margin selection:', err))
       }
 
       // Step 4b: Add email preview message to chat
@@ -1717,7 +1724,7 @@ export function ChatInterface({
         emailApprovalData: approvalData,
       }
 
-      // Persist email preview to DB (fire-and-forget) so it survives chat switch
+      // Persist email preview to DB and sync ID for dedup on reload
       if (requestIdForSave) {
         fetch('/api/chat-sessions/messages', {
           method: 'POST',
@@ -1728,7 +1735,14 @@ export function ChatInterface({
             contentType: 'email_approval_request',
             richContent: { emailApproval: approvalData },
           }),
-        }).catch((err) => console.warn('[ChatInterface] Failed to persist email preview:', err))
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data?.messageId) {
+              emailPreviewMessage.id = data.messageId
+            }
+          })
+          .catch((err) => console.warn('[ChatInterface] Failed to persist email preview:', err))
       }
 
       // Set approval state
@@ -1737,7 +1751,14 @@ export function ChatInterface({
       setEmailApprovalStatus('draft')
       setEmailApprovalError(undefined)
 
-      const updatedMessages = [...(activeChat.messages || []), marginSelectionMessage, emailPreviewMessage]
+      // Replace existing margin/email messages for this trip (prevent stacking)
+      const existingMessages = activeChat.messages || []
+      const filteredMessages = existingMessages.filter(m => {
+        if (m.showMarginSelection) return false
+        if (m.showEmailApprovalRequest) return false
+        return true
+      })
+      const updatedMessages = [...filteredMessages, marginSelectionMessage, emailPreviewMessage]
       onUpdateChat(activeChat.id, {
         messages: updatedMessages,
         customer: {
@@ -1844,7 +1865,24 @@ export function ChatInterface({
           proposalSentData,
         }
 
-        const updatedMessages = [...(activeChat.messages || []), confirmationMessage]
+        // Replace email preview and margin selection with confirmation (not append)
+        const existingMessages = activeChat.messages || []
+        let replaced = false
+        const updatedMessages = existingMessages.reduce<typeof existingMessages>((acc, m) => {
+          if (m.showEmailApprovalRequest) {
+            if (!replaced) {
+              acc.push(confirmationMessage)
+              replaced = true
+            }
+            return acc
+          }
+          if (m.showMarginSelection) return acc
+          acc.push(m)
+          return acc
+        }, [])
+        if (!replaced) {
+          updatedMessages.push(confirmationMessage)
+        }
         onUpdateChat(activeChat.id, {
           messages: updatedMessages,
           status: 'proposal_sent' as const,
@@ -2256,15 +2294,28 @@ export function ChatInterface({
                   return acc
                 }
 
-                // Always keep proposal-sent confirmation messages (inline UI)
+                // Deduplicate proposal-sent confirmation messages by proposalId or content
                 if (message.showProposalSentConfirmation && message.proposalSentData) {
-                  acc.push({ message, index })
+                  const proposalData = message.proposalSentData as { proposalId?: string }
+                  const isDupe = acc.some(({ message: existing }) => {
+                    if (!existing.showProposalSentConfirmation || !existing.proposalSentData) return false
+                    const existingData = existing.proposalSentData as { proposalId?: string }
+                    if (proposalData.proposalId && existingData.proposalId) {
+                      return proposalData.proposalId === existingData.proposalId
+                    }
+                    return existing.content === message.content
+                  })
+                  if (!isDupe) acc.push({ message, index })
                   return acc
                 }
 
-                // Always keep margin selection summary messages (inline UI)
+                // Deduplicate margin selection messages by content
                 if (message.showMarginSelection && message.marginSelectionData) {
-                  acc.push({ message, index })
+                  const isDupe = acc.some(({ message: existing }) =>
+                    existing.showMarginSelection &&
+                    existing.content === message.content
+                  )
+                  if (!isDupe) acc.push({ message, index })
                   return acc
                 }
 

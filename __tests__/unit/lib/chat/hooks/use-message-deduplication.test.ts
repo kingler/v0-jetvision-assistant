@@ -129,12 +129,12 @@ describe('useMessageDeduplication', () => {
         {
           ...createMessage('msg-1', 'agent', 'Proposal sent'),
           showProposalSentConfirmation: true,
-          proposalSentData: { some: 'data' },
+          proposalSentData: { proposalId: 'prop-1', some: 'data' },
         },
         {
-          ...createMessage('msg-2', 'agent', 'Proposal sent'), // Same content but different ID
+          ...createMessage('msg-2', 'agent', 'Proposal sent to different client'),
           showProposalSentConfirmation: true,
-          proposalSentData: { other: 'data' },
+          proposalSentData: { proposalId: 'prop-2', other: 'data' },
         },
       ];
 
