@@ -18,26 +18,40 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 // ---------------------------------------------------------------------------
-// Mock the Avinode HTTP client before importing AvinodeClient
+// Mock axios and Logger before importing AvinodeClient
 // ---------------------------------------------------------------------------
 
 const mockPost = vi.fn();
 const mockGet = vi.fn();
 
-vi.mock('@/lib/mcp/clients/base-client', () => ({
-  BaseMCPClient: class {
-    protected client = { post: mockPost, get: mockGet };
-    protected logger = {
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      debug: vi.fn(),
-    };
-    protected sanitizeError(error: unknown) {
-      return error instanceof Error ? error : new Error(String(error));
-    }
+const mockAxiosInstance = {
+  post: mockPost,
+  get: mockGet,
+  interceptors: {
+    request: { use: vi.fn() },
+    response: { use: vi.fn() },
+  },
+};
+
+vi.mock('axios', () => ({
+  default: {
+    create: vi.fn(() => mockAxiosInstance),
   },
 }));
+
+vi.mock('@/lib/mcp/logger', () => {
+  class MockLogger {
+    info = vi.fn();
+    warn = vi.fn();
+    error = vi.fn();
+    debug = vi.fn();
+    constructor(_config?: unknown) {}
+  }
+  return {
+    Logger: MockLogger,
+    LogLevel: { INFO: 'info', DEBUG: 'debug', WARN: 'warn', ERROR: 'error' },
+  };
+});
 
 // Import after mock setup
 import { AvinodeClient } from '@/lib/mcp/clients/avinode-client';
@@ -72,7 +86,10 @@ describe('Multi-Segment Trip Integration (AvinodeClient)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPost.mockResolvedValue(makeAvinodeResponse());
-    client = new AvinodeClient();
+    client = new AvinodeClient({
+      apiKey: 'test-api-key',
+      baseUrl: 'https://sandbox.avinode.com/api',
+    });
   });
 
   afterEach(() => {
