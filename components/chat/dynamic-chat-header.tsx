@@ -25,37 +25,6 @@ export interface DynamicChatHeaderProps {
 }
 
 /**
- * Generate a default flight request name based on chat data
- */
-function generateDefaultFlightName(chat: ChatSession | null): string {
-  if (!chat) return 'Flight Request'
-
-  const parts: string[] = []
-
-  // Try to extract airports from route
-  if (chat.route) {
-    // Route format is typically "KTEB -> KPBI" or similar
-    const airports = chat.route.split(/\s*(?:->|→|to)\s*/i)
-    if (airports.length >= 2) {
-      parts.push(`${airports[0].trim()} to ${airports[1].trim()}`)
-    } else {
-      parts.push(chat.route)
-    }
-  }
-
-  // Add date if available
-  if (chat.date) {
-    parts.push(chat.date)
-  }
-
-  if (parts.length === 0) {
-    return `Flight Request #${chat.id}`
-  }
-
-  return parts.join(' - ')
-}
-
-/**
  * Get status badge based on chat status
  */
 function getStatusBadge(status: ChatSession['status']) {
@@ -97,12 +66,12 @@ function getStatusBadge(status: ChatSession['status']) {
 }
 
 /**
- * DynamicChatHeader - Dynamic header with flight name, IDs, and quote requests
- * Replaces the static header in chat-interface.tsx
+ * DynamicChatHeader - Header with route summary, trip ID, status, and quote requests.
+ * No title line (redundant with initial flight request in chat).
  */
 export function DynamicChatHeader({
   activeChat,
-  flightRequestName,
+  flightRequestName: _flightRequestName, // accepted for API compatibility; title removed as redundant with chat
   showTripId,
   quoteRequests = [],
   onViewQuoteDetails,
@@ -127,8 +96,6 @@ export function DynamicChatHeader({
     )
   }
 
-  const displayName = flightRequestName || activeChat.generatedName || generateDefaultFlightName(activeChat)
-
   const handleCopyTripId = async () => {
     if (activeChat?.tripId) {
       try {
@@ -144,13 +111,10 @@ export function DynamicChatHeader({
 
   return (
     <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-6 py-4">
-      {/* Primary Row: Name, Flight ID, Status */}
+      {/* Primary Row: Route summary, Flight ID, Status (no redundant title - request already in chat) */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-gray-900 dark:text-white text-lg truncate">
-            {displayName}
-          </h2>
-          <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
             {activeChat.route && <span>{activeChat.tripType === 'round_trip' ? activeChat.route.replace(' → ', ' ⇄ ') : activeChat.route}</span>}
             {activeChat.passengers && (
               <>
@@ -183,7 +147,7 @@ export function DynamicChatHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {/* Trip ID Badge with Copy (only when tripId exists) */}
           {activeChat.tripId && (
             <Badge
