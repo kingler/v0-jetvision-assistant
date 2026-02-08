@@ -81,13 +81,13 @@ export function DynamicChatHeader({
 
   if (!activeChat) {
     return (
-      <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-6 py-4">
+      <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white text-lg">
+            <h2 className="font-semibold text-gray-900 dark:text-white text-[clamp(1rem,2.5vw,1.125rem)]">
               No Chat Selected
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-[clamp(0.8125rem,2vw,0.875rem)] text-gray-600 dark:text-gray-400">
               Select a chat from the sidebar or start a new conversation
             </p>
           </div>
@@ -109,50 +109,42 @@ export function DynamicChatHeader({
     }
   }
 
+  // Build single-line route summary so it truncates instead of wrapping (responsive header)
+  const routeSummary = [
+    activeChat.route && (activeChat.tripType === 'round_trip' ? activeChat.route.replace(' → ', ' ⇄ ') : activeChat.route),
+    activeChat.passengers && `${activeChat.passengers} passengers`,
+    activeChat.date && (() => {
+      try {
+        const dep = formatDate(activeChat.date)
+        if (activeChat.tripType === 'round_trip' && activeChat.returnDate) {
+          try { return `${dep} – ${formatDate(activeChat.returnDate)}` } catch { /* fall through */ }
+        }
+        return dep
+      } catch {
+        return activeChat.date
+      }
+    })(),
+  ].filter(Boolean).join(' • ')
+
   return (
-    <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-6 py-4">
-      {/* Primary Row: Route summary, Flight ID, Status (no redundant title - request already in chat) */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-            {activeChat.route && <span>{activeChat.tripType === 'round_trip' ? activeChat.route.replace(' → ', ' ⇄ ') : activeChat.route}</span>}
-            {activeChat.passengers && (
-              <>
-                <span className="text-gray-400 dark:text-gray-500">•</span>
-                <span>{activeChat.passengers} passengers</span>
-              </>
-            )}
-            {activeChat.date && (
-              <>
-                <span className="text-gray-400 dark:text-gray-500">•</span>
-                <span>
-                  {(() => {
-                    // Format ISO date (YYYY-MM-DD) or formatted date string for display
-                    try {
-                      const dep = formatDate(activeChat.date)
-                      if (activeChat.tripType === 'round_trip' && activeChat.returnDate) {
-                        try {
-                          return `${dep} – ${formatDate(activeChat.returnDate)}`
-                        } catch { /* fall through */ }
-                      }
-                      return dep
-                    } catch {
-                      // If parsing fails, use as-is (might already be formatted)
-                    }
-                    return activeChat.date
-                  })()}
-                </span>
-              </>
-            )}
-          </div>
+    <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+      {/* Primary Row: single line, no wrap - route summary truncates; trip ID and status stay visible */}
+      <div className="flex items-center justify-between gap-3 flex-nowrap min-w-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <span
+            className="block text-[clamp(0.8125rem,2vw,0.875rem)] text-gray-600 dark:text-gray-400 truncate"
+            title={routeSummary}
+          >
+            {routeSummary || '—'}
+          </span>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 flex-nowrap">
           {/* Trip ID Badge with Copy (only when tripId exists) */}
           {activeChat.tripId && (
             <Badge
               variant="secondary"
-              className="font-mono text-xs font-semibold text-black dark:text-black cursor-pointer hover:bg-secondary/80 transition-colors"
+              className="font-mono text-[clamp(0.6875rem,1.5vw,0.75rem)] font-semibold text-black dark:text-black cursor-pointer hover:bg-secondary/80 transition-colors shrink-0"
               onClick={handleCopyTripId}
               role="button"
               tabIndex={0}

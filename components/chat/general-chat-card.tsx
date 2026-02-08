@@ -137,7 +137,7 @@ export function GeneralChatCard({ session, isActive, onClick, onDelete, onArchiv
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden w-[300px] box-border py-0 gap-0",
+        "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden w-full max-w-[300px] min-w-[260px] box-border py-0 gap-0",
         isActive
           ? "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-950"
           : "hover:bg-gray-50 dark:hover:bg-gray-800",

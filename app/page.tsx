@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
 import { ChatSidebar, type ChatSession, type OperatorMessage, type OperatorThread } from "@/components/chat-sidebar"
 import { initializeOperatorThreads, mergeMessagesIntoThreads } from "@/lib/avinode/operator-threads"
 import { LandingPage } from "@/components/landing-page"
 import { AppHeader } from "@/components/app-header"
-import { useIsMobile } from "@/hooks/use-mobile"
+import { useIsMobile, useIsTabletOrSmaller } from "@/hooks/use-mobile"
 import { chatSessionsToUIFormat } from "@/lib/utils/chat-session-to-ui"
 import { mapDbMessageToChatMessage, type DbMessageLike } from "@/lib/utils/map-db-message-to-ui"
 import type { RFQFlight } from "@/components/avinode/rfq-flight-card"
@@ -31,8 +31,19 @@ export default function JetvisionAgent() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
   const isMobile = useIsMobile()
-  // Sidebar starts collapsed on initial page load
+  const isTabletOrSmaller = useIsTabletOrSmaller()
+  // Sidebar starts collapsed on initial page load; closed on phone/tablet
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Auto-close sidebar only when viewport shrinks to tablet/phone (resize), not when user opens it on tablet
+  const prevTabletOrSmaller = useRef(isTabletOrSmaller)
+  useEffect(() => {
+    const becameTabletOrSmaller = !prevTabletOrSmaller.current && isTabletOrSmaller
+    prevTabletOrSmaller.current = isTabletOrSmaller
+    if (becameTabletOrSmaller && sidebarOpen) {
+      setSidebarOpen(false)
+    }
+  }, [isTabletOrSmaller, sidebarOpen])
 
   /**
    * Load existing flight requests from the database on page mount
@@ -1805,14 +1816,19 @@ export default function JetvisionAgent() {
 
   return (
     <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
-      {isMobile && sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+      {/* Backdrop when sidebar is overlay (phone + tablet); click to close */}
+      {isTabletOrSmaller && sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden
+        />
       )}
 
       {sidebarOpen && (
         <div
           className={`
-            ${isMobile ? "fixed left-0 top-0 h-full z-50 w-80" : "relative w-80"}
+            ${isTabletOrSmaller ? "fixed left-0 top-0 h-full z-50 min-w-[280px] max-w-[360px] w-[clamp(280px,22vw,360px)]" : "relative min-w-[280px] max-w-[360px] w-[clamp(280px,22vw,360px)]"}
             transition-transform duration-300 ease-in-out
           `}
         >
@@ -1821,11 +1837,11 @@ export default function JetvisionAgent() {
             activeChatId={activeChatId}
             onSelectChat={(chatId) => {
               handleSelectChat(chatId)
-              if (isMobile) setSidebarOpen(false)
+              if (isTabletOrSmaller) setSidebarOpen(false)
             }}
             onNewChat={() => {
               handleNewChat()
-              if (isMobile) setSidebarOpen(false)
+              if (isTabletOrSmaller) setSidebarOpen(false)
             }}
             onDeleteChat={handleDeleteChat}
             onCancelChat={handleCancelChat}
@@ -1838,7 +1854,7 @@ export default function JetvisionAgent() {
         <AppHeader
           sidebarOpen={sidebarOpen}
           onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
-          isMobile={isMobile}
+          isMobile={isTabletOrSmaller}
         />
 
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">

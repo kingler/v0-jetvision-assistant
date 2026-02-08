@@ -324,14 +324,14 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden w-[300px] box-border py-0 gap-0",
+        "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden w-full max-w-[300px] min-w-[260px] box-border py-0 gap-0",
         isActive
           ? "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-950"
           : "hover:bg-gray-50 dark:hover:bg-gray-800",
       )}
       onClick={onClick}
     >
-      <CardContent className="!px-3 !py-3 w-full box-border overflow-hidden">
+      <CardContent className="px-3! py-3! w-full box-border overflow-hidden">
         {/* Header with title and status badge */}
         <div className="flex items-start justify-between mb-2 min-w-0 w-full">
           <div className="flex items-center space-x-2 min-w-0 flex-1 overflow-hidden">
@@ -345,7 +345,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
                 />
               </div>
             ) : (
-              <h3 className="font-medium text-xs sm:text-sm text-gray-900 dark:text-white truncate min-w-0 flex-1">
+              <h3 className="font-medium text-[clamp(0.75rem,1.5vw,0.875rem)] text-gray-900 dark:text-white truncate min-w-0 flex-1">
                 {session.generatedName || getFallbackTitle()}
               </h3>
             )}
@@ -359,8 +359,8 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
         {/* Route and passenger info - show if we have route data OR tripId */}
         {(session.tripId || (session.route && session.route !== 'Select route')) && (
           <div className="space-y-1 mb-2 min-w-0 w-full overflow-hidden">
-            <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{session.tripType === 'round_trip' ? session.route?.replace(' → ', ' ⇄ ') : session.route}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+            <p className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-gray-600 dark:text-gray-300 truncate">{session.tripType === 'round_trip' ? session.route?.replace(' → ', ' ⇄ ') : session.route}</p>
+            <p className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-gray-500 dark:text-gray-400 truncate">
               {session.passengers} passenger{session.passengers !== 1 ? 's' : ''} • {(() => {
                 // Format ISO date (YYYY-MM-DD) or formatted date string for display
                 try {
@@ -383,12 +383,12 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
         {(session.tripId || (session.route && session.route !== 'Select route')) && (
           <div className="flex items-center justify-between min-w-0 w-full">
             <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1 overflow-hidden">
-              <span className="text-xs text-gray-600 dark:text-gray-300 truncate">
+              <span className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-gray-600 dark:text-gray-300 truncate">
                 {workflowSteps[session.currentStep as keyof typeof workflowSteps]?.title}
               </span>
             </div>
             {/* Timestamp */}
-            <span className="text-xs text-gray-400 shrink-0 ml-2">{getLastActivity()}</span>
+            <span className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-gray-400 shrink-0 ml-2">{getLastActivity()}</span>
           </div>
         )}
 
