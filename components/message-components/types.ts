@@ -208,6 +208,10 @@ export interface AvinodeTripSummaryComponent extends BaseMessageComponent {
   departureDate: string;
   passengers: number;
   status: TripStatus;
+  /** Trip type: one-way, round-trip, or multi-city */
+  tripType?: 'single_leg' | 'round_trip' | 'multi_city';
+  /** Return date for round-trip flights (YYYY-MM-DD) */
+  returnDate?: string;
   onCopyTripId?: () => void;
 }
 

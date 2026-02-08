@@ -29,6 +29,7 @@ import {
   Users,
   MapPin,
   ArrowRight,
+  ArrowLeftRight,
   ClipboardCheck,
   MessageSquare,
   Search,
@@ -566,62 +567,78 @@ export function FlightSearchProgress({
               {/* Flight Request Details */}
               <div className="space-y-3">
                 {/* Route Visualization */}
-                <div className="flex items-center justify-between gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-lg font-bold text-primary">
-                        {flightRequest.departureAirport?.icao?.toUpperCase() || 'N/A'}
-                      </span>
-                    </div>
-                    {(() => {
-                      // Get city and state from airport data or lookup from database
-                      const departureIcao = flightRequest.departureAirport?.icao?.toUpperCase();
-                      const airportData = departureIcao ? getAirportByIcao(departureIcao) : null;
-                      const city = flightRequest.departureAirport?.city || airportData?.city || '';
-                      const state = flightRequest.departureAirport?.state || airportData?.state || '';
-                      
-                      if (city || state) {
-                        return (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {city}{state ? `, ${state}` : ''}
-                          </p>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
+                <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-3 space-y-2">
+                  {/* Trip Type Badge */}
+                  <span className={cn(
+                    "inline-block text-xs font-medium px-2 py-0.5 rounded-full",
+                    flightRequest.tripType === 'round_trip'
+                      ? "bg-primary/10 text-primary"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                  )}>
+                    {flightRequest.tripType === 'round_trip' ? 'Round-Trip' : 'One-Way'}
+                  </span>
 
-                  <div className="flex items-center gap-2 px-3">
-                    <div className="h-px w-6 bg-gray-300 dark:bg-gray-600" />
-                    <Plane className="h-4 w-4 text-primary rotate-90" />
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    <div className="h-px w-6 bg-gray-300 dark:bg-gray-600" />
-                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-lg font-bold text-primary">
+                          {flightRequest.departureAirport?.icao?.toUpperCase() || 'N/A'}
+                        </span>
+                      </div>
+                      {(() => {
+                        // Get city and state from airport data or lookup from database
+                        const departureIcao = flightRequest.departureAirport?.icao?.toUpperCase();
+                        const airportData = departureIcao ? getAirportByIcao(departureIcao) : null;
+                        const city = flightRequest.departureAirport?.city || airportData?.city || '';
+                        const state = flightRequest.departureAirport?.state || airportData?.state || '';
 
-                  <div className="flex-1 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <span className="text-lg font-bold text-primary">
-                        {flightRequest.arrivalAirport?.icao?.toUpperCase() || 'N/A'}
-                      </span>
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                        if (city || state) {
+                          return (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {city}{state ? `, ${state}` : ''}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
-                    {(() => {
-                      // Get city and state from airport data or lookup from database
-                      const arrivalIcao = flightRequest.arrivalAirport?.icao?.toUpperCase();
-                      const airportData = arrivalIcao ? getAirportByIcao(arrivalIcao) : null;
-                      const city = flightRequest.arrivalAirport?.city || airportData?.city || '';
-                      const state = flightRequest.arrivalAirport?.state || airportData?.state || '';
-                      
-                      if (city || state) {
-                        return (
-                          <p className="text-xs text-muted-foreground mt-0.5 text-right">
-                            {city}{state ? `, ${state}` : ''}
-                          </p>
-                        );
-                      }
-                      return null;
-                    })()}
+
+                    <div className="flex items-center gap-2 px-3">
+                      <div className="h-px w-6 bg-gray-300 dark:bg-gray-600" />
+                      <Plane className="h-4 w-4 text-primary rotate-90" />
+                      {flightRequest.tripType === 'round_trip' ? (
+                        <ArrowLeftRight className="h-4 w-4 text-primary" />
+                      ) : (
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <div className="h-px w-6 bg-gray-300 dark:bg-gray-600" />
+                    </div>
+
+                    <div className="flex-1 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <span className="text-lg font-bold text-primary">
+                          {flightRequest.arrivalAirport?.icao?.toUpperCase() || 'N/A'}
+                        </span>
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                      {(() => {
+                        // Get city and state from airport data or lookup from database
+                        const arrivalIcao = flightRequest.arrivalAirport?.icao?.toUpperCase();
+                        const airportData = arrivalIcao ? getAirportByIcao(arrivalIcao) : null;
+                        const city = flightRequest.arrivalAirport?.city || airportData?.city || '';
+                        const state = flightRequest.arrivalAirport?.state || airportData?.state || '';
+
+                        if (city || state) {
+                          return (
+                            <p className="text-xs text-muted-foreground mt-0.5 text-right">
+                              {city}{state ? `, ${state}` : ''}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                   </div>
                 </div>
 

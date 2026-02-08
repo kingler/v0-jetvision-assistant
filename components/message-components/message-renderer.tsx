@@ -154,6 +154,8 @@ export function MessageRenderer({ component, onAction, className }: MessageRende
           departureDate={component.departureDate}
           passengers={component.passengers}
           status={component.status}
+          tripType={component.tripType}
+          returnDate={component.returnDate}
           onCopyTripId={component.onCopyTripId || (() => handleAction('copy_trip_id', { tripId: component.tripId }))}
         />
       );
