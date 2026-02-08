@@ -7,6 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/lib/hooks/use-mobile"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -147,6 +154,7 @@ export function QuoteDetailsDrawer({
   onAcceptQuote,
 }: QuoteDetailsDrawerProps) {
   const [messageInput, setMessageInput] = useState('')
+  const isMobile = useIsMobile()
 
   const handleSendMessage = () => {
     if (messageInput.trim() && onSendMessage) {
@@ -162,6 +170,220 @@ export function QuoteDetailsDrawer({
     }
   }
 
+  // Shared inner content for both mobile and desktop
+  const drawerBody = quote ? (
+    <>
+      <ScrollArea className="flex-1 p-4 md:p-6">
+        <div className="space-y-4 md:space-y-6">
+          {/* Operator Info */}
+          <div>
+            <h3 className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              Operator
+            </h3>
+            <div className="flex items-center justify-between p-3 md:p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <span className="font-medium text-sm md:text-base text-gray-900 dark:text-white">
+                {quote.operator.name}
+              </span>
+              <div className="flex items-center gap-2">
+                {quote.operator.rating && (
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-sm font-medium">{quote.operator.rating}</span>
+                  </div>
+                )}
+                {getStatusBadge(quote.status)}
+              </div>
+            </div>
+          </div>
+
+          {/* Aircraft Info */}
+          <div>
+            <h3 className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              Aircraft
+            </h3>
+            <div className="p-3 md:p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 space-y-3">
+              {quote.aircraft.imageUrl ? (
+                <img
+                  src={quote.aircraft.imageUrl}
+                  alt={quote.aircraft.type}
+                  className="w-full h-24 md:h-32 object-cover rounded-lg"
+                />
+              ) : (
+                <div className="w-full h-24 md:h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <Plane className="w-8 h-8 md:w-12 md:h-12 text-gray-400" />
+                </div>
+              )}
+              <div>
+                <p className="font-semibold text-sm md:text-base text-gray-900 dark:text-white">
+                  {quote.aircraft.type}
+                </p>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+                  Tail: {quote.aircraft.tail} | {quote.aircraft.category}
+                </p>
+                <div className="flex items-center gap-1 mt-1 text-xs md:text-sm text-gray-600 dark:text-gray-400">
+                  <Users className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span>Max {quote.aircraft.maxPassengers} passengers</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Price */}
+          <div>
+            <h3 className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              Price
+            </h3>
+            <div className="p-4 md:p-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
+                <span className="text-2xl md:text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatPrice(quote.price.amount, quote.price.currency)}
+                </span>
+              </div>
+              {quote.validUntil && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Valid until {new Date(quote.validUntil).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Flight Details */}
+          <div>
+            <h3 className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              Flight Details
+            </h3>
+            <div className="p-3 md:p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-xs md:text-sm">Duration</span>
+                </div>
+                <span className="font-medium text-sm md:text-base text-gray-900 dark:text-white">
+                  {formatDuration(quote.flightDetails.flightTimeMinutes)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <MapPin className="w-4 h-4" />
+                  <span className="text-xs md:text-sm">Distance</span>
+                </div>
+                <span className="font-medium text-sm md:text-base text-gray-900 dark:text-white">
+                  {quote.flightDetails.distanceNm.toLocaleString()} NM
+                </span>
+              </div>
+              {quote.flightDetails.departureTime && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Departure</span>
+                  <span className="font-medium text-sm md:text-base text-gray-900 dark:text-white">
+                    {quote.flightDetails.departureTime}
+                  </span>
+                </div>
+              )}
+              {quote.flightDetails.arrivalTime && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Arrival</span>
+                  <span className="font-medium text-sm md:text-base text-gray-900 dark:text-white">
+                    {quote.flightDetails.arrivalTime}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Accept Quote Button */}
+          {quote.status === 'quoted' && onAcceptQuote && (
+            <Button
+              onClick={() => onAcceptQuote(quote.id)}
+              className="w-full bg-green-600 hover:bg-green-700 min-h-[44px]"
+            >
+              Accept Quote
+            </Button>
+          )}
+
+          {/* Operator Conversation */}
+          {messages.length > 0 && (
+            <div>
+              <h3 className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                Operator Conversation
+              </h3>
+              <div className="space-y-3">
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      {getMessageTypeBadge(msg.type)}
+                      {msg.sender && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {msg.sender}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+                        {new Date(msg.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
+                      {msg.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Message Input */}
+      {onSendMessage && (
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+          <div className="flex gap-2">
+            <Input
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type a message to the operator..."
+              className="flex-1 min-h-[44px]"
+            />
+            <Button
+              onClick={handleSendMessage}
+              disabled={!messageInput.trim()}
+              size="sm"
+              className="px-3 min-h-[44px] min-w-[44px]"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </>
+  ) : (
+    <div className="flex-1 flex items-center justify-center p-6">
+      <div className="text-center text-gray-500 dark:text-gray-400">
+        <Plane className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <p>No quote selected</p>
+      </div>
+    </div>
+  )
+
+  // Mobile: bottom sheet drawer via Vaul
+  if (isMobile) {
+    return (
+      <Drawer open={isOpen} onOpenChange={onClose}>
+        <DrawerContent className="max-h-[85vh] flex flex-col">
+          <DrawerHeader className="border-b border-gray-200 dark:border-gray-700 shrink-0">
+            <DrawerTitle className="text-lg font-semibold">
+              Quote Details
+            </DrawerTitle>
+          </DrawerHeader>
+          {drawerBody}
+        </DrawerContent>
+      </Drawer>
+    )
+  }
+
+  // Desktop: right-side slide-in panel (existing behavior)
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
@@ -189,203 +411,7 @@ export function QuoteDetailsDrawer({
             </Button>
           </div>
         </DialogHeader>
-
-        {/* Content */}
-        {quote ? (
-          <>
-            <ScrollArea className="flex-1 p-6">
-              <div className="space-y-6">
-                {/* Operator Info */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                    Operator
-                  </h3>
-                  <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {quote.operator.name}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {quote.operator.rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium">{quote.operator.rating}</span>
-                        </div>
-                      )}
-                      {getStatusBadge(quote.status)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Aircraft Info */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                    Aircraft
-                  </h3>
-                  <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 space-y-3">
-                    {quote.aircraft.imageUrl ? (
-                      <img
-                        src={quote.aircraft.imageUrl}
-                        alt={quote.aircraft.type}
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                    ) : (
-                      <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                        <Plane className="w-12 h-12 text-gray-400" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {quote.aircraft.type}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Tail: {quote.aircraft.tail} | {quote.aircraft.category}
-                      </p>
-                      <div className="flex items-center gap-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        <Users className="w-4 h-4" />
-                        <span>Max {quote.aircraft.maxPassengers} passengers</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                    Price
-                  </h3>
-                  <div className="p-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                      <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                        {formatPrice(quote.price.amount, quote.price.currency)}
-                      </span>
-                    </div>
-                    {quote.validUntil && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        Valid until {new Date(quote.validUntil).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Flight Details */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                    Flight Details
-                  </h3>
-                  <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-sm">Duration</span>
-                      </div>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {formatDuration(quote.flightDetails.flightTimeMinutes)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                        <MapPin className="w-4 h-4" />
-                        <span className="text-sm">Distance</span>
-                      </div>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {quote.flightDetails.distanceNm.toLocaleString()} NM
-                      </span>
-                    </div>
-                    {quote.flightDetails.departureTime && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Departure</span>
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {quote.flightDetails.departureTime}
-                        </span>
-                      </div>
-                    )}
-                    {quote.flightDetails.arrivalTime && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Arrival</span>
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {quote.flightDetails.arrivalTime}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Accept Quote Button */}
-                {quote.status === 'quoted' && onAcceptQuote && (
-                  <Button
-                    onClick={() => onAcceptQuote(quote.id)}
-                    className="w-full bg-green-600 hover:bg-green-700"
-                  >
-                    Accept Quote
-                  </Button>
-                )}
-
-                {/* Operator Conversation */}
-                {messages.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                      Operator Conversation
-                    </h3>
-                    <div className="space-y-3">
-                      {messages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
-                        >
-                          <div className="flex items-center gap-2 mb-2">
-                            {getMessageTypeBadge(msg.type)}
-                            {msg.sender && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {msg.sender}
-                              </span>
-                            )}
-                            <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
-                              {new Date(msg.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">
-                            {msg.content}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-
-            {/* Message Input */}
-            {onSendMessage && (
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
-                <div className="flex gap-2">
-                  <Input
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type a message to the operator..."
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!messageInput.trim()}
-                    size="sm"
-                    className="px-3"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="text-center text-gray-500 dark:text-gray-400">
-              <Plane className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No quote selected</p>
-            </div>
-          </div>
-        )}
+        {drawerBody}
       </DialogContent>
     </Dialog>
   )

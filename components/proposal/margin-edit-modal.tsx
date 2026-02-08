@@ -2,13 +2,13 @@
 
 import React, { useState, useMemo } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -131,27 +131,27 @@ export function MarginEditModal({
   const hasChanged = margin !== currentMargin
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && !isProcessing && onClose()}>
-      <DialogContent className="sm:max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle>Edit Service Charge</DialogTitle>
-          <DialogDescription>
+    <ResponsiveModal open={open} onOpenChange={(v) => !v && !isProcessing && onClose()}>
+      <ResponsiveModalContent className="sm:max-w-[420px]">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>Edit Service Charge</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Update the margin for this proposal. You can save internally or
             regenerate and re-send to the customer.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-3 md:space-y-4 py-2">
           {/* Current margin display */}
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400">
             <Percent className="h-4 w-4" />
             <span>Current: {currentMargin}%</span>
           </div>
 
           {/* Preset buttons */}
           <div className="space-y-2">
-            <Label>Service Charge</Label>
-            <div className="flex gap-2">
+            <Label className="text-xs md:text-sm">Service Charge</Label>
+            <div className="flex flex-wrap gap-2">
               {MARGIN_PRESETS.map((preset) => (
                 <Button
                   key={preset}
@@ -160,6 +160,7 @@ export function MarginEditModal({
                   size="sm"
                   onClick={() => handlePresetClick(preset)}
                   disabled={isProcessing}
+                  className="min-h-[44px] md:min-h-0"
                 >
                   {preset}%
                 </Button>
@@ -173,6 +174,7 @@ export function MarginEditModal({
                   setCustomInput(String(margin))
                 }}
                 disabled={isProcessing}
+                className="min-h-[44px] md:min-h-0"
               >
                 Custom
               </Button>
@@ -182,7 +184,7 @@ export function MarginEditModal({
           {/* Custom input */}
           {isCustom && (
             <div className="space-y-1">
-              <Label htmlFor="custom-margin">Custom Percentage</Label>
+              <Label htmlFor="custom-margin" className="text-xs md:text-sm">Custom Percentage</Label>
               <div className="flex items-center gap-2">
                 <Input
                   id="custom-margin"
@@ -194,7 +196,7 @@ export function MarginEditModal({
                   onChange={(e) => handleCustomChange(e.target.value)}
                   placeholder="Enter %"
                   disabled={isProcessing}
-                  className="w-28"
+                  className="w-28 min-h-[44px] md:min-h-0"
                 />
                 <span className="text-sm text-gray-500">%</span>
               </div>
@@ -203,14 +205,14 @@ export function MarginEditModal({
 
           {/* Live price preview */}
           <div className="rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 space-y-1.5">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs md:text-sm">
               <span className="text-gray-500 dark:text-gray-400">Base Amount</span>
               <span className="text-gray-900 dark:text-gray-100">
                 {currency} {baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Service Charge ({margin}%)</span>
+            <div className="flex justify-between text-xs md:text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Charge ({margin}%)</span>
               <span className={cn(
                 "font-medium",
                 hasChanged ? "text-blue-600 dark:text-blue-400" : "text-gray-900 dark:text-gray-100"
@@ -218,7 +220,7 @@ export function MarginEditModal({
                 {currency} {previewPricing.fee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="flex justify-between text-sm border-t border-gray-200 dark:border-gray-600 pt-1.5">
+            <div className="flex justify-between text-xs md:text-sm border-t border-gray-200 dark:border-gray-600 pt-1.5">
               <span className="font-medium text-gray-700 dark:text-gray-300">Total</span>
               <span className={cn(
                 "font-semibold",
@@ -230,15 +232,16 @@ export function MarginEditModal({
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-xs md:text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <ResponsiveModalFooter className="flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
             onClick={handleUpdateInternal}
             disabled={isProcessing || !hasChanged}
+            className="min-h-[44px] md:min-h-0"
           >
             {isUpdating ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -250,6 +253,7 @@ export function MarginEditModal({
           <Button
             onClick={handleRegenerateAndResend}
             disabled={isProcessing || !hasChanged}
+            className="min-h-[44px] md:min-h-0"
           >
             {isRegenerating ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -258,8 +262,8 @@ export function MarginEditModal({
             )}
             Regenerate & Re-send
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

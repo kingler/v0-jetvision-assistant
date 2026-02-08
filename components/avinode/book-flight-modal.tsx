@@ -13,13 +13,13 @@
 
 import React, { useState, useCallback } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from '@/components/ui/responsive-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -344,104 +344,104 @@ export function BookFlightModal({
   }, []);
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <ResponsiveModal open={open} onOpenChange={handleClose}>
+      <ResponsiveModalContent className="sm:max-w-[550px]">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-orange-500" />
             Book Flight
-          </DialogTitle>
-          <DialogDescription>
+          </ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Review flight details and send a contract to the customer.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-3 md:space-y-4 py-2 md:py-4">
           {/* Customer Info: selected customer from generated proposal (name + email required for contract) */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 md:p-4">
+            <h4 className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Customer
             </h4>
             {customer.name?.trim() && customer.email?.trim() ? (
               <>
-                <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
                   {customer.name}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
                   {customer.email}
                 </p>
                 {customer.company && (
-                  <p className="text-sm text-gray-500 dark:text-gray-500">
+                  <p className="text-xs md:text-sm text-gray-500 dark:text-gray-500">
                     {customer.company}
                   </p>
                 )}
               </>
             ) : (
-              <p className="text-sm text-amber-600 dark:text-amber-400" data-testid="book-flight-no-customer">
+              <p className="text-xs md:text-sm text-amber-600 dark:text-amber-400" data-testid="book-flight-no-customer">
                 No customer selected. Generate a proposal and select a customer first — the contract will be sent to that customer.
               </p>
             )}
           </div>
 
           {/* Flight Details */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 md:p-4 space-y-2.5 md:space-y-3">
+            <h4 className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">
               Flight Details
             </h4>
 
             {/* Route */}
-            <div className="flex items-center gap-3">
-              <Plane className="h-4 w-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Plane className="h-4 w-4 text-gray-400 shrink-0" />
+              <span className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100">
                 {flight.departureAirport.icao} → {flight.arrivalAirport.icao}
               </span>
             </div>
 
             {/* Date */}
-            <div className="flex items-center gap-3">
-              <Calendar className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
+              <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
                 {formatDate(flight.departureDate || tripDetails.departureDate)}
                 {flight.departureTime && ` at ${flight.departureTime}`}
               </span>
             </div>
 
             {/* Aircraft */}
-            <div className="flex items-center gap-3">
-              <div className="h-4 w-4 flex items-center justify-center">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="h-4 w-4 flex items-center justify-center shrink-0">
                 <span className="text-xs text-gray-400">✈️</span>
               </div>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
                 {flight.aircraftType}
                 {flight.aircraftModel && ` - ${flight.aircraftModel}`}
               </span>
             </div>
 
             {/* Passengers */}
-            <div className="flex items-center gap-3">
-              <Users className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Users className="h-4 w-4 text-gray-400 shrink-0" />
+              <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
                 {tripDetails.passengers} passenger{tripDetails.passengers !== 1 ? 's' : ''}
               </span>
             </div>
 
             {/* Operator */}
-            <div className="flex items-center gap-3">
-              <div className="h-4 w-4 flex items-center justify-center">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="h-4 w-4 flex items-center justify-center shrink-0">
                 <span className="text-xs text-gray-400">🏢</span>
               </div>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
                 {flight.operatorName}
               </span>
             </div>
           </div>
 
           {/* Pricing Summary */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 md:p-4">
+            <h4 className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 md:mb-3">
               Pricing Summary
             </h4>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-xs md:text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Flight Cost</span>
                 <span className="text-gray-900 dark:text-gray-100">
@@ -449,13 +449,13 @@ export function BookFlightModal({
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Federal Excise Tax (7.5%)</span>
+                <span className="text-gray-600 dark:text-gray-400">FET (7.5%)</span>
                 <span className="text-gray-900 dark:text-gray-100">
                   {formatCurrency(pricing.federalExciseTax, pricing.currency)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Domestic Segment Fee</span>
+                <span className="text-gray-600 dark:text-gray-400">Segment Fee</span>
                 <span className="text-gray-900 dark:text-gray-100">
                   {formatCurrency(pricing.domesticSegmentFee, pricing.currency)}
                 </span>
@@ -518,10 +518,10 @@ export function BookFlightModal({
           )}
         </div>
 
-        <DialogFooter className="gap-2">
+        <ResponsiveModalFooter className="flex-col sm:flex-row gap-2">
           {state === 'ready' && (
             <>
-              <Button variant="outline" onClick={handleClose}>
+              <Button variant="outline" onClick={handleClose} className="min-h-[44px] md:min-h-0">
                 Cancel
               </Button>
               <Button
@@ -529,14 +529,16 @@ export function BookFlightModal({
                 onClick={handlePreviewContract}
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
+                className="min-h-[44px] md:min-h-0"
               >
                 <FileText className="mr-2 h-4 w-4" />
-                Preview Contract
+                Preview
               </Button>
               <Button
                 onClick={handleSendContract}
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
+                className="min-h-[44px] md:min-h-0"
               >
                 <Mail className="mr-2 h-4 w-4" />
                 Send Contract
@@ -594,9 +596,9 @@ export function BookFlightModal({
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
 

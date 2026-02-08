@@ -41,5 +41,22 @@ if (typeof (global as any).vi !== 'undefined') {
   ;(global as any).vi?.setConfig?.({ testTimeout: 10000 })
 }
 
+// Mock window.matchMedia for jsdom (used by use-mobile.ts / ResponsiveModal)
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  })
+}
+
 // Console output for test runs
 console.log('🧪 Vitest setup complete\n')

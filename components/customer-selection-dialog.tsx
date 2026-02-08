@@ -13,13 +13,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from '@/components/ui/responsive-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -432,20 +432,20 @@ export function CustomerSelectionDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
+    <ResponsiveModal open={open} onOpenChange={handleClose}>
+      <ResponsiveModalContent className="sm:max-w-[500px]">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>
             {mode === 'select' ? 'Select Customer for Proposal' : 'Create New Customer'}
-          </DialogTitle>
-          <DialogDescription>
+          </ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             {mode === 'select'
               ? 'Choose the customer this proposal is for. Customer information will be retrieved from your client profiles.'
               : 'Enter the details for the new customer. They will be added to your client profiles.'}
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-3 md:space-y-4 py-2 md:py-4 overflow-y-auto max-h-[60vh] md:max-h-none">
           {/* Loading state */}
           {isLoading && (
             <div className="flex items-center justify-center py-8">
@@ -527,7 +527,7 @@ export function CustomerSelectionDialog({
                     <button
                       type="button"
                       onClick={handleSwitchToCreate}
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b-2 border-gray-200 dark:border-gray-700"
+                      className="flex w-full items-center gap-2 px-3 py-3 md:py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b-2 border-gray-200 dark:border-gray-700 min-h-[44px] md:min-h-0"
                     >
                       <Plus className="h-4 w-4" />
                       <span>Create New Customer</span>
@@ -556,7 +556,7 @@ export function CustomerSelectionDialog({
                             aria-selected={selectedClient?.id === client.id}
                             aria-disabled={isLocked}
                             className={cn(
-                              'px-3 py-2.5 transition-colors',
+                              'px-3 py-3 md:py-2.5 transition-colors min-h-[44px] md:min-h-0',
                               isLocked
                                 ? 'cursor-not-allowed opacity-50'
                                 : 'cursor-pointer',
@@ -619,11 +619,11 @@ export function CustomerSelectionDialog({
 
           {/* Service Charge Selector - shown when customer is selected */}
           {!isLoading && mode === 'select' && selectedClient && showMarginSlider && (
-            <div className="space-y-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
+            <div className="space-y-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 md:p-4">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Jetvision Service Charge
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {[8, 10, 20].map((preset) => (
                   <button
                     key={preset}
@@ -633,7 +633,7 @@ export function CustomerSelectionDialog({
                       setIsCustomMargin(false);
                     }}
                     className={cn(
-                      'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors',
+                      'px-3 py-2 md:py-1.5 text-sm font-medium rounded-md border transition-colors min-h-[44px] md:min-h-0',
                       !isCustomMargin && marginPercentage === preset
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -646,7 +646,7 @@ export function CustomerSelectionDialog({
                   type="button"
                   onClick={() => setIsCustomMargin(true)}
                   className={cn(
-                    'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors',
+                    'px-3 py-2 md:py-1.5 text-sm font-medium rounded-md border transition-colors min-h-[44px] md:min-h-0',
                     isCustomMargin
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -760,7 +760,7 @@ export function CustomerSelectionDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <ResponsiveModalFooter>
           {mode === 'select' ? (
             <>
               <Button variant="outline" onClick={handleClose}>
@@ -793,9 +793,9 @@ export function CustomerSelectionDialog({
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
 

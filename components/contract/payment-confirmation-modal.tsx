@@ -2,13 +2,13 @@
 
 import React, { useState } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -82,21 +82,21 @@ export function PaymentConfirmationModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && !isSubmitting && onClose()}>
-      <DialogContent className="sm:max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <ResponsiveModal open={open} onOpenChange={(v) => !v && !isSubmitting && onClose()}>
+      <ResponsiveModalContent className="sm:max-w-[420px]">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
             Confirm Payment
-          </DialogTitle>
-          <DialogDescription>
+          </ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Record payment received for contract {contractNumber}
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="payment-amount">Payment Amount ({currency})</Label>
+        <div className="space-y-3 md:space-y-4 py-2">
+          <div className="space-y-1.5 md:space-y-2">
+            <Label htmlFor="payment-amount" className="text-xs md:text-sm">Payment Amount ({currency})</Label>
             <Input
               id="payment-amount"
               type="number"
@@ -105,13 +105,14 @@ export function PaymentConfirmationModal({
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
               disabled={isSubmitting}
+              className="min-h-[44px] md:min-h-0"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="payment-method">Payment Method</Label>
+          <div className="space-y-1.5 md:space-y-2">
+            <Label htmlFor="payment-method" className="text-xs md:text-sm">Payment Method</Label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={isSubmitting}>
-              <SelectTrigger id="payment-method">
+              <SelectTrigger id="payment-method" className="min-h-[44px] md:min-h-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -124,8 +125,8 @@ export function PaymentConfirmationModal({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="payment-ref">Reference Number</Label>
+          <div className="space-y-1.5 md:space-y-2">
+            <Label htmlFor="payment-ref" className="text-xs md:text-sm">Reference Number</Label>
             <Input
               id="payment-ref"
               placeholder="Wire transfer ID, check number, etc."
@@ -135,19 +136,20 @@ export function PaymentConfirmationModal({
                 setError(null)
               }}
               disabled={isSubmitting}
+              className="min-h-[44px] md:min-h-0"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-xs md:text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+        <ResponsiveModalFooter className="flex-col sm:flex-row">
+          <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="min-h-[44px] md:min-h-0">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting} className="min-h-[44px] md:min-h-0">
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
@@ -155,8 +157,8 @@ export function PaymentConfirmationModal({
             )}
             Confirm Payment
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

@@ -3,6 +3,7 @@
 **Project**: Jetvision AI Assistant
 **Architecture**: Multi-Agent System with OpenAI Agent SDK + MCP
 **Stack**: Next.js 14, TypeScript, Supabase, BullMQ + Redis
+**Linear Team**: One Kaleidoscope (ONEK) — always use `team: "One Kaleidoscope"` for Linear queries
 
 ---
 
