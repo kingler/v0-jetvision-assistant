@@ -614,6 +614,20 @@ export function RFQFlightCard({
           <p className="text-lg font-semibold text-black dark:text-white">
             {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
           </p>
+          {/* Leg Type Badge - Only for round-trip/multi-leg */}
+          {flight.legType && (
+            <span
+              data-testid="leg-type-badge"
+              className={cn(
+                'inline-block px-2.5 py-1 rounded-md text-xs font-medium',
+                flight.legType === 'outbound'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+              )}
+            >
+              {flight.legType === 'outbound' ? 'Outbound' : 'Return'}
+            </span>
+          )}
           {/* Status Badge - Positioned under price */}
           <span
             data-testid="rfq-status-badge"
@@ -828,8 +842,21 @@ export function RFQFlightCard({
                     {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
                   </p>
                 </div>
-                {/* Status Badge - Show prominently under price with 8px spacing above Operator section */}
-                <div className="flex items-center justify-end mb-2">
+                {/* Leg Type + Status Badges */}
+                <div className="flex items-center justify-end gap-2 mb-2">
+                  {flight.legType && (
+                    <span
+                      data-testid="leg-type-badge"
+                      className={cn(
+                        'inline-block px-2.5 py-1 rounded-md text-xs font-medium',
+                        flight.legType === 'outbound'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                      )}
+                    >
+                      {flight.legType === 'outbound' ? 'Outbound' : 'Return'}
+                    </span>
+                  )}
                   <span
                     data-testid="rfq-status-badge"
                     className={cn('inline-block px-3 py-1.5 rounded-md text-xs font-medium', getStatusBadgeClasses(flight.rfqStatus))}
