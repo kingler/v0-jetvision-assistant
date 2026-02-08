@@ -272,8 +272,8 @@ function formatPrice(amount: number, currency: string): string {
 }
 
 function getStatusBadgeClasses(status: RFQFlight['rfqStatus']): string {
-  // Use rounded-md instead of rounded-full to match wireframe badge style
-  const baseClasses = 'px-3 py-1.5 text-xs font-medium rounded-md';
+  // Small badge style - compact padding with rounded corners to prevent overlap
+  const baseClasses = 'px-2 py-0.5 text-[11px] font-medium rounded leading-tight';
   switch (status) {
     case 'sent':
       return cn(baseClasses, 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400');
@@ -608,33 +608,36 @@ export function RFQFlightCard({
       {showCompactView && (
         <div
           data-testid="price-section-compact"
-          className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2 pb-2.5"
+          className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5"
         >
           {/* Price display - always shows initial price that operator must accept/acknowledge */}
           <p className="text-lg font-semibold text-black dark:text-white">
             {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
           </p>
-          {/* Leg Type Badge - Only for round-trip/multi-leg */}
-          {flight.legType && (
+          {/* Badges Row - Leg type and status badges side by side to prevent overlap */}
+          <div className="flex items-center gap-1.5">
+            {/* Leg Type Badge - Only for round-trip/multi-leg */}
+            {flight.legType && (
+              <span
+                data-testid="leg-type-badge"
+                className={cn(
+                  'inline-block px-2 py-0.5 rounded text-[11px] font-medium leading-tight',
+                  flight.legType === 'outbound'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                )}
+              >
+                {flight.legType === 'outbound' ? 'Outbound' : 'Return'}
+              </span>
+            )}
+            {/* Status Badge - Inline next to leg type badge */}
             <span
-              data-testid="leg-type-badge"
-              className={cn(
-                'inline-block px-2.5 py-1 rounded-md text-xs font-medium',
-                flight.legType === 'outbound'
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-              )}
+              data-testid="rfq-status-badge"
+              className={cn('inline-block px-2 py-0.5 rounded text-[11px] font-medium leading-tight', getStatusBadgeClasses(flight.rfqStatus))}
             >
-              {flight.legType === 'outbound' ? 'Outbound' : 'Return'}
+              {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
             </span>
-          )}
-          {/* Status Badge - Positioned under price */}
-          <span
-            data-testid="rfq-status-badge"
-            className={cn('inline-block px-3 py-1.5 rounded-md text-xs font-medium', getStatusBadgeClasses(flight.rfqStatus))}
-          >
-            {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
-          </span>
+          </div>
         </div>
       )}
 
@@ -842,13 +845,13 @@ export function RFQFlightCard({
                     {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
                   </p>
                 </div>
-                {/* Leg Type + Status Badges */}
-                <div className="flex items-center justify-end gap-2 mb-2">
+                {/* Leg Type + Status Badges - side by side on one line */}
+                <div className="flex items-center justify-end gap-1.5 mb-2">
                   {flight.legType && (
                     <span
                       data-testid="leg-type-badge"
                       className={cn(
-                        'inline-block px-2.5 py-1 rounded-md text-xs font-medium',
+                        'inline-block px-2 py-0.5 rounded text-[11px] font-medium leading-tight',
                         flight.legType === 'outbound'
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                           : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
@@ -859,7 +862,7 @@ export function RFQFlightCard({
                   )}
                   <span
                     data-testid="rfq-status-badge"
-                    className={cn('inline-block px-3 py-1.5 rounded-md text-xs font-medium', getStatusBadgeClasses(flight.rfqStatus))}
+                    className={getStatusBadgeClasses(flight.rfqStatus)}
                   >
                     {flight.rfqStatus.charAt(0).toUpperCase() + flight.rfqStatus.slice(1)}
                   </span>
