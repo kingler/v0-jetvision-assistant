@@ -61,6 +61,16 @@ export interface EmailPreviewCardProps {
     arrivalAirport: string
     departureDate: string
     passengers?: number
+    /** Trip type for multi-leg display */
+    tripType?: 'one_way' | 'round_trip' | 'multi_city'
+    /** Return date for round-trip */
+    returnDate?: string
+    /** Segments for multi-city trips */
+    segments?: Array<{
+      departureAirport: string
+      arrivalAirport: string
+      date: string
+    }>
   }
   /** Pricing information */
   pricing?: {
@@ -331,29 +341,67 @@ export function EmailPreviewCard({
         {/* Flight Details Summary */}
         {flightDetails && (
           <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-            <div className="flex items-center gap-4 text-sm">
-              <div>
-                <span className="text-blue-600 dark:text-blue-400 font-medium">
-                  {flightDetails.departureAirport}
-                </span>
-                <span className="text-gray-500 dark:text-gray-400 mx-2">→</span>
-                <span className="text-blue-600 dark:text-blue-400 font-medium">
-                  {flightDetails.arrivalAirport}
-                </span>
-              </div>
-              <span className="text-gray-500 dark:text-gray-400">|</span>
-              <span className="text-gray-700 dark:text-gray-300">
-                {flightDetails.departureDate}
-              </span>
-              {flightDetails.passengers && (
-                <>
-                  <span className="text-gray-500 dark:text-gray-400">|</span>
-                  <span className="text-gray-700 dark:text-gray-300">
+            {flightDetails.tripType === 'multi_city' && flightDetails.segments && flightDetails.segments.length > 0 ? (
+              // Multi-city: show each segment
+              <div className="space-y-1.5 text-sm">
+                {flightDetails.segments.map((seg, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-blue-500 dark:text-blue-400 font-medium w-10 shrink-0">
+                      Leg {i + 1}
+                    </span>
+                    <span className="text-blue-600 dark:text-blue-400 font-medium">
+                      {seg.departureAirport}
+                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">→</span>
+                    <span className="text-blue-600 dark:text-blue-400 font-medium">
+                      {seg.arrivalAirport}
+                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">|</span>
+                    <span className="text-gray-700 dark:text-gray-300">{seg.date}</span>
+                  </div>
+                ))}
+                {flightDetails.passengers && (
+                  <div className="text-gray-700 dark:text-gray-300 pt-1">
                     {flightDetails.passengers} passenger{flightDetails.passengers !== 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // One-way / round-trip
+              <div className="flex items-center gap-4 text-sm flex-wrap">
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">
+                    {flightDetails.departureAirport}
                   </span>
-                </>
-              )}
-            </div>
+                  <span className="text-gray-500 dark:text-gray-400 mx-2">
+                    {flightDetails.tripType === 'round_trip' ? '⇄' : '→'}
+                  </span>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">
+                    {flightDetails.arrivalAirport}
+                  </span>
+                </div>
+                <span className="text-gray-500 dark:text-gray-400">|</span>
+                <span className="text-gray-700 dark:text-gray-300">
+                  {flightDetails.departureDate}
+                </span>
+                {flightDetails.tripType === 'round_trip' && flightDetails.returnDate && (
+                  <>
+                    <span className="text-gray-500 dark:text-gray-400">-</span>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {flightDetails.returnDate}
+                    </span>
+                  </>
+                )}
+                {flightDetails.passengers && (
+                  <>
+                    <span className="text-gray-500 dark:text-gray-400">|</span>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {flightDetails.passengers} passenger{flightDetails.passengers !== 1 ? 's' : ''}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 

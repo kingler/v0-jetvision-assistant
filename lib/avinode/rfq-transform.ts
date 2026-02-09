@@ -280,7 +280,7 @@ function normalizeQuoteToFlight(
     flightDuration,
     // Round-trip leg information
     legType: legType as 'outbound' | 'return' | undefined,
-    legSequence: legSequence as 1 | 2 | undefined,
+    legSequence: legSequence as number | undefined,
     aircraftType:
       quote.aircraftType ||
       quote.aircraft_type ||

@@ -12,12 +12,23 @@ export interface ContractSentConfirmationProps {
   contractNumber: string
   customerName: string
   customerEmail: string
+  /** Pre-formatted route string (backward compatible) */
   flightRoute: string
   departureDate: string
   totalAmount: number
   currency: string
   pdfUrl?: string
   status: 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed'
+  /** Trip type for structured route display */
+  tripType?: 'one_way' | 'round_trip' | 'multi_city'
+  /** Return date for round-trip */
+  returnDate?: string
+  /** Segments for multi-city trips */
+  segments?: Array<{
+    departureAirport: string
+    arrivalAirport: string
+    departureDate: string
+  }>
   /** Callback for "Mark Payment Received" */
   onMarkPayment?: () => void
 }
@@ -41,6 +52,9 @@ export function ContractSentConfirmation({
   currency,
   pdfUrl,
   status,
+  tripType,
+  returnDate,
+  segments,
   onMarkPayment,
 }: ContractSentConfirmationProps) {
   const formatDate = (dateString: string): string => {
@@ -87,14 +101,63 @@ export function ContractSentConfirmation({
           {/* Contract Details */}
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500 dark:text-gray-400">Route</span>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{flightRoute}</p>
-              </div>
-              <div>
-                <span className="text-gray-500 dark:text-gray-400">Departure</span>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(departureDate)}</p>
-              </div>
+              {/* Trip Type Badge */}
+              {tripType && tripType !== 'one_way' && (
+                <div className="col-span-2">
+                  <Badge
+                    className={cn(
+                      'text-xs',
+                      tripType === 'multi_city'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    )}
+                  >
+                    {tripType === 'multi_city' ? 'Multi-City' : 'Round-Trip'}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Multi-city segments */}
+              {tripType === 'multi_city' && segments && segments.length > 0 ? (
+                <div className="col-span-2 space-y-2">
+                  {segments.map((seg, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium w-10 shrink-0">
+                        Leg {i + 1}
+                      </span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {seg.departureAirport} → {seg.arrivalAirport}
+                      </span>
+                      <span className="text-gray-500 dark:text-gray-400">|</span>
+                      <span className="text-gray-700 dark:text-gray-300">
+                        {formatDate(seg.departureDate)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Route</span>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                      {tripType === 'round_trip' ? flightRoute.replace('→', '⇄') : flightRoute}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      {tripType === 'round_trip' ? 'Outbound' : 'Departure'}
+                    </span>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(departureDate)}</p>
+                  </div>
+                  {tripType === 'round_trip' && returnDate && (
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Return</span>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(returnDate)}</p>
+                    </div>
+                  )}
+                </>
+              )}
+
               <div className="col-span-2">
                 <span className="text-gray-500 dark:text-gray-400">Total Amount</span>
                 <p className="font-medium text-lg text-gray-900 dark:text-gray-100">

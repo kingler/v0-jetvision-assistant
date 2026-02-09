@@ -19,6 +19,13 @@ export interface EmailApprovalUIProps {
     arrivalAirport: string;
     departureDate: string;
     passengers?: number;
+    tripType?: 'one_way' | 'round_trip' | 'multi_city';
+    returnDate?: string;
+    segments?: Array<{
+      departureAirport: string;
+      arrivalAirport: string;
+      date: string;
+    }>;
   };
   pricing?: { subtotal: number; total: number; currency: string };
   generatedAt?: string;

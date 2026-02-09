@@ -164,9 +164,10 @@ export interface RFQFlight {
    * Leg sequence number for multi-leg trips
    * - 1: First leg (outbound)
    * - 2: Second leg (return)
+   * - 3+: Additional legs for multi-city
    * - undefined: One-way flight or sequence not specified
    */
-  legSequence?: 1 | 2;
+  legSequence?: number;
 }
 
 export interface RFQFlightCardProps {
@@ -616,18 +617,22 @@ export function RFQFlightCard({
           </p>
           {/* Badges Row - Leg type and status badges side by side to prevent overlap */}
           <div className="flex items-center gap-1.5">
-            {/* Leg Type Badge - Only for round-trip/multi-leg */}
-            {flight.legType && (
+            {/* Leg Type Badge - For round-trip/multi-leg */}
+            {(flight.legType || (flight.legSequence && flight.legSequence >= 3)) && (
               <span
                 data-testid="leg-type-badge"
                 className={cn(
                   'inline-block px-2 py-0.5 rounded text-[11px] font-medium leading-tight',
-                  flight.legType === 'outbound'
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                  flight.legSequence && flight.legSequence >= 3
+                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                    : flight.legType === 'outbound'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                 )}
               >
-                {flight.legType === 'outbound' ? 'Outbound' : 'Return'}
+                {flight.legSequence && flight.legSequence >= 3
+                  ? `Leg ${flight.legSequence}`
+                  : flight.legType === 'outbound' ? 'Outbound' : 'Return'}
               </span>
             )}
             {/* Status Badge - Inline next to leg type badge */}
@@ -847,17 +852,21 @@ export function RFQFlightCard({
                 </div>
                 {/* Leg Type + Status Badges - side by side on one line */}
                 <div className="flex items-center justify-end gap-1.5 mb-2">
-                  {flight.legType && (
+                  {(flight.legType || (flight.legSequence && flight.legSequence >= 3)) && (
                     <span
                       data-testid="leg-type-badge"
                       className={cn(
                         'inline-block px-2 py-0.5 rounded text-[11px] font-medium leading-tight',
-                        flight.legType === 'outbound'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                        flight.legSequence && flight.legSequence >= 3
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                          : flight.legType === 'outbound'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                       )}
                     >
-                      {flight.legType === 'outbound' ? 'Outbound' : 'Return'}
+                      {flight.legSequence && flight.legSequence >= 3
+                        ? `Leg ${flight.legSequence}`
+                        : flight.legType === 'outbound' ? 'Outbound' : 'Return'}
                     </span>
                   )}
                   <span

@@ -21,12 +21,18 @@ export interface ProposalSentConfirmationProps {
     departureAirport: string
     arrivalAirport: string
     departureDate: string
-    /** Trip type: one_way or round_trip */
-    tripType?: 'one_way' | 'round_trip'
+    /** Trip type: one_way, round_trip, or multi_city */
+    tripType?: 'one_way' | 'round_trip' | 'multi_city'
     /** Return date for round-trip proposals */
     returnDate?: string
     /** Return airport for round-trip (if different from departure) */
     returnAirport?: string
+    /** Segments for multi-city trips */
+    segments?: Array<{
+      departureAirport: string
+      arrivalAirport: string
+      departureDate: string
+    }>
   }
   /** Client information */
   client: {
@@ -124,17 +130,23 @@ export function ProposalSentConfirmation({
     email: 'N/A',
   }
 
-  // Determine if this is a round-trip proposal
+  // Determine trip type
   const isRoundTrip = safeFlightDetails.tripType === 'round_trip'
+  const isMultiCity = safeFlightDetails.tripType === 'multi_city'
 
   /**
    * Format flight route for display
-   * Round-trip: "KTEB ⇄ KVNY" or "KTEB → KVNY → KTEB" if return to origin
+   * Round-trip: "KTEB ⇄ KVNY"
+   * Multi-city: "KTEB → KVNY → KLAS → ..."
    * One-way: "KTEB → KVNY"
    */
-  const flightRoute = isRoundTrip
-    ? `${safeFlightDetails.departureAirport || 'N/A'} ⇄ ${safeFlightDetails.arrivalAirport || 'N/A'}`
-    : `${safeFlightDetails.departureAirport || 'N/A'} → ${safeFlightDetails.arrivalAirport || 'N/A'}`
+  const flightRoute = isMultiCity && safeFlightDetails.segments && safeFlightDetails.segments.length > 0
+    ? safeFlightDetails.segments.map((s) => s.departureAirport).concat(
+        safeFlightDetails.segments[safeFlightDetails.segments.length - 1]?.arrivalAirport || ''
+      ).filter(Boolean).join(' → ')
+    : isRoundTrip
+      ? `${safeFlightDetails.departureAirport || 'N/A'} ⇄ ${safeFlightDetails.arrivalAirport || 'N/A'}`
+      : `${safeFlightDetails.departureAirport || 'N/A'} → ${safeFlightDetails.arrivalAirport || 'N/A'}`
 
   return (
     <div className="w-full">
@@ -170,36 +182,60 @@ export function ProposalSentConfirmation({
               <span
                 className={cn(
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                  isRoundTrip
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                  isMultiCity
+                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                    : isRoundTrip
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                 )}
               >
-                {isRoundTrip ? 'Round-Trip' : 'One-Way'}
+                {isMultiCity ? 'Multi-City' : isRoundTrip ? 'Round-Trip' : 'One-Way'}
               </span>
             </div>
 
-            <div>
-              <span className="text-gray-500 dark:text-gray-400">Route:</span>
-              <p className="font-medium text-gray-900 dark:text-gray-100">{flightRoute}</p>
-            </div>
-            <div>
-              <span className="text-gray-500 dark:text-gray-400">
-                {isRoundTrip ? 'Outbound Date:' : 'Departure Date:'}
-              </span>
-              <p className="font-medium text-gray-900 dark:text-gray-100">
-                {formatDate(safeFlightDetails.departureDate)}
-              </p>
-            </div>
-
-            {/* Return Date for Round-Trip */}
-            {isRoundTrip && safeFlightDetails.returnDate && (
-              <div>
-                <span className="text-gray-500 dark:text-gray-400">Return Date:</span>
-                <p className="font-medium text-gray-900 dark:text-gray-100">
-                  {formatDate(safeFlightDetails.returnDate)}
-                </p>
+            {/* Multi-city: show each segment */}
+            {isMultiCity && safeFlightDetails.segments && safeFlightDetails.segments.length > 0 ? (
+              <div className="col-span-2 space-y-2">
+                {safeFlightDetails.segments.map((seg, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium w-10 shrink-0">
+                      Leg {i + 1}
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {seg.departureAirport} → {seg.arrivalAirport}
+                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">|</span>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {formatDate(seg.departureDate)}
+                    </span>
+                  </div>
+                ))}
               </div>
+            ) : (
+              <>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Route:</span>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{flightRoute}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    {isRoundTrip ? 'Outbound Date:' : 'Departure Date:'}
+                  </span>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {formatDate(safeFlightDetails.departureDate)}
+                  </p>
+                </div>
+
+                {/* Return Date for Round-Trip */}
+                {isRoundTrip && safeFlightDetails.returnDate && (
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Return Date:</span>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                      {formatDate(safeFlightDetails.returnDate)}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Pricing Section */}
