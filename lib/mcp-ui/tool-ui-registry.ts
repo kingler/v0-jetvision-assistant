@@ -57,19 +57,47 @@ function extractCreateTripProps(
   result: Record<string, unknown>,
   onAction: (action: UIActionResult) => void
 ): Record<string, unknown> {
+  // Use trip_type from the MCP response (authoritative), fall back to legacy derivation
+  const tripType =
+    (result.trip_type as string) ||
+    (input.return_date ? 'round_trip' : 'single_leg');
+
+  // Normalize segments from the MCP response
+  const rawSegments = result.segments as Array<Record<string, unknown>> | undefined;
+  const segments = rawSegments?.map((seg) => ({
+    departureAirport: normalizeAirport(seg.departure_airport),
+    arrivalAirport: normalizeAirport(seg.arrival_airport),
+    departureDate: (seg.departure_date || '') as string,
+    passengers: (seg.passengers || input.passengers || 1) as number,
+  }));
+
+  // For departure/arrival, prefer first/last segment from response, fall back to legacy flat fields
+  const firstSeg = segments?.[0];
+  const lastSeg = segments && segments.length > 1 ? segments[segments.length - 1] : undefined;
+
+  const departureAirport = firstSeg?.departureAirport ||
+    normalizeAirport(input.departure_airport || result.departure_airport);
+  const arrivalAirport = (tripType === 'multi_city' && lastSeg)
+    ? lastSeg.arrivalAirport
+    : (firstSeg?.arrivalAirport ||
+       normalizeAirport(input.arrival_airport || result.arrival_airport));
+
+  // Return date: from second segment (round-trip) or legacy input
+  const returnDate =
+    (rawSegments && rawSegments.length === 2 ? rawSegments[1].departure_date as string : undefined) ||
+    (input.return_date as string | undefined);
+
   return {
     tripId: result.trip_id || '',
     deepLink: result.deep_link || '',
-    departureAirport: normalizeAirport(
-      input.departure_airport || result.departure_airport
-    ),
-    arrivalAirport: normalizeAirport(
-      input.arrival_airport || result.arrival_airport
-    ),
-    departureDate: (input.departure_date || result.departure_date || '') as string,
+    departureAirport,
+    arrivalAirport,
+    departureDate: firstSeg?.departureDate ||
+      (input.departure_date || result.departure_date || '') as string,
     passengers: (input.passengers || result.passengers || 1) as number,
-    tripType: input.return_date ? 'round_trip' : 'single_leg',
-    returnDate: input.return_date as string | undefined,
+    tripType,
+    returnDate,
+    segments,
     onAction,
   };
 }
