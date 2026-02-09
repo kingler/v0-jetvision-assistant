@@ -572,6 +572,17 @@ export interface WorkingMemory {
 // OPENAI TOOL DEFINITIONS (for function calling)
 // =============================================================================
 
+export interface OpenAIToolPropertySchema {
+  type: string;
+  description: string;
+  enum?: string[];
+  items?: {
+    type: string;
+    properties?: Record<string, OpenAIToolPropertySchema>;
+    required?: string[];
+  };
+}
+
 export interface OpenAIToolDefinition {
   type: 'function';
   function: {
@@ -579,12 +590,8 @@ export interface OpenAIToolDefinition {
     description: string;
     parameters: {
       type: 'object';
-      properties: Record<string, {
-        type: string;
-        description: string;
-        enum?: string[];
-      }>;
-      required: string[];
+      properties: Record<string, OpenAIToolPropertySchema>;
+      required?: string[];
     };
   };
 }
