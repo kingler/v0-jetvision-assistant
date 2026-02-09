@@ -1,3 +1,49 @@
+# Jetvision `.claude/` System
+
+## Unified Development Framework (`/dev-framework`)
+
+A single skill combining 5 external frameworks into the existing 9-phase SDLC:
+
+| Command | What It Does |
+|---------|-------------|
+| `/dev-framework spec <description>` | Generate feature specification with user scenarios and requirements |
+| `/dev-framework plan <spec-path>` | Create implementation plan with XML tasks and must-haves |
+| `/dev-framework execute <plan-path>` | Execute plan in fresh sub-agent context (prevents context rot) |
+| `/dev-framework verify` | Goal-backward verification of deliverables against plan |
+| `/dev-framework scan [path]` | Security/quality scan via Semgrep |
+| `/dev-framework vibe <goal>` | Metacognitive alignment check before major decisions |
+| `/dev-framework design <query>` | UI/UX design query (styles, colors, typography, patterns) |
+| `/dev-framework checklist` | Pre-delivery quality checklist |
+| `/dev-framework state [update]` | Read/update session memory across conversations |
+
+### Framework Sources (in `.claude/frameworks/`, gitignored)
+
+| Framework | What We Use |
+|-----------|-------------|
+| **Spec-Kit** (GitHub) | Spec/plan/tasks templates, quality checklists |
+| **GSD** (Get Shit Done) | Fresh-context execution, goal-backward verification, STATE.md |
+| **Semgrep** | MCP server for static analysis (`.semgrep.yml` rules) |
+| **Vibe Check** | MCP server for metacognitive oversight |
+| **UI/UX Pro Max** | BM25 search engine, design data (styles/colors/typography) |
+
+Update: `cd .claude/frameworks/<name> && git pull`
+
+### MCP Servers (in `.mcp.json`)
+
+- **semgrep**: Runs via Docker (`semgrep/semgrep:latest`). Pull with `docker pull semgrep/semgrep:latest`
+- **vibe-check**: Runs via npx, needs `ANTHROPIC_API_KEY` in environment
+
+Both are optional with graceful fallbacks.
+
+### Key Directories
+
+- `.claude/skills/dev-framework/` — Unified skill + UI/UX data
+- `.claude/agents/dev-framework.md` — Unified agent
+- `.claude/workflows/templates/` — Spec, plan, checklist, state templates
+- `.claude/state/STATE.md` — Session memory (gitignored)
+
+---
+
 # Claude Code Integration for Prompt Builder Multiagent System
 
 This directory contains the complete **Claude Code integration** for the Prompt Builder multiagent development system. All components are designed to work automatically with Claude Code's native features.

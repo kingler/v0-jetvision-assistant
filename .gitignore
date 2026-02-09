@@ -73,3 +73,8 @@ test-output/
 
 # Google OAuth credentials
 client_secret*.json
+
+# Framework reference repos (not tracked)
+.claude/frameworks/
+# Session state (local only)
+.claude/state/

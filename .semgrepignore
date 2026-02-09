@@ -1,0 +1,11 @@
+node_modules/
+.next/
+dist/
+build/
+coverage/
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+.claude/frameworks/
+.claude/skills/dev-framework/data/
