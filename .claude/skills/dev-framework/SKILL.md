@@ -138,30 +138,38 @@ Verify that the current implementation delivers on its promises.
 
 ## `scan [path]`
 
-**Source**: Semgrep static analysis
+**Source**: Semgrep MCP server via Docker (`ghcr.io/semgrep/mcp`)
 
 Run security and quality scanning on the codebase.
 
 **With Semgrep MCP available** (preferred):
-1. Call `mcp__semgrep__security_check` or `mcp__semgrep__semgrep_scan` tool
-2. Pass the target path (default: `src/`)
-3. Parse and present findings grouped by severity (ERROR > WARNING > INFO)
+1. Call `mcp__semgrep__security_check` tool with the target path (default: `/src/src/`)
+   - The project is mounted at `/src` inside the container
+   - So local path `src/` becomes `/src/src/`, `lib/` becomes `/src/lib/`, etc.
+2. Parse and present findings grouped by severity (ERROR > WARNING > INFO)
+3. For custom rules, use `mcp__semgrep__semgrep_scan_with_custom_rule`
+4. For AST analysis, use `mcp__semgrep__get_abstract_syntax_tree`
+
+**Available MCP tools**:
+| Tool | Purpose |
+|------|---------|
+| `security_check` | Scan code for vulnerabilities (Code + Supply Chain + Secrets) |
+| `semgrep_scan` | Scan files with a config string |
+| `semgrep_scan_with_custom_rule` | Scan with custom Semgrep YAML rules |
+| `get_abstract_syntax_tree` | Output code's AST for analysis |
+| `supported_languages` | List languages Semgrep supports |
+| `semgrep_rule_schema` | Fetch latest rule JSON Schema |
 
 **Without Semgrep MCP** (fallback to Docker CLI):
-1. Run via Docker (preferred fallback):
+1. Run via Docker:
    ```bash
-   docker run --rm -v "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant:/src" semgrep/semgrep:latest semgrep scan --json --config /src/.semgrep.yml /src/<path>
+   docker run --rm -v "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant:/src" ghcr.io/semgrep/mcp semgrep scan --json --config /src/.semgrep.yml /src/<path>
    ```
 2. Parse JSON output and present findings
-3. If Docker is not available, check for local `semgrep`: run `which semgrep` via Bash
-4. If local semgrep available: `semgrep scan --json --config .semgrep.yml <path>`
-5. If neither available: print installation instructions:
+3. If Docker is not available, print installation instructions:
    ```
-   Semgrep is not installed. Install via Docker (recommended):
-     docker pull semgrep/semgrep:latest
-   Or install locally:
-     brew install semgrep
-     pip3 install semgrep
+   Semgrep MCP server is not available. Pull the Docker image:
+     docker pull ghcr.io/semgrep/mcp
    ```
 
 **Output**: Findings report grouped by severity, with file:line references

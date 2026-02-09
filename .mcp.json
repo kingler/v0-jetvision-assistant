@@ -47,10 +47,10 @@
       "type": "stdio",
       "command": "docker",
       "args": [
-        "run", "--rm", "-i",
+        "run", "-i", "--rm",
         "-v", "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant:/src",
-        "semgrep/semgrep:latest",
-        "semgrep", "mcp", "-t", "stdio"
+        "ghcr.io/semgrep/mcp",
+        "-t", "stdio"
       ]
     },
     "vibe-check": {

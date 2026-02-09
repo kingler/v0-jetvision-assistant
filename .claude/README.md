@@ -30,7 +30,7 @@ Update: `cd .claude/frameworks/<name> && git pull`
 
 ### MCP Servers (in `.mcp.json`)
 
-- **semgrep**: Runs via Docker (`semgrep/semgrep:latest`). Pull with `docker pull semgrep/semgrep:latest`
+- **semgrep**: Official Semgrep MCP server via Docker (`ghcr.io/semgrep/mcp`). Pull with `docker pull ghcr.io/semgrep/mcp`. Provides `security_check`, `semgrep_scan`, `semgrep_scan_with_custom_rule`, `get_abstract_syntax_tree`, and more. Optional `SEMGREP_APP_TOKEN` env for Cloud features
 - **vibe-check**: Runs via npx, needs `ANTHROPIC_API_KEY` in environment
 
 Both are optional with graceful fallbacks.
