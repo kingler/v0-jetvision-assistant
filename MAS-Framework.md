@@ -63,16 +63,7 @@ vo-jetvision-assistant/
 │   ├── integrations/
 │   │   ├── beads/                   # Local issue tracking
 │   │   └── linear/                  # External tracking
-│   └── workspaces/                  # Git worktree agent workspaces
-│       ├── phase-1-branch-init/     # Branch initialization
-│       ├── phase-2-test-creation/   # TDD test writing
-│       ├── phase-3-implementation/  # Code implementation
-│       ├── phase-4-code-review/     # Code review
-│       ├── phase-5-iteration/       # Iteration & fixes
-│       ├── phase-6-pr-creation/     # PR creation
-│       ├── phase-7-pr-review/       # PR review
-│       ├── phase-8-conflict-resolution/  # Conflict resolution
-│       ├── phase-9-merge/           # Branch merge
+│   └── workspaces/                  # (Legacy - see ~/.claude/git-workspace/)
 │       └── .archive/                # Archived workspace metadata
 ├── docs/
 │   └── git-workflow/                # TDD & Git workflow docs
@@ -104,11 +95,11 @@ vo-jetvision-assistant/
 - **Stigmergic Coordination**: Indirect communication via signals
 - **Contract Net Protocol**: Intelligent task allocation
 - **TDD Workflow**: RED-GREEN-BLUE development cycle
-- **Git Worktrees**: Parallel agent workspace isolation in `.context/workspaces/`
+- **Git Worktrees**: Parallel agent workspace isolation at `~/.claude/git-workspace/`
 
 ### Git Worktree Workspace Management
 
-Agent workspaces are managed in `.context/workspaces/` with a 9-phase SDLC structure:
+Agent workspaces are stored at `/Users/kinglerbercy/.claude/git-workspace/`, named by Linear issue ID (lowercase). Each workspace maps to a **Linear Issue**, **Git Branch**, and **Pull Request**.
 
 **Automatic Lifecycle**:
 
@@ -122,9 +113,9 @@ Agent workspaces are managed in `.context/workspaces/` with a 9-phase SDLC struc
 
 **Slash Commands**:
 
-- `/worktree-create <phase> <branch> [issue-id]` - Create workspace
+- `/worktree-create <branch> <issue-id>` - Create workspace
 - `/worktree-status` - View all workspaces
-- `/worktree-cleanup [branch|--all|--stale]` - Clean up workspaces
+- `/worktree-cleanup [issue-id|--all|--stale]` - Clean up workspaces
 
 ## Configuration
 

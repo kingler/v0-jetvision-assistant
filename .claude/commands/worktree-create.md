@@ -1,39 +1,29 @@
 ---
-allowed-tools: Bash(git worktree:*), Bash(mkdir:*), Write, Read
-description: Create isolated git worktree workspace for agent/phase
-argument-hint: <phase-number> <branch-name> [linear-issue-id]
+allowed-tools: Bash(git worktree:*), Bash(mkdir:*), Bash(gh:*), Write, Read
+description: Create isolated git worktree workspace for a Linear issue
+argument-hint: <branch-name> <linear-issue-id>
 ---
 
 # Create Git Worktree Workspace
 
-Create an isolated git worktree workspace for a specific SDLC phase and branch.
+Create an isolated git worktree workspace mapped to a Linear issue, git branch, and PR.
 
 ## Usage
 
 ```
-/worktree-create <phase> <branch-name> [linear-issue-id]
+/worktree-create <branch-name> <linear-issue-id>
 ```
 
 **Examples:**
 ```
-/worktree-create 2 feature/user-auth ONEK-93
-/worktree-create 3 feature/payment-gateway ONEK-105
-/worktree-create 4 fix/memory-leak ONEK-112
+/worktree-create feat/ONEK-123-user-auth ONEK-123
+/worktree-create fix/ONEK-456-validation ONEK-456
+/worktree-create feat/onek-207-contract-card ONEK-207
 ```
 
-## Phase Mapping
+## Workspace Location
 
-| Phase | Name | Agent Role |
-|-------|------|-----------|
-| 1 | branch-init | Pull Request Agent |
-| 2 | test-creation | Test Agent |
-| 3 | implementation | Coding Agent |
-| 4 | code-review | Code Review Agent |
-| 5 | iteration | Coding Agent |
-| 6 | pr-creation | Pull Request Agent |
-| 7 | pr-review | Code Review Agent |
-| 8 | conflict-resolution | Conflict Resolution Agent |
-| 9 | merge | Pull Request Agent |
+All workspaces live at `/Users/kinglerbercy/.claude/git-workspace/`, named by Linear issue ID (lowercase).
 
 ## Current Context
 
@@ -42,49 +32,52 @@ Create an isolated git worktree workspace for a specific SDLC phase and branch.
 
 ## Task
 
-1. **Parse arguments**: Extract phase ($1), branch ($2), and Linear issue ($3)
-2. **Determine phase name** from phase number
-3. **Create worktree directory structure** if it doesn't exist
-4. **Check for existing worktree** for this phase/branch combination
+1. **Parse arguments**: Extract branch ($1) and Linear issue ($2)
+2. **Derive workspace directory** from issue ID (lowercase): `/Users/kinglerbercy/.claude/git-workspace/<issue-id>`
+3. **Create workspace root** if it doesn't exist
+4. **Check for existing worktree** for this issue
 5. **Create branch** if it doesn't exist (from current main)
 6. **Create git worktree**:
    ```bash
-   git worktree add .claude/workspaces/phase-<N>-<name>/<branch> <branch>
+   git worktree add /Users/kinglerbercy/.claude/git-workspace/<issue-id> <branch>
    ```
-7. **Create workspace metadata file** at worktree root
-8. **Report worktree location** and next steps
+7. **Look up PR** for this branch:
+   ```bash
+   gh pr list --head <branch> --json number,url --limit 1
+   ```
+8. **Create workspace metadata file** at worktree root
+9. **Report worktree location** and next steps
 
 ## Workspace Metadata
 
-Create `.claude/workspaces/phase-<N>-<name>/<branch>/WORKSPACE_META.json`:
+Create `/Users/kinglerbercy/.claude/git-workspace/<issue-id>/WORKSPACE_META.json`:
 
 ```json
 {
+  "linearIssue": "<ONEK-123>",
   "branch": "<branch-name>",
-  "linearIssue": "<linear-issue-id>",
-  "phase": <N>,
-  "phaseName": "<phase-name>",
+  "pullRequest": "<#45 or null>",
+  "prUrl": "<https://github.com/... or null>",
+  "workspaceDir": "/Users/kinglerbercy/.claude/git-workspace/<issue-id>",
   "agentRole": "<agent-role>",
+  "agentType": "<agent-type>",
   "createdAt": "<ISO-8601-timestamp>",
   "lastAccessedAt": "<ISO-8601-timestamp>",
-  "status": "active",
-  "workflowState": {}
+  "status": "active"
 }
 ```
 
 ## Safety Checks
 
 Before creating:
-- ✅ Verify `.claude/workspaces/` exists
-- ✅ Check if worktree already exists
-- ✅ Validate phase number (1-9)
-- ✅ Ensure branch name follows convention
-- ✅ Verify no uncommitted changes in main tree
+- Verify `/Users/kinglerbercy/.claude/git-workspace/` exists (create if not)
+- Check if worktree already exists for this issue
+- Ensure branch name follows convention
+- Verify no uncommitted changes in main tree
 
 ## Error Handling
 
 - **Worktree exists**: Offer to use existing or force recreate
-- **Invalid phase**: Show valid phase numbers
 - **Branch exists elsewhere**: Show conflict and resolution options
 - **Permission denied**: Check directory permissions
 
@@ -92,7 +85,7 @@ Before creating:
 
 Success message should include:
 - Worktree path
+- Linear issue ID
 - Branch name
-- Linear issue ID (if provided)
-- Phase name and agent role
+- PR number (if exists)
 - Next steps for the agent

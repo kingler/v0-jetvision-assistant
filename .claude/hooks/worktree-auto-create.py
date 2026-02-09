@@ -48,16 +48,13 @@ def extract_linear_issue(branch_name):
     return match.group(1) if match else None
 
 
-def worktree_exists(phase, branch):
-    """Check if worktree already exists for phase/branch."""
-    phase_info = PHASE_AGENT_MAP.get(phase)
-    if not phase_info:
+def worktree_exists(linear_issue):
+    """Check if worktree already exists for a Linear issue."""
+    if not linear_issue:
         return False
 
-    phase_name = phase_info["name"]
-    worktree_path = f".claude/workspaces/phase-{phase}-{phase_name}/{branch}"
-
-    return os.path.exists(worktree_path)
+    workspace_dir = os.path.expanduser(f"~/.claude/git-workspace/{linear_issue.lower()}")
+    return os.path.exists(workspace_dir)
 
 
 def create_worktree(phase, branch, agent_type):
@@ -70,14 +67,17 @@ def create_worktree(phase, branch, agent_type):
     phase_name = phase_info["name"]
     agent_role = phase_info["agents"][0]  # Primary agent role
 
-    # Create workspace directory structure
-    workspace_root = Path(".claude/workspaces")
+    # Extract Linear issue for directory naming
+    linear_issue = extract_linear_issue(branch)
+    if not linear_issue:
+        print(f"⚠️  No Linear issue found in branch: {branch}", file=sys.stderr)
+        return False
+
+    # Create workspace directory at centralized location
+    workspace_root = Path(os.path.expanduser("~/.claude/git-workspace"))
     workspace_root.mkdir(parents=True, exist_ok=True)
 
-    phase_dir = workspace_root / f"phase-{phase}-{phase_name}"
-    phase_dir.mkdir(parents=True, exist_ok=True)
-
-    worktree_path = phase_dir / branch
+    worktree_path = workspace_root / linear_issue.lower()
 
     # Check if worktree already exists
     if worktree_path.exists():
@@ -97,19 +97,36 @@ def create_worktree(phase, branch, agent_type):
         print(f"❌ Failed to create worktree: {e.stderr}", file=sys.stderr)
         return False
 
+    # Look up PR for this branch
+    pull_request = None
+    pr_url = None
+    try:
+        result = subprocess.run(
+            ["gh", "pr", "list", "--head", branch, "--json", "number,url", "--limit", "1"],
+            capture_output=True, text=True, check=False
+        )
+        if result.stdout.strip():
+            prs = json.loads(result.stdout)
+            if prs:
+                pull_request = f"#{prs[0]['number']}"
+                pr_url = prs[0]['url']
+    except Exception:
+        pass
+
     # Create workspace metadata
-    linear_issue = extract_linear_issue(branch)
     metadata = {
-        "branch": branch,
         "linearIssue": linear_issue,
-        "phase": phase,
-        "phaseName": phase_name,
+        "branch": branch,
+        "pullRequest": pull_request,
+        "prUrl": pr_url,
+        "workspaceDir": str(worktree_path),
         "agentRole": agent_role,
         "agentType": agent_type,
+        "phase": phase,
+        "phaseName": phase_name,
         "createdAt": datetime.utcnow().isoformat() + "Z",
         "lastAccessedAt": datetime.utcnow().isoformat() + "Z",
-        "status": "active",
-        "workflowState": {}
+        "status": "active"
     }
 
     metadata_path = worktree_path / "WORKSPACE_META.json"
@@ -117,7 +134,9 @@ def create_worktree(phase, branch, agent_type):
         json.dump(metadata, f, indent=2)
 
     print(f"📝 Created workspace metadata: {metadata_path}", file=sys.stderr)
-    print(f"🔗 Linear Issue: {linear_issue or 'N/A'}", file=sys.stderr)
+    print(f"🔗 Linear Issue: {linear_issue}", file=sys.stderr)
+    if pull_request:
+        print(f"🔗 Pull Request: {pull_request}", file=sys.stderr)
 
     return True
 
@@ -167,9 +186,12 @@ def main():
         if branch in ["main", "master", "dev", "develop"]:
             sys.exit(0)
 
+        # Extract Linear issue for workspace naming
+        linear_issue = extract_linear_issue(branch)
+
         # Check if worktree already exists
-        if worktree_exists(phase, branch):
-            print(f"ℹ️  Using existing worktree for phase {phase}: {branch}", file=sys.stderr)
+        if worktree_exists(linear_issue):
+            print(f"ℹ️  Using existing worktree for {linear_issue}: {branch}", file=sys.stderr)
             sys.exit(0)
 
         # Create worktree
@@ -178,13 +200,15 @@ def main():
 
         if success:
             phase_info = PHASE_AGENT_MAP[phase]
+            issue_dir = linear_issue.lower() if linear_issue else branch
             print(f"""
 🎯 Worktree Created for Agent Isolation
 
+Linear Issue: {linear_issue or 'N/A'}
 Phase: {phase} - {phase_info['name']}
 Agent: {agent_type}
 Branch: {branch}
-Path: .claude/workspaces/phase-{phase}-{phase_info['name']}/{branch}
+Path: ~/.claude/git-workspace/{issue_dir}
 
 The agent will now work in this isolated workspace.
 """, file=sys.stderr)

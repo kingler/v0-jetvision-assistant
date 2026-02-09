@@ -38,7 +38,18 @@
 
 ## Git Worktree Workspace Isolation
 
-Agent workspaces use git worktrees in `.context/workspaces/` for parallel isolation across 9 SDLC phases.
+Agent workspaces use git worktrees at `/Users/kinglerbercy/.claude/git-workspace/` for parallel isolation. Each workspace is mapped to a **Linear Issue**, **Git Branch**, and **Pull Request**.
+
+### Workspace Location & Naming
+
+```text
+/Users/kinglerbercy/.claude/git-workspace/
+├── onek-123/    # Linear: ONEK-123, Branch: feat/onek-123-*, PR: #45
+├── onek-144/    # Linear: ONEK-144, Branch: fix/ONEK-144-*, PR: #98
+└── .archive/    # Archived workspace metadata
+```
+
+Each directory is named by its Linear issue ID (lowercase). Every workspace contains a `WORKSPACE_META.json` mapping the Linear issue, branch, and PR.
 
 ### Workspace Lifecycle
 
@@ -52,23 +63,22 @@ Agent workspaces use git worktrees in `.context/workspaces/` for parallel isolat
 
 ### Slash Commands
 
-- `/worktree-create <phase> <branch> [issue-id]` - Create isolated workspace
+- `/worktree-create <branch> <linear-issue-id>` - Create isolated workspace
 - `/worktree-status` - View all workspace status
-- `/worktree-cleanup [branch|--all|--stale]` - Clean up workspaces
+- `/worktree-cleanup [issue-id|--all|--stale]` - Clean up workspaces
 
-### Phase Structure
+### Manual Operations
 
-| Phase | Name | Purpose |
-|-------|------|---------|
-| 1 | branch-init | Branch initialization |
-| 2 | test-creation | TDD test writing (RED) |
-| 3 | implementation | Code implementation (GREEN) |
-| 4 | code-review | Code review |
-| 5 | iteration | Iteration & fixes (REFACTOR) |
-| 6 | pr-creation | PR creation |
-| 7 | pr-review | PR review |
-| 8 | conflict-resolution | Conflict resolution |
-| 9 | merge | Branch merge |
+```bash
+# Create workspace for ONEK-207
+git worktree add /Users/kinglerbercy/.claude/git-workspace/onek-207 feat/onek-207-feature
+
+# List all worktrees
+git worktree list
+
+# Remove completed workspace
+git worktree remove /Users/kinglerbercy/.claude/git-workspace/onek-207
+```
 
 See `CLAUDE.md` for detailed workspace management documentation.
 

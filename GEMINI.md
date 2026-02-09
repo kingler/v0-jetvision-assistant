@@ -75,3 +75,18 @@ The project uses Husky for pre-commit hooks. The hooks are configured in the `.h
 ### Code Style
 
 The project uses Tailwind CSS for styling. The configuration is in the `tailwind.config.ts` file. It's likely that the project follows the standard React and TypeScript best practices.
+
+### Git Worktree Workspaces
+
+Agent workspaces use git worktrees at `/Users/kinglerbercy/.claude/git-workspace/` for parallel isolation. Each workspace is named by its Linear issue ID (lowercase) and maintains a 1:1:1 mapping between **Linear Issue**, **Git Branch**, and **Pull Request**.
+
+```text
+/Users/kinglerbercy/.claude/git-workspace/
+├── onek-123/    # Linear: ONEK-123, Branch: feat/onek-123-*, PR: #45
+├── onek-144/    # Linear: ONEK-144, Branch: fix/ONEK-144-*, PR: #98
+└── .archive/    # Archived workspace metadata
+```
+
+Each workspace contains a `WORKSPACE_META.json` with the issue, branch, PR URL, agent role, and timestamps. Workspaces are auto-created when agents are invoked and auto-cleaned when the PR is merged, tests pass, and the Linear issue is closed.
+
+See `CLAUDE.md` for detailed workspace management documentation.

@@ -1,19 +1,19 @@
 ---
 name: git-worktree-isolation
-description: Git worktree best practices for agent workspace isolation in SDLC workflows. Use when working with multiple agents, managing feature branches, or coordinating TDD phases.
+description: Git worktree best practices for agent workspace isolation. Use when working with multiple agents, managing feature branches, or coordinating development phases. Workspaces are mapped to Linear Issues, Git Branches, and PRs.
 ---
 
 # Git Worktree Isolation Skill
 
-Master git worktree usage for isolated agent workspaces in test-driven development workflows.
+Master git worktree usage for isolated agent workspaces mapped to Linear issues.
 
 ## When to Use This Skill
 
-- Starting new feature development with multiple SDLC phases
-- Coordinating work between Test Agent, Coding Agent, and Code Review Agent
+- Starting new feature development for a Linear issue
+- Coordinating work between multiple Claude Code instances
 - Managing parallel work on different branches
 - Isolating agent contexts to prevent interference
-- Syncing feature work with Linear issues
+- Syncing feature work with Linear issues and PRs
 
 ## Core Concepts
 
@@ -25,43 +25,41 @@ Git worktrees allow multiple working directories from a single repository:
 - Changes in one worktree don't affect others
 - Perfect for agent isolation and parallel workflows
 
-### Why Agent Workspace Isolation?
+### Workspace-to-Issue Mapping
 
-1. **Context Separation**: Each agent works in clean environment
-2. **Parallel Execution**: Multiple agents can work simultaneously
-3. **Phase Tracking**: Clear mapping of SDLC phases to workspaces
-4. **Linear Sync**: Easy tracking of issue progress across phases
-5. **Safe Experimentation**: Isolated environments for testing
+Every workspace maintains a **1:1:1 mapping**:
+
+| Field | Source | Example |
+|-------|--------|---------|
+| **Directory** | Linear issue ID (lowercase) | `onek-207` |
+| **Linear Issue** | ONEK project tracker | `ONEK-207` |
+| **Git Branch** | Feature/fix branch | `feat/onek-207-contract-card` |
+| **Pull Request** | GitHub PR | `#103` |
 
 ## Directory Structure
 
 ```
-.claude/workspaces/
-├── phase-1-branch-init/
-│   └── feature-user-auth/          # Pull Request Agent
-├── phase-2-test-creation/
-│   └── feature-user-auth/          # Test Agent
-│       └── WORKSPACE_META.json
-├── phase-3-implementation/
-│   └── feature-user-auth/          # Coding Agent
-│       └── WORKSPACE_META.json
-├── phase-4-code-review/
-│   └── feature-user-auth/          # Code Review Agent
-│       └── WORKSPACE_META.json
-└── .archive/                       # Archived metadata
-    └── feature-user-auth-phase-2-20251114.json
+/Users/kinglerbercy/.claude/git-workspace/
+├── onek-123/                    # Linear: ONEK-123
+│   └── WORKSPACE_META.json      # Metadata with issue, branch, PR
+├── onek-144/                    # Linear: ONEK-144
+│   └── WORKSPACE_META.json
+├── onek-207/                    # Linear: ONEK-207
+│   └── WORKSPACE_META.json
+└── .archive/                    # Archived workspace metadata
+    └── onek-99-feat-onek-99-auth-20251114.json
 ```
 
 ## Quick Start Commands
 
-### Create Worktree for Phase
+### Create Worktree for a Linear Issue
 
 ```bash
 # Slash command (recommended)
-/worktree-create 2 feature/user-auth ONEK-93
+/worktree-create feat/ONEK-123-user-auth ONEK-123
 
 # Manual command
-git worktree add .claude/workspaces/phase-2-test-creation/feature-user-auth feature/user-auth
+git worktree add /Users/kinglerbercy/.claude/git-workspace/onek-123 feat/onek-123-user-auth
 ```
 
 ### List All Worktrees
@@ -76,69 +74,40 @@ git worktree list
 ### Navigate to Worktree
 
 ```bash
-cd .claude/workspaces/phase-2-test-creation/feature-user-auth
+cd /Users/kinglerbercy/.claude/git-workspace/onek-123
 ```
 
 ### Remove Worktree
 
 ```bash
 # Slash command (recommended - includes safety checks)
-/worktree-cleanup feature/user-auth
+/worktree-cleanup onek-123
 
 # Manual command (must be outside worktree)
-git worktree remove .claude/workspaces/phase-2-test-creation/feature-user-auth
+git worktree remove /Users/kinglerbercy/.claude/git-workspace/onek-123
 ```
 
-## SDLC Phase Workflow
+## Workspace Lifecycle
 
-### Phase 1: Branch Initialization (Pull Request Agent)
+### Auto-Creation (PreToolUse hook)
 
-```bash
-# Create feature branch
-git checkout -b feature/user-authentication
+- Triggered when agents are invoked for Linear issues
+- Creates isolated worktree at `/Users/kinglerbercy/.claude/git-workspace/<issue-id>`
+- Generates `WORKSPACE_META.json` with Linear issue, branch, and PR mapping
 
-# Push to remote
-git push -u origin feature/user-authentication
+### Auto-Cleanup (SubagentStop hook)
 
-# Worktree auto-created by hook when agent invoked
-```
+Worktrees are only cleaned up when ALL 5 conditions are met:
 
-### Phase 2: Test Creation (Test Agent)
+1. All TDD tests pass (`npm run test:unit` exits 0)
+2. PR is created (`gh pr list --head <branch>` returns PR)
+3. Code review is completed (PR has `reviewDecision: APPROVED`)
+4. Linear issue is updated (status = Done/Closed)
+5. Branch is merged into main (`git branch --merged main`)
 
-```bash
-# Test Agent works in isolated worktree
-# Location: .claude/workspaces/phase-2-test-creation/feature-user-authentication
-
-# Agent writes tests
-# Commits tests to branch
-# Worktree auto-cleaned after test completion
-```
-
-### Phase 3: Implementation (Coding Agent)
-
-```bash
-# Coding Agent works in separate worktree
-# Location: .claude/workspaces/phase-3-implementation/feature-user-authentication
-
-# Agent implements features
-# Makes tests pass
-# Commits implementation
-```
-
-### Phase 4: Code Review (Code Review Agent)
-
-```bash
-# Code Review Agent uses read-only worktree
-# Location: .claude/workspaces/phase-4-code-review/feature-user-authentication
-
-# Agent reviews code
-# Provides feedback
-# No modifications allowed (safety)
-```
-
-### Phase 5-9: Remaining Phases
-
-Each phase follows similar pattern with dedicated worktrees.
+Plus 2 safety checks:
+- No uncommitted changes
+- No unpushed commits
 
 ## Best Practices
 
@@ -146,8 +115,7 @@ Each phase follows similar pattern with dedicated worktrees.
 
 Prefer `/worktree-create` over manual git commands:
 - Automatic safety checks
-- Metadata creation
-- Linear issue tracking
+- Metadata creation with Linear/Branch/PR mapping
 - Consistent naming
 
 ### 2. Clean Up Regularly
@@ -159,7 +127,7 @@ Don't accumulate stale worktrees:
 /worktree-cleanup --stale
 
 # After merge
-/worktree-cleanup feature/completed-feature
+/worktree-cleanup onek-123
 ```
 
 ### 3. Check Status Before Work
@@ -170,12 +138,12 @@ Always check worktree status:
 /worktree-status
 ```
 
-### 4. Sync with Linear
+### 4. Always Provide Linear Issue ID
 
-Always provide Linear issue ID:
+Every workspace must map to a Linear issue:
 
 ```bash
-/worktree-create 3 feature/payment-gateway ONEK-105
+/worktree-create feat/onek-105-payment-gateway ONEK-105
 ```
 
 ### 5. Let Hooks Manage Lifecycle
@@ -190,14 +158,14 @@ Hooks automatically:
 ### Starting New Feature
 
 ```bash
-# 1. Create feature branch
-git checkout -b feature/user-authentication
+# 1. Create feature branch and worktree
+/worktree-create feat/ONEK-200-new-feature ONEK-200
 
-# 2. Invoke Test Agent (worktree auto-created)
-# Use the test-runner subagent...
+# 2. Navigate to isolated workspace
+cd /Users/kinglerbercy/.claude/git-workspace/onek-200
 
-# 3. Invoke Coding Agent (separate worktree auto-created)
-# Use the backend-developer subagent...
+# 3. Launch Claude Code instance in the worktree
+# Agent works in complete isolation
 
 # 4. Check status
 /worktree-status
@@ -206,27 +174,12 @@ git checkout -b feature/user-authentication
 ### Parallel Feature Development
 
 ```bash
-# Work on multiple features simultaneously
-# Each feature has independent worktrees per phase
+# Multiple isolated workspaces, each with its own Claude Code instance
 
-Feature A: feature/payment-gateway
-├── Phase 2 worktree (Test Agent)
-└── Phase 3 worktree (Coding Agent)
-
-Feature B: feature/user-profile
-├── Phase 2 worktree (Test Agent)
-└── Phase 3 worktree (Coding Agent)
-```
-
-### Handling Conflicts
-
-```bash
-# Conflict Resolution Agent gets dedicated worktree
-# Location: .claude/workspaces/phase-8-conflict-resolution/feature-name
-
-# Agent resolves conflicts
-# Tests in isolation
-# Commits resolution
+/Users/kinglerbercy/.claude/git-workspace/
+├── onek-200/    # Agent A: feat/onek-200-payment
+├── onek-201/    # Agent B: feat/onek-201-profile
+└── onek-202/    # Agent C: fix/onek-202-validation
 ```
 
 ## Safety Features
@@ -234,29 +187,32 @@ Feature B: feature/user-profile
 ### Automatic Checks
 
 Before worktree removal:
-1. ✅ Check for uncommitted changes
-2. ✅ Check for unpushed commits
-3. ✅ Verify branch merge status
-4. ✅ Confirm phase completion
+1. Check for uncommitted changes
+2. Check for unpushed commits
+3. Verify branch merge status
+4. Confirm Linear issue is closed
 
 ### Metadata Tracking
 
 Each worktree has `WORKSPACE_META.json`:
 ```json
 {
-  "branch": "feature/user-auth",
-  "linearIssue": "ONEK-93",
-  "phase": 2,
-  "phaseName": "test-creation",
-  "agentRole": "Test Agent",
+  "linearIssue": "ONEK-123",
+  "branch": "feat/onek-123-user-auth",
+  "pullRequest": "#45",
+  "prUrl": "https://github.com/kingler/v0-jetvision-assistant/pull/45",
+  "workspaceDir": "/Users/kinglerbercy/.claude/git-workspace/onek-123",
+  "agentRole": "Coding Agent",
+  "agentType": "backend-developer",
   "createdAt": "2025-11-14T10:30:00Z",
+  "lastAccessedAt": "2025-11-14T12:45:00Z",
   "status": "active"
 }
 ```
 
 ### Archive System
 
-Metadata preserved in `.claude/workspaces/.archive/` for:
+Metadata preserved in `/Users/kinglerbercy/.claude/git-workspace/.archive/` for:
 - Audit trail
 - Troubleshooting
 - Metrics tracking
@@ -270,46 +226,46 @@ Metadata preserved in `.claude/workspaces/.archive/` for:
 git worktree list
 
 # Force remove if stale
-git worktree remove --force .claude/workspaces/phase-2-test-creation/feature-auth
+git worktree remove --force /Users/kinglerbercy/.claude/git-workspace/onek-123
 
 # Recreate
-/worktree-create 2 feature/auth ONEK-93
+/worktree-create feat/onek-123-auth ONEK-123
 ```
 
 ### Permission Denied
 
 ```bash
 # Check directory permissions
-ls -la .claude/workspaces
+ls -la /Users/kinglerbercy/.claude/git-workspace
 
 # Fix permissions
-chmod -R u+w .claude/workspaces
+chmod -R u+w /Users/kinglerbercy/.claude/git-workspace
 ```
 
 ### Locked Worktree
 
 ```bash
 # Unlock worktree
-git worktree unlock .claude/workspaces/phase-3-implementation/feature-auth
+git worktree unlock /Users/kinglerbercy/.claude/git-workspace/onek-123
 
 # Then remove
-git worktree remove .claude/workspaces/phase-3-implementation/feature-auth
+git worktree remove /Users/kinglerbercy/.claude/git-workspace/onek-123
 ```
 
 ### Uncommitted Changes Warning
 
 ```bash
 # Commit changes
-cd .claude/workspaces/phase-3-implementation/feature-auth
+cd /Users/kinglerbercy/.claude/git-workspace/onek-123
 git add .
-git commit -m "feat: implement user authentication"
+git commit -m "feat(ONEK-123): implement user authentication"
 
 # Or stash
-git stash save "WIP: phase 3 work"
+git stash save "WIP: ONEK-123 work"
 
 # Then cleanup
 cd -
-/worktree-cleanup feature/auth
+/worktree-cleanup onek-123
 ```
 
 ## Performance Tips
@@ -318,7 +274,7 @@ cd -
 
 ```bash
 # Check worktree disk usage
-du -sh .claude/workspaces
+du -sh /Users/kinglerbercy/.claude/git-workspace
 
 # Clean up stale worktrees
 /worktree-cleanup --stale
@@ -329,25 +285,14 @@ git worktree prune
 
 ### Parallel Agent Execution
 
-Multiple agents can work simultaneously:
-- Test Agent in phase-2 worktree
-- Coding Agent in phase-3 worktree
-- Code Review Agent in phase-4 worktree
+Multiple Claude Code instances can work simultaneously, each in its own worktree:
+- Instance A in `onek-200` on `feat/onek-200-payment`
+- Instance B in `onek-201` on `feat/onek-201-profile`
+- Instance C in `onek-202` on `fix/onek-202-validation`
 
-All on the same branch without conflicts!
+All share the same git object store — no duplication.
 
-## Integration with Existing Tools
-
-### With Subagents
-
-Subagents automatically get isolated worktrees:
-```bash
-# Invoke qa-engineer-seraph
-# → Worktree created at phase-2-test-creation/<branch>
-
-# Invoke backend-developer-tank
-# → Worktree created at phase-3-implementation/<branch>
-```
+## Integration with Other Tools
 
 ### With Hooks
 
@@ -362,48 +307,11 @@ Commands provide manual control:
 - `/worktree-status` - View all worktrees
 - `/worktree-cleanup` - Manual cleanup
 
-## Advanced Usage
+### With Linear
 
-### Custom Phase Mapping
-
-Modify `.claude/agents/worktree-manager.md` to add custom phases.
-
-### Worktree for Experiments
-
-```bash
-# Create experimental worktree
-git worktree add .claude/workspaces/experiments/feature-auth-v2 feature/auth
-
-# Test experimental changes
-cd .claude/workspaces/experiments/feature-auth-v2
-# ... make changes ...
-
-# If successful, merge back
-# If failed, simply remove worktree
-```
-
-### Shared Worktrees (Team Collaboration)
-
-Each team member can have their own worktrees:
-```bash
-.claude/workspaces/
-├── alice-phase-3-implementation/feature-auth
-└── bob-phase-4-code-review/feature-auth
-```
-
-## Metrics and Monitoring
-
-Track worktree usage:
-- Number of active worktrees
-- Disk space used
-- Average worktree lifetime
-- Stale worktree count
-- Cleanup frequency
-
-View with `/worktree-status` command.
+Every workspace is synced to a Linear issue. The `WORKSPACE_META.json` tracks the issue ID, branch, and PR for full traceability.
 
 ## References
 
-- [git-branch-tree-pr-code-review-workflow.md](.claude/commands/git-branch-tree-pr-code-review-workflow.md) - SDLC workflow
 - [worktree-manager.md](.claude/agents/worktree-manager.md) - Worktree manager agent
 - [Git Worktree Documentation](https://git-scm.com/docs/git-worktree) - Official git docs
