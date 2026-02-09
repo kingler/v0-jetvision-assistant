@@ -2,12 +2,14 @@
  * Email Service
  *
  * Service for sending emails, including proposal emails with PDF attachments.
- * Currently uses a mock implementation. In production, this would integrate
- * with Gmail MCP or another email service.
+ * Uses the Gmail MCP server in production and a mock implementation for
+ * development/testing (controlled by USE_MOCK_EMAIL env var).
  *
  * @see app/api/proposal/send/route.ts
- * @see docs/plans/2025-12-22-rfq-workflow-steps-3-4-design.md
+ * @see mcp-servers/gmail-mcp-server/src/index.ts
  */
+
+import gmailMCPClient from '@/lib/mcp/clients/gmail-mcp-client';
 
 // =============================================================================
 // TYPES
@@ -295,10 +297,12 @@ function normalizeEmailArray(
 }
 
 /**
- * Send an email via Gmail MCP server
+ * Send an email.
  *
- * Integrates with the Gmail MCP server to send emails with attachments.
- * Falls back to mock implementation if Gmail MCP is not available.
+ * Operating modes (checked in order):
+ * 1. **Mock** – `USE_MOCK_EMAIL=true` → logs to console, returns fake ID.
+ * 2. **MCP**  – Default → routes through the Gmail MCP server.
+ * 3. On MCP failure, returns an error result (no silent fallback in production).
  *
  * @param options - Email options including to, subject, body, attachments, replyTo, cc, bcc
  * @returns Send result with success status and message ID
@@ -328,7 +332,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   const normalizedBcc = normalizeEmailArray(bcc, 'bcc');
 
   // Log email details for debugging
-  console.log('📧 Sending email via Gmail MCP:');
+  console.log('[EmailService] Sending email:');
   console.log(`   To: ${to}`);
   if (replyTo) {
     console.log(`   Reply-To: ${replyTo}`);
@@ -343,113 +347,86 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   console.log(`   Body length: ${body.length} chars`);
   console.log(`   Attachments: ${attachments?.length || 0}`);
 
-  // Check if Gmail is configured
-  const isGmailConfigured = process.env.GOOGLE_REFRESH_TOKEN &&
-    process.env.GOOGLE_REFRESH_TOKEN !== 'your_refresh_token_here' &&
-    process.env.GOOGLE_CLIENT_ID &&
-    process.env.GOOGLE_CLIENT_SECRET;
+  // ── Mode 1: Mock ──────────────────────────────────────────────────────
+  if (process.env.USE_MOCK_EMAIL === 'true') {
+    return sendEmailMock({ to, attachments, mockDelayMs });
+  }
 
-  if (!isGmailConfigured) {
-    console.log('📧 Gmail not configured - using mock email sender');
-    console.log('📧 To enable Gmail, set GOOGLE_REFRESH_TOKEN in .env.local');
-    if (attachments?.length) {
-      attachments.forEach((a) => {
-        console.log(`   📎 Attachment: ${a.filename} (${Math.round(a.content.length / 1024)}KB)`);
-      });
-    }
-  } else {
-    // Try to send via Gmail API
-    try {
-      const { google } = await import('googleapis');
-      const { OAuth2Client } = await import('google-auth-library');
+  // ── Mode 2: Gmail MCP ─────────────────────────────────────────────────
+  return sendEmailViaMCP({ to, subject, body, attachments, normalizedCc, normalizedBcc });
+}
 
-      const oauth2Client = new OAuth2Client(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET
-      );
-
-      oauth2Client.setCredentials({
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-      });
-
-      const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-
-      // Build email message in RFC 2822 format
-      const boundary = '----=_Part_' + Math.random().toString(36).substring(7);
-      let message = '';
-
-      // Headers
-      const fromEmail = process.env.GMAIL_USER_EMAIL || process.env.GOOGLE_USER_EMAIL || 'noreply@jetvision.com';
-      message += `From: ${fromEmail}\r\n`;
-      message += `To: ${to}\r\n`;
-      if (normalizedCc.length > 0) {
-        message += `Cc: ${normalizedCc.join(', ')}\r\n`;
-      }
-      message += `Subject: ${subject}\r\n`;
-      message += `MIME-Version: 1.0\r\n`;
-
-      if (attachments && attachments.length > 0) {
-        message += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n`;
-
-        // Body
-        message += `--${boundary}\r\n`;
-        message += `Content-Type: text/plain; charset="UTF-8"\r\n\r\n`;
-        message += `${body}\r\n\r\n`;
-
-        // Attachments
-        for (const attachment of attachments) {
-          message += `--${boundary}\r\n`;
-          message += `Content-Type: ${attachment.contentType || 'application/octet-stream'}; name="${attachment.filename}"\r\n`;
-          message += `Content-Disposition: attachment; filename="${attachment.filename}"\r\n`;
-          message += `Content-Transfer-Encoding: base64\r\n\r\n`;
-          message += `${attachment.content}\r\n\r\n`;
-        }
-        message += `--${boundary}--`;
-      } else {
-        message += `Content-Type: text/plain; charset="UTF-8"\r\n\r\n`;
-        message += body;
-      }
-
-      // Encode message to base64url
-      const encodedMessage = Buffer.from(message)
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-
-      // Send email
-      const response = await gmail.users.messages.send({
-        userId: 'me',
-        requestBody: {
-          raw: encodedMessage,
-        },
-      });
-
-      console.log('📧 Email sent successfully via Gmail API:', response.data.id);
-      return {
-        success: true,
-        messageId: response.data.id || '',
-      };
-    } catch (error) {
-      console.error('📧 Gmail API error:', error);
-      console.log('📧 Falling back to mock email sender');
+/**
+ * Mock email sender for development and testing.
+ * Logs to console and returns a fake message ID.
+ */
+async function sendEmailMock(opts: {
+  to: string;
+  attachments?: EmailAttachment[];
+  mockDelayMs?: number;
+}): Promise<SendEmailResult> {
+  console.log('[EmailService] Mock mode — email not actually sent');
+  console.log(`   Mock recipient: ${opts.to}`);
+  if (opts.attachments?.length) {
+    for (const a of opts.attachments) {
+      console.log(`   Attachment: ${a.filename} (${Math.round(a.content.length / 1024)}KB)`);
     }
   }
 
-  // Fallback: Mock implementation for development/testing
-  console.log('📧 Mock email sent to:', to);
-
-  // Simulate network delay using configurable delay
-  const delayMs = getMockEmailDelay(mockDelayMs);
+  const delayMs = getMockEmailDelay(opts.mockDelayMs);
   await new Promise((resolve) => setTimeout(resolve, delayMs));
 
-  // Generate a mock message ID
   const messageId = `mock-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  return { success: true, messageId };
+}
 
-  return {
-    success: true,
-    messageId,
-  };
+/**
+ * Send email via the Gmail MCP server.
+ * Maps email-service fields to the MCP `send_email` tool schema.
+ */
+async function sendEmailViaMCP(opts: {
+  to: string;
+  subject: string;
+  body: string;
+  attachments?: EmailAttachment[];
+  normalizedCc: string[];
+  normalizedBcc: string[];
+}): Promise<SendEmailResult> {
+  const { to, subject, body, attachments, normalizedCc, normalizedBcc } = opts;
+
+  // Determine body_html: if the body looks like HTML, use as-is; otherwise wrap in <pre>
+  const isHtml = /<\/?[a-z][\s\S]*>/i.test(body);
+  const bodyHtml = isHtml ? body : `<pre>${body}</pre>`;
+  const bodyText = isHtml ? undefined : body;
+
+  try {
+    const result = await gmailMCPClient.sendEmail({
+      to,
+      subject,
+      body_html: bodyHtml,
+      body_text: bodyText,
+      cc: normalizedCc.length > 0 ? normalizedCc : undefined,
+      bcc: normalizedBcc.length > 0 ? normalizedBcc : undefined,
+      attachments: attachments?.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType || 'application/octet-stream',
+      })),
+    });
+
+    console.log('[EmailService] Email sent via Gmail MCP:', result.messageId);
+    return {
+      success: true,
+      messageId: result.messageId,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[EmailService] Gmail MCP error:', message);
+    return {
+      success: false,
+      error: `Failed to send email via Gmail MCP: ${message}`,
+    };
+  }
 }
 
 // =============================================================================

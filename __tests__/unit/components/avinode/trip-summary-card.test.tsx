@@ -90,4 +90,94 @@ describe('TripSummaryCard', () => {
     // Should have departure icon, flight path, and arrival icon
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
+
+  it('renders One-Way badge by default', () => {
+    render(<TripSummaryCard {...mockProps} />);
+    expect(screen.getByText('One-Way')).toBeInTheDocument();
+  });
+
+  it('renders Round-Trip badge when tripType is round_trip', () => {
+    render(
+      <TripSummaryCard
+        {...mockProps}
+        tripType="round_trip"
+        returnDate="2025-12-25"
+      />
+    );
+    expect(screen.getByText('Round-Trip')).toBeInTheDocument();
+    expect(screen.queryByText('One-Way')).not.toBeInTheDocument();
+  });
+
+  it('renders return route for round-trip', () => {
+    render(
+      <TripSummaryCard
+        {...mockProps}
+        tripType="round_trip"
+        returnDate="2025-12-25"
+      />
+    );
+    // "Outbound" and "Return" labels appear in the route sections
+    expect(screen.getAllByText('Outbound').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Return').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/December 25, 2025/i)).toBeInTheDocument();
+  });
+
+  it('renders Multi-City badge when tripType is multi_city', () => {
+    render(
+      <TripSummaryCard
+        {...mockProps}
+        tripType="multi_city"
+        segments={[
+          {
+            departureAirport: { icao: 'KTEB', name: 'Teterboro', city: 'NJ' },
+            arrivalAirport: { icao: 'EGGW', name: 'London Luton', city: 'London' },
+            departureDate: '2025-12-20',
+            passengers: 4,
+          },
+          {
+            departureAirport: { icao: 'EGGW', name: 'London Luton', city: 'London' },
+            arrivalAirport: { icao: 'LFPB', name: 'Le Bourget', city: 'Paris' },
+            departureDate: '2025-12-22',
+            passengers: 4,
+          },
+          {
+            departureAirport: { icao: 'LFPB', name: 'Le Bourget', city: 'Paris' },
+            arrivalAirport: { icao: 'KTEB', name: 'Teterboro', city: 'NJ' },
+            departureDate: '2025-12-25',
+            passengers: 4,
+          },
+        ]}
+      />
+    );
+    expect(screen.getByText('Multi-City')).toBeInTheDocument();
+    expect(screen.queryByText('One-Way')).not.toBeInTheDocument();
+  });
+
+  it('renders all segment legs for multi-city trip', () => {
+    render(
+      <TripSummaryCard
+        {...mockProps}
+        tripType="multi_city"
+        segments={[
+          {
+            departureAirport: { icao: 'KTEB', name: 'Teterboro', city: 'NJ' },
+            arrivalAirport: { icao: 'EGGW', name: 'London Luton', city: 'London' },
+            departureDate: '2025-12-20',
+            passengers: 4,
+          },
+          {
+            departureAirport: { icao: 'EGGW', name: 'London Luton', city: 'London' },
+            arrivalAirport: { icao: 'LFPB', name: 'Le Bourget', city: 'Paris' },
+            departureDate: '2025-12-22',
+            passengers: 4,
+          },
+        ]}
+      />
+    );
+    expect(screen.getByText('Leg 1')).toBeInTheDocument();
+    expect(screen.getByText('Leg 2')).toBeInTheDocument();
+    // EGGW appears in both segments
+    expect(screen.getAllByText('EGGW').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('LFPB').length).toBeGreaterThanOrEqual(1);
+  });
 });

@@ -16,25 +16,25 @@ export const AVINODE_TOOLS: OpenAIToolDefinition[] = [
     type: 'function',
     function: {
       name: 'create_trip',
-      description: 'Create a new trip in Avinode and get a deep link for operator selection. Use this when the user provides complete flight details (airports, date, passengers).',
+      description: 'Create a trip in Avinode and get a deep link for operator selection. Supports one-way, round-trip, and multi-city. Use flat params for one-way/round-trip, or segments[] for multi-city (3+ legs).',
       parameters: {
         type: 'object',
         properties: {
           departure_airport: {
             type: 'string',
-            description: 'ICAO code of departure airport (e.g., KTEB, KJFK)',
+            description: 'ICAO code of departure airport (e.g., KTEB, KJFK). Used for one-way and round-trip.',
           },
           arrival_airport: {
             type: 'string',
-            description: 'ICAO code of arrival airport (e.g., KVNY, KLAX)',
+            description: 'ICAO code of arrival airport (e.g., KVNY, KLAX). Used for one-way and round-trip.',
           },
           departure_date: {
             type: 'string',
-            description: 'Departure date in YYYY-MM-DD format',
+            description: 'Departure date in YYYY-MM-DD format. Used for one-way and round-trip.',
           },
           passengers: {
             type: 'number',
-            description: 'Number of passengers',
+            description: 'Number of passengers. Used for one-way and round-trip.',
           },
           departure_time: {
             type: 'string',
@@ -42,18 +42,47 @@ export const AVINODE_TOOLS: OpenAIToolDefinition[] = [
           },
           return_date: {
             type: 'string',
-            description: 'Return date in YYYY-MM-DD format (optional, for round trips)',
+            description: 'Return date in YYYY-MM-DD format (for round trips only)',
           },
           return_time: {
             type: 'string',
-            description: 'Return departure time in HH:MM format (optional, for round trips)',
+            description: 'Return departure time in HH:MM format (for round trips only)',
+          },
+          segments: {
+            type: 'array',
+            description: 'Array of flight segments for multi-city trips (3+ legs). When provided, flat params (departure_airport, arrival_airport, etc.) are ignored.',
+            items: {
+              type: 'object',
+              properties: {
+                departure_airport: {
+                  type: 'string',
+                  description: 'ICAO code of departure airport',
+                },
+                arrival_airport: {
+                  type: 'string',
+                  description: 'ICAO code of arrival airport',
+                },
+                departure_date: {
+                  type: 'string',
+                  description: 'Departure date in YYYY-MM-DD format',
+                },
+                departure_time: {
+                  type: 'string',
+                  description: 'Departure time in HH:MM format (24-hour)',
+                },
+                passengers: {
+                  type: 'number',
+                  description: 'Number of passengers for this segment',
+                },
+              },
+              required: ['departure_airport', 'arrival_airport', 'departure_date', 'passengers'],
+            },
           },
           special_requirements: {
             type: 'string',
             description: 'Any special requirements (pets, catering, etc.)',
           },
         },
-        required: ['departure_airport', 'arrival_airport', 'departure_date', 'passengers'],
       },
     },
   },

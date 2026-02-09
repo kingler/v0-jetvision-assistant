@@ -72,10 +72,13 @@ class CodeReviewValidator {
         }
       }
 
-      // Check PascalCase for React components
-      if (file.includes('components/') && file.endsWith('.tsx')) {
-        if (!/^[A-Z][a-zA-Z]+$/.test(basename)) {
-          this.errors.push(`Component file should use PascalCase: ${file}`);
+      // Check component file naming: accept both kebab-case (project convention)
+      // and PascalCase for React component files. Skip test files.
+      if (file.includes('components/') && file.endsWith('.tsx') && !file.includes('__tests__/')) {
+        const isKebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(basename);
+        const isPascalCase = /^[A-Z][a-zA-Z0-9]+$/.test(basename);
+        if (!isKebabCase && !isPascalCase) {
+          this.errors.push(`Component file should use kebab-case or PascalCase: ${file}`);
         }
       }
 

@@ -312,6 +312,8 @@ export function BookFlightModal({
       setContractNumber(data.contractNumber);
       if (data.pdfUrl) {
         setPdfUrl(data.pdfUrl);
+        // Auto-open PDF in new tab
+        window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
       }
       setState('success');
 

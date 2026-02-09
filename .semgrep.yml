@@ -1,0 +1,61 @@
+rules:
+  - id: no-eval
+    patterns:
+      - pattern: eval(...)
+    message: "eval() is a security risk - use safer alternatives"
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-95"]
+      category: security
+
+  - id: no-unsafe-innerhtml
+    pattern: dangerouslySetInnerHTML={...}
+    message: "dangerouslySetInnerHTML without sanitization - use DOMPurify"
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-79"]
+      category: security
+
+  - id: no-console-log-production
+    pattern: console.log(...)
+    message: "Remove console.log from production code"
+    languages: [typescript, javascript]
+    severity: WARNING
+    paths:
+      include:
+        - src/
+        - app/
+        - agents/
+        - mcp-servers/
+        - components/
+        - lib/
+      exclude:
+        - "__tests__/**"
+        - "**/*.test.ts"
+        - "**/*.test.tsx"
+        - "**/*.spec.ts"
+
+  - id: no-hardcoded-secrets
+    pattern-regex: "(sk-[a-zA-Z0-9]{20,}|AKIA[A-Z0-9]{16}|ghp_[a-zA-Z0-9]{36})"
+    message: "Possible hardcoded secret detected - use environment variables"
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-798"]
+      category: security
+
+  - id: no-any-type
+    pattern: "any"
+    message: "Avoid 'any' type - use proper types or 'unknown'"
+    languages: [typescript]
+    severity: WARNING
+    paths:
+      include:
+        - src/
+        - agents/
+        - lib/
+      exclude:
+        - "**/*.test.ts"
+        - "**/*.d.ts"

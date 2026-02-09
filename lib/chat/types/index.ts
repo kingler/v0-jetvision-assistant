@@ -219,9 +219,9 @@ export interface Quote {
   legType?: 'outbound' | 'return';
   leg_type?: 'outbound' | 'return';
   legDirection?: 'outbound' | 'return';
-  /** Leg sequence: 1 (outbound) or 2 (return) */
-  legSequence?: 1 | 2;
-  leg_sequence?: 1 | 2;
+  /** Leg sequence number (1 = first leg, 2 = second leg, 3+ for multi-city) */
+  legSequence?: number;
+  leg_sequence?: number;
 }
 
 /**
@@ -297,9 +297,10 @@ export interface RFQFlight {
    * Leg sequence number for multi-leg trips
    * - 1: First leg (outbound)
    * - 2: Second leg (return)
+   * - 3+: Additional legs for multi-city
    * Used for ordering and grouping in proposals
    */
-  legSequence?: 1 | 2;
+  legSequence?: number;
 }
 
 /**

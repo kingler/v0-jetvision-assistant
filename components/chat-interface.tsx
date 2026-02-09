@@ -2038,7 +2038,37 @@ export function ChatInterface({
     onUpdateChat(activeChat.id, {
       messages: [...(activeChat.messages || []), contractSentMessage],
     })
-  }, [activeChat.id, activeChat.messages, onUpdateChat])
+
+    // Persist contract-sent message to DB for reload persistence (matches margin-selection pattern)
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const requestIdForSave = (activeChat.requestId && uuidRe.test(activeChat.requestId))
+      ? activeChat.requestId
+      : (activeChat.conversationId && uuidRe.test(activeChat.conversationId))
+        ? activeChat.conversationId
+        : (activeChat.id && uuidRe.test(activeChat.id))
+          ? activeChat.id
+          : null
+
+    if (requestIdForSave) {
+      fetch('/api/chat-sessions/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: requestIdForSave,
+          content: contractSentMessage.content,
+          contentType: 'contract_shared',
+          richContent: { contractSent: contractSentMessage.contractSentData },
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.messageId) {
+            contractSentMessage.id = data.messageId
+          }
+        })
+        .catch((err) => console.warn('[ChatInterface] Failed to persist contract-sent message:', err))
+    }
+  }, [activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat])
 
   /**
    * Handle sending operator message

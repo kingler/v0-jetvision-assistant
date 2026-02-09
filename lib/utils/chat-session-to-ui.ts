@@ -16,6 +16,7 @@
  */
 
 import type { ChatSession } from '@/components/chat-sidebar';
+import type { RFQFlight } from '@/components/avinode/rfq-flight-card';
 import { formatDate } from '@/lib/utils/format';
 
 /**
@@ -73,6 +74,8 @@ type ChatSessionRow = {
     avinode_deep_link: string | null;
     created_at: string;
   } | null;
+  /** RFQ flights from quotes JOIN — partial because API returns a subset of RFQFlight fields */
+  rfqFlights?: Array<Partial<RFQFlight> & { rfqStatus?: string }>;
 };
 
 /**
@@ -235,10 +238,10 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
 
     // Quote statistics: prefer database fields, fallback to computing from rfqFlights
     quotesReceived: chatSessionRow.quotes_received_count ??
-      ((chatSessionRow as any).rfqFlights?.filter((f: any) => f.rfqStatus === 'quoted')?.length) ??
+      (chatSessionRow.rfqFlights?.filter((f) => f.rfqStatus === 'quoted')?.length) ??
       undefined,
     quotesTotal: chatSessionRow.quotes_expected_count ??
-      ((chatSessionRow as any).rfqFlights?.length) ??
+      (chatSessionRow.rfqFlights?.length) ??
       undefined,
 
     // Generated name - prefer conversation subject (LLM-generated title), fallback to request name
@@ -275,8 +278,8 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     // Can be populated by loading messages from conversation_id
     messages: [],
 
-    // Use rfqFlights from API response if available, otherwise empty array
-    rfqFlights: (chatSessionRow as any).rfqFlights || [],
+    // Cast needed: API returns partial RFQFlight fields, components handle missing fields gracefully
+    rfqFlights: (chatSessionRow.rfqFlights || []) as RFQFlight[],
 
     // Conversation start timestamp (used for sidebar display)
     sessionStartedAt:

@@ -71,6 +71,10 @@ export interface QuoteComparisonComponent extends BaseMessageComponent {
     flightDuration: string;
     score?: number;
     isRecommended?: boolean;
+    /** Leg type for multi-leg grouping */
+    legType?: 'outbound' | 'return';
+    /** Leg sequence number (1, 2, 3+ for multi-city) */
+    legSequence?: number;
   }>;
   onSelectQuote?: (quoteId: string) => void;
   onCompare?: () => void;
@@ -103,6 +107,16 @@ export interface ProposalPreviewComponent extends BaseMessageComponent {
       route: string;
       date: string;
       passengers: number;
+      /** Trip type for multi-leg display */
+      tripType?: 'one_way' | 'round_trip' | 'multi_city';
+      /** Return date for round-trip */
+      returnDate?: string;
+      /** Segments for multi-leg trips */
+      segments?: Array<{
+        departureAirport: string;
+        arrivalAirport: string;
+        date: string;
+      }>;
     };
     selectedQuote: {
       operatorName: string;

@@ -42,6 +42,24 @@
         "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/gmail-mcp-server/src/index.ts"
       ],
       "env": {}
+    },
+    "semgrep": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant:/src",
+        "ghcr.io/semgrep/mcp",
+        "-t", "stdio"
+      ]
+    },
+    "vibe-check": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@pv-bhat/vibe-check-mcp", "start", "--stdio"],
+      "env": {
+        "DEFAULT_LLM_PROVIDER": "anthropic"
+      }
     }
   }
 }

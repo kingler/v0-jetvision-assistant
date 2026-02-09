@@ -49,6 +49,17 @@ When the user wants a flight, you need these details before calling \`create_tri
 
 If ANY information is missing, ask the user for it. Don't assume values.
 
+## Round-Trip Flights
+For round trips, also collect the return date and pass \`return_date\` (YYYY-MM-DD) and optionally \`return_time\` (HH:MM) when calling \`create_trip\`. Use the same flat params as one-way — the server automatically creates a 2-segment trip.
+
+## Multi-City Flights
+For multi-city itineraries (3+ stops), use the \`segments\` array parameter in \`create_trip\` instead of flat params.
+Each segment needs: departure_airport, arrival_airport, departure_date, passengers (and optionally departure_time).
+Example: NYC → London → Paris → NYC requires 3 segments:
+  [{ departure_airport: "KTEB", arrival_airport: "EGGW", departure_date: "2026-03-10", passengers: 4 },
+   { departure_airport: "EGGW", arrival_airport: "LFPB", departure_date: "2026-03-12", passengers: 4 },
+   { departure_airport: "LFPB", arrival_airport: "KTEB", departure_date: "2026-03-15", passengers: 4 }]
+
 ## Looking Up Trips
 - Use \`get_rfq\` when given a trip ID (6-char code like LPZ8VC or atrip-*)
 - The tool returns quotes from operators
