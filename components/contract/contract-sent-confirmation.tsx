@@ -98,7 +98,7 @@ export function ContractSentConfirmation({
               <div className="col-span-2">
                 <span className="text-gray-500 dark:text-gray-400">Total Amount</span>
                 <p className="font-medium text-lg text-gray-900 dark:text-gray-100">
-                  {currency} {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {currency} {(typeof totalAmount === 'number' ? totalAmount : Number(totalAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>

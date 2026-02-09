@@ -84,7 +84,15 @@ export interface BookFlightModalProps {
   /** Request ID for database linking */
   requestId: string;
   /** Callback when contract is successfully sent */
-  onContractSent?: (contractId: string, contractNumber: string) => void;
+  onContractSent?: (contractId: string, contractNumber: string, contractDetails: {
+    customerName: string;
+    customerEmail: string;
+    flightRoute: string;
+    departureDate: string;
+    totalAmount: number;
+    currency: string;
+    pdfUrl?: string;
+  }) => void;
 }
 
 type ModalState = 'ready' | 'generating' | 'preview' | 'sending' | 'success' | 'error';
@@ -311,12 +319,24 @@ export function BookFlightModal({
       setContractNumber(data.contractNumber);
       if (data.pdfUrl) {
         setPdfUrl(data.pdfUrl);
+        // Auto-open PDF in new tab
+        window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
       }
       setState('success');
 
-      // Call success callback
+      // Call success callback with full contract details
       if (onContractSent && data.dbContractId) {
-        onContractSent(data.dbContractId, data.contractNumber);
+        const dep = flightDetails.departureAirport?.icao || '';
+        const arr = flightDetails.arrivalAirport?.icao || '';
+        onContractSent(data.dbContractId, data.contractNumber, {
+          customerName: customer.name,
+          customerEmail: customer.email,
+          flightRoute: `${dep} → ${arr}`,
+          departureDate: flightDetails.departureDate || '',
+          totalAmount: pricing.totalAmount || 0,
+          currency: pricing.currency || 'USD',
+          pdfUrl: data.pdfUrl,
+        });
       }
     } catch (err) {
       console.error('[BookFlightModal] Error sending contract:', err);

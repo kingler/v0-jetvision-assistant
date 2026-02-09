@@ -2014,26 +2014,77 @@ export function ChatInterface({
   /**
    * Handle contract sent - called when contract is successfully sent from the modal
    */
-  const handleContractSent = useCallback((contractId: string, contractNumber: string) => {
-    console.log('[ChatInterface] Contract sent:', { contractId, contractNumber })
+  const handleContractSent = useCallback((contractId: string, contractNumber: string, contractDetails?: {
+    customerName: string;
+    customerEmail: string;
+    flightRoute: string;
+    departureDate: string;
+    totalAmount: number;
+    currency: string;
+    pdfUrl?: string;
+  }) => {
+    console.log('[ChatInterface] Contract sent:', { contractId, contractNumber, contractDetails })
 
     // Close the modal
     setIsBookFlightModalOpen(false)
     setBookFlightData(null)
 
-    // Add a system message indicating the contract was sent
+    // Add a rich contract-sent confirmation message to chat
     const contractSentMessage = {
       id: `msg-${Date.now()}`,
       type: 'agent' as const,
-      content: `✅ Contract ${contractNumber} has been generated and sent to the customer. You can track the contract status in the contracts section.`,
+      content: `Contract ${contractNumber} has been generated and sent to ${contractDetails?.customerName || 'the customer'}.`,
       timestamp: new Date(),
       showWorkflow: false,
+      showContractSentConfirmation: true,
+      contractSentData: contractDetails ? {
+        contractId,
+        contractNumber,
+        customerName: contractDetails.customerName,
+        customerEmail: contractDetails.customerEmail,
+        flightRoute: contractDetails.flightRoute,
+        departureDate: contractDetails.departureDate,
+        totalAmount: contractDetails.totalAmount,
+        currency: contractDetails.currency,
+        pdfUrl: contractDetails.pdfUrl,
+        status: 'sent' as const,
+      } : undefined,
     }
 
     onUpdateChat(activeChat.id, {
       messages: [...(activeChat.messages || []), contractSentMessage],
     })
-  }, [activeChat.id, activeChat.messages, onUpdateChat])
+
+    // Persist contract-sent message to DB for reload persistence (matches margin-selection pattern)
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const requestIdForSave = (activeChat.requestId && uuidRe.test(activeChat.requestId))
+      ? activeChat.requestId
+      : (activeChat.conversationId && uuidRe.test(activeChat.conversationId))
+        ? activeChat.conversationId
+        : (activeChat.id && uuidRe.test(activeChat.id))
+          ? activeChat.id
+          : null
+
+    if (requestIdForSave) {
+      fetch('/api/chat-sessions/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: requestIdForSave,
+          content: contractSentMessage.content,
+          contentType: 'contract_shared',
+          richContent: { contractSent: contractSentMessage.contractSentData },
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.messageId) {
+            contractSentMessage.id = data.messageId
+          }
+        })
+        .catch((err) => console.warn('[ChatInterface] Failed to persist contract-sent message:', err))
+    }
+  }, [activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat])
 
   /**
    * Handle sending operator message
