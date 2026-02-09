@@ -202,12 +202,19 @@ When calling \`create_trip\` in a multi-turn conversation (e.g., after user prov
 - If a parameter is truly not mentioned anywhere in the conversation, ask for it before proceeding
 
 **Required Fields** (ALL must be present before calling create_trip):
-1. **Trip Type**: One-way or Round trip (must be explicitly specified or confirmed)
+1. **Trip Type**: One-way, Round trip, or Multi-city (must be explicitly specified or confirmed)
 2. **Departure Airport**: ICAO code (use \`search_airports\` to resolve city names)
 3. **Arrival Airport**: ICAO code (use \`search_airports\` to resolve city names)
 4. **Number of Passengers**: Integer value (must be ≥1)
 5. **Departure Date and Time**: Date (YYYY-MM-DD) + Time (HH:MM, 24-hour) with timezone context
 6. **Return Date and Time** (for round trips only): Both outbound AND return dates/times required
+
+**CRITICAL: Multi-City Trip Detection**
+- If user mentions "multi-city", "multi-stop", "multi-leg", or lists 3+ destinations → this is a **multi-city trip**
+- For multi-city trips, you MUST use the \`segments[]\` array parameter — do NOT use flat \`departure_airport\`/\`arrival_airport\`
+- Each segment in the array needs: \`departure_airport\`, \`arrival_airport\`, \`departure_date\`, \`passengers\`
+- Example: "KTEB → EGGW → LFPB → KTEB" = 3 segments
+- Collect ALL legs before calling \`create_trip\`
 
 **Validation Rules**:
 - If ANY required field is missing, prompt the user to provide it before creating the trip
@@ -231,7 +238,8 @@ When calling \`create_trip\` in a multi-turn conversation (e.g., after user prov
 **Trip Type Handling** (REQUIRED - do not assume):
 - If user says "one way" → single leg trip (no return_date needed)
 - If user says "round trip" or "return" → MUST collect return date AND return time
-- If trip type is NOT explicitly stated, ASK: "Is this a one-way flight or round trip?"
+- If user says "multi-city", "multi-stop", or lists 3+ cities → use \`segments[]\` array (NOT flat departure/arrival)
+- If trip type is NOT explicitly stated, ASK: "Is this a one-way flight, round trip, or multi-city?"
 - NEVER assume trip type - always confirm before proceeding
 
 **Response Guidelines**:

@@ -384,7 +384,7 @@ export function convertQuoteToRFQFlight(
       flightDuration,
       // Round-trip leg information
       legType: legType as 'outbound' | 'return' | undefined,
-      legSequence: legSequence as 1 | 2 | undefined,
+      legSequence: legSequence as number | undefined,
       aircraftType,
       aircraftModel: aircraftType,
       tailNumber,
@@ -582,7 +582,7 @@ export function convertRfqToRFQFlight(
     flightDuration: 'TBD',
     // Round-trip leg information
     legType: legType as 'outbound' | 'return' | undefined,
-    legSequence: legSequence as 1 | 2 | undefined,
+    legSequence: legSequence as number | undefined,
     aircraftType: 'Aircraft TBD',
     aircraftModel: 'Aircraft TBD',
     passengerCapacity: (rfqAny.passengers as number) || 0,

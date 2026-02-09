@@ -15,6 +15,8 @@ export interface QuoteComparisonUIProps {
     flightDuration: string;
     score?: number;
     isRecommended?: boolean;
+    legType?: 'outbound' | 'return';
+    legSequence?: number;
   }>;
   onAction: (action: UIActionResult) => void;
 }
