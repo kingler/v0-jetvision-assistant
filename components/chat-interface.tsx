@@ -2014,41 +2014,25 @@ export function ChatInterface({
   /**
    * Handle contract sent - called when contract is successfully sent from the modal
    */
-  const handleContractSent = useCallback((contractId: string, contractNumber: string, contractDetails?: {
-    customerName: string;
-    customerEmail: string;
-    flightRoute: string;
-    departureDate: string;
-    totalAmount: number;
-    currency: string;
-    pdfUrl?: string;
-  }) => {
-    console.log('[ChatInterface] Contract sent:', { contractId, contractNumber, contractDetails })
+  const handleContractSent = useCallback((contractData: Required<import('@/components/contract/contract-sent-confirmation').ContractSentPayload>) => {
+    console.log('[ChatInterface] Contract sent:', contractData)
 
     // Close the modal
     setIsBookFlightModalOpen(false)
     setBookFlightData(null)
 
-    // Add a rich contract-sent confirmation message to chat
+    // Add a rich contract-sent confirmation message to the chat thread
     const contractSentMessage = {
       id: `msg-${Date.now()}`,
       type: 'agent' as const,
-      content: `Contract ${contractNumber} has been generated and sent to ${contractDetails?.customerName || 'the customer'}.`,
+      content: `Contract ${contractData.contractNumber} has been generated and sent to ${contractData.customerName} at ${contractData.customerEmail}.`,
       timestamp: new Date(),
       showWorkflow: false,
       showContractSentConfirmation: true,
-      contractSentData: contractDetails ? {
-        contractId,
-        contractNumber,
-        customerName: contractDetails.customerName,
-        customerEmail: contractDetails.customerEmail,
-        flightRoute: contractDetails.flightRoute,
-        departureDate: contractDetails.departureDate,
-        totalAmount: contractDetails.totalAmount,
-        currency: contractDetails.currency,
-        pdfUrl: contractDetails.pdfUrl,
+      contractSentData: {
+        ...contractData,
         status: 'sent' as const,
-      } : undefined,
+      },
     }
 
     onUpdateChat(activeChat.id, {
@@ -2279,6 +2263,8 @@ export function ChatInterface({
                 }
                 showProposalSentConfirmation?: boolean
                 proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
+                showContractSentConfirmation?: boolean
+                contractSentData?: import('@/components/contract/contract-sent-confirmation').ContractSentConfirmationProps
                 // Email approval workflow properties (human-in-the-loop)
                 showEmailApprovalRequest?: boolean
                 emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
@@ -2324,6 +2310,8 @@ export function ChatInterface({
                 marginSelectionData: msg.marginSelectionData,
                 showProposalSentConfirmation: msg.showProposalSentConfirmation,
                 proposalSentData: msg.proposalSentData,
+                showContractSentConfirmation: msg.showContractSentConfirmation,
+                contractSentData: msg.contractSentData,
                 showEmailApprovalRequest: msg.showEmailApprovalRequest,
                 emailApprovalData: msg.emailApprovalData,
                 toolResults: msg.toolResults,
@@ -2357,6 +2345,12 @@ export function ChatInterface({
                     return existing.content === message.content
                   })
                   if (!isDupe) acc.push({ message, index })
+                  return acc
+                }
+
+                // Always keep contract-sent confirmation messages (inline UI)
+                if (message.showContractSentConfirmation && message.contractSentData) {
+                  acc.push({ message, index })
                   return acc
                 }
 
@@ -2662,6 +2656,8 @@ export function ChatInterface({
                         marginSelectionData={message.marginSelectionData}
                         showProposalSentConfirmation={message.showProposalSentConfirmation}
                         proposalSentData={message.proposalSentData}
+                        showContractSentConfirmation={message.showContractSentConfirmation}
+                        contractSentData={message.contractSentData}
                         showEmailApprovalRequest={message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}

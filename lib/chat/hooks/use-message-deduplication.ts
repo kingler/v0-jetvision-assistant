@@ -24,6 +24,8 @@ export interface DeduplicatableMessage {
   timestamp: Date;
   showProposalSentConfirmation?: boolean;
   proposalSentData?: unknown;
+  showContractSentConfirmation?: boolean;
+  contractSentData?: unknown;
   showMarginSelection?: boolean;
   marginSelectionData?: unknown;
 }
@@ -318,6 +320,15 @@ export function useMessageDeduplication(
             existing.content === message.content
           );
           if (isDupe) return false;
+          seenIds.set(message.id, message);
+          return true;
+        }
+
+        // Always keep contract confirmation messages
+        if (message.showContractSentConfirmation && message.contractSentData) {
+          if (seenIds.has(message.id)) {
+            return false;
+          }
           seenIds.set(message.id, message);
           return true;
         }

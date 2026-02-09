@@ -84,15 +84,15 @@ def archive_metadata(worktree_path, reason="agent-completed"):
     metadata["archivedAt"] = datetime.utcnow().isoformat() + "Z"
     metadata["reason"] = reason
 
-    # Create archive directory
-    archive_dir = Path(".claude/workspaces/.archive")
+    # Create archive directory at centralized workspace location
+    archive_dir = Path(os.path.expanduser("~/.claude/git-workspace/.archive"))
     archive_dir.mkdir(parents=True, exist_ok=True)
 
-    # Archive filename
+    # Archive filename using Linear issue ID
+    linear_issue = metadata.get("linearIssue", "unknown")
     branch = metadata.get("branch", "unknown")
-    phase = metadata.get("phase", "0")
     timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    archive_name = f"{branch.replace('/', '-')}-phase-{phase}-{timestamp}.json"
+    archive_name = f"{linear_issue.lower()}-{branch.replace('/', '-')}-{timestamp}.json"
     archive_path = archive_dir / archive_name
 
     # Save archived metadata
@@ -139,19 +139,26 @@ def cleanup_worktree(worktree_path, branch):
 def find_worktrees_for_branch(branch):
     """Find all worktrees for a given branch."""
     worktrees = []
-    workspace_root = Path(".claude/workspaces")
+    workspace_root = Path(os.path.expanduser("~/.claude/git-workspace"))
 
     if not workspace_root.exists():
         return worktrees
 
-    # Search for worktrees with this branch
-    for phase_dir in workspace_root.iterdir():
-        if not phase_dir.is_dir() or phase_dir.name.startswith("."):
+    # Search for worktrees matching this branch
+    for workspace_dir in workspace_root.iterdir():
+        if not workspace_dir.is_dir() or workspace_dir.name.startswith("."):
             continue
 
-        branch_dir = phase_dir / branch
-        if branch_dir.exists() and branch_dir.is_dir():
-            worktrees.append(str(branch_dir))
+        # Check WORKSPACE_META.json for branch match
+        meta_path = workspace_dir / "WORKSPACE_META.json"
+        if meta_path.exists():
+            try:
+                with open(meta_path) as f:
+                    meta = json.load(f)
+                if meta.get("branch") == branch:
+                    worktrees.append(str(workspace_dir))
+            except (json.JSONDecodeError, IOError):
+                pass
 
     return worktrees
 

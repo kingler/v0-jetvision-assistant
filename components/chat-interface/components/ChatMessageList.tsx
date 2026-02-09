@@ -369,6 +369,8 @@ export function ChatMessageList({
           pipelineData={message.pipelineData}
           showProposalSentConfirmation={message.showProposalSentConfirmation}
           proposalSentData={message.proposalSentData}
+          showContractSentConfirmation={message.showContractSentConfirmation}
+          contractSentData={message.contractSentData}
           showEmailApprovalRequest={message.showEmailApprovalRequest}
           emailApprovalData={message.emailApprovalData}
           onViewRequest={onViewRequest}

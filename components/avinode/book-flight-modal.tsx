@@ -43,6 +43,7 @@ import type {
   ContractPricing,
   ContractAmenities,
 } from '@/lib/types/contract';
+import type { ContractSentPayload } from '@/components/contract/contract-sent-confirmation';
 
 // =============================================================================
 // TYPES
@@ -83,16 +84,8 @@ export interface BookFlightModalProps {
   tripDetails: TripDetails;
   /** Request ID for database linking */
   requestId: string;
-  /** Callback when contract is successfully sent */
-  onContractSent?: (contractId: string, contractNumber: string, contractDetails: {
-    customerName: string;
-    customerEmail: string;
-    flightRoute: string;
-    departureDate: string;
-    totalAmount: number;
-    currency: string;
-    pdfUrl?: string;
-  }) => void;
+  /** Callback when contract is successfully sent with full contract data */
+  onContractSent?: (contractData: Required<ContractSentPayload>) => void;
 }
 
 type ModalState = 'ready' | 'generating' | 'preview' | 'sending' | 'success' | 'error';
@@ -324,18 +317,25 @@ export function BookFlightModal({
       }
       setState('success');
 
-      // Call success callback with full contract details
+      // Auto-open PDF in a new browser tab
+      if (data.pdfUrl) {
+        window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      // Pass full contract data to parent for rich chat card rendering
       if (onContractSent && data.dbContractId) {
-        const dep = flightDetails.departureAirport?.icao || '';
-        const arr = flightDetails.arrivalAirport?.icao || '';
-        onContractSent(data.dbContractId, data.contractNumber, {
+        const dep = flight.departureAirport?.icao || tripDetails.departureAirport.icao;
+        const arr = flight.arrivalAirport?.icao || tripDetails.arrivalAirport.icao;
+        onContractSent({
+          contractId: data.dbContractId,
+          contractNumber: data.contractNumber,
+          pdfUrl: data.pdfUrl || '',
           customerName: customer.name,
           customerEmail: customer.email,
           flightRoute: `${dep} → ${arr}`,
-          departureDate: flightDetails.departureDate || '',
-          totalAmount: pricing.totalAmount || 0,
-          currency: pricing.currency || 'USD',
-          pdfUrl: data.pdfUrl,
+          departureDate: flight.departureDate || tripDetails.departureDate,
+          totalAmount: pricing.totalAmount,
+          currency: pricing.currency,
         });
       }
     } catch (err) {

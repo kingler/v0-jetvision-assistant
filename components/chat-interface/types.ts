@@ -7,6 +7,7 @@
 import type { RFQFlight } from '@/components/avinode/rfq-flight-card';
 import type { PipelineData } from '@/lib/chat';
 import type { ProposalSentConfirmationProps } from '@/components/proposal/proposal-sent-confirmation';
+import type { ContractSentConfirmationProps } from '@/components/contract/contract-sent-confirmation';
 import type { EmailApprovalRequestContent } from '@/lib/types/chat';
 
 /**
@@ -30,6 +31,9 @@ export interface UnifiedMessage {
   pipelineData?: PipelineData;
   showProposalSentConfirmation?: boolean;
   proposalSentData?: ProposalSentConfirmationProps;
+  // Contract sent confirmation
+  showContractSentConfirmation?: boolean;
+  contractSentData?: ContractSentConfirmationProps;
   // Email approval workflow
   showEmailApprovalRequest?: boolean;
   emailApprovalData?: EmailApprovalRequestContent;

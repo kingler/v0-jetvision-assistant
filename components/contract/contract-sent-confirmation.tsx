@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export interface ContractSentConfirmationProps {
+/** Core contract data shared between the modal callback, chat message, and confirmation card. */
+export interface ContractSentPayload {
   contractId: string
   contractNumber: string
   customerName: string
@@ -18,6 +19,9 @@ export interface ContractSentConfirmationProps {
   totalAmount: number
   currency: string
   pdfUrl?: string
+}
+
+export interface ContractSentConfirmationProps extends ContractSentPayload {
   status: 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed'
   /** Trip type for structured route display */
   tripType?: 'one_way' | 'round_trip' | 'multi_city'

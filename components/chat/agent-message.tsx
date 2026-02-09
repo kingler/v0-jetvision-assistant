@@ -213,7 +213,7 @@ export interface AgentMessageProps {
   showProposalSentConfirmation?: boolean
   /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */
   proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
-  /** Whether to show contract-sent confirmation card inline (after contract sent) */
+  /** Whether to show contract-sent confirmation card inline (after contract sent via Book Flight) */
   showContractSentConfirmation?: boolean
   /** Data for ContractSentConfirmation when showContractSentConfirmation is true */
   contractSentData?: import('@/components/contract/contract-sent-confirmation').ContractSentConfirmationProps
@@ -574,7 +574,7 @@ export function AgentMessage({
         </div>
       )}
 
-      {/* Contract Sent Confirmation - inline after contract is sent */}
+      {/* Contract Sent Confirmation - inline after contract is sent via Book Flight */}
       {showContractSentConfirmation && contractSentData && (
         <div className="mt-4 w-full">
           <ContractSentConfirmation {...contractSentData} />

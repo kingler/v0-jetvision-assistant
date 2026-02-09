@@ -961,22 +961,41 @@ npm run review:tdd
 
 ## Git Worktree Workspace Management
 
-Agent workspaces are managed using git worktrees in `.context/workspaces/` with a 9-phase SDLC structure for parallel agent isolation.
+Agent workspaces are managed using git worktrees in a **centralized location outside the project directory** for clean separation between code and workspace state. Each workspace is mapped to a **Linear Issue**, **Git Branch**, and **Pull Request**.
+
+**Workspace Root**: `/Users/kinglerbercy/.claude/git-workspace`
 
 ### Workspace Structure
 
+Each workspace is named by its Linear issue ID (lowercase):
+
 ```text
-.context/workspaces/
-├── phase-1-branch-init/        # Branch initialization
-├── phase-2-test-creation/      # TDD test writing (RED phase)
-├── phase-3-implementation/     # Code implementation (GREEN phase)
-├── phase-4-code-review/        # Code review
-├── phase-5-iteration/          # Iteration & fixes (REFACTOR phase)
-├── phase-6-pr-creation/        # PR creation
-├── phase-7-pr-review/          # PR review
-├── phase-8-conflict-resolution/ # Conflict resolution
-├── phase-9-merge/              # Branch merge
-└── .archive/                   # Archived workspace metadata
+/Users/kinglerbercy/.claude/git-workspace/
+├── onek-123/          # Linear: ONEK-123, Branch: feat/onek-123-user-auth, PR: #45
+├── onek-144/          # Linear: ONEK-144, Branch: fix/ONEK-144-multi-city-trip-card, PR: #98
+├── onek-154/          # Linear: ONEK-154, Branch: kinglerbercy/onek-154-integration-tests, PR: #101
+└── .archive/          # Archived workspace metadata
+```
+
+### Workspace-to-Issue Mapping
+
+Every workspace maintains a 1:1:1 mapping:
+
+| Field | Source | Example |
+|-------|--------|---------|
+| **Directory** | Linear issue ID (lowercase) | `onek-207` |
+| **Linear Issue** | ONEK project tracker | `ONEK-207` |
+| **Git Branch** | Feature/fix branch | `feat/onek-207-contract-card` |
+| **Pull Request** | GitHub PR | `#103` |
+
+### Creating a Workspace
+
+```bash
+# Create worktree for a Linear issue
+git worktree add /Users/kinglerbercy/.claude/git-workspace/onek-207 -b feat/onek-207-contract-card
+
+# Or attach to an existing branch
+git worktree add /Users/kinglerbercy/.claude/git-workspace/onek-207 feat/onek-207-contract-card
 ```
 
 ### Automatic Lifecycle Management
@@ -985,8 +1004,8 @@ Worktrees are automatically managed via Claude Code hooks:
 
 **Auto-Creation** (PreToolUse hook):
 
-- Triggered when agents are invoked for SDLC phases
-- Creates isolated worktree at `.context/workspaces/phase-N-<name>/<branch>`
+- Triggered when agents are invoked for Linear issues
+- Creates isolated worktree at `/Users/kinglerbercy/.claude/git-workspace/<issue-id>`
 - Generates `WORKSPACE_META.json` with metadata
 
 **Auto-Cleanup** (SubagentStop hook):
@@ -1007,20 +1026,55 @@ Plus 2 safety checks:
 ### Slash Commands
 
 ```bash
-# Create isolated workspace for a phase
-/worktree-create <phase> <branch> [linear-issue-id]
+# Create isolated workspace for a Linear issue
+/worktree-create <branch> <linear-issue-id>
 
 # Examples:
-/worktree-create 2 feat/ONEK-123-user-auth ONEK-123
-/worktree-create 3 fix/ONEK-456-validation
+/worktree-create feat/ONEK-123-user-auth ONEK-123
+/worktree-create fix/ONEK-456-validation ONEK-456
 
 # View status of all workspaces
 /worktree-status
 
 # Clean up workspaces
-/worktree-cleanup feat/ONEK-123-user-auth  # Specific branch
-/worktree-cleanup --stale                   # Stale (>7 days)
-/worktree-cleanup --all                     # All completed
+/worktree-cleanup onek-123                 # Specific issue workspace
+/worktree-cleanup --stale                  # Stale (>7 days)
+/worktree-cleanup --all                    # All completed
+```
+
+### Manual Worktree Operations
+
+```bash
+# List all worktrees
+git worktree list
+
+# Navigate to a worktree
+cd /Users/kinglerbercy/.claude/git-workspace/onek-123
+
+# Remove worktree manually (only if lifecycle complete)
+git worktree remove /Users/kinglerbercy/.claude/git-workspace/onek-123
+
+# Prune stale references
+git worktree prune
+```
+
+### Workspace Metadata
+
+Each worktree contains `WORKSPACE_META.json`:
+
+```json
+{
+  "linearIssue": "ONEK-123",
+  "branch": "feat/onek-123-user-auth",
+  "pullRequest": "#45",
+  "prUrl": "https://github.com/kingler/v0-jetvision-assistant/pull/45",
+  "workspaceDir": "/Users/kinglerbercy/.claude/git-workspace/onek-123",
+  "agentRole": "Coding Agent",
+  "agentType": "backend-developer",
+  "createdAt": "2025-11-14T10:30:00Z",
+  "lastAccessedAt": "2025-11-14T12:45:00Z",
+  "status": "active"
+}
 ```
 
 ### Phase-to-Agent Mapping
@@ -1036,41 +1090,6 @@ Plus 2 safety checks:
 | 7 | pr-review | Code Review Agent, code-review-coordinator |
 | 8 | conflict-resolution | Conflict Resolution Agent, git-workflow |
 | 9 | merge | Pull Request Agent, git-workflow |
-
-### Manual Worktree Operations
-
-```bash
-# List all worktrees
-git worktree list
-
-# Navigate to a worktree
-cd .context/workspaces/phase-3-implementation/feat/my-feature
-
-# Remove worktree manually (only if lifecycle complete)
-git worktree remove .context/workspaces/phase-3-implementation/feat/my-feature
-
-# Prune stale references
-git worktree prune
-```
-
-### Workspace Metadata
-
-Each worktree contains `WORKSPACE_META.json`:
-
-```json
-{
-  "branch": "feat/ONEK-123-user-auth",
-  "linearIssue": "ONEK-123",
-  "phase": 3,
-  "phaseName": "implementation",
-  "agentRole": "Coding Agent",
-  "agentType": "backend-developer",
-  "createdAt": "2025-11-14T10:30:00Z",
-  "lastAccessedAt": "2025-11-14T12:45:00Z",
-  "status": "active",
-  "workflowState": {}
-}
-```
 
 ---
 
