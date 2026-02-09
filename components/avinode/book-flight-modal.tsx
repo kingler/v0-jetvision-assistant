@@ -43,6 +43,7 @@ import type {
   ContractPricing,
   ContractAmenities,
 } from '@/lib/types/contract';
+import type { ContractSentPayload } from '@/components/contract/contract-sent-confirmation';
 
 // =============================================================================
 // TYPES
@@ -84,17 +85,7 @@ export interface BookFlightModalProps {
   /** Request ID for database linking */
   requestId: string;
   /** Callback when contract is successfully sent with full contract data */
-  onContractSent?: (contractData: {
-    contractId: string;
-    contractNumber: string;
-    pdfUrl: string;
-    customerName: string;
-    customerEmail: string;
-    flightRoute: string;
-    departureDate: string;
-    totalAmount: number;
-    currency: string;
-  }) => void;
+  onContractSent?: (contractData: Required<ContractSentPayload>) => void;
 }
 
 type ModalState = 'ready' | 'generating' | 'preview' | 'sending' | 'success' | 'error';

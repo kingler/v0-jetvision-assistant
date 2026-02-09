@@ -2014,17 +2014,7 @@ export function ChatInterface({
   /**
    * Handle contract sent - called when contract is successfully sent from the modal
    */
-  const handleContractSent = useCallback((contractData: {
-    contractId: string;
-    contractNumber: string;
-    pdfUrl: string;
-    customerName: string;
-    customerEmail: string;
-    flightRoute: string;
-    departureDate: string;
-    totalAmount: number;
-    currency: string;
-  }) => {
+  const handleContractSent = useCallback((contractData: Required<import('@/components/contract/contract-sent-confirmation').ContractSentPayload>) => {
     console.log('[ChatInterface] Contract sent:', contractData)
 
     // Close the modal
@@ -2040,15 +2030,7 @@ export function ChatInterface({
       showWorkflow: false,
       showContractSentConfirmation: true,
       contractSentData: {
-        contractId: contractData.contractId,
-        contractNumber: contractData.contractNumber,
-        customerName: contractData.customerName,
-        customerEmail: contractData.customerEmail,
-        flightRoute: contractData.flightRoute,
-        departureDate: contractData.departureDate,
-        totalAmount: contractData.totalAmount,
-        currency: contractData.currency,
-        pdfUrl: contractData.pdfUrl,
+        ...contractData,
         status: 'sent' as const,
       },
     }
