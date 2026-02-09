@@ -47,6 +47,8 @@ vi.mock('@/components/avinode', () => ({
       {actions?.length || 0} actions required
     </div>
   )),
+  RfqQuoteDetailsCard: vi.fn(() => <div data-testid="rfq-quote-details" />),
+  TripSummaryCard: vi.fn(() => <div data-testid="trip-summary-card" />),
 }));
 
 // Mock useAvinodeQuotes hook

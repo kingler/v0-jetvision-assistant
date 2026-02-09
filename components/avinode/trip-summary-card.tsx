@@ -4,6 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Copy, Plane } from 'lucide-react';
 
+export interface TripSegmentUI {
+  departureAirport: { icao: string; name: string; city: string };
+  arrivalAirport: { icao: string; name: string; city: string };
+  departureDate: string;
+  passengers: number;
+}
+
 export interface TripSummaryCardProps {
   tripId: string;
   departureAirport: {
@@ -23,6 +30,8 @@ export interface TripSummaryCardProps {
   tripType?: 'single_leg' | 'round_trip' | 'multi_city';
   /** Return date for round-trip flights (YYYY-MM-DD) */
   returnDate?: string;
+  /** All trip segments for multi-city display */
+  segments?: TripSegmentUI[];
   onCopyTripId?: () => void;
 }
 
@@ -35,9 +44,18 @@ export function TripSummaryCard({
   status,
   tripType,
   returnDate,
+  segments,
   onCopyTripId,
 }: TripSummaryCardProps) {
   const isRoundTrip = tripType === 'round_trip';
+  const isMultiCity = tripType === 'multi_city';
+
+  const formatAirportLabel = (airport: { name: string; city: string }) => {
+    if (airport.city && airport.name && airport.city !== airport.name) {
+      return `${airport.name}, ${airport.city}`;
+    }
+    return airport.city || airport.name;
+  };
 
   const formatDate = (dateString: string) => {
     // Parse as UTC to avoid timezone issues with ISO date strings
@@ -74,8 +92,8 @@ export function TripSummaryCard({
             Trip Details
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant={isRoundTrip ? 'default' : 'secondary'}>
-              {isRoundTrip ? 'Round-Trip' : 'One-Way'}
+            <Badge variant={isRoundTrip || isMultiCity ? 'default' : 'secondary'}>
+              {isMultiCity ? 'Multi-City' : isRoundTrip ? 'Round-Trip' : 'One-Way'}
             </Badge>
             <Badge variant={getStatusVariant(status)}>
               {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -103,141 +121,112 @@ export function TripSummaryCard({
           </Button>
         </div>
 
-        {/* Outbound Route Visualization */}
-        <div className="rounded-lg border p-4 space-y-3">
-          {isRoundTrip && (
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Outbound
-            </span>
-          )}
-          <div className="flex items-center justify-between">
-            {/* Departure */}
-            <div className="flex-1 text-left">
-              <div className="flex items-center gap-2">
-                <svg
-                  className="h-6 w-6 text-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <span className="text-lg font-bold">{departureAirport.icao}</span>
+        {/* Multi-City Route Visualization */}
+        {isMultiCity && segments && segments.length > 1 ? (
+          <div className="space-y-2">
+            {segments.map((seg, idx) => (
+              <div key={idx} className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Leg {idx + 1}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(seg.departureDate)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 text-left">
+                    <span className="text-lg font-bold">{seg.departureAirport.icao}</span>
+                    <p className="text-sm text-muted-foreground">
+                      {formatAirportLabel(seg.departureAirport)}
+                    </p>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="flex items-center gap-1">
+                      <div className="h-px w-12 bg-border" />
+                      <Plane className="h-4 w-4 text-muted-foreground" />
+                      <div className="h-px w-12 bg-border" />
+                    </div>
+                  </div>
+                  <div className="flex-1 text-right">
+                    <span className="text-lg font-bold">{seg.arrivalAirport.icao}</span>
+                    <p className="text-sm text-muted-foreground">
+                      {formatAirportLabel(seg.arrivalAirport)}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {departureAirport.name}, {departureAirport.city}
-              </p>
-            </div>
-
-            {/* Flight Path */}
-            <div className="flex-1 flex items-center justify-center">
-              <div className="flex items-center gap-1">
-                <div className="h-px w-12 bg-border" />
-                <Plane className="h-4 w-4 text-muted-foreground" />
-                <div className="h-px w-12 bg-border" />
-              </div>
-            </div>
-
-            {/* Arrival */}
-            <div className="flex-1 text-right">
-              <div className="flex items-center justify-end gap-2">
-                <span className="text-lg font-bold">{arrivalAirport.icao}</span>
-                <svg
-                  className="h-6 w-6 text-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {arrivalAirport.name}, {arrivalAirport.city}
-              </p>
-            </div>
+            ))}
           </div>
-        </div>
-
-        {/* Return Route Visualization (round-trip only) */}
-        {isRoundTrip && (
-          <div className="rounded-lg border border-dashed p-4 space-y-3">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Return
-            </span>
-            <div className="flex items-center justify-between">
-              {/* Return Departure (arrival airport of outbound) */}
-              <div className="flex-1 text-left">
-                <div className="flex items-center gap-2">
-                  <svg
-                    className="h-6 w-6 text-primary"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  <span className="text-lg font-bold">{arrivalAirport.icao}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {arrivalAirport.name}, {arrivalAirport.city}
-                </p>
-              </div>
-
-              {/* Flight Path */}
-              <div className="flex-1 flex items-center justify-center">
-                <div className="flex items-center gap-1">
-                  <div className="h-px w-12 bg-border" />
-                  <Plane className="h-4 w-4 text-muted-foreground rotate-180" />
-                  <div className="h-px w-12 bg-border" />
-                </div>
-              </div>
-
-              {/* Return Arrival (departure airport of outbound) */}
-              <div className="flex-1 text-right">
-                <div className="flex items-center justify-end gap-2">
+        ) : (
+          <>
+            {/* Outbound Route Visualization */}
+            <div className="rounded-lg border p-4 space-y-3">
+              {isRoundTrip && (
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Outbound
+                </span>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="flex-1 text-left">
                   <span className="text-lg font-bold">{departureAirport.icao}</span>
-                  <svg
-                    className="h-6 w-6 text-primary"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
+                  <p className="text-sm text-muted-foreground">
+                    {formatAirportLabel(departureAirport)}
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {departureAirport.name}, {departureAirport.city}
-                </p>
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="flex items-center gap-1">
+                    <div className="h-px w-12 bg-border" />
+                    <Plane className="h-4 w-4 text-muted-foreground" />
+                    <div className="h-px w-12 bg-border" />
+                  </div>
+                </div>
+                <div className="flex-1 text-right">
+                  <span className="text-lg font-bold">{arrivalAirport.icao}</span>
+                  <p className="text-sm text-muted-foreground">
+                    {formatAirportLabel(arrivalAirport)}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Return Route Visualization (round-trip only) */}
+            {isRoundTrip && (
+              <div className="rounded-lg border border-dashed p-4 space-y-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Return
+                </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 text-left">
+                    <span className="text-lg font-bold">{arrivalAirport.icao}</span>
+                    <p className="text-sm text-muted-foreground">
+                      {formatAirportLabel(arrivalAirport)}
+                    </p>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="flex items-center gap-1">
+                      <div className="h-px w-12 bg-border" />
+                      <Plane className="h-4 w-4 text-muted-foreground rotate-180" />
+                      <div className="h-px w-12 bg-border" />
+                    </div>
+                  </div>
+                  <div className="flex-1 text-right">
+                    <span className="text-lg font-bold">{departureAirport.icao}</span>
+                    <p className="text-sm text-muted-foreground">
+                      {formatAirportLabel(departureAirport)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Flight Details */}
-        <div className={`grid ${isRoundTrip && returnDate ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
+        <div className={`grid ${(isRoundTrip && returnDate) || isMultiCity ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
           <div>
             <span className="text-xs text-muted-foreground uppercase tracking-wider">
-              {isRoundTrip ? 'Outbound' : 'Departure'}
+              {isRoundTrip ? 'Outbound' : isMultiCity ? 'First Leg' : 'Departure'}
             </span>
             <p className="text-sm font-medium">{formatDate(departureDate)}</p>
           </div>
@@ -247,6 +236,16 @@ export function TripSummaryCard({
                 Return
               </span>
               <p className="text-sm font-medium">{formatDate(returnDate)}</p>
+            </div>
+          )}
+          {isMultiCity && segments && segments.length > 1 && (
+            <div>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                Last Leg
+              </span>
+              <p className="text-sm font-medium">
+                {formatDate(segments[segments.length - 1].departureDate)}
+              </p>
             </div>
           )}
           <div>
