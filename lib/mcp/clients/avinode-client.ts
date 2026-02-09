@@ -574,22 +574,29 @@ export class AvinodeClient {
    * @see https://developer.avinodegroup.com/reference/create-trip
    */
   async createTrip(params: {
-    departure_airport: string;
-    arrival_airport: string;
-    departure_date: string;
-    passengers: number;
+    departure_airport?: string;
+    arrival_airport?: string;
+    departure_date?: string;
+    passengers?: number;
     departure_time?: string;
     return_date?: string;
     return_time?: string;
     aircraft_category?: string;
     special_requirements?: string;
     client_reference?: string;
+    segments?: Array<{
+      departure_airport: string;
+      arrival_airport: string;
+      departure_date: string;
+      departure_time?: string;
+      passengers: number;
+    }>;
   }) {
     try {
       // Generate unique external trip ID for tracking
       const externalTripId = `JETVISION-${Date.now()}`;
 
-      // Build segments array - supports one-way and round-trip
+      // Build segments array from either segments[] param or legacy flat params
       const segments: Array<{
         startAirport: { icao: string };
         endAirport: { icao: string };
@@ -603,12 +610,33 @@ export class AvinodeClient {
         paxSegment: boolean;
         paxTBD: boolean;
         timeTBD: boolean;
-      }> = [
-        {
-          startAirport: { icao: params.departure_airport },
-          endAirport: { icao: params.arrival_airport },
+      }> = [];
+
+      if (params.segments?.length) {
+        // Multi-city / explicit segments — preferred over flat params
+        for (const seg of params.segments) {
+          segments.push({
+            startAirport: { icao: seg.departure_airport },
+            endAirport: { icao: seg.arrival_airport },
+            dateTime: {
+              date: seg.departure_date,
+              time: seg.departure_time || '10:00',
+              departure: true,
+              local: true,
+            },
+            paxCount: String(seg.passengers),
+            paxSegment: true,
+            paxTBD: false,
+            timeTBD: !seg.departure_time,
+          });
+        }
+      } else {
+        // Legacy flat params — one-way or round-trip
+        segments.push({
+          startAirport: { icao: params.departure_airport! },
+          endAirport: { icao: params.arrival_airport! },
           dateTime: {
-            date: params.departure_date,
+            date: params.departure_date!,
             time: params.departure_time || '10:00',
             departure: true,
             local: true,
@@ -617,25 +645,25 @@ export class AvinodeClient {
           paxSegment: true,
           paxTBD: false,
           timeTBD: !params.departure_time,
-        },
-      ];
-
-      // Add return segment if round-trip
-      if (params.return_date) {
-        segments.push({
-          startAirport: { icao: params.arrival_airport },
-          endAirport: { icao: params.departure_airport },
-          dateTime: {
-            date: params.return_date,
-            time: params.return_time || '10:00',
-            departure: true,
-            local: true,
-          },
-          paxCount: String(params.passengers),
-          paxSegment: true,
-          paxTBD: false,
-          timeTBD: !params.return_time,
         });
+
+        // Add return segment if round-trip
+        if (params.return_date) {
+          segments.push({
+            startAirport: { icao: params.arrival_airport! },
+            endAirport: { icao: params.departure_airport! },
+            dateTime: {
+              date: params.return_date,
+              time: params.return_time || '10:00',
+              departure: true,
+              local: true,
+            },
+            paxCount: String(params.passengers),
+            paxSegment: true,
+            paxTBD: false,
+            timeTBD: !params.return_time,
+          });
+        }
       }
 
       // Build criteria object for aircraft requirements
@@ -705,6 +733,49 @@ export class AvinodeClient {
         viewLink: viewDeepLink,
       });
 
+      // Derive departure/arrival from segments when flat params not provided
+      const firstSeg = params.segments?.[0];
+      const departureAirport = params.departure_airport || firstSeg?.departure_airport;
+      const arrivalAirport = params.arrival_airport || firstSeg?.arrival_airport;
+      const departureDate = params.departure_date || firstSeg?.departure_date;
+      const pax = params.passengers ?? firstSeg?.passengers;
+
+      // Derive segment count and trip type for UI consumption
+      const segmentCount = params.segments?.length || (params.return_date ? 2 : 1);
+      const tripType = segmentCount >= 3 ? 'multi_city' : segmentCount === 2 ? 'round_trip' : 'single_leg';
+
+      // Normalize segments for the response (so UI can render all legs)
+      const normalizedSegments = params.segments?.map((seg) => ({
+        departure_airport: seg.departure_airport,
+        arrival_airport: seg.arrival_airport,
+        departure_date: seg.departure_date,
+        departure_time: seg.departure_time,
+        passengers: seg.passengers,
+      })) || (params.return_date ? [
+        {
+          departure_airport: params.departure_airport,
+          arrival_airport: params.arrival_airport,
+          departure_date: params.departure_date,
+          departure_time: params.departure_time,
+          passengers: params.passengers,
+        },
+        {
+          departure_airport: params.arrival_airport,
+          arrival_airport: params.departure_airport,
+          departure_date: params.return_date,
+          departure_time: params.return_time,
+          passengers: params.passengers,
+        },
+      ] : [
+        {
+          departure_airport: departureAirport,
+          arrival_airport: arrivalAirport,
+          departure_date: departureDate,
+          departure_time: params.departure_time,
+          passengers: pax,
+        },
+      ]);
+
       // Return in the format expected by the UI (chat-interface.tsx expects trip_id and deep_link)
       return {
         success: true,
@@ -712,10 +783,13 @@ export class AvinodeClient {
         internal_id: tripData?.id, // e.g., "atrip-65262252"
         deep_link: searchDeepLink,
         view_link: viewDeepLink,
-        departure_airport: params.departure_airport,
-        arrival_airport: params.arrival_airport,
-        departure_date: params.departure_date,
-        passengers: params.passengers,
+        departure_airport: departureAirport,
+        arrival_airport: arrivalAirport,
+        departure_date: departureDate,
+        passengers: pax,
+        trip_type: tripType,
+        segment_count: segmentCount,
+        segments: normalizedSegments,
         external_trip_id: externalTripId,
         // Include raw response for debugging
         raw_response: response.data,
