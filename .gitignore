@@ -78,3 +78,7 @@ client_secret*.json
 .claude/frameworks/
 # Session state (local only)
 .claude/state/
+# Local plans and drafts
+.claude/plans/
+# Agent identity docs (local reference)
+agents/jetvision-agent/
