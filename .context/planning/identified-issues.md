@@ -1,96 +1,71 @@
 # Identified Issues, Bugs & Technical Debt
 
 **Project**: Jetvision AI Assistant
-**Analysis Date**: 2025-01-31
+**Analysis Date**: 2026-02-09
+**Previous Report**: 2025-01-31
 **Priority Scale**: P0 Critical | P1 High | P2 Medium | P3 Low
 
 ---
 
 ## Issue Summary
 
-| Priority | Previous (Jan 28) | Current (Jan 31) | Change |
+| Priority | Previous (Jan 31) | Current (Feb 9) | Change |
 |----------|-------------------|------------------|--------|
-| P0 Critical | 1 | 1 | Stable |
-| P1 High | 2 | 2 | Stable |
-| P2 Medium | 5 | 5 | Stable |
+| P0 Critical | 1 | **0** | Resolved |
+| P1 High | 2 | 1 | -1 (resolved) |
+| P2 Medium | 5 | 4 | -1 (resolved) |
 | P3 Low | 3 | 3 | Stable |
 
-**Status**: No new issues introduced. Existing issues well-documented.
+**Status**: P0 TypeScript errors fully resolved. 7 test files failing (40 tests). 144 lint warnings (non-blocking).
 
 ---
 
 ## Critical Issues (P0)
 
-### 1. TypeScript Type Export Errors
-**Severity**: P0 Critical | **Impact**: CI/CD and code quality
+**None.** All P0 issues resolved.
 
-**Evidence** (from `npx tsc --noEmit`):
-```
-14 TypeScript errors found
-```
-
-**Affected Files**:
-- `lib/middleware/rbac.ts` - Missing `UserRole`
-- `lib/rbac/permissions.ts` - Missing `UserRole`
-- `lib/hooks/use-user-role.ts` - Missing `UserRole`
-- `lib/hooks/use-avinode-quotes.ts` - Missing `Quote`
-- `lib/services/supabase-queries.ts` - Missing `RequestStatus`
-- `lib/utils/request-to-chat-session.ts` - Missing `Request`
-- `app/api/clients/route.ts` - Missing `User`, `ClientProfile`
-- `app/api/requests/route.ts` - Missing `User`, `Request`
-- `app/settings/profile/page.tsx` - Missing `UserRole`
-- `app/_archived/admin/users/page.tsx` - Archived file with stale imports
-
-**Root Cause**: Types exist but are not exported from `lib/types/database`
-
-**Recommended Fix**:
-1. Add missing exports to `lib/types/database/index.ts`
-2. Or update imports to use correct paths
-3. Consider removing archived files that cause errors
-
-**Effort**: 1-2 hours
+### RESOLVED: TypeScript Type Export Errors
+- **Previous**: 14 TypeScript errors from missing type exports
+- **Resolution**: All 14 errors fixed. `npx tsc --noEmit` exits cleanly with 0 errors.
+- **Date Resolved**: February 2026
 
 ---
 
 ## High Priority Issues (P1)
 
-### 2. Email Approval Workflow Edge Cases
-**Severity**: P1 High | **Impact**: Human-in-the-loop UX
+### 1. Test Suite Failures (7 Files, 40 Tests)
+**Severity**: P1 High | **Impact**: CI reliability, regression detection
 
-**Evidence**:
-- `EmailPreviewCard` component implemented (components/email/)
-- `prepare_proposal_email` tool added to types
-- Email approval database fields added (migration 650c736)
+**Evidence** (from `npx vitest run` — Feb 9):
 
-**What's Missing**:
-- Edit email content before sending
-- Cancel email workflow
-- Retry failed email sends
-- Error state handling in UI
+| Test Area | Files | Passed | Failed | Skipped |
+|-----------|-------|--------|--------|---------|
+| lib/ | 21 | 381 | 0 | 0 |
+| components/ | 46 | 1,159 | 12 | 16 |
+| api/ | 17 | 159 | 28 | 17 |
+| mcp/ | 7 | 151 | 0 | 0 |
+| mcp-servers/ | 3 | 82 | 0 | 0 |
+| prompts/ | 1 | 70 | 0 | 0 |
+| integration/ | 11 | 136 | 0 | 43 |
+| **Totals** | **106** | **2,138** | **40** | **76** |
 
-**Recommended Fix**:
-1. Add edit functionality to EmailPreviewCard
-2. Implement cancel button with confirmation
-3. Add retry mechanism for failed sends
-4. Test full workflow end-to-end
+**Failing Test Files**:
+1. `components/avinode/avinode-auth-status.test.tsx` — Date calculation (days until expiration) drifted from expected values
+2. `components/conversation-starters/conversation-starter-hub.test.tsx` — DEFAULT_STARTERS array changed, tests expect old values
+3. `components/conversation-starters/hooks/use-smart-starters.test.ts` — Badge/priority assertions stale after conversation starter refactor
+4. `api/agents/route.test.ts` — All 7 tests fail (mock or import issue)
+5. `api/clients/route.test.ts` — All 7 tests fail (mock or import issue)
+6. `api/quotes/route.test.ts` — All 6 tests fail (mock or import issue)
+7. `integration/database/schema.test.ts` — Schema assertion mismatches
 
-**Effort**: 1-2 days
-
----
-
-### 3. Test Suite Maintenance
-**Severity**: P1 High | **Impact**: CI reliability
-
-**Evidence**:
-- 108 test files exist
-- Some tests may have stale mocks
-- ResizeObserver polyfill issues in component tests
+**Root Cause**: Tests written against older API shapes or component props. Mocks need updating after Feb refactors.
 
 **Recommended Fix**:
-1. Run full test suite: `npm test`
-2. Update mocks for new API shapes
-3. Add ResizeObserver polyfill to test setup
-4. Fix any failing tests
+1. Update `avinode-auth-status` test date calculations
+2. Update `conversation-starter-hub` test expectations to match current DEFAULT_STARTERS
+3. Update `use-smart-starters` badge/priority assertions
+4. Fix API route test mock setup (agents, clients, quotes)
+5. Update schema test assertions
 
 **Effort**: 2-4 hours
 
@@ -98,7 +73,7 @@
 
 ## Medium Priority Issues (P2)
 
-### 4. Google Sheets OAuth Not Complete
+### 2. Google Sheets OAuth Not Complete
 **Severity**: P2 Medium | **Impact**: External CRM sync
 
 **Evidence**:
@@ -106,9 +81,7 @@
 - OAuth flow structure exists but not tested
 - Token refresh mechanism needed
 
-**Consequence**:
-- Cannot sync client data from external sources
-- Manual data entry required
+**Consequence**: Cannot sync client data from external sources
 
 **Recommended Fix**: Complete OAuth 2.0 flow with token refresh
 
@@ -116,104 +89,108 @@
 
 ---
 
-### 5. Production Deployment Configuration
+### 3. Production Deployment Configuration
 **Severity**: P2 Medium | **Impact**: Launch readiness
 
 **Evidence**:
 - Vercel configured but needs finalization
-- No Docker setup (using Vercel instead)
-- Environment-specific configs incomplete
+- No Sentry monitoring configured
+- No rate limiting middleware
 
 **Recommended Fix**:
-1. Finalize Vercel configuration
-2. Create production environment variables
-3. Set up error monitoring (Sentry)
-4. Document deployment process
+1. Configure production environment variables
+2. Set up Sentry with DSN and source maps
+3. Add Redis-based rate limiter middleware
 
 **Effort**: 1-2 days
 
 ---
 
-### 6. Rate Limiting Not Implemented
-**Severity**: P2 Medium | **Impact**: Security/cost control
+### 4. Lint Warnings (144 Warnings, 26 Files)
+**Severity**: P2 Medium | **Impact**: Code quality
 
-**Evidence**:
-- No rate limiting on API routes
-- No throttling for expensive operations (OpenAI calls)
+**Evidence** (from `npx next lint` — Feb 9):
+
+| Source | Warnings | Type |
+|--------|----------|------|
+| `app/_archived/` | ~95 | Unescaped entities, `<img>` alt text |
+| `components/` (active) | ~30 | `<img>` alt text, unescaped entities |
+| `lib/pdf/` | ~10 | `<img>` alt text in PDF templates |
+| `lib/chat/` | ~5 | Various |
+| Other | ~4 | Various |
+
+**Files with Active (Non-Archived) Warnings**:
+- `components/avinode/avinode-message-card.tsx`
+- `components/avinode/book-flight-modal.tsx`
+- `components/avinode/flight-search-progress.tsx`
+- `components/chat-interface.tsx`
+- `components/chat/agent-message-v2.tsx`
+- `components/customer-selection-dialog.tsx`
+- `components/rich-markdown.tsx`
+- `lib/pdf/proposal-template.tsx`
+- `lib/pdf/contract-template.tsx`
+- `lib/chat/hooks/use-streaming-chat.ts`
 
 **Recommended Fix**:
-- Implement Redis-based rate limiter middleware
-- Limits: 100 req/min API, 10 req/min OpenAI
+1. Remove `app/_archived/` from ESLint scope (add to `.eslintignore`)
+2. Fix `<img>` → `<Image>` or add `alt` attributes in active components
+3. Fix unescaped entities (`'` → `&apos;`, `"` → `&quot;`)
 
-**Effort**: 4-8 hours
+**Effort**: 1-2 hours
 
 ---
 
-### 7. API Documentation Missing
-**Severity**: P2 Medium | **Impact**: Developer experience
+### 5. `.venv/` Tracked in Git
+**Severity**: P2 Medium | **Impact**: Repository bloat
 
-**Evidence**:
-- No OpenAPI/Swagger documentation
-- Endpoint documentation scattered across docs/
+**Evidence**: Python virtual environment directory committed to git
 
 **Recommended Fix**:
-- Generate OpenAPI spec from Zod schemas
-- Use tools like zod-to-openapi
+```bash
+echo ".venv/" >> .gitignore
+git rm -r --cached .venv/
+git commit -m "chore: remove .venv from git tracking"
+```
 
-**Effort**: 1 day
-
----
-
-### 8. Mobile Responsiveness Testing Needed
-**Severity**: P2 Medium | **Impact**: Mobile UX
-
-**Evidence**:
-- Desktop UI excellent
-- Mobile not systematically tested
-- 80% completion on responsive design
-
-**Recommended Fix**:
-- Test on mobile devices
-- Add responsive breakpoint tests
-
-**Effort**: 1 day
+**Effort**: 15 minutes
 
 ---
 
 ## Low Priority Issues (P3)
 
-### 9. Performance Indexes
-**Severity**: P3 Low | **Impact**: Query performance at scale
+### 6. API Documentation Missing
+**Severity**: P3 Low | **Impact**: Developer experience
 
 **Evidence**:
-- Basic indexes exist
-- No compound indexes for complex queries
+- 41 API routes with no OpenAPI spec
+- Documentation scattered across docs/
 
-**Recommended Fix**: Add indexes after profiling slow queries in production
+**Recommended Fix**: Generate OpenAPI spec from Zod schemas using `zod-to-openapi`
 
-**Effort**: 2-4 hours (when needed)
+**Effort**: 1 day
 
 ---
 
-### 10. Backup/Restore Procedures
-**Severity**: P3 Low | **Impact**: Disaster recovery
+### 7. Mobile Responsiveness Testing Needed
+**Severity**: P3 Low | **Impact**: Mobile UX
 
 **Evidence**:
-- Supabase provides automatic backups
-- No documented restore procedures
+- Desktop and tablet UI excellent
+- Mobile not systematically tested
+- 85% completion on responsive design
 
-**Recommended Fix**: Document and test restore procedures
+**Recommended Fix**: Test on mobile devices, add responsive breakpoint tests
 
-**Effort**: 2-4 hours
+**Effort**: 1 day
 
 ---
 
-### 11. Contract Digital Signatures
-**Severity**: P3 Low | **Impact**: Contract workflow
+### 8. Contract Digital Signatures
+**Severity**: P3 Low | **Impact**: Contract workflow completion
 
 **Evidence**:
-- Contract generation implemented
-- Contract send endpoint exists
+- Contract generation and send implemented (ONEK-207)
+- Rich contract card with auto-open PDF working
 - No digital signature integration
 
 **Recommended Fix**: Integrate DocuSign or similar for v2
@@ -222,19 +199,37 @@
 
 ---
 
-## Resolved Issues (Since Last Report)
+## Resolved Issues (Since Jan 31 Report)
 
-### RESOLVED: Message Persistence Loading
-- **Previous**: Messages not loading correctly for older sessions
-- **Resolution**: Fixed in commit 885db74 - load messages directly per session
+### RESOLVED: TypeScript Type Export Errors (P0)
+- **Previous**: 14 TypeScript errors from missing type exports
+- **Resolution**: All exports fixed, `npx tsc --noEmit` clean
+- **Date**: February 2026
 
-### RESOLVED: Quote Pricing Display
-- **Previous**: Incorrect prices for unanswered quotes
-- **Resolution**: Fixed in commit 8233e83
+### RESOLVED: Email Approval Workflow Edge Cases (P1)
+- **Previous**: Missing edit, cancel, retry functionality
+- **Resolution**: EmailPreviewCard with margin slider (ONEK-178), human-in-the-loop approval working, Gmail MCP production integration (ONEK-140)
+- **Date**: February 2026
 
-### RESOLVED: Email Approval Migration
-- **Previous**: PostgreSQL ENUM type issues
-- **Resolution**: Fixed in commit 650c736
+### RESOLVED: Production Deployment Partial (P2 → still P2 but improved)
+- **Previous Score**: 50% DevOps
+- **Current Score**: 72% DevOps — CI/CD complete, deployment partially configured
+- **Remaining**: Sentry, rate limiting, production env vars
+
+### RESOLVED: Multi-City Trip Rendering
+- **Previous**: Multi-city trips rendered as one-way
+- **Resolution**: ONEK-144 (segments[], system prompt, UI prop extractor, European airports)
+- **Date**: February 2026
+
+### RESOLVED: Duplicate Proposal/Email Cards
+- **Previous**: Proposal and email cards duplicated in chat
+- **Resolution**: ONEK-209 deduplication
+- **Date**: February 2026
+
+### RESOLVED: RFQ Price Display
+- **Previous**: Prices not refreshing
+- **Resolution**: ONEK-175 price update refresh
+- **Date**: February 2026
 
 ---
 
@@ -242,19 +237,19 @@
 
 ### Code Quality Debt
 
-1. **Archived Dashboard**: `app/_archived/dashboard/` should be deleted
-2. **Archived Admin**: `app/_archived/admin/` causes TypeScript errors
-3. **Some Stale Test Mocks**: Need updating for new API shapes
+1. **Archived Dashboard**: `app/_archived/` generates ~95 lint warnings — should be excluded from lint or deleted
+2. **Stale Test Mocks**: 7 test files with outdated assertions after Feb refactors
+3. **Test Suite Timeout**: Full test suite exceeds 120s timeout on pre-push hook (exit code 144)
 
 ### Architecture Debt
 
 1. **No HTTP+SSE Transport**: MCP servers only support stdio
 2. **No Caching Layer**: API responses not cached (Redis available but unused for caching)
-3. **No Request Deduplication**: Simultaneous requests not deduplicated
+3. **No Request Deduplication**: Simultaneous API requests not deduplicated
 
 ### Documentation Debt
 
-1. **API Examples**: Need request/response examples
+1. **API Examples**: Need request/response examples for 41 routes
 2. **Deployment Guide**: Needs finalization for production
 
 ---
@@ -262,16 +257,18 @@
 ## Recommended Resolution Order
 
 ### This Week (Priority)
-1. P0: Fix 14 TypeScript errors (1-2 hours)
-2. P1: Run and fix test suite (2-4 hours)
-3. P1: Test email approval workflow (1 day)
+1. P1: Fix 7 failing test files (2-4 hours)
+2. P2: Remove `.venv/` from git (15 minutes)
+3. P2: Configure Sentry monitoring (2-4 hours)
 
 ### Next Week
-4. P2: Finalize production deployment (1-2 days)
-5. P2: Add rate limiting (4-8 hours)
+4. P2: Add rate limiting middleware (4-6 hours)
+5. P2: Fix lint warnings in active components (1-2 hours)
+6. P2: Configure production environment (1 day)
 
 ### Future (Post-Launch)
-6. P2: Complete Google Sheets OAuth
-7. P2: API documentation
-8. P3: Performance optimization
-9. P3: Digital signatures
+7. P2: Complete Google Sheets OAuth
+8. P3: API documentation
+9. P3: Mobile responsiveness testing
+10. P3: Digital signatures
+
