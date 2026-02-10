@@ -10,6 +10,7 @@
 
 import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
+import { PDFDocument } from 'pdf-lib';
 import Decimal from 'decimal.js';
 import { ContractDocument } from './contract-template';
 import type {
@@ -282,10 +283,43 @@ export async function generateContract(
     quoteValidUntil,
   };
 
-  // Generate PDF
-  const pdfBuffer = await renderToBuffer(
+  // Generate contract PDF
+  let pdfBuffer = await renderToBuffer(
     React.createElement(ContractDocument, { data: contractData }) as React.ReactElement
   );
+
+  // If a proposal PDF is provided, merge it as the first pages
+  if (input.proposalPdfBuffer && input.proposalPdfBuffer.length > 0) {
+    try {
+      const mergedPdf = await PDFDocument.create();
+      const proposalDoc = await PDFDocument.load(input.proposalPdfBuffer);
+      const contractDoc = await PDFDocument.load(pdfBuffer);
+
+      // Copy proposal pages first
+      const proposalPages = await mergedPdf.copyPages(
+        proposalDoc,
+        proposalDoc.getPageIndices()
+      );
+      for (const page of proposalPages) {
+        mergedPdf.addPage(page);
+      }
+
+      // Then copy contract pages
+      const contractPages = await mergedPdf.copyPages(
+        contractDoc,
+        contractDoc.getPageIndices()
+      );
+      for (const page of contractPages) {
+        mergedPdf.addPage(page);
+      }
+
+      const mergedBytes = await mergedPdf.save();
+      pdfBuffer = Buffer.from(mergedBytes);
+    } catch (mergeError) {
+      // If merge fails, fall back to contract-only PDF
+      console.error('[ContractGenerator] Failed to merge proposal PDF, using contract only:', mergeError);
+    }
+  }
 
   // Convert to base64
   const pdfBase64 = pdfBuffer.toString('base64');

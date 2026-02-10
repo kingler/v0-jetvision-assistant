@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/responsive-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   Loader2,
@@ -34,6 +35,8 @@ import {
   CheckCircle,
   AlertCircle,
   ExternalLink,
+  ArrowLeft,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
@@ -88,7 +91,7 @@ export interface BookFlightModalProps {
   onContractSent?: (contractData: Required<ContractSentPayload>) => void;
 }
 
-type ModalState = 'ready' | 'generating' | 'preview' | 'sending' | 'success' | 'error';
+type ModalState = 'ready' | 'generating' | 'preview' | 'email_review' | 'sending' | 'success' | 'error';
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -220,6 +223,8 @@ export function BookFlightModal({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [contractId, setContractId] = useState<string | null>(null);
   const [contractNumber, setContractNumber] = useState<string | null>(null);
+  const [emailSubject, setEmailSubject] = useState<string>('');
+  const [emailBody, setEmailBody] = useState<string>('');
 
   // Calculate pricing
   const pricing = calculatePricing(flight, tripDetails.passengers);
@@ -275,6 +280,63 @@ export function BookFlightModal({
   }, [requestId, flight, customer, flightDetails, pricing, amenities]);
 
   /**
+   * Handle prepare email — builds default subject/body and shows review step
+   */
+  const handlePrepareEmail = useCallback(() => {
+    const dep = flight.departureAirport?.icao || tripDetails.departureAirport.icao;
+    const arr = flight.arrivalAirport?.icao || tripDetails.arrivalAirport.icao;
+
+    const defaultSubject = `Jetvision Flight Contract: ${dep} \u2192 ${arr}`;
+
+    const formattedPrice = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: pricing.currency,
+      maximumFractionDigits: 0,
+    }).format(pricing.totalAmount);
+
+    const formattedDate = new Date(
+      flight.departureDate || tripDetails.departureDate
+    ).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const defaultBody = `Dear ${customer.name},
+
+Thank you for choosing Jetvision for your private charter flight.
+
+Please find attached your Flight Charter Service Agreement for your upcoming trip:
+
+Flight Details:
+\u2022 Route: ${dep} \u2192 ${arr}
+\u2022 Date: ${formattedDate}
+\u2022 Aircraft: ${flight.aircraftType}
+\u2022 Total: ${formattedPrice}
+
+The attached PDF contains your complete contract including:
+\u2022 Flight summary and pricing breakdown
+\u2022 Terms and conditions
+\u2022 Signature page
+\u2022 Credit card authorization form (if paying by card)
+
+Please review the contract carefully. To proceed with booking:
+1. Sign the agreement on the signature page
+2. Complete the payment information
+3. Return the signed contract via email
+
+If you have any questions or need any modifications, please reply to this email or contact our team directly.
+
+Best regards,
+The Jetvision Team`;
+
+    setEmailSubject(defaultSubject);
+    setEmailBody(defaultBody);
+    setState('email_review');
+  }, [flight, tripDetails, customer.name, pricing]);
+
+  /**
    * Handle send contract
    */
   const handleSendContract = useCallback(async () => {
@@ -294,6 +356,8 @@ export function BookFlightModal({
           flightDetails,
           pricing,
           amenities,
+          emailSubject: emailSubject || undefined,
+          emailMessage: emailBody || undefined,
         }),
       });
 
@@ -312,15 +376,9 @@ export function BookFlightModal({
       setContractNumber(data.contractNumber);
       if (data.pdfUrl) {
         setPdfUrl(data.pdfUrl);
-        // Auto-open PDF in new tab
         window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
       }
       setState('success');
-
-      // Auto-open PDF in a new browser tab
-      if (data.pdfUrl) {
-        window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
-      }
 
       // Pass full contract data to parent for rich chat card rendering
       if (onContractSent && data.dbContractId) {
@@ -343,7 +401,7 @@ export function BookFlightModal({
       setError(err instanceof Error ? err.message : 'Failed to send contract');
       setState('error');
     }
-  }, [requestId, flight, tripDetails.tripId, customer, flightDetails, pricing, amenities, onContractSent]);
+  }, [requestId, flight, tripDetails, customer, flightDetails, pricing, amenities, emailSubject, emailBody, onContractSent]);
 
   /**
    * Handle close and reset
@@ -360,6 +418,8 @@ export function BookFlightModal({
     setPdfUrl(null);
     setContractId(null);
     setContractNumber(null);
+    setEmailSubject('');
+    setEmailBody('');
 
     onClose();
   }, [pdfUrl, onClose]);
@@ -512,6 +572,52 @@ export function BookFlightModal({
             </div>
           </div>
 
+          {/* Email Review State */}
+          {state === 'email_review' && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 md:p-4">
+                <h4 className="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-300 mb-3">
+                  Review Email Before Sending
+                </h4>
+
+                {/* Recipient (read-only) */}
+                <div className="mb-3">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">To</Label>
+                  <p className="text-sm text-gray-900 dark:text-gray-100 mt-0.5">
+                    {customer.name} &lt;{customer.email}&gt;
+                  </p>
+                </div>
+
+                {/* Subject */}
+                <div className="mb-3">
+                  <Label htmlFor="email-subject" className="text-xs text-gray-600 dark:text-gray-400">
+                    Subject
+                  </Label>
+                  <Input
+                    id="email-subject"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                {/* Body */}
+                <div>
+                  <Label htmlFor="email-body" className="text-xs text-gray-600 dark:text-gray-400">
+                    Message
+                  </Label>
+                  <Textarea
+                    id="email-body"
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
+                    rows={10}
+                    className="mt-1 text-xs md:text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Success State */}
           {state === 'success' && (
             <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4">
@@ -573,7 +679,7 @@ export function BookFlightModal({
                 Preview
               </Button>
               <Button
-                onClick={handleSendContract}
+                onClick={handlePrepareEmail}
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
                 className="min-h-[44px] md:min-h-0"
@@ -601,12 +707,25 @@ export function BookFlightModal({
                 Open PDF
               </Button>
               <Button
-                onClick={handleSendContract}
+                onClick={handlePrepareEmail}
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
               >
                 <Mail className="mr-2 h-4 w-4" />
                 Send Contract
+              </Button>
+            </>
+          )}
+
+          {state === 'email_review' && (
+            <>
+              <Button variant="outline" onClick={() => setState('ready')} className="min-h-[44px] md:min-h-0">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+              <Button onClick={handleSendContract} className="min-h-[44px] md:min-h-0">
+                <Send className="mr-2 h-4 w-4" />
+                Approve &amp; Send
               </Button>
             </>
           )}

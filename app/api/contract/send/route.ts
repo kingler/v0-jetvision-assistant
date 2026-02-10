@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateContract } from '@/lib/pdf';
 import { sendContractEmail } from '@/lib/services/email-service';
-import { uploadContractPdf } from '@/lib/supabase/admin';
+import { uploadContractPdf, downloadProposalPdf } from '@/lib/supabase/admin';
 import {
   getAuthenticatedAgent,
   isErrorResponse,
@@ -33,6 +33,7 @@ import {
   updateContractSent,
   updateContractStatus,
 } from '@/lib/services/contract-service';
+import { getProposalsByRequest } from '@/lib/services/proposal-service';
 import { saveMessage } from '@/lib/conversation/message-persistence';
 import type {
   ContractCustomer,
@@ -213,6 +214,22 @@ export async function POST(
       );
     }
 
+    // Fetch proposal PDF to include as first pages (if available)
+    let proposalPdfBuffer: Buffer | undefined;
+    try {
+      const proposals = await getProposalsByRequest(body.requestId);
+      const latestProposal = proposals.find((p) => p.file_path);
+      if (latestProposal?.file_path) {
+        const buffer = await downloadProposalPdf(latestProposal.file_path);
+        if (buffer) {
+          proposalPdfBuffer = buffer;
+          console.log('[SendContract] Found proposal PDF to prepend:', latestProposal.proposal_number);
+        }
+      }
+    } catch (proposalErr) {
+      console.warn('[SendContract] Could not fetch proposal PDF:', proposalErr);
+    }
+
     // Generate PDF contract
     let contractResult;
     try {
@@ -227,6 +244,7 @@ export async function POST(
         pricing: body.pricing,
         amenities: body.amenities,
         paymentMethod: body.paymentMethod,
+        proposalPdfBuffer,
       });
     } catch (error) {
       console.error('Error generating contract PDF:', error);

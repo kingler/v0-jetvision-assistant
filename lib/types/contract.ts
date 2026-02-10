@@ -356,6 +356,8 @@ export interface GenerateContractInput {
   paymentMethod?: 'wire' | 'credit_card';
   /** Save as draft in database */
   saveDraft?: boolean;
+  /** Proposal PDF buffer to prepend as first pages of the contract */
+  proposalPdfBuffer?: Buffer;
 }
 
 /**

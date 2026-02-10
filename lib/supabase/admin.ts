@@ -728,6 +728,33 @@ export async function deleteProposalPdf(
   }
 }
 
+/**
+ * Download a proposal PDF from Supabase storage as a Buffer
+ *
+ * @param filePath - The storage path of the file to download
+ * @returns Buffer of the PDF or null if not found/error
+ */
+export async function downloadProposalPdf(
+  filePath: string
+): Promise<Buffer | null> {
+  try {
+    const { data, error } = await supabaseAdmin.storage
+      .from(PROPOSALS_BUCKET)
+      .download(filePath);
+
+    if (error || !data) {
+      console.warn('[Storage] Could not download proposal PDF:', error?.message);
+      return null;
+    }
+
+    const arrayBuffer = await data.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.warn('[Storage] Unexpected error downloading proposal PDF:', error);
+    return null;
+  }
+}
+
 // ============================================================================
 // CONTRACT STORAGE HELPERS
 // ============================================================================

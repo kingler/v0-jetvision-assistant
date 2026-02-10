@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateContract } from '@/lib/pdf';
+import { downloadProposalPdf } from '@/lib/supabase/admin';
 import {
   getAuthenticatedAgent,
   isErrorNextResponse,
@@ -25,6 +26,7 @@ import {
 import {
   createContractWithResolution,
 } from '@/lib/services/contract-service';
+import { getProposalsByRequest } from '@/lib/services/proposal-service';
 import type {
   ContractCustomer,
   ContractFlightDetails,
@@ -179,6 +181,22 @@ export async function POST(
       );
     }
 
+    // Fetch proposal PDF to include as first pages (if available)
+    let proposalPdfBuffer: Buffer | undefined;
+    try {
+      const proposals = await getProposalsByRequest(body.requestId);
+      const latestProposal = proposals.find((p) => p.file_path);
+      if (latestProposal?.file_path) {
+        const buffer = await downloadProposalPdf(latestProposal.file_path);
+        if (buffer) {
+          proposalPdfBuffer = buffer;
+          console.log('[GenerateContract] Found proposal PDF to prepend:', latestProposal.proposal_number);
+        }
+      }
+    } catch (proposalErr) {
+      console.warn('[GenerateContract] Could not fetch proposal PDF:', proposalErr);
+    }
+
     // Generate PDF contract
     const result = await generateContract({
       requestId: body.requestId,
@@ -192,6 +210,7 @@ export async function POST(
       amenities: body.amenities,
       paymentMethod: body.paymentMethod,
       saveDraft: body.saveDraft,
+      proposalPdfBuffer,
     });
 
     // Prepare response
