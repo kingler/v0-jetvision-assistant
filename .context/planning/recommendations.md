@@ -1,8 +1,8 @@
 # Strategic Recommendations & Next Steps
 
 **Project**: Jetvision AI Assistant
-**Analysis Date**: 2025-01-31
-**Status**: 86% Complete → Production in 1-2 weeks
+**Analysis Date**: 2026-02-09
+**Status**: 92% Complete — Production-ready
 
 ---
 
@@ -10,75 +10,83 @@
 
 ### Immediate Focus (This Week)
 
-**Priority 1: Fix TypeScript Errors** (P0 - 1-2 hours)
-- **Action**: Add missing exports to `lib/types/database/index.ts`
-- **Missing Types**: `UserRole`, `User`, `ClientProfile`, `Request`, `Quote`, `RequestStatus`
-- **Rationale**: Required for clean CI/CD and code quality
-- **Success Metrics**: `npx tsc --noEmit` returns 0 errors
+**Priority 1: Production Deployment** (P0 - 1-2 days)
+- **Action**: Configure production environment on Vercel
+- **Action**: Set production environment variables
+- **Action**: Verify API keys and service connections
+- **Rationale**: System is functionally complete, deployment is the bottleneck
+- **Success Metrics**: App accessible at production URL
 
-**Priority 2: Verify Test Suite** (P1 - 2-4 hours)
-- **Action**: Run `npm test` and fix any failures
-- **Action**: Update stale mocks for new API shapes
-- **Rationale**: Ensures reliability before production
-- **Success Metrics**: All tests passing, coverage ≥75%
+**Priority 2: Error Monitoring** (P0 - 2-4 hours)
+- **Action**: Configure Sentry with DSN
+- **Action**: Enable source maps, performance monitoring, user context
+- **Rationale**: Detect production issues early
+- **Success Metrics**: Errors captured and alerting active
 
-**Priority 3: Test Email Approval Workflow** (P1 - 1 day)
-- **Action**: End-to-end test human-in-the-loop email workflow
-- **Action**: Test edit, cancel, and retry scenarios
-- **Rationale**: Key UX feature for proposal sending
-- **Success Metrics**: Full approval flow working
+**Priority 3: Security Audit** (P1 - 1 day)
+- **Action**: Run Semgrep scan (MCP server already configured)
+- **Action**: Review API key handling, CORS, and input validation
+- **Rationale**: Pre-launch security verification
+- **Success Metrics**: No critical or high-severity findings
 
 ---
 
 ## Short-term Priorities (Next Week)
 
-### 1. Production Deployment Setup
-- Finalize Vercel configuration
-- Set up production environment variables
-- Configure Sentry for error monitoring
-- Test deployment pipeline
-- **Effort**: 1-2 days
+### 1. Rate Limiting
+- Redis-based limiter using existing infrastructure
+- API routes: 100 req/min per user
+- OpenAI calls: 10 req/min
+- Expensive operations: 5 req/min
+- **Effort**: 4-6 hours
 
-### 2. Performance & Security
-- Add rate limiting middleware (Redis-based)
-- Configure CORS properly
-- Test under load
-- **Effort**: 1 day
+### 2. Git Cleanup
+- Remove `.venv/` from git tracking
+- Suppress or remove `app/_archived/` lint warnings
+- **Effort**: 30 minutes
 
-### 3. Documentation
-- Update README with current architecture
-- Finalize deployment guide
-- Add API examples
+### 3. Load Testing
+- Test concurrent user scenarios
+- Verify SSE streaming under load
+- Benchmark Avinode API response times
 - **Effort**: 1 day
 
 ---
 
 ## Architecture Assessment
 
-### 1. JetvisionAgent Architecture (Complete)
-The single-agent architecture is working well:
-- OpenAI function calling with forced tool patterns
-- MCP server integration via tool executor
-- System prompt with UI awareness
-- Comprehensive type definitions
+### 1. JetvisionAgent Architecture (Production-Ready)
+The single-agent architecture with MCP tool routing is working well:
+- Multi-city, round-trip, and one-way trips all functional
+- Working memory eliminates cross-turn context loss
+- System prompt guides LLM to use correct parameters
+- MCP UI Tool Registry provides clean extensibility
 
-**Status**: No changes recommended - architecture is solid.
+**Status**: No changes recommended.
 
-### 2. Email Approval Pattern (Working)
-The human-in-the-loop pattern is well-designed:
+### 2. MCP UI Tool Registry (Excellent)
+The declarative tool → component mapping (ONEK-206) is a strong pattern:
+- 11 tools registered with prop extractors
+- Adding new tools requires only registry entry, not pipeline changes
+- Fallback chains (result → input) handle API response variations
+
+**Status**: Extend pattern to future tools.
+
+### 3. Email Approval Pattern (Production-Ready)
+Human-in-the-loop workflow with margin slider:
 ```
-Agent generates email → EmailPreviewCard displays → User reviews/edits → User approves → Email sent
+Agent generates email → EmailPreviewCard → User adjusts margin → User approves → Email sent
 ```
 
-**Recommendation**: Add retry logic for failed sends.
+**Status**: Working correctly. Consider retry logic for failed sends.
 
-### 3. Message Persistence (Fixed)
-Recent fix improved reliability:
+### 4. Multi-City Trip Support (Complete)
+Full stack from prompt to rendering:
 ```
-Load messages directly per session via /api/chat-sessions/messages
+System prompt detection → segments[] param → Avinode API → trip_type response → UI badge + legs
 ```
 
-**Status**: Working correctly after commit 885db74.
+**Status**: All 4 E2E tests passing. No changes needed.
 
 ---
 
@@ -86,41 +94,42 @@ Load messages directly per session via /api/chat-sessions/messages
 
 ### 1. Rate Limiting (Priority for Production)
 **Why**: Prevent abuse, control API costs
-**How**: Redis-based limiter using existing Redis infrastructure
-**Suggested Limits**:
-- API routes: 100 req/min per user
-- OpenAI calls: 10 req/min
-- Expensive operations: 5 req/min
+**How**: Redis-based limiter using existing BullMQ infrastructure
+**Effort**: 4-6 hours
 
 ### 2. Error Monitoring (Sentry)
 **Why**: Detect production issues early
 **How**: Configure Sentry with DSN
-**Include**:
-- Error tracking with source maps
-- Performance monitoring
-- User context for debugging
+**Effort**: 2-4 hours
 
-### 3. API Documentation (Lower Priority)
-**Tool**: Generate OpenAPI from Zod schemas (zod-to-openapi)
-**Include**:
-- Request/response examples
-- Authentication requirements
-- Rate limit information
+### 3. Google Sheets OAuth (Post-Launch)
+**Why**: Enable CRM sync for client profiles
+**How**: Complete OAuth 2.0 flow in Google Sheets MCP server
+**Effort**: 1-2 days
+
+### 4. Empty Leg Subscriptions (Phase 2)
+**Why**: ONEK-144 Phase 2 — automated empty leg monitoring
+**How**: Create watches with route/date/price criteria, webhook notifications
+**Effort**: 1-2 weeks
 
 ---
 
 ## Process Recommendations
 
-### 1. Quality Gates Before Production
-- [ ] All TypeScript errors fixed (0 errors)
-- [ ] Test suite passing (coverage ≥75%)
-- [ ] Linting clean
-- [ ] Security review complete
-- [ ] Email workflow tested end-to-end
+### 1. Quality Gates (All Met)
+- [x] All TypeScript errors fixed (0 errors)
+- [x] Test suite passing (295+ pass in pre-commit)
+- [x] Linting clean (warnings only in archived files)
+- [x] Linear board clear (0 open issues)
+- [x] E2E workflow tested (multi-city, round-trip, one-way)
+- [x] Email workflow tested end-to-end
+- [ ] Security review (Semgrep — ready to run)
+- [ ] Production env configured
 
 ### 2. Launch Checklist
 - [ ] Environment variables configured
 - [ ] Error monitoring active (Sentry)
+- [ ] Rate limiting enabled
 - [ ] Backup procedures documented
 - [ ] Rollback plan ready
 - [ ] Support documentation updated
@@ -135,109 +144,63 @@ Load messages directly per session via /api/chat-sessions/messages
 
 ## Risk Mitigation
 
-### Risk 1: TypeScript Errors
-**Status**: 14 errors identified
-**Mitigation**: Fix missing exports (1-2 hours)
-**Risk Level**: Low - straightforward fix
+### Risk 1: Performance at Scale
+**Status**: Not load tested
+**Mitigation**: Run load tests before high-traffic use
+**Risk Level**: Medium (functional testing complete, load testing needed)
 
 ### Risk 2: Email Deliverability
-**Status**: Gmail MCP working
-**Mitigation**: Test with real email accounts, monitor bounce rates
+**Status**: Gmail MCP production-ready
+**Mitigation**: Monitor bounce rates, test with real accounts
 **Risk Level**: Low
 
-### Risk 3: Performance at Scale
-**Status**: Not load tested
-**Mitigation**: Run load tests before production
-**Risk Level**: Medium
+### Risk 3: Avinode API Changes
+**Status**: Sandbox API key resets weekly (Monday)
+**Mitigation**: `/avinode-sandbox-reset` skill handles key rotation
+**Risk Level**: Low
 
 ---
 
-## Resource Allocation
+## Timeline
 
-### This Week (Launch Prep)
-- 1 Developer: TypeScript and test fixes (1 day)
-- 1 Developer: Email workflow testing (1 day)
-- 1 Developer: Production deployment setup (1-2 days)
+### Week 1 (Current): Production Launch
+- [ ] Deploy to production
+- [ ] Configure Sentry
+- [ ] Add rate limiting
+- [ ] Security audit
 
-### Next Week (Launch)
-- 1 Developer: Performance testing
-- 1 Developer: Documentation
-- 1 DevOps: Monitoring setup
-
----
-
-## Success Metrics
-
-### Development Velocity
-- **Sprint velocity**: On track
-- **Bug fix time**: < 1 day for critical
-
-### Code Quality
-- **TypeScript errors**: 0 (target)
-- **Test coverage**: 75%+ (target)
-- **Lint errors**: 0
-
-### User Experience
-- **Response time**: < 500ms p95
-- **Error rate**: < 1%
-- **Workflow completion**: > 90%
-
----
-
-## Timeline to Production
-
-### Week 1 (Current): Stabilization
-- [ ] Fix TypeScript errors (1-2 hours)
-- [ ] Fix test failures (2-4 hours)
-- [ ] Test email approval flow (1 day)
-- [ ] Production env setup (1-2 days)
-
-### Week 2: Launch
-- [ ] Monitoring setup (Sentry)
-- [ ] Final E2E testing
+### Week 2: Stabilization
+- [ ] Monitor production metrics
+- [ ] Fix any production issues
+- [ ] Load testing
 - [ ] Documentation finalization
-- [ ] Go live
 
-**Total: 1-2 weeks to production**
+### Month 2: v1.1
+- [ ] Google Sheets OAuth
+- [ ] Mobile responsive improvements
+- [ ] Performance optimization
+- [ ] Empty leg subscriptions (ONEK-144 Phase 2)
 
----
-
-## Long-Term Roadmap (Post-Launch)
-
-### V1.1 (Month 1)
-- Google Sheets OAuth completion
-- Mobile responsive improvements
-- Performance optimization
-- Rate limiting
-
-### V1.2 (Month 2)
-- Contract digital signatures
-- Enhanced analytics dashboard
-- API documentation
-
-### V2.0 (Quarter 2)
-- Multiple agent types
-- Advanced AI features
-- Multi-language support
+### Month 3: v1.2
+- [ ] Digital contract signatures
+- [ ] Enhanced analytics dashboard
+- [ ] API documentation (OpenAPI from Zod)
 
 ---
 
 ## Conclusion
 
-The Jetvision system is **86% complete** with core functionality working. The focus now should be on:
+The Jetvision system is **92% complete** and **production-ready**. All core workflows are functional and tested. The Linear board is clear with 0 open issues. TypeScript compiles cleanly with 0 errors.
 
-1. **Fix TypeScript errors** (1-2 hours) - straightforward type export fix
-2. **Verify tests** (2-4 hours) - ensure CI/CD reliability
-3. **Test email workflow** (1 day) - critical user feature
-4. **Production setup** (1-2 days) - launch preparation
+**Immediate action**: Deploy to production with Sentry monitoring.
 
 **Key Success Factors**:
-- Clean up the 14 TypeScript errors immediately
-- Thorough end-to-end testing of email workflow
-- Proper monitoring in place (Sentry)
+- Production environment configuration (1-2 days)
+- Sentry setup (2-4 hours)
+- Rate limiting (4-6 hours)
 
-**Confidence Level**: **HIGH** - Core architecture proven, TypeScript fix is straightforward, edge cases being refined.
+**Confidence Level**: **VERY HIGH** — All core architecture proven, workflows tested, no blocking issues.
 
 ---
 
-**Next Review Date**: 2025-02-07 (post-launch review)
+**Next Review Date**: Post-launch review (1 week after deployment)
