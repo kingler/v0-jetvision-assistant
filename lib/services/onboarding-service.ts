@@ -363,6 +363,8 @@ export async function signContract(
 
   if (contractError) {
     console.error('[OnboardingService] Failed to update contract:', contractError);
+    // Rollback: un-mark token so user can retry
+    await db.from('contract_tokens').update({ used_at: null }).eq('token', token);
     return { success: false, error: 'Failed to save signature' };
   }
 
@@ -374,6 +376,10 @@ export async function signContract(
 
   if (!statusUpdated) {
     console.error('[OnboardingService] Failed to update agent status to completed');
+    // Rollback: revert contract and token so user can retry
+    await db.from('onboarding_contracts').update({ status: 'pending', signed_at: null, signed_name: null, signed_ip_address: null, signature_data: null, updated_at: now }).eq('id', validation.contractId!);
+    await db.from('contract_tokens').update({ used_at: null }).eq('token', token);
+    return { success: false, error: 'Failed to complete onboarding. Please try again.' };
   }
 
   return { success: true };

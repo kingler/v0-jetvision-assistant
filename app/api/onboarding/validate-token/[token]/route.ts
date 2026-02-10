@@ -37,19 +37,20 @@ export async function GET(
       return ErrorResponses.badRequest('Token is required');
     }
 
-    // Get the authenticated user's email for email-binding check
+    // Require authentication — defense-in-depth alongside middleware
     const { userId } = await auth();
-    let authenticatedEmail: string | undefined;
-
-    if (userId) {
-      const { data: agent } = await db
-        .from('iso_agents')
-        .select('email')
-        .eq('clerk_user_id', userId)
-        .single();
-
-      authenticatedEmail = agent?.email;
+    if (!userId) {
+      return ErrorResponses.unauthorized('Authentication required');
     }
+
+    // Get the authenticated user's email for email-binding check
+    const { data: agent } = await db
+      .from('iso_agents')
+      .select('email')
+      .eq('clerk_user_id', userId)
+      .single();
+
+    const authenticatedEmail = agent?.email;
 
     const result = await validateContractToken(token, authenticatedEmail);
 

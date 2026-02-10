@@ -190,7 +190,13 @@ export default function ContractReviewPage() {
                 Please sign in with the email address associated with this contract.
               </p>
             )}
+            {!errorCode && (
+              <Button onClick={() => { setErrorMessage(''); setPhase('review'); }}>
+                Retry Signature
+              </Button>
+            )}
             <Button
+              variant={!errorCode ? 'outline' : 'default'}
               onClick={() => router.replace(errorCode === 'USED' ? '/chat' : '/onboarding')}
             >
               {errorCode === 'USED' ? 'Go to Dashboard' : 'Back to Onboarding'}
