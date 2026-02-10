@@ -6,7 +6,7 @@
       "args": [
         "-y",
         "tsx",
-        "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/supabase-mcp-server/src/index.ts"
+        "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/mcp-servers/supabase-mcp-server/src/index.ts"
       ],
       "env": {
         "NEXT_PUBLIC_SUPABASE_URL": "https://sbzaevawnjlrsjsuevli.supabase.co",
@@ -19,7 +19,7 @@
       "args": [
         "-y",
         "tsx",
-        "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/google-sheets-mcp-server/src/index.ts"
+        "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/mcp-servers/google-sheets-mcp-server/src/index.ts"
       ],
       "env": {}
     },
@@ -29,7 +29,7 @@
       "args": [
         "-y",
         "tsx",
-        "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/avinode-mcp-server/src/index.ts"
+        "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/mcp-servers/avinode-mcp-server/src/index.ts"
       ],
       "env": {}
     },
@@ -39,7 +39,7 @@
       "args": [
         "-y",
         "tsx",
-        "/Volumes/SeagatePortableDrive/Projects/v0-jetvision-assistant/mcp-servers/gmail-mcp-server/src/index.ts"
+        "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/mcp-servers/gmail-mcp-server/src/index.ts"
       ],
       "env": {}
     },
