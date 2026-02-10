@@ -18,15 +18,15 @@ vi.mock('next/headers', () => ({
   headers: vi.fn(),
 }));
 
-// Mock Supabase
-vi.mock('@/lib/supabase/client', () => ({
-  supabase: {
+// Mock Supabase Admin (route uses supabaseAdmin exclusively)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
     from: vi.fn(),
   },
 }));
 
 import { headers } from 'next/headers';
-import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 describe('POST /api/webhooks/clerk', () => {
   beforeEach(() => {
@@ -134,7 +134,7 @@ describe('POST /api/webhooks/clerk', () => {
           }),
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',
@@ -187,7 +187,7 @@ describe('POST /api/webhooks/clerk', () => {
           };
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',
@@ -238,7 +238,7 @@ describe('POST /api/webhooks/clerk', () => {
           };
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',
@@ -321,7 +321,7 @@ describe('POST /api/webhooks/clerk', () => {
           }),
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',
@@ -377,7 +377,7 @@ describe('POST /api/webhooks/clerk', () => {
           }),
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',
@@ -431,7 +431,7 @@ describe('POST /api/webhooks/clerk', () => {
           };
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',
@@ -480,7 +480,7 @@ describe('POST /api/webhooks/clerk', () => {
           }),
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',
@@ -532,7 +532,7 @@ describe('POST /api/webhooks/clerk', () => {
           };
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',
@@ -579,7 +579,7 @@ describe('POST /api/webhooks/clerk', () => {
           }),
         }),
       });
-      vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+      vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
       const request = new Request('http://localhost:3000/api/webhooks/clerk', {
         method: 'POST',

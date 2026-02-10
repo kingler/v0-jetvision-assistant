@@ -20,8 +20,16 @@ vi.mock('@/lib/supabase/client', () => ({
   },
 }));
 
+// Mock Supabase Admin (used for iso_agents user lookup)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
+  },
+}));
+
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 describe('GET /api/agents', () => {
   beforeEach(() => {
@@ -107,6 +115,7 @@ describe('GET /api/agents', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/agents');
@@ -166,6 +175,7 @@ describe('GET /api/agents', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/agents?agent_type=orchestrator');
@@ -229,6 +239,7 @@ describe('GET /api/agents', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/agents?request_id=req-specific');
@@ -287,6 +298,7 @@ describe('GET /api/agents', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/agents?status=failed');
@@ -339,6 +351,7 @@ describe('GET /api/agents', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/agents?limit=2');
@@ -384,6 +397,7 @@ describe('GET /api/agents', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/agents');
@@ -429,6 +443,7 @@ describe('GET /api/agents', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/agents');

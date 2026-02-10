@@ -358,31 +358,24 @@ describe('ConversationStarterHub', () => {
 
 describe('DEFAULT_STARTERS', () => {
   it('contains expected starters', () => {
-    expect(DEFAULT_STARTERS.length).toBe(5)
+    expect(DEFAULT_STARTERS.length).toBe(2)
 
     const ids = DEFAULT_STARTERS.map((s) => s.id)
     expect(ids).toContain('new-flight-request')
     expect(ids).toContain('active-requests')
-    expect(ids).toContain('show-deals')
-    expect(ids).toContain('hot-opportunities')
-    expect(ids).toContain('pipeline-summary')
   })
 
   it('has correct categories', () => {
     const flightStarters = DEFAULT_STARTERS.filter((s) => s.category === 'flight')
-    const dealStarters = DEFAULT_STARTERS.filter((s) => s.category === 'deals')
-    const pipelineStarters = DEFAULT_STARTERS.filter((s) => s.category === 'pipeline')
 
     expect(flightStarters.length).toBe(2)
-    expect(dealStarters.length).toBe(2)
-    expect(pipelineStarters.length).toBe(1)
   })
 })
 
 describe('getDefaultStarters', () => {
   it('returns all starters by default', () => {
     const starters = getDefaultStarters()
-    expect(starters.length).toBe(5)
+    expect(starters.length).toBe(2)
   })
 
   it('filters by categories', () => {
@@ -395,14 +388,14 @@ describe('getDefaultStarters', () => {
   it('filters by multiple categories', () => {
     const starters = getDefaultStarters({ categories: ['flight', 'deals'] })
 
-    expect(starters.length).toBe(4)
+    expect(starters.length).toBe(2)
     expect(starters.every((s) => ['flight', 'deals'].includes(s.category))).toBe(true)
   })
 
   it('excludes starters by id', () => {
     const starters = getDefaultStarters({ excludeIds: ['new-flight-request', 'show-deals'] })
 
-    expect(starters.length).toBe(3)
+    expect(starters.length).toBe(1)
     expect(starters.find((s) => s.id === 'new-flight-request')).toBeUndefined()
     expect(starters.find((s) => s.id === 'show-deals')).toBeUndefined()
   })
