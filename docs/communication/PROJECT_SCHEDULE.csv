@@ -29,7 +29,7 @@ Task ID,Task Name,Linear Issue,Linear URL,Start Date,End Date,Duration (Days),Ph
 6.7,Conversational Clarification Flow,ONEK-85,https://linear.app/designthru-ai/issue/ONEK-85,2025-11-09,2025-11-09,1,Advanced Development,Backend Team,No,6.6,Done,100%,Progressive data extraction
 6.8,RFP Orchestrator Integration,ONEK-86,https://linear.app/designthru-ai/issue/ONEK-86,2025-11-10,2025-11-14,4,Advanced Development,Backend Team,No,6.7,Done,100%,Full workflow integration
 6.9,Avinode 3-Party Chat System,ONEK-116,https://linear.app/designthru-ai/issue/ONEK-116,2025-12-08,2025-12-13,5,Advanced Development,Full Stack Team,No,6.8,Done,100%,Database foundation for operator messaging
-6.10,Multi-City Trips & Empty Legs,ONEK-144,https://linear.app/designthru-ai/issue/ONEK-144,2026-01-01,2026-02-08,38,Advanced Development,Backend Team,No,6.9,Done,100%,"Multi-segment trips, round-trip support, empty leg subscriptions"
+6.10,Multi-City Trips & Empty Legs,ONEK-144,https://linear.app/designthru-ai/issue/ONEK-144,2026-01-01,2026-02-09,39,Advanced Development,Backend Team,No,6.9,Done,100%,"Multi-segment trips, round-trip support, empty leg subscriptions"
 6.11,Round-Trip Proposals,ONEK-174,https://linear.app/designthru-ai/issue/ONEK-174,2026-02-01,2026-02-07,6,Advanced Development,Full Stack Team,No,6.10,Done,100%,"Both outbound + return legs in proposals, PDF generation"
 6.12,Configurable Service Charge,ONEK-177,https://linear.app/designthru-ai/issue/ONEK-177,2026-02-03,2026-02-08,5,Advanced Development,Full Stack Team,No,6.11,Done,100%,"Service charge %, margin presets, hidden from client PDF"
 6.13,Email Preview Before Send,ONEK-178,https://linear.app/designthru-ai/issue/ONEK-178,2026-02-04,2026-02-07,3,Advanced Development,Frontend Team,No,6.12,Done,100%,Preview proposal + email with margin slider before sending
@@ -47,17 +47,17 @@ Task ID,Task Name,Linear Issue,Linear URL,Start Date,End Date,Duration (Days),Ph
 8.7,Production Environment Setup,ONEK-14,https://linear.app/designthru-ai/issue/ONEK-14,2025-12-20,2026-02-06,48,Deployment,DevOps Team,No,8.6,Done,100%,Production environment configuration
 8.8,Sentry Integration & Monitoring,ONEK-17,https://linear.app/designthru-ai/issue/ONEK-17,2025-12-20,2026-01-10,21,Deployment,DevOps Team,No,8.7,Done,100%,Error tracking and monitoring dashboards
 9,PHASE 4 MILESTONE: UNIFIED CHAT INTERFACE COMPLETE,,,2026-02-08,2026-02-08,1,Frontend Development,Project Manager,Yes,8.5,Done,100%,Single chat interface operational with full proposal workflow
-10,PHASE 5: QUALITY ASSURANCE & OPTIMIZATION,,,2025-11-17,2026-02-08,83,Testing & QA,QA Team,Yes,9,In Progress,85%,Production-ready quality
+10,PHASE 5: QUALITY ASSURANCE & OPTIMIZATION,,,2025-11-17,2026-02-09,84,Testing & QA,QA Team,Yes,9,In Progress,90%,Production-ready quality
 10.1,Mobile Responsiveness,ONEK-104,https://linear.app/designthru-ai/issue/ONEK-104,2025-11-20,2026-02-08,80,Testing & QA,Frontend Team,No,9,Done,100%,"ResponsiveModal migrations, tablet sidebar overlay, typography"
 10.2,Accessibility Implementation,ONEK-8,https://linear.app/designthru-ai/issue/ONEK-8,2025-11-22,2025-12-26,34,Testing & QA,QA Team,No,10.1,Done,100%,ARIA labels and keyboard navigation
 10.3,Performance Optimization,ONEK-204,https://linear.app/designthru-ai/issue/ONEK-204,2026-02-07,2026-02-08,1,Testing & QA,Backend Team,No,10.2,Done,100%,"Lazy-load session messages, React.memo for flight cards"
-10.4,Unit Test Stabilization,ONEK-189,https://linear.app/designthru-ai/issue/ONEK-189,2026-02-04,2026-02-06,2,Testing & QA,QA Team,No,10.3,Done,100%,Fixed 7 failing unit test files with stale Supabase mocks
+10.4,Unit Test Stabilization,ONEK-189,https://linear.app/designthru-ai/issue/ONEK-189,2026-02-04,2026-02-09,5,Testing & QA,QA Team,No,10.3,Done,100%,"Fixed 7 failing unit test files (40 tests) — supabaseAdmin mocks, starters, date regex"
 10.5,CI/CD Pipeline,ONEK-16,https://linear.app/designthru-ai/issue/ONEK-16,2025-12-22,2025-12-26,4,Testing & QA,DevOps Team,No,10.4,Done,100%,GitHub Actions workflows + memory-limited test runs
-10.6,E2E Chat Testing,ONEK-103,https://linear.app/designthru-ai/issue/ONEK-103,2026-02-01,2026-02-08,7,Testing & QA,QA Team,No,10.5,In Progress,70%,Comprehensive E2E tests for chat workflows
-10.7,Test Coverage to 75%,ONEK-90,https://linear.app/designthru-ai/issue/ONEK-90,2025-11-28,2026-02-08,72,Testing & QA,QA Team,No,10.6,In Progress,65%,"Target 75% coverage, currently improving"
+10.6,E2E Chat Testing,ONEK-103,https://linear.app/designthru-ai/issue/ONEK-103,2026-02-01,2026-02-09,8,Testing & QA,QA Team,No,10.5,In Progress,80%,"Comprehensive E2E tests for chat workflows, ONEK-144 all 4 tests PASS"
+10.7,Test Coverage to 75%,ONEK-90,https://linear.app/designthru-ai/issue/ONEK-90,2025-11-28,2026-02-09,73,Testing & QA,QA Team,No,10.6,In Progress,70%,"1,960 unit tests passing, 0 failures, coverage improving"
 10.8,Performance Optimization Bundle,ONEK-91,https://linear.app/designthru-ai/issue/ONEK-91,2026-02-10,2026-02-14,5,Testing & QA,DevOps Team,No,10.7,Backlog,0%,Next.js build and bundle size optimization
 10.9,Documentation Update,ONEK-114,https://linear.app/designthru-ai/issue/ONEK-114,2026-02-14,2026-02-17,3,Testing & QA,Documentation Team,No,10.8,Backlog,0%,Update all docs for unified chat
-11,PHASE 5 MILESTONE: PRODUCTION-READY QUALITY,,,2026-02-17,2026-02-17,1,Testing & QA,Project Manager,Yes,10.9,In Progress,85%,Performance optimized + Security validated
+11,PHASE 5 MILESTONE: PRODUCTION-READY QUALITY,,,2026-02-17,2026-02-17,1,Testing & QA,Project Manager,Yes,10.9,In Progress,90%,Performance optimized + Security validated
 12,PHASE 6: UI MIGRATION & POLISH,,,2026-02-17,2026-02-21,5,UI Migration,Frontend Team,Yes,11,Backlog,20%,"Chat-only routing, navigation cleanup"
 12.1,Archive Dashboard Pages,ONEK-100,https://linear.app/designthru-ai/issue/ONEK-100,2026-02-17,2026-02-18,2,UI Migration,Frontend Team,No,11,Backlog,0%,Move legacy dashboard to archived folder
 12.2,Routing Updates,ONEK-101,https://linear.app/designthru-ai/issue/ONEK-101,2026-02-18,2026-02-19,2,UI Migration,Frontend Team,No,12.1,Backlog,0%,Redirect all routes to /chat
@@ -83,8 +83,9 @@ Task ID,Task Name,Linear Issue,Linear URL,Start Date,End Date,Duration (Days),Ph
 18.1,Week 1 Performance Review,,,2026-03-08,2026-03-14,7,Post-Launch,All Teams,No,17,Backlog,0%,Metrics analysis and optimization
 18.2,Feature Enhancement Planning,,,2026-03-08,2026-03-14,7,Post-Launch,Product Team,No,17,Backlog,0%,Roadmap for future iterations
 19,PROJECT COMPLETION & HANDOFF,,,2026-03-14,2026-03-14,1,Closure,Project Manager,Yes,"18.1,18.2",Backlog,0%,Handoff to operations team
-BACKLOG.1,Agent Tools & Helper Functions,ONEK-32,https://linear.app/designthru-ai/issue/ONEK-32,,,Ongoing,Backlog,Development Team,No,,Backlog,0%,Additional agent tool implementations
+BACKLOG.1,Agent Tools & Helper Functions,ONEK-32,https://linear.app/designthru-ai/issue/ONEK-32,,2026-02-08,Ongoing,Backlog,Development Team,No,,Done,100%,Agent tool implementations completed
 BACKLOG.2,Frontend for Empty Leg Watch,ONEK-202,https://linear.app/designthru-ai/issue/ONEK-202,,,5,Backlog,Frontend Team,No,,Backlog,0%,UI for empty leg watch feature
-BACKLOG.3,Users API 403 Fix,ONEK-203,https://linear.app/designthru-ai/issue/ONEK-203,,,1,Backlog,Backend Team,No,,Backlog,0%,Fix /api/users/me endpoint returning 403
-BACKLOG.4,Multi-Segment Trip Tests,ONEK-154,https://linear.app/designthru-ai/issue/ONEK-154,,,3,Backlog,QA Team,No,,Backlog,0%,Integration tests for multi-segment trips
-BACKLOG.5,FlightSearchAgent Multi-Segment,ONEK-153,https://linear.app/designthru-ai/issue/ONEK-153,,,3,Backlog,Backend Team,No,,Backlog,0%,Update FlightSearchAgent for multi-segment trips
+BACKLOG.3,Users API 403 Fix,ONEK-203,https://linear.app/designthru-ai/issue/ONEK-203,,2026-02-08,1,Backlog,Backend Team,No,,Done,100%,Fixed /api/users/me endpoint 403 error
+BACKLOG.4,Multi-Segment Trip Tests,ONEK-154,https://linear.app/designthru-ai/issue/ONEK-154,,2026-02-09,3,Backlog,QA Team,No,,Done,100%,Integration tests for multi-segment trips completed
+BACKLOG.5,FlightSearchAgent Multi-Segment,ONEK-153,https://linear.app/designthru-ai/issue/ONEK-153,,2026-02-08,3,Backlog,Backend Team,No,,Done,100%,FlightSearchAgent updated for multi-segment trips
+BACKLOG.6,ISO Agent Onboarding Experience,ONEK-212,https://linear.app/designthru-ai/issue/ONEK-212,,,14,Backlog,Full Stack Team,No,,Backlog,0%,"Onboarding flow: form, contract PDF, digital signing (8 subtasks)"
