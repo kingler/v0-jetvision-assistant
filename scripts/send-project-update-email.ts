@@ -57,7 +57,7 @@ const markdownContent = readFileSync(mdPath, 'utf-8');
 function deriveSubject(filePath: string): string {
   const name = basename(filePath, '.md'); // PROJECT-UPDATE-FEB0926
   const datePart = name.replace(/^PROJECT-UPDATE-/i, ''); // FEB0926
-  return `Jetvision Project Update — ${datePart}`;
+  return `Jetvision Project Update - ${datePart}`;
 }
 
 const subject = args[1] || deriveSubject(mdPath);
@@ -121,7 +121,7 @@ async function sendEmail(to: string, toName: string) {
     `From: Kingler Bercy <kinglerbercy@gmail.com>`,
     `To: ${toName} <${to}>`,
     `Cc: ${recipients.map(r => `${r.name} <${r.email}>`).join(', ')}`,
-    `Subject: ${subject}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
     `MIME-Version: 1.0`,
     `Content-Type: text/html; charset="UTF-8"`,
     ``,
