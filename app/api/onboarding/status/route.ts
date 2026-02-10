@@ -1,34 +1,56 @@
 /**
  * GET /api/onboarding/status
  *
- * Returns the authenticated agent's onboarding status.
- * Requires Clerk authentication.
- *
- * @returns { onboardingStatus: string }
+ * Returns the authenticated user's onboarding status and next action.
+ * Used by the onboarding page to resume from the correct step.
  */
-import { NextResponse } from 'next/server';
-import { getAuthenticatedAgent, isErrorResponse, ErrorResponses } from '@/lib/utils/api';
-import { supabaseAdmin } from '@/lib/supabase/admin';
+
+import { NextRequest } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { getOnboardingStatus } from '@/lib/services/onboarding-service';
+import { ErrorResponses, SuccessResponses } from '@/lib/utils/api';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest) {
   try {
-    const agentOrError = await getAuthenticatedAgent();
-    if (isErrorResponse(agentOrError)) return agentOrError;
-
-    const { data, error } = await supabaseAdmin
-      .from('iso_agents')
-      .select('onboarding_status')
-      .eq('id', agentOrError.id)
-      .single();
-
-    if (error) {
-      return ErrorResponses.internalError('Failed to fetch onboarding status');
+    const { userId } = await auth();
+    if (!userId) {
+      return ErrorResponses.unauthorized();
     }
 
-    return NextResponse.json({ onboardingStatus: data.onboarding_status });
-  } catch {
-    return ErrorResponses.internalError('Failed to fetch onboarding status');
+    const status = await getOnboardingStatus(userId);
+
+    if (!status) {
+      return ErrorResponses.notFound('ISO agent not found');
+    }
+
+    // Determine the next action based on status
+    let nextAction: string;
+    switch (status.onboardingStatus) {
+      case 'pending':
+        nextAction = 'complete_profile';
+        break;
+      case 'profile_complete':
+        nextAction = 'generate_contract';
+        break;
+      case 'contract_sent':
+        nextAction = 'check_email';
+        break;
+      case 'contract_signed':
+      case 'completed':
+        nextAction = 'done';
+        break;
+      default:
+        nextAction = 'complete_profile';
+    }
+
+    return SuccessResponses.ok({
+      ...status,
+      nextAction,
+    });
+  } catch (error) {
+    console.error('[/api/onboarding/status] Error:', error);
+    return ErrorResponses.internalError();
   }
 }

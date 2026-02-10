@@ -16,8 +16,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/chat', // Health check GET endpoint is public
   '/api/chat/test', // Dev-only test endpoint
   '/component-demo(.*)', // Component demo pages for testing/screenshots
-  '/onboarding/contract-review(.*)', // Public: token-secured contract review
-  '/api/onboarding/contract(.*)',    // Public: contract token API endpoints
+  '/onboarding(.*)', // Onboarding pages accessible to authenticated users
 ])
 
 /**

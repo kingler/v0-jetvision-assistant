@@ -17,7 +17,7 @@ import {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { google, gmail_v1 } from 'googleapis';
-import { GoogleAuth } from 'google-auth-library';
+import { OAuth2Client } from 'google-auth-library';
 import { config } from 'dotenv';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -35,42 +35,40 @@ const __dirname = dirname(__filename);
 // Load environment variables from project root
 config({ path: resolve(__dirname, '../../../.env.local') });
 
-// Validate environment variables
-const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-const userEmail = process.env.GMAIL_USER_EMAIL;
+// Validate OAuth environment variables
+const clientId = process.env.GOOGLE_CLIENT_ID;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-if (!credentialsPath) {
-  console.error('Error: Missing GOOGLE_APPLICATION_CREDENTIALS in .env.local');
-  console.error('Please provide path to Google service account JSON file');
+if (!clientId || !clientSecret || !refreshToken) {
+  console.error('Error: Missing OAuth credentials in environment.');
+  if (!clientId) console.error('  - GOOGLE_CLIENT_ID');
+  if (!clientSecret) console.error('  - GOOGLE_CLIENT_SECRET');
+  if (!refreshToken) console.error('  - GOOGLE_REFRESH_TOKEN');
+  console.error('Run: npx tsx scripts/get-google-refresh-token.ts');
   process.exit(1);
 }
 
-if (!userEmail) {
-  console.error('Error: Missing GMAIL_USER_EMAIL in .env.local');
-  console.error('Please provide the Gmail address to send from');
-  process.exit(1);
-}
-
-// Initialize Google Gmail API client
-const auth = new GoogleAuth({
-  keyFile: credentialsPath,
-  scopes: [
-    'https://www.googleapis.com/auth/gmail.send',
-    'https://www.googleapis.com/auth/gmail.readonly',
-    'https://www.googleapis.com/auth/gmail.modify',
-  ],
-  // For service account delegation
-  clientOptions: {
-    subject: userEmail,
-  },
-});
+// Initialize OAuth2 client with refresh token
+const oauth2Client = new OAuth2Client(clientId, clientSecret);
+oauth2Client.setCredentials({ refresh_token: refreshToken });
 
 let gmailClient: gmail_v1.Gmail;
+let authenticatedEmail: string = '';
 
 async function initializeGmailClient(): Promise<void> {
-  const authClient = await auth.getClient();
-  gmailClient = google.gmail({ version: 'v1', auth: authClient });
-  console.error('Gmail client initialized');
+  gmailClient = google.gmail({ version: 'v1', auth: oauth2Client });
+  // Verify credentials work
+  try {
+    const profile = await gmailClient.users.getProfile({ userId: 'me' });
+    authenticatedEmail = profile.data.emailAddress || '';
+    console.error(`Gmail client initialized for ${authenticatedEmail}`);
+  } catch (error) {
+    console.error('Failed to authenticate with Gmail API.');
+    console.error(error instanceof Error ? error.message : String(error));
+    console.error('Refresh token may be expired. Run: npx tsx scripts/get-google-refresh-token.ts');
+    process.exit(1);
+  }
 }
 
 // Define MCP tools
@@ -292,7 +290,7 @@ async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
   let message = '';
 
   // Headers
-  message += `From: ${from || userEmail}\r\n`;
+  message += `From: ${from || authenticatedEmail}\r\n`;
   message += `To: ${to}\r\n`;
   if (cc && cc.length > 0) {
     message += `Cc: ${cc.join(', ')}\r\n`;

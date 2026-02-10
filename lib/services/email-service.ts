@@ -549,10 +549,80 @@ export async function sendContractEmail(
   });
 }
 
+// =============================================================================
+// ONBOARDING CONTRACT EMAIL FUNCTIONS
+// =============================================================================
+
+export interface SendOnboardingContractEmailOptions {
+  to: string;
+  agentName: string;
+  contractReviewUrl: string;
+  pdfBase64: string;
+  pdfFilename: string;
+  commissionPercentage: number;
+}
+
+/**
+ * Generate onboarding contract email body
+ */
+function generateOnboardingContractEmailBody(
+  options: SendOnboardingContractEmailOptions
+): string {
+  return `Dear ${options.agentName},
+
+Welcome to Jetvision! We're excited to have you on board.
+
+Please review and sign your Independent Sales Agent Agreement. This contract outlines your commission structure (${options.commissionPercentage}% of net brokerage fees) and the terms of your engagement with Jetvision LLC.
+
+**To review and sign your contract, please click the link below:**
+
+${options.contractReviewUrl}
+
+This link is valid for 72 hours and can only be used once.
+
+The contract PDF is also attached to this email for your records.
+
+If you have any questions about the agreement, please reply to this email or contact our team.
+
+Best regards,
+The Jetvision Team
+
+---
+Jetvision LLC - Private Charter Made Simple
+15303 Ventura Blvd. Suite 250, Sherman Oaks, CA 91403
+www.jetvision.com | support@jetvision.com`;
+}
+
+/**
+ * Send an onboarding contract email with PDF attachment and review link
+ */
+export async function sendOnboardingContractEmail(
+  options: SendOnboardingContractEmailOptions
+): Promise<SendEmailResult> {
+  const subject = 'Jetvision — Your Independent Sales Agent Agreement';
+  const body = generateOnboardingContractEmailBody(options);
+
+  const attachments: EmailAttachment[] = [
+    {
+      filename: options.pdfFilename,
+      content: options.pdfBase64,
+      contentType: 'application/pdf',
+    },
+  ];
+
+  return sendEmail({
+    to: options.to,
+    subject,
+    body,
+    attachments,
+  });
+}
+
 const emailService = {
   sendEmail,
   sendProposalEmail,
   sendContractEmail,
+  sendOnboardingContractEmail,
 };
 
 export default emailService;

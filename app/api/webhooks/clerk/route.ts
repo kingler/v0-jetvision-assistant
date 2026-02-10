@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * Valid user roles that can be assigned via Clerk public metadata.
- * Used for role validation in both user.created and user.updated handlers.
+ * Must match the `user_role` enum in the database: ('iso_agent', 'admin', 'operator')
  */
 const VALID_ROLES = ['iso_agent', 'admin', 'operator'] as const;
 
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
 
         let userRole: typeof VALID_ROLES[number] = 'iso_agent';
 
-        if (typeof proposedRole === 'string' && VALID_ROLES.includes(proposedRole as any)) {
+        if (typeof proposedRole === 'string' && VALID_ROLES.includes(proposedRole as typeof VALID_ROLES[number])) {
           userRole = proposedRole as typeof VALID_ROLES[number];
         } else if (proposedRole) {
           console.warn(`[WEBHOOK] Invalid role "${proposedRole}" from Clerk for user ${id}, defaulting to iso_agent`);
