@@ -3002,7 +3002,7 @@ export function ChatInterface({
             setSelectedBookingCustomer(null)
           }}
           flight={bookFlightData}
-          customer={bookFlightCustomer}
+          customer={selectedBookingCustomer || bookFlightCustomer}
           tripDetails={{
             departureAirport: routeParts?.[0] ? { icao: routeParts[0], name: routeParts[0] } : { icao: 'KTEB', name: 'Teterboro Airport' },
             arrivalAirport: routeParts?.[1] ? { icao: routeParts[1], name: routeParts[1] } : { icao: 'KVNY', name: 'Van Nuys Airport' },
