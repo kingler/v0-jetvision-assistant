@@ -7,7 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
  * Valid user roles that can be assigned via Clerk public metadata.
  * Used for role validation in both user.created and user.updated handlers.
  */
-const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
+const VALID_ROLES = ['iso_agent', 'admin', 'operator'] as const;
 
 /**
  * Clerk Webhook Handler
@@ -23,8 +23,8 @@ const VALID_ROLES = ['sales_rep', 'admin', 'customer', 'operator'] as const;
  * not via Clerk webhooks.
  *
  * Role Assignment:
- * - Default role is 'sales_rep'
- * - Role can be set via Clerk user public metadata: { role: 'admin' | 'sales_rep' | 'customer' | 'operator' }
+ * - Default role is 'iso_agent'
+ * - Role can be set via Clerk user public metadata: { role: 'iso_agent' | 'admin' | 'operator' }
  */
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -93,16 +93,16 @@ export async function POST(req: Request) {
           return new Response('Error: No email address', { status: 400 });
         }
 
-        // Get role from public_metadata or default to 'sales_rep'
+        // Get role from public_metadata or default to 'iso_agent'
         const metadata = public_metadata as Record<string, unknown>;
         const proposedRole = metadata?.role;
 
-        let userRole: typeof VALID_ROLES[number] = 'sales_rep';
+        let userRole: typeof VALID_ROLES[number] = 'iso_agent';
 
         if (typeof proposedRole === 'string' && VALID_ROLES.includes(proposedRole as any)) {
           userRole = proposedRole as typeof VALID_ROLES[number];
         } else if (proposedRole) {
-          console.warn(`[WEBHOOK] Invalid role "${proposedRole}" from Clerk for user ${id}, defaulting to sales_rep`);
+          console.warn(`[WEBHOOK] Invalid role "${proposedRole}" from Clerk for user ${id}, defaulting to iso_agent`);
         }
 
         // Create user in Supabase iso_agents table using admin client to bypass RLS
