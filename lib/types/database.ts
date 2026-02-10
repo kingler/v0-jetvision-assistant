@@ -681,54 +681,191 @@ export type Database = {
       }
       iso_agents: {
         Row: {
+          address_line_2: string | null
+          city: string | null
           clerk_user_id: string
           commission_percentage: number | null
+          country: string | null
           created_at: string | null
+          date_of_birth: string | null
           email: string
+          first_name: string | null
           full_name: string
           id: string
           is_active: boolean | null
+          last_name: string | null
           last_seen_at: string | null
           metadata: Json | null
           notification_preferences: Json | null
+          onboarding_status: Database["public"]["Enums"]["onboarding_status"]
           online_status: string | null
+          phone: string | null
           role: Database["public"]["Enums"]["user_role"]
+          state: string | null
+          street_address: string | null
           total_commission_earned: number | null
           updated_at: string | null
+          zip_code: string | null
         }
         Insert: {
+          address_line_2?: string | null
+          city?: string | null
           clerk_user_id: string
           commission_percentage?: number | null
+          country?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           email: string
+          first_name?: string | null
           full_name: string
           id?: string
           is_active?: boolean | null
+          last_name?: string | null
           last_seen_at?: string | null
           metadata?: Json | null
           notification_preferences?: Json | null
+          onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           online_status?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          state?: string | null
+          street_address?: string | null
           total_commission_earned?: number | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Update: {
+          address_line_2?: string | null
+          city?: string | null
           clerk_user_id?: string
           commission_percentage?: number | null
+          country?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           email?: string
+          first_name?: string | null
           full_name?: string
           id?: string
           is_active?: boolean | null
+          last_name?: string | null
           last_seen_at?: string | null
           metadata?: Json | null
           notification_preferences?: Json | null
+          onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           online_status?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          state?: string | null
+          street_address?: string | null
           total_commission_earned?: number | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Relationships: []
+      }
+      contract_tokens: {
+        Row: {
+          id: string
+          contract_id: string
+          agent_id: string
+          token: string
+          email: string
+          expires_at: string
+          used_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          contract_id: string
+          agent_id: string
+          token: string
+          email: string
+          expires_at: string
+          used_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          contract_id?: string
+          agent_id?: string
+          token?: string
+          email?: string
+          expires_at?: string
+          used_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_tokens_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "iso_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_contracts: {
+        Row: {
+          id: string
+          agent_id: string
+          pdf_storage_path: string
+          commission_percentage: number
+          status: string
+          signed_at: string | null
+          signed_name: string | null
+          signed_ip: string | null
+          signed_user_agent: string | null
+          acknowledgment_terms: boolean | null
+          acknowledgment_disclosures: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          agent_id: string
+          pdf_storage_path: string
+          commission_percentage?: number
+          status?: string
+          signed_at?: string | null
+          signed_name?: string | null
+          signed_ip?: string | null
+          signed_user_agent?: string | null
+          acknowledgment_terms?: boolean | null
+          acknowledgment_disclosures?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          agent_id?: string
+          pdf_storage_path?: string
+          commission_percentage?: number
+          status?: string
+          signed_at?: string | null
+          signed_name?: string | null
+          signed_ip?: string | null
+          signed_user_agent?: string | null
+          acknowledgment_terms?: boolean | null
+          acknowledgment_disclosures?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_contracts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "iso_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       llm_config: {
         Row: {
@@ -1686,6 +1823,11 @@ export type Database = {
         | "completed"
         | "failed"
         | "timeout"
+      onboarding_status:
+        | "pending"
+        | "contract_sent"
+        | "contract_signed"
+        | "completed"
       message_content_type:
         | "text"
         | "quote_shared"
@@ -1918,6 +2060,12 @@ export const Constants = {
         "failed",
         "timeout",
       ],
+      onboarding_status: [
+        "pending",
+        "contract_sent",
+        "contract_signed",
+        "completed",
+      ],
       message_content_type: [
         "text",
         "quote_shared",
@@ -2028,3 +2176,18 @@ export type Quote = Tables<"quotes">;
  * Request row type
  */
 export type Request = Tables<"requests">;
+
+/**
+ * Onboarding status enum type
+ */
+export type OnboardingStatus = Database['public']['Enums']['onboarding_status'];
+
+/**
+ * Onboarding contract row type
+ */
+export type OnboardingContract = Tables<"onboarding_contracts">;
+
+/**
+ * Contract token row type
+ */
+export type ContractToken = Tables<"contract_tokens">;
