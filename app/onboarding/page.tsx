@@ -13,7 +13,7 @@
  * Resumes from correct step if user returns mid-flow.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useForm } from 'react-hook-form';
@@ -53,10 +53,13 @@ type OnboardingPhase = 'loading' | 'form' | 'submitting' | 'sending' | 'success'
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
   const { user, isLoaded: isUserLoaded } = useUser();
   const [currentStep, setCurrentStep] = useState(1);
   const [phase, setPhase] = useState<OnboardingPhase>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorSource, setErrorSource] = useState<'form' | 'contract' | null>(null);
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingFormSchema),
@@ -70,7 +73,7 @@ export default function OnboardingPage() {
       city: '',
       state: '',
       zipCode: '',
-      acknowledgeCommissionTerms: false as unknown as true,
+      acknowledgeCommissionTerms: false,
     },
   });
 
@@ -89,7 +92,7 @@ export default function OnboardingPage() {
       switch (data.onboardingStatus) {
         case 'completed':
         case 'contract_signed':
-          router.replace('/chat');
+          routerRef.current.replace('/chat');
           return;
         case 'contract_sent':
           setPhase('success');
@@ -107,17 +110,17 @@ export default function OnboardingPage() {
     } catch {
       setPhase('form');
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (isUserLoaded) {
       if (!user) {
-        router.replace('/sign-in');
+        routerRef.current.replace('/sign-in');
         return;
       }
       checkStatus();
     }
-  }, [isUserLoaded, user, router, checkStatus]);
+  }, [isUserLoaded, user, checkStatus]);
 
   // Pre-fill name from Clerk
   useEffect(() => {
@@ -163,6 +166,7 @@ export default function OnboardingPage() {
     } catch (error) {
       console.error('Contract generation/send failed:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Something went wrong');
+      setErrorSource('contract');
       setPhase('error');
     }
   }
@@ -189,6 +193,7 @@ export default function OnboardingPage() {
     } catch (error) {
       console.error('Registration failed:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Something went wrong');
+      setErrorSource('form');
       setPhase('error');
     }
   }
@@ -263,10 +268,21 @@ export default function OnboardingPage() {
             <CardTitle className="text-red-600">Something Went Wrong</CardTitle>
             <CardDescription>{errorMessage}</CardDescription>
           </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => { setPhase('form'); setCurrentStep(1); }}>
-              Try Again
-            </Button>
+          <CardContent className="text-center space-y-3">
+            {errorSource === 'contract' ? (
+              <>
+                <Button onClick={() => { setErrorSource(null); generateAndSendContract(); }}>
+                  Retry Contract
+                </Button>
+                <p className="text-xs text-slate-500">
+                  Your profile was saved. Only the contract step will be retried.
+                </p>
+              </>
+            ) : (
+              <Button onClick={() => { setPhase('form'); setCurrentStep(1); setErrorSource(null); }}>
+                Try Again
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -444,7 +460,7 @@ export default function OnboardingPage() {
                       id="acknowledgeCommissionTerms"
                       checked={watchedValues.acknowledgeCommissionTerms === true}
                       onCheckedChange={(checked) => {
-                        setValue('acknowledgeCommissionTerms', checked === true ? true : false as unknown as true);
+                        setValue('acknowledgeCommissionTerms', checked === true);
                         trigger('acknowledgeCommissionTerms');
                       }}
                     />

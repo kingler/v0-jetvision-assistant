@@ -65,9 +65,11 @@ export const onboardingFormSchema = z.object({
     .string()
     .min(1, 'ZIP code is required')
     .regex(/^\d{5}(-\d{4})?$/, 'Invalid ZIP code (e.g., 12345 or 12345-6789)'),
-  acknowledgeCommissionTerms: z.literal(true, {
-    errorMap: () => ({ message: 'You must acknowledge the commission terms' }),
-  }),
+  acknowledgeCommissionTerms: z
+    .boolean()
+    .refine((val) => val === true, {
+      message: 'You must acknowledge the commission terms',
+    }),
 });
 
 export type OnboardingFormData = z.infer<typeof onboardingFormSchema>;

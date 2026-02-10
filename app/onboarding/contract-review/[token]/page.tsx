@@ -239,9 +239,15 @@ export default function ContractReviewPage() {
         )}
 
         {!validation?.pdfUrl && (
-          <Card className="mb-6">
-            <CardContent className="p-8 text-center text-slate-500">
-              <p>Contract PDF is being prepared. If it does not appear, please check your email for the attached PDF.</p>
+          <Card className="mb-6 border-amber-200 dark:border-amber-800">
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <svg className="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <p className="font-medium text-amber-700 dark:text-amber-300">Contract PDF unavailable for preview</p>
+              <p className="mt-1 text-sm text-slate-500">The PDF was attached to the email sent to your inbox. You can still sign the contract below after reviewing the emailed copy.</p>
             </CardContent>
           </Card>
         )}
