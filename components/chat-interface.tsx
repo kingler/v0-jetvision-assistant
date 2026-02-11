@@ -71,6 +71,9 @@ import {
   type PipelineData,
 } from "@/lib/chat"
 
+// Skeleton loading
+import { ChatLoadingSkeleton } from "@/components/chat/chat-loading-skeleton"
+
 // Flight request parser utility
 import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
 import { formatDate, formatMessageTimestamp, safeParseTimestamp } from "@/lib/utils/format"
@@ -101,6 +104,7 @@ interface ChatInterfaceProps {
   isProcessing: boolean
   onProcessingChange: (processing: boolean) => void
   onUpdateChat: (chatId: string, updates: Partial<ChatSession>) => void
+  isLoading?: boolean
 }
 
 export function ChatInterface({
@@ -108,6 +112,7 @@ export function ChatInterface({
   isProcessing,
   onProcessingChange,
   onUpdateChat,
+  isLoading,
 }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -2375,6 +2380,22 @@ export function ChatInterface({
   const getOperatorMessages = (): OperatorMessage[] => {
     if (!selectedQuoteId || !activeChat.operatorMessages) return []
     return activeChat.operatorMessages[selectedQuoteId] || []
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+        <DynamicChatHeader
+          activeChat={activeChat}
+          flightRequestName={activeChat.generatedName}
+          showTripId={!!activeChat.tripId}
+          quoteRequests={getQuoteRequestsForHeader()}
+          onViewQuoteDetails={handleViewQuoteDetails}
+          onCopyTripId={() => console.log('[Chat] Trip ID copied to clipboard')}
+        />
+        <ChatLoadingSkeleton />
+      </div>
+    )
   }
 
   return (

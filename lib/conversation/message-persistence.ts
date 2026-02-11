@@ -399,44 +399,49 @@ export async function getOperatorThreads(
     return [];
   }
 
-  // Get message counts per quote
-  const threads: Array<{
-    quoteId: string;
-    operatorName: string | null;
-    messageCount: number;
-    lastMessageAt: string | null;
-    hasUnread: boolean;
-  }> = [];
+  if (!quotes || quotes.length === 0) {
+    return [];
+  }
 
-  for (const quote of quotes || []) {
-    const { data: messages, count } = await supabaseAdmin
-      .from('messages')
-      .select('id, created_at, read_by', { count: 'exact' })
-      .eq('request_id', requestId)
-      .eq('quote_id', quote.id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(1);
+  const quoteIds = quotes.map((q) => q.id);
 
-    const lastMessage = messages?.[0];
+  // Batch: fetch ALL messages for ALL quotes in a single query
+  // This replaces the N+1 loop (was 2 queries per quote → now 1 query total)
+  const { data: allMessages, error: messagesError } = await supabaseAdmin
+    .from('messages')
+    .select('id, quote_id, sender_type, created_at')
+    .eq('request_id', requestId)
+    .in('quote_id', quoteIds)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
 
-    // Check if there are unread operator messages
-    const { count: unreadCount } = await supabaseAdmin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('request_id', requestId)
-      .eq('quote_id', quote.id)
-      .eq('sender_type', 'operator')
-      .is('deleted_at', null);
+  if (messagesError) {
+    console.error('[Message Persistence] Error batch-fetching messages:', messagesError);
+    return [];
+  }
 
-    threads.push({
+  // Group messages by quote_id and compute aggregates in memory
+  const messagesByQuote = new Map<string, typeof allMessages>();
+  for (const msg of allMessages || []) {
+    if (!msg.quote_id) continue;
+    const existing = messagesByQuote.get(msg.quote_id) || [];
+    existing.push(msg);
+    messagesByQuote.set(msg.quote_id, existing);
+  }
+
+  const threads = quotes.map((quote) => {
+    const msgs = messagesByQuote.get(quote.id) || [];
+    const lastMsg = msgs[0]; // already sorted desc by created_at
+    const hasUnread = msgs.some((m) => m.sender_type === 'operator');
+
+    return {
       quoteId: quote.id,
       operatorName: quote.operator_name,
-      messageCount: count || 0,
-      lastMessageAt: lastMessage?.created_at || null,
-      hasUnread: (unreadCount || 0) > 0,
-    });
-  }
+      messageCount: msgs.length,
+      lastMessageAt: lastMsg?.created_at || null,
+      hasUnread,
+    };
+  });
 
   // Sort by last message time
   threads.sort((a, b) => {
