@@ -368,7 +368,7 @@ export function FlightSearchProgress({
   };
 
   /**
-   * Format date string to human-readable format
+   * Format date string to human-readable format (full: "Wed, Mar 25, 2026")
    */
   const formatDate = (dateString: string): string => {
     if (!dateString || dateString === 'Invalid Date' || dateString === 'N/A') {
@@ -391,6 +391,40 @@ export function FlightSearchProgress({
       if (!isNaN(date.getTime())) {
         return date.toLocaleDateString('en-US', {
           weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+      return 'Date TBD';
+    } catch {
+      return 'Date TBD';
+    }
+  };
+
+  /**
+   * Shorter date format for compact UI (no weekday): "Mar 25, 2026"
+   * Prevents truncation and overlap on small screens
+   */
+  const formatDateShort = (dateString: string): string => {
+    if (!dateString || dateString === 'Invalid Date' || dateString === 'N/A') {
+      return 'Date TBD';
+    }
+    try {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          });
+        }
+      }
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
           year: 'numeric',
@@ -470,7 +504,7 @@ export function FlightSearchProgress({
                 <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-3 space-y-2">
                   {/* Trip Type Badge */}
                   <span className={cn(
-                    "inline-block text-xs font-medium px-2 py-0.5 rounded-full",
+                    "inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap",
                     flightRequest.tripType === 'round_trip'
                       ? "bg-primary/10 text-primary"
                       : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
@@ -479,10 +513,10 @@ export function FlightSearchProgress({
                   </span>
 
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="text-[clamp(1rem,2.5vw,1.125rem)] font-bold text-primary truncate">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 whitespace-nowrap">
+                        <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-bold text-primary">
                           {flightRequest.departureAirport?.icao?.toUpperCase() || 'N/A'}
                         </span>
                       </div>
@@ -495,7 +529,7 @@ export function FlightSearchProgress({
 
                         if (city || state) {
                           return (
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">
                               {city}{state ? `, ${state}` : ''}
                             </p>
                           );
@@ -504,23 +538,23 @@ export function FlightSearchProgress({
                       })()}
                     </div>
 
-                    <div className="flex items-center gap-2 px-3">
-                      <div className="h-px w-6 bg-gray-300 dark:bg-gray-600" />
-                      <Plane className="h-4 w-4 text-primary rotate-90" />
+                    <div className="flex items-center gap-1.5 px-2 shrink-0">
+                      <div className="h-px w-4 bg-gray-300 dark:bg-gray-600" />
+                      <Plane className="h-3 w-3 text-primary rotate-90" />
                       {flightRequest.tripType === 'round_trip' ? (
-                        <ArrowLeftRight className="h-4 w-4 text-primary" />
+                        <ArrowLeftRight className="h-3 w-3 text-primary" />
                       ) : (
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
                       )}
-                      <div className="h-px w-6 bg-gray-300 dark:bg-gray-600" />
+                      <div className="h-px w-4 bg-gray-300 dark:bg-gray-600" />
                     </div>
 
                     <div className="flex-1 text-right min-w-0">
-                      <div className="flex items-center justify-end gap-1">
-                        <span className="text-[clamp(1rem,2.5vw,1.125rem)] font-bold text-primary truncate">
+                      <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                        <span className="text-sm font-bold text-primary">
                           {flightRequest.arrivalAirport?.icao?.toUpperCase() || 'N/A'}
                         </span>
-                        <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
                       </div>
                       {(() => {
                         // Get city and state from airport data or lookup from database
@@ -531,7 +565,7 @@ export function FlightSearchProgress({
 
                         if (city || state) {
                           return (
-                            <p className="text-xs text-muted-foreground mt-0.5 text-right">
+                            <p className="text-xs text-muted-foreground mt-0.5 text-right whitespace-nowrap">
                               {city}{state ? `, ${state}` : ''}
                             </p>
                           );
@@ -542,30 +576,44 @@ export function FlightSearchProgress({
                   </div>
                 </div>
 
-                {/* Flight Details Grid */}
-                <div className={`grid ${flightRequest.tripType === 'round_trip' && flightRequest.returnDate ? 'grid-cols-3' : 'grid-cols-2'} gap-2 text-sm`}>
-                  <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">{flightRequest.tripType === 'round_trip' ? 'Depart' : 'Date'}</p>
-                      <p className="font-medium text-xs text-gray-900 dark:text-gray-100">{formatDate(flightRequest.departureDate)}</p>
+                {/* Flight Details Grid - stack on small screens to prevent overlap, scale text down */}
+                <div
+                  className={`grid gap-1.5 text-sm min-w-0 ${
+                    flightRequest.tripType === 'round_trip' && flightRequest.returnDate
+                      ? 'grid-cols-1 sm:grid-cols-3'
+                      : 'grid-cols-1 sm:grid-cols-2'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800 p-1.5 min-w-0">
+                    <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-muted-foreground whitespace-nowrap">
+                        {flightRequest.tripType === 'round_trip' ? 'Depart' : 'Date'}
+                      </p>
+                      <p className="font-medium text-[clamp(0.25rem,1vw,0.7rem)] text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                        {formatDateShort(flightRequest.departureDate)}
+                      </p>
                     </div>
                   </div>
                   {flightRequest.tripType === 'round_trip' && flightRequest.returnDate && (
-                    <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Return</p>
-                        <p className="font-medium text-xs text-gray-900 dark:text-gray-100">{formatDate(flightRequest.returnDate)}</p>
+                    <div className="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800 p-1.5 min-w-0">
+                      <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-muted-foreground whitespace-nowrap">
+                          Return
+                        </p>
+                        <p className="font-medium text-[clamp(0.25rem,1vw,0.7rem)] text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                          {formatDateShort(flightRequest.returnDate)}
+                        </p>
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-2">
-                    <Users className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Passengers</p>
-                      <p className="font-medium text-xs text-gray-900 dark:text-gray-100">{flightRequest.passengers}</p>
-                    </div>
+                  <div className="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800 p-1.5 min-w-0">
+                    <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                      <span className="text-muted-foreground">Passengers: </span>
+                      <span className="font-medium">{flightRequest.passengers}</span>
+                    </p>
                   </div>
                 </div>
 

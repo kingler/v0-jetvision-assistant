@@ -788,13 +788,20 @@ export function RFQFlightCard({
         </div>
       ) : (
         <div>
-          {/* Top Row: 3-Column Layout - Image | Aircraft | Operator/Price/RFQ Status */}
-          <div className={cn('flex pb-4 pt-2 gap-4', compact && isExpanded ? 'flex-col sm:flex-row' : 'flex-row')}>
-            {/* Column 1: Aircraft Image - Reduced to 150px width, 180px height for better layout */}
+          {/* Top Row: 3-Column Layout - Image (33.3%) | Aircraft+Operator (33.3%) | Price+Status (33.3%) */}
+          <div
+            className={cn(
+              'pb-4 pt-2 gap-4',
+              compact && isExpanded
+                ? 'grid grid-cols-3 min-w-0'
+                : 'flex flex-row'
+            )}
+          >
+            {/* Column 1: Aircraft Image - 33.3% width, constrained to grid cell */}
             <div
               className={cn(
-                'bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center shrink-0 rounded-lg overflow-hidden',
-                compact && isExpanded ? 'w-full h-[180px] sm:w-[150px]' : 'w-[150px] h-[180px]'
+                'bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center rounded-lg overflow-hidden min-w-0',
+                compact && isExpanded ? 'w-full aspect-5/6 max-h-[180px]' : 'w-[150px] h-[180px] shrink-0'
               )}
             >
               {flight.tailPhotoUrl && !imageError ? (
@@ -815,9 +822,14 @@ export function RFQFlightCard({
               )}
             </div>
 
-            {/* Column 2: Aircraft Details - Middle column */}
-            <div className="flex-1 py-4 space-y-4 min-w-0">
-              {/* Aircraft Section - responsive text scales down on small screens */}
+            {/* Column 2: Aircraft + Operator - Middle column (33.3%) */}
+            <div
+              className={cn(
+                'py-4 space-y-4 min-w-0 overflow-hidden',
+                compact && isExpanded ? 'flex flex-col' : 'flex-1'
+              )}
+            >
+              {/* Aircraft Section */}
               <div data-testid="aircraft-section" className="space-y-2">
                 <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Aircraft</h5>
                 <div className="space-y-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
@@ -836,6 +848,29 @@ export function RFQFlightCard({
                 </div>
               </div>
 
+              {/* Operator Section - Moved to middle column for even distribution */}
+              <div data-testid="operator-section" className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Operator</h5>
+                <div className="space-y-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                  <p className="truncate"><span className="font-medium">Company:</span> {flight.operatorName}</p>
+                  {flight.operatorEmail && (
+                    <p className="truncate"><span className="font-medium">Email:</span> {flight.operatorEmail}</p>
+                  )}
+                  {flight.operatorRating && (
+                    <p className="flex items-center gap-1">
+                      <Star className="h-3 w-3 text-amber-500 fill-amber-500 shrink-0" />
+                      <span className="font-medium">Rating:</span> {flight.operatorRating}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {operatorMessagePreview && (
+                <div className="space-y-1 text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <p className="font-medium text-gray-700 dark:text-gray-300">Operator message</p>
+                  <p className="leading-relaxed line-clamp-3">{operatorMessagePreview}</p>
+                </div>
+              )}
+
               {/* Selection Checkbox (if selectable) */}
               {selectable && !showBookButton && (
                 <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -849,12 +884,18 @@ export function RFQFlightCard({
               )}
             </div>
 
-            {/* Column 3: Price, Operator, RFQ Status - Right column */}
-            <div className="w-[220px] shrink-0 py-4 flex flex-col space-y-4" style={{ height: 'fit-content' }}>
+            {/* Column 3: Price + RFQ Status - Right column (33.3%) */}
+            <div
+              className={cn(
+                'py-4 flex flex-col space-y-4 min-w-0',
+                compact && isExpanded ? 'w-full' : 'w-[220px] shrink-0'
+              )}
+              style={{ height: 'fit-content' }}
+            >
               {/* Price Section - Prominent placement at top */}
               <div data-testid="price-section" className="space-y-2">
                 {/* Price Label and Amount on same row - always shows initial price */}
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Price</h5>
                   <p className="text-xl sm:text-2xl font-semibold text-black dark:text-white">
                     {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
@@ -897,29 +938,6 @@ export function RFQFlightCard({
                   </div>
                 )}
               </div>
-
-              {/* Operator Section */}
-              <div data-testid="operator-section" className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Operator</h5>
-                <div className="space-y-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                  <p className="truncate"><span className="font-medium">Company:</span> {flight.operatorName}</p>
-                  {flight.operatorEmail && (
-                    <p className="truncate"><span className="font-medium">Email:</span> {flight.operatorEmail}</p>
-                  )}
-                  {flight.operatorRating && (
-                    <p className="flex items-center gap-1">
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500 shrink-0" />
-                      <span className="font-medium">Rating:</span> {flight.operatorRating}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {operatorMessagePreview && (
-                <div className="space-y-1 text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
-                  <p className="font-medium text-gray-700 dark:text-gray-300">Operator message</p>
-                  <p className="leading-relaxed">{operatorMessagePreview}</p>
-                </div>
-              )}
             </div>
           </div>
 
