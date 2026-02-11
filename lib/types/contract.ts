@@ -237,7 +237,7 @@ export interface ContractPaymentData {
   /** Last 4 digits of credit card (if applicable) */
   cc_last_four?: string;
   /** Payment method used */
-  payment_method: 'wire' | 'credit_card';
+  payment_method: 'wire' | 'credit_card' | 'check';
 }
 
 // =============================================================================

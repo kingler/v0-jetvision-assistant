@@ -29,6 +29,7 @@ import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./q
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
 import { FlightSearchProgress } from "./avinode/flight-search-progress"
 import { BookFlightModal } from "./avinode/book-flight-modal"
+import { PaymentConfirmationModal } from "./contract/payment-confirmation-modal"
 import { CustomerSelectionDialog, type ClientProfile } from "./customer-selection-dialog"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
@@ -198,6 +199,15 @@ export function ChatInterface({
   const [selectedBookingCustomer, setSelectedBookingCustomer] = useState<{ name: string; email: string; company?: string; phone?: string } | null>(null)
   const [isBookingCustomerDialogOpen, setIsBookingCustomerDialogOpen] = useState(false)
 
+  // Customer reply detection for gating Book Flight button
+  const [customerReplied, setCustomerReplied] = useState(false)
+
+  // Payment confirmation modal state
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [paymentContractData, setPaymentContractData] = useState<{
+    contractId: string; contractNumber: string; totalAmount: number; currency: string
+  } | null>(null)
+
   // Sync tripIdSubmitted with activeChat
   useEffect(() => {
     if (activeChat.tripIdSubmitted !== undefined) {
@@ -207,6 +217,34 @@ export function ChatInterface({
 
   // Parse route to get airport info using extracted utility
   const routeParts = extractRouteParts(activeChat.route)
+
+  // Auto-detect customer reply from chat messages
+  useEffect(() => {
+    if (customerReplied) return; // Already detected
+
+    const messages = activeChat.messages || [];
+    for (const msg of messages) {
+      if (msg.type === 'user') {
+        const content = (msg.content || '').toLowerCase();
+        if (content.includes('customer replied') || content.includes('client replied') || content.includes('customer responded')) {
+          setCustomerReplied(true);
+          return;
+        }
+      }
+      // Also set if we're past contract stage
+      if (msg.showContractSentConfirmation || msg.showPaymentConfirmation || msg.showClosedWon) {
+        setCustomerReplied(true);
+        return;
+      }
+    }
+  }, [activeChat.messages, customerReplied])
+
+  // Determine if Book Flight should be gated (proposal sent but no customer reply yet)
+  const hasProposalSent = useMemo(() => {
+    return (activeChat.messages || []).some(m => m.showProposalSentConfirmation || m.proposalSentData);
+  }, [activeChat.messages]);
+
+  const isBookFlightGated = hasProposalSent && !customerReplied;
 
   /**
    * Show FlightSearchProgress ONLY when a trip has been successfully created.
@@ -2071,6 +2109,135 @@ export function ChatInterface({
   }, [activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat])
 
   /**
+   * Handle "Mark Payment Received" button click on a contract card
+   */
+  const handleMarkPayment = useCallback((contractId: string, contractData: { contractNumber: string; totalAmount: number; currency: string }) => {
+    console.log('[ChatInterface] Mark payment:', { contractId, contractData })
+    setPaymentContractData({
+      contractId,
+      contractNumber: contractData.contractNumber,
+      totalAmount: contractData.totalAmount,
+      currency: contractData.currency,
+    })
+    setIsPaymentModalOpen(true)
+  }, [])
+
+  /**
+   * Handle payment confirmation - calls API and appends messages to chat
+   */
+  const handlePaymentConfirm = useCallback(async (paymentData: {
+    paymentAmount: number; paymentMethod: string; paymentReference: string
+  }) => {
+    if (!paymentContractData) return
+
+    const response = await fetch(`/api/contract/${paymentContractData.contractId}/payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payment_reference: paymentData.paymentReference,
+        payment_amount: paymentData.paymentAmount,
+        payment_method: paymentData.paymentMethod,
+        payment_date: new Date().toISOString(),
+        markComplete: true,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to record payment' }))
+      throw new Error(errorData.error || 'Failed to record payment')
+    }
+
+    const paidAt = new Date().toISOString()
+
+    // Find contract message data for deal closed card
+    const contractMsg = activeChat.messages?.find(m => m.contractSentData?.contractId === paymentContractData.contractId)
+    const contractData = contractMsg?.contractSentData
+
+    // Create payment confirmation message
+    const paymentMessage = {
+      id: `msg-payment-${Date.now()}`,
+      type: 'agent' as const,
+      content: `Payment of ${paymentContractData.currency} ${paymentData.paymentAmount.toLocaleString()} received for contract ${paymentContractData.contractNumber}.`,
+      timestamp: new Date(),
+      showPaymentConfirmation: true,
+      paymentConfirmationData: {
+        contractId: paymentContractData.contractId,
+        contractNumber: paymentContractData.contractNumber,
+        paymentAmount: paymentData.paymentAmount,
+        paymentMethod: paymentData.paymentMethod,
+        paymentReference: paymentData.paymentReference,
+        paidAt,
+        currency: paymentContractData.currency,
+      },
+    }
+
+    // Create deal closed message
+    const closedMessage = {
+      id: `msg-closed-${Date.now()}`,
+      type: 'agent' as const,
+      content: `Deal closed! Contract ${paymentContractData.contractNumber} is complete.`,
+      timestamp: new Date(),
+      showClosedWon: true,
+      closedWonData: {
+        contractNumber: paymentContractData.contractNumber,
+        customerName: contractData?.customerName || '',
+        flightRoute: contractData?.flightRoute || '',
+        dealValue: paymentData.paymentAmount,
+        currency: paymentContractData.currency,
+        paymentReceivedAt: paidAt,
+        contractSentAt: contractMsg?.timestamp instanceof Date
+          ? contractMsg.timestamp.toISOString()
+          : typeof contractMsg?.timestamp === 'string' ? contractMsg.timestamp : undefined,
+      },
+    }
+
+    // Append both messages to chat
+    onUpdateChat(activeChat.id, {
+      messages: [...(activeChat.messages || []), paymentMessage, closedMessage],
+    })
+
+    // Persist messages to DB
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const requestIdForSave = (activeChat.requestId && uuidRe.test(activeChat.requestId))
+      ? activeChat.requestId
+      : (activeChat.conversationId && uuidRe.test(activeChat.conversationId))
+        ? activeChat.conversationId
+        : (activeChat.id && uuidRe.test(activeChat.id))
+          ? activeChat.id
+          : null
+
+    if (requestIdForSave) {
+      // Persist payment confirmed message
+      fetch('/api/chat-sessions/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: requestIdForSave,
+          content: paymentMessage.content,
+          contentType: 'payment_confirmed',
+          richContent: { paymentConfirmed: paymentMessage.paymentConfirmationData },
+        }),
+      }).catch(err => console.warn('[ChatInterface] Failed to persist payment message:', err))
+
+      // Persist deal closed message
+      fetch('/api/chat-sessions/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: requestIdForSave,
+          content: closedMessage.content,
+          contentType: 'deal_closed',
+          richContent: { dealClosed: closedMessage.closedWonData },
+        }),
+      }).catch(err => console.warn('[ChatInterface] Failed to persist closed message:', err))
+    }
+
+    // Close modal and reset state
+    setIsPaymentModalOpen(false)
+    setPaymentContractData(null)
+  }, [paymentContractData, activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat])
+
+  /**
    * Handle sending operator message
    */
   const handleSendOperatorMessage = async (message: string) => {
@@ -2265,6 +2432,20 @@ export function ChatInterface({
                 proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
                 showContractSentConfirmation?: boolean
                 contractSentData?: import('@/components/contract/contract-sent-confirmation').ContractSentConfirmationProps
+                // Payment confirmation
+                showPaymentConfirmation?: boolean
+                paymentConfirmationData?: {
+                  contractId: string; contractNumber: string
+                  paymentAmount: number; paymentMethod: string
+                  paymentReference: string; paidAt: string; currency: string
+                }
+                // Deal closed
+                showClosedWon?: boolean
+                closedWonData?: {
+                  contractNumber: string; customerName: string
+                  flightRoute: string; dealValue: number; currency: string
+                  proposalSentAt?: string; contractSentAt?: string; paymentReceivedAt?: string
+                }
                 // Email approval workflow properties (human-in-the-loop)
                 showEmailApprovalRequest?: boolean
                 emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
@@ -2658,6 +2839,11 @@ export function ChatInterface({
                         proposalSentData={message.proposalSentData}
                         showContractSentConfirmation={message.showContractSentConfirmation}
                         contractSentData={message.contractSentData}
+                        onMarkPayment={handleMarkPayment}
+                        showPaymentConfirmation={message.showPaymentConfirmation}
+                        paymentConfirmationData={message.paymentConfirmationData}
+                        showClosedWon={message.showClosedWon}
+                        closedWonData={message.closedWonData}
                         showEmailApprovalRequest={message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}
@@ -2727,6 +2913,8 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
+                        bookFlightDisabled={isBookFlightGated}
+                        bookFlightDisabledReason="Waiting for customer reply to proposal"
                         // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
                         // This prevents cards from appearing during clarification dialogue before trip creation
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -2773,6 +2961,8 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
+                        bookFlightDisabled={isBookFlightGated}
+                        bookFlightDisabledReason="Waiting for customer reply to proposal"
                         marginPercentage={selectedMarginPercentage}
                         onGoBackFromProposal={() => setSelectedRfqFlightIds([])}
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -3014,6 +3204,20 @@ export function ChatInterface({
           onContractSent={handleContractSent}
         />
       )}
+
+      {/* Payment Confirmation Modal */}
+      <PaymentConfirmationModal
+        open={isPaymentModalOpen}
+        onClose={() => {
+          setIsPaymentModalOpen(false)
+          setPaymentContractData(null)
+        }}
+        contractId={paymentContractData?.contractId ?? ''}
+        contractNumber={paymentContractData?.contractNumber ?? ''}
+        totalAmount={paymentContractData?.totalAmount ?? 0}
+        currency={paymentContractData?.currency ?? 'USD'}
+        onConfirm={handlePaymentConfirm}
+      />
 
       {/* Loading overlay when generating proposal */}
       {isGeneratingProposal && (

@@ -138,6 +138,10 @@ export interface FlightSearchProgressProps {
   onReviewAndBook?: (flightId: string) => void;
   /** Callback when user clicks "Book Flight" button on a quoted flight card */
   onBookFlight?: (flightId: string, quoteId?: string) => void;
+  /** Whether the Book Flight button should be disabled */
+  bookFlightDisabled?: boolean;
+  /** Tooltip reason when Book Flight is disabled */
+  bookFlightDisabledReason?: string;
   /** Callback when PDF preview is generated */
   onGeneratePreview?: (data: {
     customerEmail: string;
@@ -294,6 +298,8 @@ export function FlightSearchProgress({
   onContinueToProposal,
   onReviewAndBook,
   onBookFlight,
+  bookFlightDisabled,
+  bookFlightDisabledReason,
   onGeneratePreview,
   onSendProposal,
   marginPercentage,
@@ -856,6 +862,8 @@ export function FlightSearchProgress({
                           onReviewAndBook={onReviewAndBook}
                           onGenerateProposal={onGenerateProposal}
                           onBookFlight={onBookFlight}
+                          bookFlightDisabled={bookFlightDisabled}
+                          bookFlightDisabledReason={bookFlightDisabledReason}
                           groupByLeg={rfqFlights.some(f => f.legType != null)}
                         />
                       ) : (

@@ -60,6 +60,10 @@ export interface RFQFlightsListProps {
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
   /** Callback when "Book Flight" button is clicked (triggers contract generation modal) */
   onBookFlight?: (flightId: string, quoteId?: string) => void;
+  /** Whether the Book Flight button should be disabled */
+  bookFlightDisabled?: boolean;
+  /** Tooltip reason when Book Flight is disabled */
+  bookFlightDisabledReason?: string;
   /**
    * Enable round-trip leg grouping mode.
    * When true, flights will be grouped by legType (outbound/return) with section headers.
@@ -128,6 +132,8 @@ export function RFQFlightsList({
   onViewChat,
   onGenerateProposal,
   onBookFlight,
+  bookFlightDisabled,
+  bookFlightDisabledReason,
   groupByLeg = false,
 }: RFQFlightsListProps) {
   const [sortBy, setSortBy] = useState<SortOption>(initialSortBy);
@@ -272,6 +278,8 @@ export function RFQFlightsList({
           onViewChat={onViewChat}
           onGenerateProposal={onGenerateProposal}
           onBookFlight={onBookFlight}
+          bookFlightDisabled={bookFlightDisabled}
+          bookFlightDisabledReason={bookFlightDisabledReason}
           hasMessages={(flight as any).hasMessages ?? (flight.rfqStatus === 'quoted')}
           hasNewMessages={(flight as any).hasNewMessages ?? false}
           quoteId={flight.quoteId}
@@ -294,6 +302,8 @@ export function RFQFlightsList({
     onViewChat,
     onGenerateProposal,
     onBookFlight,
+    bookFlightDisabled,
+    bookFlightDisabledReason,
   ]);
 
   // Loading state

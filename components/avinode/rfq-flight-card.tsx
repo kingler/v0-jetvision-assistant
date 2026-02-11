@@ -185,6 +185,10 @@ export interface RFQFlightCardProps {
   onViewChat?: (flightId: string, quoteId?: string, messageId?: string) => void;
   /** Callback when "Book flight" button is clicked */
   onBookFlight?: (flightId: string, quoteId?: string) => void;
+  /** Whether the Book Flight button should be disabled */
+  bookFlightDisabled?: boolean;
+  /** Tooltip reason when Book Flight is disabled */
+  bookFlightDisabledReason?: string;
   /** Callback when "Generate flight proposal" button is clicked */
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
   /** Whether operator messages exist for this flight (triggers display of action buttons) */
@@ -430,6 +434,8 @@ export function RFQFlightCard({
   onReviewAndBook,
   onViewChat,
   onBookFlight,
+  bookFlightDisabled,
+  bookFlightDisabledReason,
   onGenerateProposal,
   hasMessages = false,
   hasNewMessages = false,
@@ -734,16 +740,19 @@ export function RFQFlightCard({
                 {showActionButtons && (
                   <>
                     {onBookFlight && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleBookFlight}
-                        className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
-                        aria-label="Book flight"
-                      >
-                        <ShoppingCart className="h-4 w-4" />
-                        Book flight
-                      </Button>
+                      <div title={bookFlightDisabled ? (bookFlightDisabledReason || 'Book flight is not available') : undefined}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleBookFlight}
+                          disabled={bookFlightDisabled}
+                          className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                          aria-label="Book flight"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                          Book flight
+                        </Button>
+                      </div>
                     )}
                     {onGenerateProposal && (
                       <Button
@@ -973,16 +982,19 @@ export function RFQFlightCard({
               {showActionButtons && (
                 <>
                   {onBookFlight && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleBookFlight}
-                      className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
-                      aria-label="Book flight"
-                    >
-                      <ShoppingCart className="h-4 w-4" />
-                      Book Flight
-                    </Button>
+                    <div title={bookFlightDisabled ? (bookFlightDisabledReason || 'Book flight is not available') : undefined}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBookFlight}
+                        disabled={bookFlightDisabled}
+                        className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                        aria-label="Book flight"
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        Book Flight
+                      </Button>
+                    </div>
                   )}
                   {onGenerateProposal && (
                     <Button

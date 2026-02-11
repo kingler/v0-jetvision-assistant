@@ -15,7 +15,9 @@ import { QuoteCard } from "@/components/aviation"
 import type { ChatSession } from "../chat-sidebar"
 import { PipelineDashboard } from "../message-components/pipeline-dashboard"
 import { ProposalSentConfirmation } from "@/components/proposal/proposal-sent-confirmation"
-import { ContractSentConfirmation } from "@/components/contract/contract-sent-confirmation"
+import { ContractSentConfirmation, type ContractSentConfirmationProps } from "@/components/contract/contract-sent-confirmation"
+import { PaymentConfirmedCard } from "@/components/contract/payment-confirmed-card"
+import { ClosedWonConfirmation } from "@/components/contract/closed-won-confirmation"
 import { MarginSelectionCard, type MarginSelectionData } from "@/components/chat/margin-selection-card"
 import {
   OperatorChatsInline,
@@ -217,6 +219,33 @@ export interface AgentMessageProps {
   showContractSentConfirmation?: boolean
   /** Data for ContractSentConfirmation when showContractSentConfirmation is true */
   contractSentData?: import('@/components/contract/contract-sent-confirmation').ContractSentConfirmationProps
+  /** Callback when "Mark Payment Received" is clicked on ContractSentConfirmation */
+  onMarkPayment?: (contractId: string, contractData: ContractSentConfirmationProps) => void
+  /** Whether to show payment confirmed card inline (after payment is recorded) */
+  showPaymentConfirmation?: boolean
+  /** Data for PaymentConfirmedCard when showPaymentConfirmation is true */
+  paymentConfirmationData?: {
+    contractId: string
+    contractNumber: string
+    paymentAmount: number
+    paymentMethod: string
+    paymentReference: string
+    paidAt: string
+    currency: string
+  }
+  /** Whether to show closed-won confirmation card inline (after deal is closed) */
+  showClosedWon?: boolean
+  /** Data for ClosedWonConfirmation when showClosedWon is true */
+  closedWonData?: {
+    contractNumber: string
+    customerName: string
+    flightRoute: string
+    dealValue: number
+    currency: string
+    proposalSentAt?: string
+    contractSentAt?: string
+    paymentReceivedAt?: string
+  }
   /** Whether to show email approval request card (human-in-the-loop) */
   showEmailApprovalRequest?: boolean
   /** Data for EmailPreviewCard when showEmailApprovalRequest is true */
@@ -305,6 +334,11 @@ export function AgentMessage({
   proposalSentData,
   showContractSentConfirmation,
   contractSentData,
+  onMarkPayment,
+  showPaymentConfirmation,
+  paymentConfirmationData,
+  showClosedWon,
+  closedWonData,
   showEmailApprovalRequest,
   emailApprovalData,
   onEmailEdit,
@@ -577,7 +611,26 @@ export function AgentMessage({
       {/* Contract Sent Confirmation - inline after contract is sent via Book Flight */}
       {showContractSentConfirmation && contractSentData && (
         <div className="mt-4 w-full">
-          <ContractSentConfirmation {...contractSentData} />
+          <ContractSentConfirmation
+            {...contractSentData}
+            onMarkPayment={onMarkPayment
+              ? () => onMarkPayment(contractSentData.contractId, contractSentData)
+              : undefined}
+          />
+        </div>
+      )}
+
+      {/* Payment Confirmed Card - inline after payment is recorded */}
+      {showPaymentConfirmation && paymentConfirmationData && (
+        <div className="mt-4 w-full">
+          <PaymentConfirmedCard {...paymentConfirmationData} />
+        </div>
+      )}
+
+      {/* Closed Won Confirmation - inline after deal is closed */}
+      {showClosedWon && closedWonData && (
+        <div className="mt-4 w-full">
+          <ClosedWonConfirmation {...closedWonData} />
         </div>
       )}
 

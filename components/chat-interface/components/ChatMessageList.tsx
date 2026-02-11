@@ -184,6 +184,7 @@ export function ChatMessageList({
   customerEmail,
   customerName,
   operatorMessages,
+  onMarkPayment,
   onTripIdSubmit,
   onRfqFlightSelectionChange,
   onViewChat,
@@ -371,6 +372,11 @@ export function ChatMessageList({
           proposalSentData={message.proposalSentData}
           showContractSentConfirmation={message.showContractSentConfirmation}
           contractSentData={message.contractSentData}
+          onMarkPayment={onMarkPayment}
+          showPaymentConfirmation={message.showPaymentConfirmation}
+          paymentConfirmationData={message.paymentConfirmationData}
+          showClosedWon={message.showClosedWon}
+          closedWonData={message.closedWonData}
           showEmailApprovalRequest={message.showEmailApprovalRequest}
           emailApprovalData={message.emailApprovalData}
           onViewRequest={onViewRequest}

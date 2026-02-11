@@ -22,6 +22,7 @@ import {
   completeContract,
 } from '@/lib/services/contract-service';
 import type { ContractPaymentData, ContractStatus } from '@/lib/types/contract';
+import { saveMessage } from '@/lib/conversation/message-persistence';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -38,11 +39,17 @@ interface RecordPaymentRequest {
   /** Payment date (ISO string) */
   payment_date?: string;
   /** Payment method used */
-  payment_method: 'wire' | 'credit_card';
+  payment_method: 'wire' | 'credit_card' | 'check';
   /** Last 4 digits of credit card (if applicable) */
   cc_last_four?: string;
   /** If true, also marks the contract as completed */
   markComplete?: boolean;
+  /** Request ID for message persistence */
+  requestId?: string;
+  /** Customer name for closed-won card */
+  customerName?: string;
+  /** Flight route for closed-won card */
+  flightRoute?: string;
 }
 
 interface RecordPaymentResponse {
@@ -71,8 +78,8 @@ function validateRequest(body: RecordPaymentRequest): string | null {
     return 'Payment amount must be a positive number';
   }
 
-  if (!body.payment_method || !['wire', 'credit_card'].includes(body.payment_method)) {
-    return 'Payment method must be "wire" or "credit_card"';
+  if (!body.payment_method || !['wire', 'credit_card', 'check'].includes(body.payment_method)) {
+    return 'Payment method must be "wire", "credit_card", or "check"';
   }
 
   if (body.payment_method === 'credit_card' && body.cc_last_four) {
@@ -156,7 +163,7 @@ export async function POST(
     }
 
     // Verify contract is in a payable state (signed or payment_pending)
-    const payableStatuses: ContractStatus[] = ['signed', 'payment_pending'];
+    const payableStatuses: ContractStatus[] = ['sent', 'signed', 'payment_pending'];
     if (!payableStatuses.includes(contract.status as ContractStatus)) {
       return NextResponse.json(
         { success: false, error: `Cannot record payment for contract in '${contract.status}' status` },
@@ -195,6 +202,57 @@ export async function POST(
         payment_received_at: completedContract.payment_received_at,
       };
       console.log('[RecordPayment] Contract marked as completed:', id);
+    }
+
+    // Persist messages to chat history if requestId is provided
+    if (body.requestId) {
+      try {
+        // Persist payment confirmation message
+        await saveMessage({
+          requestId: body.requestId,
+          senderType: 'ai_assistant',
+          content: `Payment confirmed for contract ${result.contract_number}`,
+          contentType: 'payment_confirmed',
+          richContent: {
+            paymentConfirmed: {
+              contractId: result.id,
+              contractNumber: result.contract_number,
+              paymentAmount: result.payment_amount,
+              paymentMethod: body.payment_method,
+              paymentReference: result.payment_reference,
+              paidAt: result.payment_received_at,
+              currency: 'USD',
+            },
+          },
+        });
+
+        console.log('[RecordPayment] Payment confirmation message persisted');
+
+        // Persist deal closed message if contract was marked complete
+        if (body.markComplete) {
+          await saveMessage({
+            requestId: body.requestId,
+            senderType: 'ai_assistant',
+            content: `Deal closed for contract ${result.contract_number}`,
+            contentType: 'deal_closed',
+            richContent: {
+              dealClosed: {
+                contractNumber: result.contract_number,
+                customerName: body.customerName || 'Customer',
+                flightRoute: body.flightRoute || 'N/A',
+                dealValue: result.payment_amount,
+                currency: 'USD',
+                paymentReceivedAt: result.payment_received_at,
+              },
+            },
+          });
+
+          console.log('[RecordPayment] Deal closed message persisted');
+        }
+      } catch (messagePersistenceError) {
+        // Don't fail the payment response if message persistence fails
+        console.error('[RecordPayment] Failed to persist messages:', messagePersistenceError);
+      }
     }
 
     return NextResponse.json({
