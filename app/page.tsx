@@ -895,42 +895,48 @@ export default function JetvisionAgent() {
       );
     };
 
-    // --- PARALLEL DATA LOADING ---
-    // Fire all independent fetches simultaneously
+    // --- PARALLEL DATA LOADING WITH PROGRESSIVE RENDERING ---
+    // Fire slow fetches in background, await messages first to clear skeleton ASAP
 
     const needsMessages = !!(session.requestId || session.conversationId);
     const needsAvinodeFallback = !!(session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0));
     const needsOperatorThreads = !!(session.tripId && (!session.operatorThreads || Object.keys(session.operatorThreads).length === 0));
 
-    const [messagesResult, avinodeResult, operatorResult] = await Promise.allSettled([
-      // 1. Messages (fastest — single DB query)
-      needsMessages
-        ? loadMessagesForSession(session)
-        : Promise.resolve(session.messages || []),
+    // Start slow fetches in the background (don't await yet)
+    const avinodePromise = needsAvinodeFallback
+      ? fetchTripDetailsFromAvinode(session.tripId!)
+      : Promise.resolve(null);
+    const operatorPromise = needsOperatorThreads && session.tripId
+      ? loadOperatorThreadsForSession(session.tripId, session.rfqFlights || [])
+      : Promise.resolve(session.operatorThreads || {});
 
-      // 2. Avinode trip details (fallback — only when RFQ data missing from DB)
-      needsAvinodeFallback
-        ? fetchTripDetailsFromAvinode(session.tripId!)
-        : Promise.resolve(null),
+    // Step 1: Await messages FIRST (fastest — single DB query) to clear skeleton immediately
+    let messages = session.messages || [];
+    if (needsMessages) {
+      try {
+        messages = await loadMessagesForSession(session);
+      } catch (err) {
+        console.error('[handleSelectChat] Messages fetch failed:', err);
+      }
+    }
 
-      // 3. Operator threads (independent of messages)
-      needsOperatorThreads && session.tripId
-        ? loadOperatorThreadsForSession(session.tripId, session.rfqFlights || [])
-        : Promise.resolve(session.operatorThreads || {}),
+    // Apply messages and clear skeleton — user sees chat content now
+    if (!isStale()) {
+      if (needsMessages && (messages.length > 0 || !session.messages?.length)) {
+        applySessionUpdates({ messages });
+      }
+      setIsSessionDataLoading(false);
+    }
+
+    // Step 2: Await remaining fetches (Avinode + operator threads in parallel)
+    const [avinodeResult, operatorResult] = await Promise.allSettled([
+      avinodePromise,
+      operatorPromise,
     ]);
 
-    // --- PROGRESSIVE RENDERING ---
-    // Apply messages first (clears skeleton), then RFQ + threads
-
-    // Extract results (with fallbacks for rejected promises)
-    const messages = messagesResult.status === 'fulfilled' ? messagesResult.value : (session.messages || []);
     const avinodeData = avinodeResult.status === 'fulfilled' ? avinodeResult.value : null;
     const operatorThreads = operatorResult.status === 'fulfilled' ? operatorResult.value : (session.operatorThreads || {});
 
-    // Log any errors
-    if (messagesResult.status === 'rejected') {
-      console.error('[handleSelectChat] Messages fetch failed:', messagesResult.reason);
-    }
     if (avinodeResult.status === 'rejected') {
       console.error('[handleSelectChat] Avinode fetch failed:', avinodeResult.reason);
     }
@@ -938,20 +944,7 @@ export default function JetvisionAgent() {
       console.error('[handleSelectChat] Operator threads fetch failed:', operatorResult.reason);
     }
 
-    // Step 1: Apply messages immediately (clears skeleton)
-    if (!isStale()) {
-      const messageUpdates: Partial<ChatSession> = {};
-      if (needsMessages && (messages.length > 0 || !session.messages?.length)) {
-        messageUpdates.messages = messages;
-      }
-      if (Object.keys(messageUpdates).length > 0) {
-        applySessionUpdates(messageUpdates);
-      }
-      // Clear skeleton as soon as messages are rendered
-      setIsSessionDataLoading(false);
-    }
-
-    // Step 2: Apply RFQ flights from Avinode fallback (if fetched)
+    // Step 3: Apply RFQ flights from Avinode fallback (if fetched)
     const rfqFlights = avinodeData?.rfqFlights || session.rfqFlights || [];
     if (!isStale() && avinodeData) {
       const rfqUpdates: Partial<ChatSession> = {};
@@ -977,7 +970,7 @@ export default function JetvisionAgent() {
       }
     }
 
-    // Step 3: Apply operator threads
+    // Step 4: Apply operator threads
     if (!isStale() && needsOperatorThreads && Object.keys(operatorThreads).length > 0) {
       const threadUpdates: Partial<ChatSession> = {
         operatorThreads,
@@ -1002,11 +995,6 @@ export default function JetvisionAgent() {
       operatorThreadCount: Object.keys(operatorThreads).length,
       stale: isStale(),
     });
-
-    // Final safety: ensure loading is cleared even if no messages were loaded
-    if (!isStale()) {
-      setIsSessionDataLoading(false);
-    }
   }
 
   /**

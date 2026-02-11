@@ -35,35 +35,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing tripId parameter' }, { status: 400 });
     }
 
+    // Validate tripId format (atrip-XXXXXXXX or UUID)
+    const tripIdPattern = /^(atrip-\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+    if (!tripIdPattern.test(tripId)) {
+      return NextResponse.json({ error: 'Invalid tripId format' }, { status: 400 });
+    }
+
     const server = getMCPServer();
 
     // Call get_rfq MCP tool directly (no SSE, no chat API)
-    const rfqResult = await server.callTool('get_rfq', { trip_id: tripId });
+    // NOTE: The tool param is `rfq_id` — it accepts both RFQ IDs and Trip IDs
+    const rfqResult = await server.callTool('get_rfq', { rfq_id: tripId });
 
-    if (!rfqResult || rfqResult.isError) {
+    if (!rfqResult) {
       return NextResponse.json(
-        { error: 'Failed to fetch trip details', details: rfqResult?.content },
+        { error: 'Failed to fetch trip details' },
         { status: 502 }
       );
     }
 
-    // Extract the JSON content from the MCP tool result
-    const content = rfqResult.content;
+    // callTool returns raw data from the Avinode client (not an MCP envelope).
+    // Normalize to a record we can extract fields from.
     let resultData: Record<string, unknown> | null = null;
 
-    if (Array.isArray(content)) {
-      const textBlock = content.find(
-        (c: { type: string }) => c.type === 'text'
-      ) as { type: string; text: string } | undefined;
-      if (textBlock?.text) {
-        try {
-          resultData = JSON.parse(textBlock.text);
-        } catch {
-          resultData = null;
-        }
+    if (typeof rfqResult === 'object' && rfqResult !== null && !Array.isArray(rfqResult)) {
+      resultData = rfqResult as Record<string, unknown>;
+    } else if (typeof rfqResult === 'string') {
+      try {
+        resultData = JSON.parse(rfqResult);
+      } catch {
+        resultData = null;
       }
-    } else if (typeof content === 'object') {
-      resultData = content as Record<string, unknown>;
     }
 
     if (!resultData) {
