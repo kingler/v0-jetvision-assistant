@@ -9,8 +9,7 @@
  *
  * Design System Colors (from tokens):
  * - Sky Blue: #00a8e8 (primary brand)
- * - Aviation Blue: #0066cc (legacy)
- * - Sunset Orange: #ff6b35 (accent)
+ * - Accent remapped to Sky Blue (primary)
  */
 
 @import "tailwindcss";
@@ -35,7 +34,7 @@
   --foreground: oklch(0.25 0 0); /* neutral-700 */
 
   /* Card surfaces */
-  --card: oklch(0.98 0 0); /* neutral-50 */
+  --card: oklch(1 0 0);    /* white */
   --card-foreground: oklch(0.3 0 0); /* neutral-600 */
 
   /* Popover surfaces */
@@ -54,8 +53,8 @@
   --muted: oklch(0.98 0 0); /* neutral-50 */
   --muted-foreground: oklch(0.3 0 0); /* neutral-600 */
 
-  /* Accent - Sunset Orange */
-  --accent: oklch(0.65 0.22 40); /* #ff6b35 */
+  /* Accent - Remapped to Primary Sky Blue */
+  --accent: oklch(0.65 0.18 220); /* same as --primary */
   --accent-foreground: oklch(1 0 0); /* white */
 
   /* Destructive/Error */
@@ -73,6 +72,10 @@
   --chart-3: oklch(0.55 0.22 25);
   --chart-4: oklch(0.3 0 0);
   --chart-5: oklch(0.95 0.05 130);
+
+  /* Skeleton loading (react-loading-skeleton) */
+  --skeleton-base: #e5e7eb;
+  --skeleton-highlight: #f3f4f6;
 
   /* Base radius (used with calc for variants) */
   --radius: 0.5rem;
@@ -113,8 +116,8 @@
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
 
-  /* Accent - Sunset Orange (brighter for dark mode) */
-  --accent: oklch(0.70 0.24 40);
+  /* Accent - Remapped to Primary Sky Blue */
+  --accent: oklch(0.70 0.20 220); /* same as --primary */
   --accent-foreground: oklch(0.98 0 0);
 
   --destructive: oklch(0.396 0.141 25.723);
@@ -129,6 +132,10 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+
+  /* Skeleton loading (react-loading-skeleton) */
+  --skeleton-base: #374151;
+  --skeleton-highlight: #4b5563;
 
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
@@ -248,6 +255,14 @@
     outline: 2px solid var(--ring);
     outline-offset: 0;
     border-color: var(--ring);
+  }
+
+  /* Nested cards: strip card chrome (bg, shadow, border, radius) from inner cards */
+  [data-slot="card"] [data-slot="card"] {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
   }
 
   /* Card interactive focus states */
