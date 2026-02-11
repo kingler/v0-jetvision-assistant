@@ -184,6 +184,48 @@ export async function POST(req: NextRequest) {
           ...(reqRow.avinode_deep_link ? { deepLink: reqRow.avinode_deep_link } : {}),
         };
       }
+
+      // Check for stage transitions from UI-driven actions (contract send, payment, deal close)
+      // These happen outside the chat flow, so we detect them from persisted messages.
+      // Note: 'payment_confirmed' and 'deal_closed' are valid DB content_types added via
+      // message-persistence.ts but not yet in the generated Supabase types, hence the cast.
+      const { data: recentMessages } = await supabaseAdmin
+        .from('messages')
+        .select('content_type, rich_content')
+        .eq('request_id', conversationId)
+        .or('content_type.eq.contract_shared,content_type.eq.payment_confirmed,content_type.eq.deal_closed')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (recentMessages && recentMessages.length > 0) {
+        const latestAction = recentMessages[0];
+        const ct = latestAction.content_type as string;
+        if (ct === 'deal_closed') {
+          workingMemory.workflowStage = 'deal_closed';
+        } else if (ct === 'payment_confirmed') {
+          workingMemory.workflowStage = workingMemory.workflowStage !== 'deal_closed'
+            ? 'payment_received' : workingMemory.workflowStage;
+          // Extract payment details from rich_content
+          const rc = latestAction.rich_content as Record<string, unknown> | null;
+          if (rc?.paymentConfirmed) {
+            const pc = rc.paymentConfirmed as Record<string, unknown>;
+            if (pc.amount) workingMemory.paymentAmount = pc.amount;
+            if (pc.method) workingMemory.paymentMethod = pc.method;
+            if (pc.reference) workingMemory.paymentReference = pc.reference;
+          }
+        } else if (ct === 'contract_shared') {
+          if (!['payment_received', 'deal_closed'].includes(workingMemory.workflowStage as string)) {
+            workingMemory.workflowStage = 'contract_sent';
+          }
+          // Extract contract details from rich_content
+          const rc = latestAction.rich_content as Record<string, unknown> | null;
+          if (rc?.contractSent) {
+            const cs = rc.contractSent as Record<string, unknown>;
+            if (cs.contractId) workingMemory.contractId = cs.contractId;
+            if (cs.contractNumber) workingMemory.contractNumber = cs.contractNumber;
+          }
+        }
+      }
     }
 
     // Merge any tripId from the request into working memory (e.g. from URL params)
@@ -344,6 +386,15 @@ export async function POST(req: NextRequest) {
       if ((tr.name === 'send_proposal_email' || tr.name === 'send_email') && tr.success) {
         workingMemory.workflowStage = 'proposal_sent';
       }
+      // Detect customer reply via search_emails results (Gmail MCP tool, not in typed AllTools)
+      const toolName = tr.name as string;
+      if (toolName === 'search_emails' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        const messages = data.messages as unknown[] | undefined;
+        if (messages && messages.length > 0 && workingMemory.workflowStage === 'proposal_sent') {
+          workingMemory.workflowStage = 'customer_replied';
+        }
+      }
     }
 
     // Capture rfpData into working memory
@@ -403,6 +454,12 @@ export async function POST(req: NextRequest) {
         .update(updateData)
         .eq('id', conversationId);
     }
+
+    // 8b. Always persist working memory (workflow_state) back to requests table
+    await supabaseAdmin
+      .from('requests')
+      .update({ workflow_state: workingMemory as unknown as Record<string, never> })
+      .eq('id', conversationId);
 
     // 9. Update chat session
     const sessionData: ChatSessionInsert = {

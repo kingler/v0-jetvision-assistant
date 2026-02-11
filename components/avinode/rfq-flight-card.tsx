@@ -595,11 +595,9 @@ export function RFQFlightCard({
    * Compact view shows: smaller image, aircraft details, price, RFQ status badge, and messages button
    */
   const showCompactView = compact && !isExpanded;
-  // Compact image size: 120px width, 120px height (square thumbnail)
-  const compactImageSize = 120;
-  // Full image size: Reduced to 150px width, 180px height for better layout
-  const fullImageWidth = 150;
-  const fullImageHeight = 180;
+  // Compact image size: responsive - 80px on mobile, 100px on sm+ screens
+  // Full image size: responsive - scales from 100px on mobile to 150px on sm+
+  // These values are now handled via Tailwind responsive classes directly
 
   return (
     <div
@@ -611,14 +609,14 @@ export function RFQFlightCard({
       )}
       style={{ height: 'fit-content' }}
     >
-      {/* Price - Positioned at top right corner in compact view */}
+      {/* Price - Positioned at top right corner in compact view (responsive scaling) */}
       {showCompactView && (
         <div
           data-testid="price-section-compact"
-          className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5"
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 flex flex-col items-end gap-1"
         >
-          {/* Price display - always shows initial price that operator must accept/acknowledge */}
-          <p className="text-lg font-semibold text-black dark:text-white">
+          {/* Price display - scaled down on mobile to prevent overlap with category text */}
+          <p className="text-sm sm:text-lg font-semibold text-black dark:text-white">
             {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
           </p>
           {/* Badges Row - Leg type and status badges side by side to prevent overlap */}
@@ -654,11 +652,10 @@ export function RFQFlightCard({
 
       {/* Compact View: Smaller thumbnail, essential info only */}
       {showCompactView ? (
-        <div className="flex gap-4 pb-4 pt-2">
-          {/* Compact Image: 120x120 thumbnail */}
+        <div className="flex gap-2.5 sm:gap-4 pb-3 sm:pb-4 pt-1.5 sm:pt-2">
+          {/* Compact Image: responsive thumbnail - 80px mobile, 100px sm+ */}
           <div
-            className="bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center shrink-0"
-            style={{ width: `${compactImageSize}px`, height: `${compactImageSize}px` }}
+            className="bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center shrink-0 rounded-md overflow-hidden w-[80px] h-[80px] sm:w-[100px] sm:h-[100px]"
           >
             {flight.tailPhotoUrl && !imageError ? (
               <img
@@ -673,30 +670,30 @@ export function RFQFlightCard({
                 data-testid="aircraft-placeholder"
                 className="flex items-center justify-center w-full h-full bg-gray-200 dark:bg-gray-700"
               >
-                <Plane className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                <Plane className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 dark:text-gray-500" />
               </div>
             )}
           </div>
 
-          {/* Compact Content: Aircraft details, messages */}
-          <div className="flex-1 flex flex-col justify-between py-2">
-            <div className="flex-1 space-y-3">
-              {/* Aircraft Details */}
-              <div data-testid="aircraft-section" className="space-y-1">
-                <div className="text-sm text-gray-700 dark:text-gray-300 space-y-0.5">
+          {/* Compact Content: Aircraft details, messages - responsive text sizing */}
+          <div className="flex-1 flex flex-col justify-between py-1 sm:py-2 min-w-0">
+            <div className="flex-1 space-y-2 sm:space-y-3">
+              {/* Aircraft Details - scaled text for mobile */}
+              <div data-testid="aircraft-section" className="space-y-0.5 sm:space-y-1">
+                <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 space-y-0.5">
                   {category && (
-                    <p><span className="font-medium">Category:</span> {category}</p>
+                    <p className="truncate"><span className="font-medium">Category:</span> {category}</p>
                   )}
                   {flight.aircraftModel && (
-                    <p><span className="font-medium">Aircraft:</span> {flight.aircraftModel}</p>
+                    <p className="truncate"><span className="font-medium">Aircraft:</span> {flight.aircraftModel}</p>
                   )}
                   {flight.tailNumber && (
-                    <p><span className="font-medium">Tail Number:</span> {flight.tailNumber}</p>
+                    <p className="truncate"><span className="font-medium">Tail Number:</span> {flight.tailNumber}</p>
                   )}
                 </div>
               </div>
               {operatorMessagePreview && (
-                <div className="text-xs text-gray-600 dark:text-gray-400">
+                <div className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
                   <span className="font-medium text-gray-700 dark:text-gray-300">Operator message:</span>{' '}
                   {operatorMessagePreview}
                 </div>
@@ -704,9 +701,9 @@ export function RFQFlightCard({
             </div>
 
             {/* Bottom Row: Messages Button, Action Buttons (when quoted + messages), and Show More */}
-            {/* Add 8px spacing (mt-2) above the grey divider line to separate from status badge */}
-            <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2 flex-wrap">
+            {/* Responsive spacing and button sizing for mobile */}
+            <div className="flex items-center justify-between pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 {/* Messages Button with notification dot for new messages */}
                 {onViewChat && (
                   <div className="relative inline-block">
@@ -714,16 +711,16 @@ export function RFQFlightCard({
                       variant="outline"
                       size="sm"
                       onClick={handleViewChat}
-                      className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                      className="flex items-center gap-1 sm:gap-2 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-gray-900 dark:text-gray-100"
                       aria-label="View chat"
                     >
-                      <MessageSquare className="h-4 w-4" />
+                      <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4" />
                       Messages
                     </Button>
                     {/* Notification dot - positioned at top right corner, overlaps button border */}
                     {hasNewMessages && (
                       <span
-                        className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-gray-900 z-10"
+                        className="absolute -top-1 -right-1 h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-gray-900 z-10"
                         aria-label="New messages"
                         title="New messages from operator"
                       />
@@ -746,10 +743,10 @@ export function RFQFlightCard({
                           size="sm"
                           onClick={handleBookFlight}
                           disabled={bookFlightDisabled}
-                          className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                          className="flex items-center gap-1 sm:gap-2 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-gray-900 dark:text-gray-100"
                           aria-label="Book flight"
                         >
-                          <ShoppingCart className="h-4 w-4" />
+                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
                           Book flight
                         </Button>
                       </div>
@@ -759,10 +756,10 @@ export function RFQFlightCard({
                         variant="outline"
                         size="sm"
                         onClick={handleGenerateProposal}
-                        className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                        className="flex items-center gap-1 sm:gap-2 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-gray-900 dark:text-gray-100"
                         aria-label="Generate Proposal"
                       >
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
                         Generate Proposal
                       </Button>
                     )}
@@ -770,30 +767,33 @@ export function RFQFlightCard({
                 )}
               </div>
 
-              {/* Show More Button */}
+              {/* Show More Button - scaled for mobile */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleExpanded}
-                className="flex items-center gap-1 text-sm text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100"
+                className="flex items-center gap-0.5 sm:gap-1 text-[11px] sm:text-sm h-7 sm:h-8 px-1.5 sm:px-3 text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100 shrink-0"
                 aria-label={isExpanded ? 'Show less' : 'Show more'}
                 aria-expanded={isExpanded}
               >
                 Show More
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
             </div>
           </div>
         </div>
       ) : (
         <div>
-          {/* Top Row: 3-Column Layout - Image | Aircraft | Operator/Price/RFQ Status */}
-          <div className={cn('flex pb-4 pt-2 gap-4', compact && isExpanded ? 'flex-col sm:flex-row' : 'flex-row')}>
-            {/* Column 1: Aircraft Image - Reduced to 150px width, 180px height for better layout */}
+          {/* Top Row: Responsive layout - stacks on mobile, 3-column on sm+ */}
+          <div className={cn(
+            'flex pb-3 sm:pb-4 pt-1.5 sm:pt-2 gap-2.5 sm:gap-4',
+            'flex-col sm:flex-row'
+          )}>
+            {/* Column 1: Aircraft Image - responsive sizing: 100% width stacked on mobile, 120px on sm+ */}
             <div
               className={cn(
                 'bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center shrink-0 rounded-lg overflow-hidden',
-                compact && isExpanded ? 'w-full h-[180px] sm:w-[150px]' : 'w-[150px] h-[180px]'
+                'w-full h-[120px] sm:w-[120px] sm:h-[140px] md:w-[150px] md:h-[180px]'
               )}
             >
               {flight.tailPhotoUrl && !imageError ? (
@@ -809,25 +809,25 @@ export function RFQFlightCard({
                   data-testid="aircraft-placeholder"
                   className="flex items-center justify-center w-full h-full bg-gray-200 dark:bg-gray-700"
                 >
-                  <Plane className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                  <Plane className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-gray-400 dark:text-gray-500" />
                 </div>
               )}
             </div>
 
             {/* Column 2: Aircraft Details - Middle column */}
-            <div className="flex-1 py-4 space-y-4 min-w-0">
+            <div className="flex-1 py-2 sm:py-4 space-y-2 sm:space-y-4 min-w-0">
               {/* Aircraft Section */}
-              <div data-testid="aircraft-section" className="space-y-2">
-                <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Aircraft</h5>
-                <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <div data-testid="aircraft-section" className="space-y-1 sm:space-y-2">
+                <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Aircraft</h5>
+                <div className="space-y-0.5 sm:space-y-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                   {category && (
-                    <p><span className="font-medium">Category:</span> {category}</p>
+                    <p className="truncate"><span className="font-medium">Category:</span> {category}</p>
                   )}
                   {flight.aircraftModel && (
-                    <p><span className="font-medium">Aircraft:</span> {flight.aircraftModel}</p>
+                    <p className="truncate"><span className="font-medium">Aircraft:</span> {flight.aircraftModel}</p>
                   )}
                   {flight.tailNumber && (
-                    <p><span className="font-medium">Tail Number:</span> {flight.tailNumber}</p>
+                    <p className="truncate"><span className="font-medium">Tail Number:</span> {flight.tailNumber}</p>
                   )}
                   {flight.yearOfManufacture && (
                     <p><span className="font-medium">Year of Make:</span> {flight.yearOfManufacture}</p>
@@ -843,19 +843,19 @@ export function RFQFlightCard({
                     onCheckedChange={handleSelectionChange}
                     aria-label={`Select flight from ${flight.operatorName}`}
                   />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Select for proposal</span>
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Select for proposal</span>
                 </div>
               )}
             </div>
 
-            {/* Column 3: Price, Operator, RFQ Status - Right column */}
-            <div className="w-[220px] shrink-0 py-4 flex flex-col space-y-4" style={{ height: 'fit-content' }}>
+            {/* Column 3: Price, Operator, RFQ Status - responsive width, stacks on mobile */}
+            <div className="w-full sm:w-[180px] md:w-[220px] shrink-0 py-2 sm:py-4 flex flex-col space-y-2 sm:space-y-4" style={{ height: 'fit-content' }}>
               {/* Price Section - Prominent placement at top */}
-              <div data-testid="price-section" className="space-y-2">
+              <div data-testid="price-section" className="space-y-1 sm:space-y-2">
                 {/* Price Label and Amount on same row - always shows initial price */}
                 <div className="flex items-center justify-between gap-2">
-                  <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Price</h5>
-                  <p className="text-2xl font-semibold text-black dark:text-white">
+                  <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Price</h5>
+                  <p className="text-lg sm:text-xl md:text-2xl font-semibold text-black dark:text-white">
                     {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
                   </p>
                 </div>
@@ -897,10 +897,10 @@ export function RFQFlightCard({
                 )}
               </div>
 
-              {/* Operator Section */}
-              <div data-testid="operator-section" className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Operator</h5>
-                <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              {/* Operator Section - responsive text sizing */}
+              <div data-testid="operator-section" className="space-y-1 sm:space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Operator</h5>
+                <div className="space-y-0.5 sm:space-y-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                   <p className="truncate"><span className="font-medium">Company:</span> {flight.operatorName}</p>
                   {flight.operatorEmail && (
                     <p className="truncate"><span className="font-medium">Email:</span> {flight.operatorEmail}</p>
@@ -914,30 +914,30 @@ export function RFQFlightCard({
                 </div>
               </div>
               {operatorMessagePreview && (
-                <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
                   <p className="font-medium text-gray-700 dark:text-gray-300">Operator message</p>
-                  <p className="leading-relaxed">{operatorMessagePreview}</p>
+                  <p className="leading-relaxed line-clamp-2">{operatorMessagePreview}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Bottom Row: 2-Column Layout - Transport | Amenities */}
-          <div className={cn('flex gap-4 pb-4', compact && isExpanded ? 'flex-col sm:flex-row' : 'flex-row')}>
-            {/* Transport Section */}
-            <div data-testid="transport-section" className="flex-1 space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Transport</h5>
-              <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+          {/* Bottom Row: 2-Column Layout - Transport | Amenities (stacks on mobile) */}
+          <div className={cn('flex gap-2.5 sm:gap-4 pb-3 sm:pb-4', 'flex-col sm:flex-row')}>
+            {/* Transport Section - responsive text */}
+            <div data-testid="transport-section" className="flex-1 space-y-1 sm:space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Transport</h5>
+              <div className="space-y-0.5 sm:space-y-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 <p><span className="font-medium">Passenger Capacity:</span> {flight.passengerCapacity}</p>
                 <p><span className="font-medium">Medical:</span> {medicalAvailable ? 'YES' : 'NO'}</p>
                 <p><span className="font-medium">Package:</span> {packageAvailable ? 'YES' : 'NO'}</p>
               </div>
             </div>
 
-            {/* Amenities Section */}
-            <div data-testid="amenities-section" className="flex-1 space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Amenities</h5>
-              <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+            {/* Amenities Section - responsive text */}
+            <div data-testid="amenities-section" className="flex-1 space-y-1 sm:space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <h5 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Amenities</h5>
+              <div className="space-y-0.5 sm:space-y-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 <p><span className="font-medium">Pets Allowed:</span> {flight.amenities.pets ? 'YES' : 'NO'}</p>
                 <p><span className="font-medium">Smoking Allowed:</span> {flight.amenities.smoking ? 'YES' : 'NO'}</p>
                 <p><span className="font-medium">Wi-Fi:</span> {flight.amenities.wifi ? 'YES' : 'NO'}</p>
@@ -945,9 +945,9 @@ export function RFQFlightCard({
             </div>
           </div>
 
-          {/* Bottom Action Area: View Messages, Book Flight, Generate Proposal buttons */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 pb-4">
-            <div className="flex items-center gap-2 flex-wrap">
+          {/* Bottom Action Area: View Messages, Book Flight, Generate Proposal buttons (responsive) */}
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1.5 sm:pt-2 border-t border-gray-200 dark:border-gray-700 pb-3 sm:pb-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               {/* 
                 Status updates automatically when operator responds:
                 - 'unanswered'/'sent' → 'quoted' when operator provides quote
@@ -961,16 +961,16 @@ export function RFQFlightCard({
                     variant="outline"
                     size="sm"
                     onClick={handleViewChat}
-                    className="flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100"
+                    className="flex items-center gap-1 sm:gap-2 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100"
                     aria-label="View chat"
                   >
-                    <MessageSquare className="h-4 w-4" />
+                    <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4" />
                     View Messages
                   </Button>
                   {/* Notification dot - positioned at top right corner, overlaps button border */}
                   {hasNewMessages && (
                     <span
-                      className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-gray-900 z-10"
+                      className="absolute -top-1 -right-1 h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-gray-900 z-10"
                       aria-label="New messages"
                       title="New messages from operator"
                     />
@@ -988,10 +988,10 @@ export function RFQFlightCard({
                         size="sm"
                         onClick={handleBookFlight}
                         disabled={bookFlightDisabled}
-                        className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                        className="flex items-center gap-1 sm:gap-2 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-gray-900 dark:text-gray-100"
                         aria-label="Book flight"
                       >
-                        <ShoppingCart className="h-4 w-4" />
+                        <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
                         Book Flight
                       </Button>
                     </div>
@@ -1001,30 +1001,29 @@ export function RFQFlightCard({
                       variant="outline"
                       size="sm"
                       onClick={handleGenerateProposal}
-                      className="flex items-center gap-2 text-gray-900 dark:text-gray-100"
+                      className="flex items-center gap-1 sm:gap-2 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-gray-900 dark:text-gray-100"
                       aria-label="Generate flight proposal"
                     >
-                      <FileText className="h-4 w-4" />
+                      <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
                       Generate Proposal
                     </Button>
                   )}
                 </>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              {/* Show Less Button (only in compact mode when expanded) */}
-              {/* Single Show Less button - removed duplicate rendering logic */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Show Less Button (only in compact mode when expanded) - scaled for mobile */}
               {compact && isExpanded && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={toggleExpanded}
-                  className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                  className="flex items-center gap-0.5 sm:gap-1 text-[11px] sm:text-sm h-7 sm:h-8 px-1.5 sm:px-3 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 shrink-0"
                   aria-label="Show less"
                   aria-expanded={isExpanded}
                 >
                   Show Less
-                  <ChevronUp className="h-4 w-4" />
+                  <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               )}
             </div>

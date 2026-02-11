@@ -57,6 +57,7 @@
     "review:pr": "tsx scripts/code-review/pr-review.ts",
     "review:tdd": "tsx scripts/code-review/tdd-workflow.ts",
     "review:fix": "npm run lint -- --fix",
+    "extract-diagrams": "node scripts/extract-mermaid-diagrams.js",
     "review:automated": "./scripts/pr-review-automation.sh",
     "verify:avinode-env": "bash scripts/verify-avinode-env.sh",
     "prepare": "husky install || true"
@@ -141,6 +142,7 @@
   },
   "devDependencies": {
     "@clerk/testing": "^1.13.25",
+    "@mermaid-js/mermaid-cli": "^11.12.0",
     "@playwright/test": "^1.56.1",
     "@storybook/addon-a11y": "^10.1.11",
     "@storybook/addon-essentials": "^8.6.14",

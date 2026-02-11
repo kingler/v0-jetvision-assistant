@@ -65,7 +65,7 @@ export const QuickActions = memo(function QuickActions({
   className = '',
 }: QuickActionsProps) {
   return (
-    <div className={`flex flex-wrap gap-2 mb-4 ${className}`}>
+    <div className={`flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4 ${className}`}>
       {actions.map((action) => (
         <Button
           key={action.label}
@@ -73,7 +73,7 @@ export const QuickActions = memo(function QuickActions({
           size="sm"
           onClick={() => onSelect(action.value)}
           disabled={disabled}
-          className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
+          className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
         >
           {action.label}
         </Button>
@@ -84,9 +84,9 @@ export const QuickActions = memo(function QuickActions({
           variant="outline"
           size="sm"
           onClick={onViewWorkflow}
-          className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
+          className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
         >
-          <Eye className="w-3 h-3 mr-1" />
+          <Eye className="w-3 h-3 mr-0.5 sm:mr-1" />
           View Workflow
         </Button>
       )}

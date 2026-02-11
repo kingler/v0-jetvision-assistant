@@ -561,8 +561,18 @@ export interface WorkingMemory {
   passengers?: number;
 
   // Workflow state
-  workflowStage?: 'gathering_info' | 'trip_created' | 'awaiting_quotes' | 'quotes_received' | 'proposal_ready' | 'proposal_sent';
+  workflowStage?: 'gathering_info' | 'trip_created' | 'awaiting_quotes' | 'quotes_received'
+    | 'proposal_ready' | 'proposal_sent'
+    | 'customer_replied' | 'contract_sent' | 'payment_received' | 'deal_closed';
   quotesReceived?: number;
+
+  // Contract & Payment tracking
+  contractId?: string;
+  contractNumber?: string;
+  proposalId?: string;
+  paymentAmount?: number;
+  paymentMethod?: string;
+  paymentReference?: string;
 
   // Metadata
   lastUpdated?: string;

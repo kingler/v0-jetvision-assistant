@@ -265,7 +265,7 @@ export function RFQFlightsList({
     }
 
     return (
-      <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-6 last:pb-0">
+      <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-4 sm:pb-6 last:pb-0">
         <RFQFlightCard
           key={cardKey} // CRITICAL: Force re-render when price/status changes
           flight={{ ...flight, isSelected: selectedIds.has(flight.id) }}
@@ -360,23 +360,23 @@ export function RFQFlightsList({
         width: '100%'
       }}
     >
-      {/* Header with controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold">
+      {/* Header with controls - responsive sizing for mobile */}
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <h3 className="text-xs sm:text-sm font-semibold">
             {processedFlights.length} flight{processedFlights.length !== 1 ? 's' : ''} available
           </h3>
           {selectable && selectedIds.size > 0 && (
-            <span className="text-sm text-primary">
+            <span className="text-xs sm:text-sm text-primary">
               {selectedIds.size} selected
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Select All */}
           {selectable && showSelectAll && (
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
               <Checkbox
                 checked={allSelected}
                 onCheckedChange={handleSelectAll}
@@ -386,14 +386,14 @@ export function RFQFlightsList({
             </label>
           )}
 
-          {/* Sort Dropdown */}
+          {/* Sort Dropdown - scaled for mobile */}
           {sortable && (
             <select
               value={sortBy}
               onChange={handleSortChange}
               aria-label="Sort by"
               role="combobox"
-              className="text-sm border border-gray-200 dark:border-gray-700 rounded-md px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              className="text-[11px] sm:text-sm border border-gray-200 dark:border-gray-700 rounded-md px-2 sm:px-3 py-1 sm:py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             >
               <option value="price-asc">Price: Low to High</option>
               <option value="price-desc">Price: High to Low</option>
