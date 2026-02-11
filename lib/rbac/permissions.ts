@@ -42,18 +42,25 @@ type PermissionMatrix = {
 // ============================================================================
 
 /**
+ * Shared permissions for ISO agents / sales reps
+ * Both 'iso_agent' (DB default from Clerk sync) and 'sales_rep' map here.
+ */
+const ISO_AGENT_PERMISSIONS: { [R in Resource]: Action[] } = {
+  clients: ['create', 'read', 'update', 'delete'],
+  requests: ['create', 'read', 'update', 'delete'],
+  quotes: ['read', 'update'],
+  users: ['read_own', 'update_own'],
+  analytics: ['read_own'],
+};
+
+/**
  * Complete permission matrix for all roles
  *
  * Defines what actions each role can perform on each resource
  */
 export const PERMISSIONS: PermissionMatrix = {
-  sales_rep: {
-    clients: ['create', 'read', 'update', 'delete'],
-    requests: ['create', 'read', 'update', 'delete'],
-    quotes: ['read', 'update'],
-    users: ['read_own', 'update_own'],
-    analytics: ['read_own'],
-  },
+  iso_agent: ISO_AGENT_PERMISSIONS,
+  sales_rep: ISO_AGENT_PERMISSIONS,
   admin: {
     clients: ['create', 'read', 'update', 'delete'],
     requests: ['create', 'read', 'update', 'delete'],

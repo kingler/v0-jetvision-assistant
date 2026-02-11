@@ -2,12 +2,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useUserRole } from '@/lib/hooks/use-user-role';
-import { UserRole } from '@/lib/types/database';
+import { useUser } from '@clerk/nextjs';
 
 // Mock Clerk's useUser hook
 vi.mock('@clerk/nextjs', () => ({
   useUser: vi.fn(),
 }));
+
+const mockUseUser = vi.mocked(useUser);
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -18,8 +20,7 @@ describe('useUserRole', () => {
   });
 
   it('should return null role and loading true initially', () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     const { result } = renderHook(() => useUserRole());
 
@@ -32,12 +33,11 @@ describe('useUserRole', () => {
   });
 
   it('should fetch user role when user is loaded', async () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     const mockResponse = {
       ok: true,
-      json: async () => ({ role: UserRole.ADMIN }),
+      json: async () => ({ role: 'admin' }),
     };
     (global.fetch as any).mockResolvedValue(mockResponse);
 
@@ -47,19 +47,18 @@ describe('useUserRole', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.role).toBe(UserRole.ADMIN);
+    expect(result.current.role).toBe('admin');
     expect(result.current.isAdmin).toBe(true);
     expect(result.current.isSalesRep).toBe(false);
     expect(fetch).toHaveBeenCalledWith('/api/users/me');
   });
 
   it('should handle sales_rep role correctly', async () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     const mockResponse = {
       ok: true,
-      json: async () => ({ role: UserRole.SALES_REP }),
+      json: async () => ({ role: 'sales_rep' }),
     };
     (global.fetch as any).mockResolvedValue(mockResponse);
 
@@ -69,18 +68,17 @@ describe('useUserRole', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.role).toBe(UserRole.SALES_REP);
+    expect(result.current.role).toBe('sales_rep');
     expect(result.current.isSalesRep).toBe(true);
     expect(result.current.isAdmin).toBe(false);
   });
 
   it('should handle customer role correctly', async () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     const mockResponse = {
       ok: true,
-      json: async () => ({ role: UserRole.CUSTOMER }),
+      json: async () => ({ role: 'customer' }),
     };
     (global.fetch as any).mockResolvedValue(mockResponse);
 
@@ -90,18 +88,17 @@ describe('useUserRole', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.role).toBe(UserRole.CUSTOMER);
+    expect(result.current.role).toBe('customer');
     expect(result.current.isCustomer).toBe(true);
     expect(result.current.isAdmin).toBe(false);
   });
 
   it('should handle operator role correctly', async () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     const mockResponse = {
       ok: true,
-      json: async () => ({ role: UserRole.OPERATOR }),
+      json: async () => ({ role: 'operator' }),
     };
     (global.fetch as any).mockResolvedValue(mockResponse);
 
@@ -111,14 +108,13 @@ describe('useUserRole', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.role).toBe(UserRole.OPERATOR);
+    expect(result.current.role).toBe('operator');
     expect(result.current.isOperator).toBe(true);
     expect(result.current.isAdmin).toBe(false);
   });
 
   it('should handle fetch error gracefully', async () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     (global.fetch as any).mockRejectedValue(new Error('Network error'));
 
@@ -133,8 +129,7 @@ describe('useUserRole', () => {
   });
 
   it('should not fetch if no user', () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: null, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: null, isLoaded: true } as any);
 
     renderHook(() => useUserRole());
 
@@ -142,12 +137,11 @@ describe('useUserRole', () => {
   });
 
   it('should check permissions correctly for admin', async () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     const mockResponse = {
       ok: true,
-      json: async () => ({ role: UserRole.ADMIN }),
+      json: async () => ({ role: 'admin' }),
     };
     (global.fetch as any).mockResolvedValue(mockResponse);
 
@@ -165,12 +159,11 @@ describe('useUserRole', () => {
   });
 
   it('should check permissions correctly for sales_rep', async () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     const mockResponse = {
       ok: true,
-      json: async () => ({ role: UserRole.SALES_REP }),
+      json: async () => ({ role: 'sales_rep' }),
     };
     (global.fetch as any).mockResolvedValue(mockResponse);
 
@@ -180,20 +173,44 @@ describe('useUserRole', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Sales rep has specific permissions
-    expect(result.current.hasPermission('quotes', 'create')).toBe(true);
+    // Sales rep: quotes=['read','update'], no 'create'
     expect(result.current.hasPermission('quotes', 'read')).toBe(true);
     expect(result.current.hasPermission('quotes', 'update')).toBe(true);
+    expect(result.current.hasPermission('quotes', 'create')).toBe(false);
+    expect(result.current.hasPermission('users', 'delete')).toBe(false);
+  });
+
+  it('should treat iso_agent as sales_rep (Clerk default role)', async () => {
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
+
+    const mockResponse = {
+      ok: true,
+      json: async () => ({ role: 'iso_agent' }),
+    };
+    (global.fetch as any).mockResolvedValue(mockResponse);
+
+    const { result } = renderHook(() => useUserRole());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.role).toBe('iso_agent');
+    expect(result.current.isSalesRep).toBe(true);
+    expect(result.current.isAdmin).toBe(false);
+    // iso_agent has same permissions as sales_rep
+    expect(result.current.hasPermission('clients', 'create')).toBe(true);
+    expect(result.current.hasPermission('quotes', 'read')).toBe(true);
+    expect(result.current.hasPermission('quotes', 'create')).toBe(false);
     expect(result.current.hasPermission('users', 'delete')).toBe(false);
   });
 
   it('should check permissions correctly for customer', async () => {
-    const { useUser } = require('@clerk/nextjs');
-    useUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
     const mockResponse = {
       ok: true,
-      json: async () => ({ role: UserRole.CUSTOMER }),
+      json: async () => ({ role: 'customer' }),
     };
     (global.fetch as any).mockResolvedValue(mockResponse);
 
@@ -203,8 +220,9 @@ describe('useUserRole', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Customer has limited permissions
-    expect(result.current.hasPermission('quotes', 'read')).toBe(true);
+    // Customer: quotes=['read_own'], users=['read_own','update_own']
+    expect(result.current.hasPermission('quotes', 'read_own')).toBe(true);
+    expect(result.current.hasPermission('quotes', 'read')).toBe(false);
     expect(result.current.hasPermission('quotes', 'create')).toBe(false);
     expect(result.current.hasPermission('users', 'read')).toBe(false);
   });

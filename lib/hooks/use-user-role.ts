@@ -69,7 +69,7 @@ export function useUserRole(): UseUserRoleReturn {
   return {
     role,
     loading,
-    isSalesRep: role === 'sales_rep',
+    isSalesRep: role === 'sales_rep' || role === 'iso_agent',
     isAdmin: role === 'admin',
     isCustomer: role === 'customer',
     isOperator: role === 'operator',
