@@ -26,3 +26,13 @@ export {
 
 export { ContractDocument } from './contract-template';
 export type { ContractData } from '@/lib/types/contract';
+
+// Onboarding contract exports
+export { generateOnboardingContract, generateOnboardingFileName } from './onboarding-contract-generator';
+export type {
+  GenerateOnboardingContractInput,
+  GenerateOnboardingContractOutput,
+} from './onboarding-contract-generator';
+
+export { OnboardingContractDocument } from './onboarding-contract-template';
+export type { OnboardingContractData } from './onboarding-contract-template';

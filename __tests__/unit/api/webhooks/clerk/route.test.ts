@@ -94,7 +94,7 @@ describe('POST /api/webhooks/clerk', () => {
   });
 
   describe('user.created event', () => {
-    it('should create user with default sales_rep role', async () => {
+    it('should create user with default iso_agent role', async () => {
       const mockHeaders = new Map([
         ['svix-id', 'msg_123'],
         ['svix-timestamp', '1234567890'],
@@ -127,7 +127,7 @@ describe('POST /api/webhooks/clerk', () => {
                 clerk_user_id: 'clerk_user_123',
                 email: 'test@example.com',
                 full_name: 'John Doe',
-                role: 'sales_rep',
+                role: 'iso_agent',
               },
               error: null,
             }),
@@ -175,7 +175,7 @@ describe('POST /api/webhooks/clerk', () => {
 
       let insertedRole: string = '';
       const mockFrom = vi.fn().mockReturnValue({
-        insert: vi.fn().mockImplementation((data: any) => {
+        insert: vi.fn().mockImplementation((data: Record<string, unknown>) => {
           insertedRole = data.role;
           return {
             select: vi.fn().mockReturnValue({
@@ -200,7 +200,7 @@ describe('POST /api/webhooks/clerk', () => {
       expect(insertedRole).toBe('admin');
     });
 
-    it('should default to sales_rep for invalid role', async () => {
+    it('should default to iso_agent for invalid role', async () => {
       const mockHeaders = new Map([
         ['svix-id', 'msg_123'],
         ['svix-timestamp', '1234567890'],
@@ -226,7 +226,7 @@ describe('POST /api/webhooks/clerk', () => {
 
       let insertedRole: string = '';
       const mockFrom = vi.fn().mockReturnValue({
-        insert: vi.fn().mockImplementation((data: any) => {
+        insert: vi.fn().mockImplementation((data: Record<string, unknown>) => {
           insertedRole = data.role;
           return {
             select: vi.fn().mockReturnValue({
@@ -248,7 +248,7 @@ describe('POST /api/webhooks/clerk', () => {
       const response = await POST(request);
 
       expect(response.status).toBe(200);
-      expect(insertedRole).toBe('sales_rep');
+      expect(insertedRole).toBe('iso_agent');
     });
 
     it('should return 400 if email is missing', async () => {
@@ -417,7 +417,7 @@ describe('POST /api/webhooks/clerk', () => {
 
       let updatedRole: string | undefined;
       const mockFrom = vi.fn().mockReturnValue({
-        update: vi.fn().mockImplementation((data: any) => {
+        update: vi.fn().mockImplementation((data: Record<string, unknown>) => {
           updatedRole = data.role;
           return {
             eq: vi.fn().mockReturnValue({
@@ -518,7 +518,7 @@ describe('POST /api/webhooks/clerk', () => {
 
       let isActiveValue: boolean | undefined;
       const mockFrom = vi.fn().mockReturnValue({
-        update: vi.fn().mockImplementation((data: any) => {
+        update: vi.fn().mockImplementation((data: Record<string, unknown>) => {
           isActiveValue = data.is_active;
           return {
             eq: vi.fn().mockReturnValue({

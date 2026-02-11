@@ -1,30 +1,24 @@
 {
-  "branch": "feature/onek-163-hot-opportunities",
-  "linearIssue": "ONEK-163",
-  "phase": 3,
-  "phaseName": "implementation",
+  "linearIssue": "ONEK-212",
+  "branch": "feat/iso-agent-onboarding",
+  "pullRequest": null,
+  "prUrl": null,
+  "workspaceDir": "/Users/kinglerbercy/.claude/git-workspace/onek-212",
   "agentRole": "Coding Agent",
   "agentType": "fullstack-developer",
-  "createdAt": "2026-01-10T23:16:00Z",
-  "lastAccessedAt": "2026-01-10T23:37:30Z",
-  "status": "in-review",
-  "baseBranch": "feature/onek-162-deals-starter",
-  "parentPR": 77,
-  "workflowState": {
-    "testsWritten": true,
-    "implementationComplete": true,
-    "codeReviewPassed": false,
-    "prCreated": true,
-    "prNumber": 80,
-    "merged": false
-  },
-  "dependencies": [
-    "ONEK-156",
-    "ONEK-157",
-    "ONEK-158",
-    "ONEK-159",
-    "ONEK-160",
-    "ONEK-161",
-    "ONEK-162"
+  "createdAt": "2026-02-10T00:55:00.000Z",
+  "lastAccessedAt": "2026-02-10T00:55:00.000Z",
+  "status": "active",
+  "childIssues": [
+    "ONEK-213",
+    "ONEK-214",
+    "ONEK-215",
+    "ONEK-216",
+    "ONEK-217",
+    "ONEK-218",
+    "ONEK-219",
+    "ONEK-220",
+    "ONEK-221",
+    "ONEK-222"
   ]
 }

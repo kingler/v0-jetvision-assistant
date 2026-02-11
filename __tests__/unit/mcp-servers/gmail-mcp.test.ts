@@ -20,9 +20,6 @@ vi.mock('googleapis', () => ({
       },
     })),
   },
-  GoogleAuth: vi.fn(() => ({
-    getClient: vi.fn().mockResolvedValue({}),
-  })),
 }));
 
 describe('Gmail MCP Server', () => {

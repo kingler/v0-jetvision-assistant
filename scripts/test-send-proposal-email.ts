@@ -268,8 +268,7 @@ async function main() {
   console.log('');
 
   console.log('⚠️  NOTE: Email sent using MOCK service (Gmail MCP not configured)');
-  console.log('   To send real emails, configure GOOGLE_APPLICATION_CREDENTIALS');
-  console.log('   and GMAIL_USER_EMAIL in .env.local');
+  console.log('   To send real emails, run: npx tsx scripts/get-google-refresh-token.ts');
   console.log('');
 
   console.log('📄 To view the PDF attachment, run:');

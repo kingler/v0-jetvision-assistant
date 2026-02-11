@@ -41,7 +41,12 @@
         "tsx",
         "/Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/mcp-servers/gmail-mcp-server/src/index.ts"
       ],
-      "env": {}
+      "env": {
+        "GMAIL_USER_EMAIL": "designthrustudio@gmail.com",
+        "GOOGLE_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
+        "GOOGLE_CLIENT_SECRET": "${GOOGLE_CLIENT_SECRET}",
+        "GOOGLE_REFRESH_TOKEN": "${GOOGLE_REFRESH_TOKEN}"
+      }
     },
     "semgrep": {
       "type": "stdio",
