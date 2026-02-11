@@ -30,6 +30,7 @@ export default function JetvisionAgent() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
+  const [isSessionDataLoading, setIsSessionDataLoading] = useState(false)
   const isMobile = useIsMobile()
   const isTabletOrSmaller = useIsTabletOrSmaller()
   // Sidebar starts collapsed on initial page load; closed on phone/tablet
@@ -187,54 +188,48 @@ export default function JetvisionAgent() {
         conversationId: session.conversationId,
       });
 
-      // PRIORITY 1: Use requestId (or conversationId as fallback) via /api/requests
+      // PRIORITY 1: Use single-session endpoint (requestId or conversationId)
       const requestKey = session.requestId || session.conversationId;
-      if (requestKey) {
+      if (requestKey && isValidUUID(requestKey)) {
         try {
-          console.log('[loadMessagesForSession] Attempting to load via requests API with requestKey:', requestKey);
-          const requestsResponse = await fetch(`/api/requests?limit=50`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          });
+          console.log('[loadMessagesForSession] Loading via single-session endpoint:', requestKey);
+          const response = await fetch(
+            `/api/chat-sessions/messages?session_id=${encodeURIComponent(requestKey)}&limit=100`,
+            {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+            }
+          );
 
-          if (requestsResponse.ok) {
-            const requestsData = await requestsResponse.json();
-            const requestMessages = requestsData.messages?.[requestKey] || [];
-            
-            if (requestMessages.length > 0) {
-              messages = requestMessages.map((msg: { id: string; senderType?: string; content: string; createdAt: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
+          if (response.ok) {
+            const data = await response.json();
+            const sessionMessages = data.messages || [];
+
+            if (sessionMessages.length > 0) {
+              messages = sessionMessages.map((msg: { id: string; type?: string; content: string; timestamp?: string; senderName?: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
                 id: msg.id,
-                senderType: msg.senderType,
+                senderType: msg.type === 'user' ? 'iso_agent' : 'ai_assistant',
                 content: msg.content,
-                createdAt: msg.createdAt,
+                createdAt: msg.timestamp,
                 contentType: msg.contentType,
                 richContent: msg.richContent ?? null,
               }));
-              // DEBUG: Log proposal_shared messages specifically
-              const proposalMessages = messages.filter((m: any) => m.contentType === 'proposal_shared');
-              console.log('[loadMessagesForSession] ✅ Loaded messages via requests API:', {
+              console.log('[loadMessagesForSession] ✅ Loaded messages via single-session endpoint:', {
                 requestKey,
                 messageCount: messages.length,
                 firstMessage: messages[0]?.content?.substring(0, 50),
-                proposalMessageCount: proposalMessages.length,
-                proposalMessages: proposalMessages.map((m: any) => ({
-                  id: m.id,
-                  contentType: m.contentType,
-                  hasRichContent: !!m.richContent,
-                  richContentKeys: m.richContent ? Object.keys(m.richContent) : [],
-                })),
               });
             } else {
-              console.warn('[loadMessagesForSession] ⚠️ No messages found in requests API for requestKey:', requestKey);
+              console.warn('[loadMessagesForSession] ⚠️ No messages found for requestKey:', requestKey);
             }
           } else {
-            console.warn('[loadMessagesForSession] ⚠️ Requests API failed:', {
+            console.warn('[loadMessagesForSession] ⚠️ Single-session endpoint failed:', {
               requestKey,
-              status: requestsResponse.status,
+              status: response.status,
             });
           }
         } catch (error) {
-          console.warn('[loadMessagesForSession] Error loading via requests API:', error);
+          console.warn('[loadMessagesForSession] Error loading via single-session endpoint:', error);
         }
       }
 
@@ -1007,17 +1002,20 @@ export default function JetvisionAgent() {
   const handleSelectChat = async (chatId: string) => {
     setActiveChatId(chatId)
     setCurrentView("chat")
+    setIsSessionDataLoading(true)
 
     // Find the current session
     const session = chatSessions.find((s) => s.id === chatId);
     if (!session) {
       console.warn('[handleSelectChat] Session not found:', chatId);
+      setIsSessionDataLoading(false)
       return;
     }
 
     // Skip loading for temporary sessions
     if (chatId.startsWith('temp-')) {
       console.log('[handleSelectChat] Skipping load - temp session:', chatId);
+      setIsSessionDataLoading(false)
       return;
     }
 
@@ -1192,6 +1190,8 @@ export default function JetvisionAgent() {
         currentMessageCount: session.messages?.length || 0,
       });
     }
+
+    setIsSessionDataLoading(false)
   }
 
   /**
@@ -1870,6 +1870,7 @@ export default function JetvisionAgent() {
               isProcessing={isProcessing}
               onProcessingChange={setIsProcessing}
               onUpdateChat={handleUpdateChat}
+              isLoading={isSessionDataLoading}
             />
           )}
         </main>
