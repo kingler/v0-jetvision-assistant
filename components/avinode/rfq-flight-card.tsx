@@ -736,7 +736,7 @@ export function RFQFlightCard({
                 {/* 
                   NOTE: We intentionally use the same outline styling as the Messages button here.
                   This keeps all primary actions visually consistent and relies on the shared Button
-                  component styles (border, bg-background, hover:accent, etc.) instead of custom colors.
+                  component styles (border, bg-background, light cyan hover bg + darker cyan border, etc.).
                 */}
                 {showActionButtons && (
                   <>
@@ -776,7 +776,7 @@ export function RFQFlightCard({
                 variant="ghost"
                 size="sm"
                 onClick={toggleExpanded}
-                className="flex items-center gap-1 text-xs sm:text-sm text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100 px-2 sm:px-3 h-7 sm:h-8 shrink-0"
+                className="flex items-center gap-1 text-xs sm:text-sm text-gray-900 dark:text-gray-100 px-2 sm:px-3 h-7 sm:h-8 shrink-0"
                 aria-label={isExpanded ? 'Show less' : 'Show more'}
                 aria-expanded={isExpanded}
               >
@@ -963,7 +963,7 @@ export function RFQFlightCard({
                     variant="outline"
                     size="sm"
                     onClick={handleViewChat}
-                    className="flex items-center gap-1 sm:gap-1.5 text-gray-900 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-100 text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8"
+                    className="flex items-center gap-1 sm:gap-1.5 text-gray-900 dark:text-gray-100 text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8"
                     aria-label="View chat"
                   >
                     <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
@@ -1021,7 +1021,7 @@ export function RFQFlightCard({
                   variant="ghost"
                   size="sm"
                   onClick={toggleExpanded}
-                  className="flex items-center gap-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-2 sm:px-3 h-7 sm:h-8"
+                  className="flex items-center gap-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400 px-2 sm:px-3 h-7 sm:h-8"
                   aria-label="Show less"
                   aria-expanded={isExpanded}
                 >
