@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getTailwindTheme } from '@/lib/design-system';
-import { brandColors, semanticColors, spacing, radii, shadows, zIndex } from '@/lib/design-system/tokens';
+import { semanticColors, spacing, radii, shadows, zIndex, brandColors } from '@/lib/design-system/tokens';
 
 describe('Tailwind Theme Configuration', () => {
   describe('getTailwindTheme', () => {
@@ -15,31 +15,12 @@ describe('Tailwind Theme Configuration', () => {
       expect(theme.colors).toBeDefined();
     });
 
-    it('maps aviation blue brand colors to Tailwind format', () => {
-      const theme = getTailwindTheme();
-
-      // Should have aviation-blue color family
-      expect(theme.colors).toHaveProperty('aviation-blue');
-      const aviationBlue = theme.colors['aviation-blue'] as Record<string, string>;
-      expect(aviationBlue).toHaveProperty('50');
-      expect(aviationBlue).toHaveProperty('500');
-      expect(aviationBlue['500']).toBe(brandColors.aviationBlue[500]);
-    });
-
     it('maps sky blue brand colors to Tailwind format', () => {
       const theme = getTailwindTheme();
 
       expect(theme.colors).toHaveProperty('sky-blue');
       const skyBlue = theme.colors['sky-blue'] as Record<string, string>;
       expect(skyBlue['500']).toBe(brandColors.skyBlue[500]);
-    });
-
-    it('maps sunset orange brand colors to Tailwind format', () => {
-      const theme = getTailwindTheme();
-
-      expect(theme.colors).toHaveProperty('sunset-orange');
-      const sunsetOrange = theme.colors['sunset-orange'] as Record<string, string>;
-      expect(sunsetOrange['500']).toBe(brandColors.sunsetOrange[500]);
     });
 
     it('maps semantic colors (success, warning, error, info)', () => {
@@ -99,22 +80,10 @@ describe('Tailwind Theme Configuration', () => {
   });
 
   describe('Color value accuracy', () => {
-    it('aviation blue 500 is the correct hex value', () => {
-      const theme = getTailwindTheme();
-      const aviationBlue = theme.colors['aviation-blue'] as Record<string, string>;
-      expect(aviationBlue['500']).toBe('#0066cc');
-    });
-
     it('sky blue 500 is the correct hex value', () => {
       const theme = getTailwindTheme();
       const skyBlue = theme.colors['sky-blue'] as Record<string, string>;
       expect(skyBlue['500']).toBe('#00a8e8');
-    });
-
-    it('sunset orange 500 is the correct hex value', () => {
-      const theme = getTailwindTheme();
-      const sunsetOrange = theme.colors['sunset-orange'] as Record<string, string>;
-      expect(sunsetOrange['500']).toBe('#ff6b35');
     });
   });
 });

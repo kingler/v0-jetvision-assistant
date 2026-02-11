@@ -69,7 +69,7 @@ export function AvinodeTripBadge({
         variant="outline"
         className={cn(
           sizeClasses,
-          'cursor-pointer hover:bg-accent transition-colors',
+          'cursor-pointer hover:bg-primary transition-colors',
           className
         )}
         role="button"

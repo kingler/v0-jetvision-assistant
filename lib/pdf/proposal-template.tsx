@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     paddingBottom: 20,
     borderBottomWidth: 2,
-    borderBottomColor: '#0066cc',
+    borderBottomColor: '#00a8e8',
   },
   logoContainer: {
     marginBottom: 4,
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontFamily: 'Helvetica-Bold',
-    color: '#0066cc',
+    color: '#00a8e8',
     marginBottom: 10,
     paddingBottom: 4,
     borderBottomWidth: 1,
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 14,
     fontFamily: 'Helvetica-Bold',
-    color: '#0066cc',
+    color: '#00a8e8',
   },
   flightDetails: {
     flexDirection: 'row',
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginTop: 8,
     borderTopWidth: 2,
-    borderTopColor: '#0066cc',
+    borderTopColor: '#00a8e8',
   },
   totalLabel: {
     fontSize: 12,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 14,
     fontFamily: 'Helvetica-Bold',
-    color: '#0066cc',
+    color: '#00a8e8',
   },
   termsSection: {
     backgroundColor: '#fff3cd',
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   ctaSection: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#e6f7fc',
     borderRadius: 4,
     padding: 16,
     textAlign: 'center',
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   ctaTitle: {
     fontSize: 12,
     fontFamily: 'Helvetica-Bold',
-    color: '#0066cc',
+    color: '#00a8e8',
     marginBottom: 8,
   },
   ctaText: {
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   legHeader: {
     fontSize: 11,
     fontFamily: 'Helvetica-Bold',
-    color: '#0066cc',
+    color: '#00a8e8',
     marginTop: 16,
     marginBottom: 8,
     paddingBottom: 4,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     color: '#ffffff',
-    backgroundColor: '#0066cc',
+    backgroundColor: '#00a8e8',
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 2,
@@ -342,8 +342,8 @@ const styles = StyleSheet.create({
   tripTypeBadge: {
     fontSize: 9,
     fontFamily: 'Helvetica-Bold',
-    color: '#0066cc',
-    backgroundColor: '#e3f2fd',
+    color: '#00a8e8',
+    backgroundColor: '#e6f7fc',
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 3,

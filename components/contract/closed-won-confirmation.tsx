@@ -46,7 +46,7 @@ export function ClosedWonConfirmation({
 
   return (
     <div className="w-full">
-      <Card className="w-full bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+      <Card className="w-full">
         <CardContent className="p-6 space-y-4">
           {/* Header */}
           <div className="flex items-start gap-3">
@@ -54,28 +54,28 @@ export function ClosedWonConfirmation({
               <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-lg text-green-800 dark:text-green-200">
+              <h3 className="font-semibold text-lg text-foreground">
                 Deal Closed
               </h3>
-              <p className="text-sm text-green-700 dark:text-green-300">
+              <p className="text-sm text-foreground">
                 Contract {contractNumber} with {customerName} is complete.
               </p>
             </div>
           </div>
 
           {/* Deal Summary */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-green-200 dark:border-green-700">
+          <div className="bg-muted rounded-lg p-4 border border-border">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-gray-500 dark:text-gray-400">Route</span>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{flightRoute}</p>
+                <span className="text-muted-foreground">Route</span>
+                <p className="font-medium text-foreground">{flightRoute}</p>
               </div>
               <div>
-                <span className="text-gray-500 dark:text-gray-400">Customer</span>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{customerName}</p>
+                <span className="text-muted-foreground">Customer</span>
+                <p className="font-medium text-foreground">{customerName}</p>
               </div>
               <div className="col-span-2">
-                <span className="text-gray-500 dark:text-gray-400">Deal Value</span>
+                <span className="text-muted-foreground">Deal Value</span>
                 <p className="font-semibold text-xl text-green-700 dark:text-green-400">
                   {currency} {dealValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
@@ -89,8 +89,8 @@ export function ClosedWonConfirmation({
               {timeline.map((step, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm">
                   <Calendar className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                  <span className="text-gray-600 dark:text-gray-400">{step.label}:</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{step.date}</span>
+                  <span className="text-muted-foreground">{step.label}:</span>
+                  <span className="font-medium text-foreground">{step.date}</span>
                 </div>
               ))}
             </div>
