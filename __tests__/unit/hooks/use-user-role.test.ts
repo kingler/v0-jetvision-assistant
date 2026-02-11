@@ -180,9 +180,10 @@ describe('useUserRole', () => {
     expect(result.current.hasPermission('users', 'delete')).toBe(false);
   });
 
-  it('should treat iso_agent as sales_rep (Clerk default role)', async () => {
+  it('should normalize iso_agent to sales_rep (Clerk DB default)', async () => {
     mockUseUser.mockReturnValue({ user: { id: 'user-123' }, isLoaded: true } as any);
 
+    // API returns 'iso_agent' (DB value), hook normalizes to 'sales_rep'
     const mockResponse = {
       ok: true,
       json: async () => ({ role: 'iso_agent' }),
@@ -195,10 +196,10 @@ describe('useUserRole', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.role).toBe('iso_agent');
+    // After normalization, role is 'sales_rep' — not 'iso_agent'
+    expect(result.current.role).toBe('sales_rep');
     expect(result.current.isSalesRep).toBe(true);
     expect(result.current.isAdmin).toBe(false);
-    // iso_agent has same permissions as sales_rep
     expect(result.current.hasPermission('clients', 'create')).toBe(true);
     expect(result.current.hasPermission('quotes', 'read')).toBe(true);
     expect(result.current.hasPermission('quotes', 'create')).toBe(false);

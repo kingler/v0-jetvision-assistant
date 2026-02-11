@@ -38,29 +38,39 @@ type PermissionMatrix = {
 };
 
 // ============================================================================
+// ROLE NORMALIZATION
+// ============================================================================
+
+/**
+ * Normalize DB role to app-layer role.
+ * The DB stores 'iso_agent' (matches the iso_agents table), but the app
+ * layer uses 'sales_rep' as the canonical name. This is the single
+ * boundary where the translation happens.
+ */
+export function normalizeRole(role: UserRole): UserRole {
+  if (role === 'iso_agent') return 'sales_rep' as UserRole;
+  return role;
+}
+
+// ============================================================================
 // PERMISSION MATRIX
 // ============================================================================
 
 /**
- * Shared permissions for ISO agents / sales reps
- * Both 'iso_agent' (DB default from Clerk sync) and 'sales_rep' map here.
- */
-const ISO_AGENT_PERMISSIONS: { [R in Resource]: Action[] } = {
-  clients: ['create', 'read', 'update', 'delete'],
-  requests: ['create', 'read', 'update', 'delete'],
-  quotes: ['read', 'update'],
-  users: ['read_own', 'update_own'],
-  analytics: ['read_own'],
-};
-
-/**
  * Complete permission matrix for all roles
  *
- * Defines what actions each role can perform on each resource
+ * Defines what actions each role can perform on each resource.
+ * Note: 'iso_agent' is NOT listed here — it is normalized to 'sales_rep'
+ * at the data boundary via normalizeRole().
  */
 export const PERMISSIONS: PermissionMatrix = {
-  iso_agent: ISO_AGENT_PERMISSIONS,
-  sales_rep: ISO_AGENT_PERMISSIONS,
+  sales_rep: {
+    clients: ['create', 'read', 'update', 'delete'],
+    requests: ['create', 'read', 'update', 'delete'],
+    quotes: ['read', 'update'],
+    users: ['read_own', 'update_own'],
+    analytics: ['read_own'],
+  },
   admin: {
     clients: ['create', 'read', 'update', 'delete'],
     requests: ['create', 'read', 'update', 'delete'],

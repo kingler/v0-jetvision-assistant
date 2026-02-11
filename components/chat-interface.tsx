@@ -16,7 +16,7 @@ import React from "react"
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Loader2, Plane, Eye } from "lucide-react"
+import { Send, Loader2, Plane } from "lucide-react"
 import type { ChatSession } from "./chat-sidebar"
 import { createSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -1366,13 +1366,6 @@ export function ChatInterface({
       e.preventDefault()
       handleSendMessage()
     }
-  }
-
-  /**
-   * Scroll to workflow progress section
-   */
-  const handleViewWorkflow = () => {
-    workflowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   /**
@@ -3071,49 +3064,6 @@ export function ChatInterface({
       {/* Input Area */}
       <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
         <div className="max-w-4xl mx-auto">
-          {/* Quick Actions */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInputValue("Can you update the passenger count?")}
-              disabled={isProcessing}
-              className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-            >
-              Update Details
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInputValue("Show me alternative aircraft options")}
-              disabled={isProcessing}
-              className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-            >
-              Alternative Options
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInputValue("What's the status of my request?")}
-              disabled={isProcessing}
-              className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-            >
-              Check Status
-            </Button>
-            {/* View Workflow button - scrolls to workflow progress section */}
-            {activeChat.currentStep && activeChat.currentStep >= 1 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleViewWorkflow}
-                className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-              >
-                <Eye className="w-3 h-3 mr-1" />
-                View Workflow
-              </Button>
-            )}
-          </div>
-
           {/* Input Area */}
           <div className="flex items-end space-x-3">
             <div className="flex-1 relative">
