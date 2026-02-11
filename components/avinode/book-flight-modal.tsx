@@ -294,9 +294,12 @@ export function BookFlightModal({
       maximumFractionDigits: 0,
     }).format(pricing.totalAmount);
 
-    const formattedDate = new Date(
-      flight.departureDate || tripDetails.departureDate
-    ).toLocaleDateString('en-US', {
+    const rawDate = flight.departureDate || tripDetails.departureDate;
+    // Append T00:00:00 to date-only strings so they parse as local time, not UTC
+    const dateStr = typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)
+      ? `${rawDate}T00:00:00`
+      : rawDate;
+    const formattedDate = new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
