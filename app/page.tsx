@@ -146,14 +146,8 @@ export default function JetvisionAgent() {
   }, [isLoaded, user?.id]) // Only depend on user authentication state
 
   /**
-   * Load messages for a specific chat session from the API
-   *
-   * @param session - The chat session to load messages for (needs conversationId or requestId)
-   * @returns The loaded messages or empty array if failed
-   */
-  /**
-   * Load messages for a specific chat session from the API
-   * Prioritizes requestId (most reliable) over conversationId or session.id
+   * Load messages for a specific chat session from the API.
+   * Prioritizes requestId (most reliable) over conversationId or session.id.
    *
    * @param session - The chat session to load messages for (needs conversationId or requestId)
    * @returns The loaded messages or empty array if failed
@@ -165,14 +159,12 @@ export default function JetvisionAgent() {
       return [];
     }
 
-    // Validate session IDs before making API calls
-    // This prevents 404 errors from querying with invalid IDs
-    const hasValidSessionId = isValidUUID(session.id);
-    const hasValidRequestId = session.requestId && isValidUUID(session.requestId);
-    const hasValidConversationId = session.conversationId && isValidUUID(session.conversationId);
+    // Check that we have at least one usable ID for querying
+    // Accept any non-empty ID (not just UUIDs) to avoid silently dropping messages
+    const hasAnyId = !!(session.requestId || session.conversationId || session.id);
 
-    if (!hasValidSessionId && !hasValidRequestId && !hasValidConversationId) {
-      console.log('[loadMessagesForSession] Skipping - no valid UUID found:', {
+    if (!hasAnyId) {
+      console.log('[loadMessagesForSession] Skipping - no session ID found:', {
         sessionId: session.id,
         requestId: session.requestId,
         conversationId: session.conversationId,
@@ -191,7 +183,7 @@ export default function JetvisionAgent() {
 
       // PRIORITY 1: Use single-session endpoint (requestId or conversationId)
       const requestKey = session.requestId || session.conversationId;
-      if (requestKey && isValidUUID(requestKey)) {
+      if (requestKey) {
         try {
           console.log('[loadMessagesForSession] Loading via single-session endpoint:', requestKey);
           const response = await fetch(
@@ -970,14 +962,26 @@ export default function JetvisionAgent() {
       }
     }
 
-    // Step 4: Apply operator threads
-    if (!isStale() && needsOperatorThreads && Object.keys(operatorThreads).length > 0) {
+    // Step 4: If Avinode returned new RFQ flights that the operator thread loader didn't have,
+    // re-fetch operator threads with the fresh flight data so per-quote thread resolution works
+    let finalOperatorThreads = operatorThreads;
+    if (!isStale() && avinodeData?.rfqFlights?.length && needsOperatorThreads
+        && (!session.rfqFlights || session.rfqFlights.length === 0) && session.tripId) {
+      try {
+        finalOperatorThreads = await loadOperatorThreadsForSession(session.tripId, avinodeData.rfqFlights);
+      } catch (err) {
+        console.warn('[handleSelectChat] Operator thread re-fetch with Avinode flights failed:', err);
+      }
+    }
+
+    // Step 5: Apply operator threads
+    if (!isStale() && needsOperatorThreads && Object.keys(finalOperatorThreads).length > 0) {
       const threadUpdates: Partial<ChatSession> = {
-        operatorThreads,
+        operatorThreads: finalOperatorThreads,
       };
       // Also set legacy operatorMessages for backward compatibility
       const legacyMessages: Record<string, OperatorMessage[]> = {};
-      for (const [opId, thread] of Object.entries(operatorThreads)) {
+      for (const [opId, thread] of Object.entries(finalOperatorThreads)) {
         if (thread.messages.length > 0) {
           legacyMessages[opId] = thread.messages;
         }
@@ -992,7 +996,7 @@ export default function JetvisionAgent() {
       chatId,
       messageCount: messages.length,
       rfqFlightCount: rfqFlights.length,
-      operatorThreadCount: Object.keys(operatorThreads).length,
+      operatorThreadCount: Object.keys(finalOperatorThreads).length,
       stale: isStale(),
     });
   }
