@@ -470,6 +470,7 @@ export function ChatInterface({
       !!activeChat.tripId && // Must have tripId
       activeChat.id !== autoLoadedRfqsForChatIdRef.current && // Haven't already loaded for this chat
       !isTripIdLoading && // Not currently loading
+      !isLoading && // Prevent race with handleSelectChat loading
       (!hasRfqFlights || !hasRecentFetch || !activeChat.tripIdSubmitted) && // No RFQs OR not fetched recently OR not submitted
       !!handleTripIdSubmit && // Handler available
       !isTripJustCreated // Not within grace period after trip creation
@@ -513,7 +514,7 @@ export function ChatInterface({
       autoLoadedRfqsForChatIdRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChat.tripId, activeChat.id, activeChat.tripIdSubmitted, activeChat.rfqsLastFetchedAt, rfqFlights?.length, isTripIdLoading])
+  }, [activeChat.tripId, activeChat.id, activeChat.tripIdSubmitted, activeChat.rfqsLastFetchedAt, rfqFlights?.length, isTripIdLoading, isLoading])
 
   /**
    * Handle webhook events from Supabase realtime
@@ -1275,7 +1276,7 @@ export function ChatInterface({
       if (result.rfqData?.rfqs && result.rfqData.rfqs.length > 0 && newRfqFlights.length === 0) {
         console.error('[ChatInterface] ⚠️ RFQs exist but no flights were extracted:', {
           rfqs_count: result.rfqData.rfqs.length,
-          rfq_ids: result.rfqData.rfqs.map((r: any) => r.rfq_id || r.id),
+          rfq_ids: result.rfqData.rfqs.map((r: { rfq_id?: string; id?: string }) => r.rfq_id || r.id),
           has_flights: !!(result.rfqData?.flights),
           flights_count: result.rfqData?.flights?.length || 0,
           message: result.rfqData?.message,

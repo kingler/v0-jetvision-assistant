@@ -164,14 +164,17 @@ export default function JetvisionAgent() {
       return [];
     }
 
-    // Validate session IDs before making API calls
-    // This prevents 404 errors from querying with invalid IDs
-    const hasValidSessionId = isValidUUID(session.id);
-    const hasValidRequestId = session.requestId && isValidUUID(session.requestId);
-    const hasValidConversationId = session.conversationId && isValidUUID(session.conversationId);
+    // Build ordered list of unique valid IDs to try
+    const idsToTry: string[] = [];
+    const addIfValid = (id: string | undefined) => {
+      if (id && isValidUUID(id) && !idsToTry.includes(id)) idsToTry.push(id);
+    };
+    addIfValid(session.requestId);
+    addIfValid(session.conversationId);
+    addIfValid(session.id);
 
-    if (!hasValidSessionId && !hasValidRequestId && !hasValidConversationId) {
-      console.log('[loadMessagesForSession] Skipping - no valid UUID found:', {
+    if (idsToTry.length === 0) {
+      console.log('[loadMessagesForSession] No valid UUIDs found:', {
         sessionId: session.id,
         requestId: session.requestId,
         conversationId: session.conversationId,
@@ -179,138 +182,30 @@ export default function JetvisionAgent() {
       return [];
     }
 
-    try {
-      let messages: DbMessageLike[] = [];
+    console.log('[loadMessagesForSession] Loading messages, IDs to try:', idsToTry);
 
-      console.log('[loadMessagesForSession] Loading messages for session:', {
-        sessionId: session.id,
-        requestId: session.requestId,
-        conversationId: session.conversationId,
-      });
+    for (const id of idsToTry) {
+      try {
+        const response = await fetch(
+          `/api/chat-sessions/messages?session_id=${encodeURIComponent(id)}&limit=100`,
+          { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+        );
 
-      // PRIORITY 1: Use single-session endpoint (requestId or conversationId)
-      const requestKey = session.requestId || session.conversationId;
-      if (requestKey && isValidUUID(requestKey)) {
-        try {
-          console.log('[loadMessagesForSession] Loading via single-session endpoint:', requestKey);
-          const response = await fetch(
-            `/api/chat-sessions/messages?session_id=${encodeURIComponent(requestKey)}&limit=100`,
-            {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-            }
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            const sessionMessages = data.messages || [];
-
-            if (sessionMessages.length > 0) {
-              messages = sessionMessages.map((msg: { id: string; type?: string; content: string; timestamp?: string; senderName?: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
-                id: msg.id,
-                senderType: msg.type === 'user' ? 'iso_agent' : 'ai_assistant',
-                content: msg.content,
-                createdAt: msg.timestamp,
-                contentType: msg.contentType,
-                richContent: msg.richContent ?? null,
-              }));
-              console.log('[loadMessagesForSession] ✅ Loaded messages via single-session endpoint:', {
-                requestKey,
-                messageCount: messages.length,
-                firstMessage: messages[0]?.content?.substring(0, 50),
-              });
-            } else {
-              console.warn('[loadMessagesForSession] ⚠️ No messages found for requestKey:', requestKey);
-            }
-          } else {
-            console.warn('[loadMessagesForSession] ⚠️ Single-session endpoint failed:', {
-              requestKey,
-              status: response.status,
-            });
+        if (response.ok) {
+          const data = await response.json();
+          const sessionMessages = data.messages || [];
+          if (sessionMessages.length > 0) {
+            console.log('[loadMessagesForSession] ✅ Loaded via ID:', id, 'count:', sessionMessages.length);
+            return sessionMessages.map((msg: DbMessageLike) => mapDbMessageToChatMessage(msg));
           }
-        } catch (error) {
-          console.warn('[loadMessagesForSession] Error loading via single-session endpoint:', error);
         }
+      } catch (error) {
+        console.warn('[loadMessagesForSession] Error with ID:', id, error);
       }
-
-      // PRIORITY 2: If no messages found and we have conversationId, try chat-sessions API
-      if (messages.length === 0 && session.conversationId) {
-        try {
-          console.log('[loadMessagesForSession] Attempting to load via chat-sessions API with conversationId:', session.conversationId);
-          const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(session.conversationId)}&limit=100`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            messages = (data.messages || []).map((m: { id: string; type?: string; content: string; timestamp?: string; senderType?: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
-              id: m.id,
-              type: m.type as 'user' | 'agent' | undefined,
-              senderType: m.senderType,
-              content: m.content,
-              timestamp: m.timestamp,
-              createdAt: m.timestamp,
-              contentType: m.contentType,
-              richContent: m.richContent ?? null,
-            }));
-            console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions API:', {
-              conversationId: session.conversationId,
-              messageCount: messages.length,
-            });
-          } else {
-            console.warn('[loadMessagesForSession] ⚠️ Chat-sessions API failed:', {
-              conversationId: session.conversationId,
-              status: response.status,
-            });
-          }
-        } catch (error) {
-          console.warn('[loadMessagesForSession] Error loading via chat-sessions API:', error);
-        }
-      }
-
-      // PRIORITY 3: Fallback to session.id (might be a chat_session ID)
-      if (messages.length === 0 && !session.requestId && !session.conversationId) {
-        try {
-          console.log('[loadMessagesForSession] Attempting to load via chat-sessions API with session.id:', session.id);
-          const response = await fetch(`/api/chat-sessions/messages?session_id=${encodeURIComponent(session.id)}&limit=100`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            messages = (data.messages || []).map((m: { id: string; type?: string; content: string; timestamp?: string; senderType?: string; contentType?: string; richContent?: Record<string, unknown> | null }) => ({
-              id: m.id,
-              type: m.type as 'user' | 'agent' | undefined,
-              senderType: m.senderType,
-              content: m.content,
-              timestamp: m.timestamp,
-              createdAt: m.timestamp,
-              contentType: m.contentType,
-              richContent: m.richContent ?? null,
-            }));
-            console.log('[loadMessagesForSession] ✅ Loaded messages via chat-sessions API (fallback):', {
-              sessionId: session.id,
-              messageCount: messages.length,
-            });
-          }
-        } catch (error) {
-          console.warn('[loadMessagesForSession] Error loading via chat-sessions API (fallback):', error);
-        }
-      }
-
-      const result = messages.map((msg) => mapDbMessageToChatMessage(msg));
-
-      return result;
-    } catch (error) {
-      console.error('[loadMessagesForSession] Unexpected error:', error);
-      return [];
     }
+
+    console.warn('[loadMessagesForSession] ⚠️ No messages found for any ID:', idsToTry);
+    return [];
   };
 
   /**
@@ -1000,6 +895,7 @@ export default function JetvisionAgent() {
    * @param chatId - The ID of the chat to select
    */
   const handleSelectChat = async (chatId: string) => {
+    const t0 = performance.now();
     setActiveChatId(chatId)
     setCurrentView("chat")
     setIsSessionDataLoading(true)
@@ -1034,39 +930,31 @@ export default function JetvisionAgent() {
       currentOperatorThreadCount: session.operatorThreads ? Object.keys(session.operatorThreads).length : 0,
     });
 
-    // Load messages from database
-    let messages = (session.requestId || session.conversationId)
-      ? await loadMessagesForSession(session)
-      : (session.messages || []);
+    // rfqFlights come from the DB JOIN in GET /api/chat-sessions — no separate Avinode fetch needed
+    const rfqFlights: RFQFlight[] = session.rfqFlights || [];
 
-    // Only fetch from Avinode API if RFQ data is completely missing (fallback/recovery)
-    // With the fix to /api/chat-sessions, rfqFlights should already be loaded from database
-    let rfqFlights: RFQFlight[] = session.rfqFlights || [];
-    let tripDetails: {
-      departureAirport: string | null;
-      arrivalAirport: string | null;
-      departureDate: string | null;
-      passengers: number | null;
-      deepLink: string | null;
-    } | null = null;
-
-    if (session.tripId && (!session.rfqFlights || session.rfqFlights.length === 0)) {
-      console.warn('[handleSelectChat] ⚠️ RFQ data missing from DB (unexpected), fetching from Avinode API as fallback');
-      const avinodeData = await fetchTripDetailsFromAvinode(session.tripId);
-
-      if (avinodeData) {
-        tripDetails = avinodeData;
-        rfqFlights = avinodeData.rfqFlights;
-        console.log('[handleSelectChat] ✅ Loaded trip details from Avinode API (fallback)');
-      }
+    if (session.tripId && rfqFlights.length === 0) {
+      console.warn('[handleSelectChat] ⚠️ RFQ data missing from DB for trip:', session.tripId,
+        '— ChatInterface auto-load will handle RFQ fetching after session loads');
     }
 
-    // Load operator threads if needed
+    // Load messages and operator threads in parallel — no data dependency between them
     const needsOperatorThreads = session.tripId && (!session.operatorThreads || Object.keys(session.operatorThreads).length === 0);
-    const effectiveRfqFlights = rfqFlights.length > 0 ? rfqFlights : (session.rfqFlights || []);
-    const operatorThreads = needsOperatorThreads && session.tripId
-      ? await loadOperatorThreadsForSession(session.tripId, effectiveRfqFlights)
-      : (session.operatorThreads || {});
+
+    const [messages, operatorThreads] = await Promise.all([
+      // 1. Load messages from database
+      (session.requestId || session.conversationId)
+        ? loadMessagesForSession(session)
+        : Promise.resolve(session.messages || []),
+
+      // 2. Load operator threads (uses session.rfqFlights — param is optional)
+      (needsOperatorThreads && session.tripId)
+        ? loadOperatorThreadsForSession(session.tripId, session.rfqFlights || [])
+        : Promise.resolve(session.operatorThreads || {}),
+    ]);
+
+    const t1 = performance.now();
+    console.log(`[handleSelectChat] ⏱️ Data loading: ${(t1 - t0).toFixed(0)}ms`);
 
     // Update session with loaded data
     // Always update messages if we loaded them (even if count is 0, to ensure we have real data)
@@ -1087,7 +975,7 @@ export default function JetvisionAgent() {
             }
           }
 
-          // Update RFQ flights if we fetched them from Avinode API (fallback scenario)
+          // Update RFQ flights from DB JOIN data if session state is stale
           if (rfqFlights.length > 0 && (!s.rfqFlights || s.rfqFlights.length === 0)) {
             updates.rfqFlights = rfqFlights;
             // Update quote counts
@@ -1107,33 +995,6 @@ export default function JetvisionAgent() {
             }
             if (Object.keys(legacyMessages).length > 0) {
               updates.operatorMessages = legacyMessages;
-            }
-          }
-
-          // Update trip details from Avinode API if fetched
-          if (tripDetails) {
-            if (tripDetails.departureAirport && tripDetails.arrivalAirport) {
-              updates.route = `${tripDetails.departureAirport} → ${tripDetails.arrivalAirport}`;
-            }
-            if (tripDetails.departureDate) {
-              updates.date = tripDetails.departureDate;
-            }
-            if (tripDetails.passengers) {
-              updates.passengers = tripDetails.passengers;
-            }
-            if (tripDetails.deepLink) {
-              updates.deepLink = tripDetails.deepLink;
-            }
-            // Update status based on quotes
-            if (rfqFlights.length > 0) {
-              const quotedCount = rfqFlights.filter(f => f.rfqStatus === 'quoted').length;
-              if (quotedCount > 0) {
-                updates.status = 'analyzing_options';
-                updates.currentStep = 4;
-              } else {
-                updates.status = 'requesting_quotes';
-                updates.currentStep = 3;
-              }
             }
           }
 
@@ -1192,6 +1053,8 @@ export default function JetvisionAgent() {
     }
 
     setIsSessionDataLoading(false)
+    const t2 = performance.now();
+    console.log(`[handleSelectChat] ⏱️ Total: ${(t2 - t0).toFixed(0)}ms`);
   }
 
   /**
