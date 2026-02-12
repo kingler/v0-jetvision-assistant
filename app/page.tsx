@@ -31,6 +31,8 @@ export default function JetvisionAgent() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
   const [isSessionDataLoading, setIsSessionDataLoading] = useState(false)
+  const [archivedSessions, setArchivedSessions] = useState<ChatSession[]>([])
+  const [isLoadingArchive, setIsLoadingArchive] = useState(false)
   const isMobile = useIsMobile()
   const isTabletOrSmaller = useIsTabletOrSmaller()
   // Sidebar starts collapsed on initial page load; closed on phone/tablet
@@ -143,6 +145,46 @@ export default function JetvisionAgent() {
     loadFlightRequests()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, user?.id]) // Only depend on user authentication state
+
+  /**
+   * Load archived sessions on demand (when Archive tab is clicked)
+   * Fetches sessions with session_status='archived' from the API
+   */
+  const loadArchivedSessions = async () => {
+    try {
+      setIsLoadingArchive(true)
+
+      const response = await fetch('/api/chat-sessions?status=archived', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        console.error('[loadArchivedSessions] Failed to load:', response.status)
+        setIsLoadingArchive(false)
+        return
+      }
+
+      const data = await response.json()
+      const dbSessions = data.sessions || []
+      const sessions = chatSessionsToUIFormat(dbSessions)
+
+      // Deduplicate by tripId or session ID
+      const uniqueSessions = sessions.filter((session, index, self) => {
+        if (session.tripId) {
+          return index === self.findIndex((s) => s.tripId === session.tripId)
+        }
+        return index === self.findIndex((s) => s.id === session.id && !s.tripId)
+      })
+
+      setArchivedSessions(uniqueSessions as ChatSession[])
+      console.log('[loadArchivedSessions] Loaded archived sessions:', uniqueSessions.length)
+    } catch (error) {
+      console.error('[loadArchivedSessions] Error:', error)
+    } finally {
+      setIsLoadingArchive(false)
+    }
+  }
 
   /**
    * Load messages for a specific chat session from the API
@@ -1077,7 +1119,7 @@ export default function JetvisionAgent() {
       date: "Select date",
       status: "understanding_request", // Start at step 1 - will be updated by API response
       currentStep: 1,
-      totalSteps: 5,
+      totalSteps: 10,
       // Don't add the message here - ChatInterface will add it when calling the API
       // This prevents duplicate messages from appearing
       messages: [],
@@ -1309,12 +1351,12 @@ export default function JetvisionAgent() {
         return
       }
 
-      // Check if session can be archived
-      const canArchive = session.status === 'analyzing_options' || 
+      // Block archiving sessions that are still in early progress
+      const isInProgress = session.status === 'analyzing_options' ||
                         session.status === 'requesting_quotes' ||
                         session.status === 'searching_aircraft' ||
                         session.status === 'understanding_request';
-      if (canArchive) {
+      if (isInProgress) {
         alert('Cannot archive requests that are still in progress')
         return
       }
@@ -1332,6 +1374,9 @@ export default function JetvisionAgent() {
       // For persisted sessions, archive via API
       const requestId = session.requestId || chatId
 
+      // Determine current_step for the archive (e.g., closed_won after payment)
+      const archiveStep = session.status === 'closed_won' ? 'closed_won' : undefined
+
       // Call PATCH API endpoint to archive
       const response = await fetch('/api/requests', {
         method: 'PATCH',
@@ -1341,6 +1386,7 @@ export default function JetvisionAgent() {
         body: JSON.stringify({
           id: requestId,
           action: 'archive',
+          ...(archiveStep && { current_step: archiveStep }),
         }),
       })
 
@@ -1355,8 +1401,19 @@ export default function JetvisionAgent() {
         return
       }
 
-      // Remove archived session from active chats
-      setChatSessions((prevSessions) => prevSessions.filter((s) => s.id !== chatId))
+      // Move session from active to archived
+      setChatSessions((prevSessions) => {
+        const archivedSession = prevSessions.find((s) => s.id === chatId)
+        if (archivedSession) {
+          // Add to archived sessions with updated status
+          setArchivedSessions((prev) => {
+            // Don't add duplicates
+            if (prev.some((s) => s.id === archivedSession.id)) return prev
+            return [{ ...archivedSession, status: 'closed_won' as const }, ...prev]
+          })
+        }
+        return prevSessions.filter((s) => s.id !== chatId)
+      })
 
       // If this was the active chat, switch to landing page or select another chat
       if (activeChatId === chatId) {
@@ -1709,6 +1766,9 @@ export default function JetvisionAgent() {
             onDeleteChat={handleDeleteChat}
             onCancelChat={handleCancelChat}
             onArchiveChat={handleArchiveChat}
+            archivedSessions={archivedSessions}
+            onLoadArchive={loadArchivedSessions}
+            isLoadingArchive={isLoadingArchive}
           />
         </div>
       )}
@@ -1733,6 +1793,7 @@ export default function JetvisionAgent() {
               isProcessing={isProcessing}
               onProcessingChange={setIsProcessing}
               onUpdateChat={handleUpdateChat}
+              onArchiveChat={handleArchiveChat}
               isLoading={isSessionDataLoading}
             />
           )}
