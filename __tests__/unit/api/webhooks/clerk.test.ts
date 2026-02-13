@@ -401,5 +401,72 @@ describe('Clerk Webhook Handler', () => {
       expect(DB_VALID_ROLES).not.toContain('sales_rep');
       expect(DB_VALID_ROLES).not.toContain('customer');
     });
+
+    it('should reject invalid role in user.updated and not include role in update', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const mockRequest = new Request('http://localhost:3000/api/webhooks/clerk', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'user.updated',
+          data: {
+            id: 'clerk_user_invalidrole',
+            email_addresses: [{ email_address: 'invalid@example.com' }],
+            first_name: 'Invalid',
+            last_name: 'Role',
+            public_metadata: { role: 'sales_rep' },
+          },
+        }),
+        headers: {
+          'svix-id': 'test-id',
+          'svix-timestamp': '1234567890',
+          'svix-signature': 'test-signature',
+        },
+      });
+
+      const response = await POST(mockRequest);
+      expect(response.status).toBe(200);
+
+      // Verify the update call did NOT include a role field (invalid role rejected)
+      expect(mockUpdate).toHaveBeenCalledOnce();
+      const updateArg = mockUpdate.mock.calls[0][0];
+      expect(updateArg.role).toBeUndefined();
+
+      // Should have warned about the invalid role
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('sales_rep'),
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it('should accept valid role in user.updated and include it in update', async () => {
+      const mockRequest = new Request('http://localhost:3000/api/webhooks/clerk', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'user.updated',
+          data: {
+            id: 'clerk_user_validrole',
+            email_addresses: [{ email_address: 'valid@example.com' }],
+            first_name: 'Valid',
+            last_name: 'Role',
+            public_metadata: { role: 'operator' },
+          },
+        }),
+        headers: {
+          'svix-id': 'test-id',
+          'svix-timestamp': '1234567890',
+          'svix-signature': 'test-signature',
+        },
+      });
+
+      const response = await POST(mockRequest);
+      expect(response.status).toBe(200);
+
+      // Verify the update call included the valid role
+      expect(mockUpdate).toHaveBeenCalledOnce();
+      const updateArg = mockUpdate.mock.calls[0][0];
+      expect(updateArg.role).toBe('operator');
+    });
   });
 });

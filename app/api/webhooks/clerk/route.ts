@@ -148,7 +148,7 @@ export async function POST(req: Request) {
         const proposedRole = metadata?.role;
 
         if (typeof proposedRole === 'string') {
-          if (VALID_ROLES.includes(proposedRole as any)) {
+          if (VALID_ROLES.includes(proposedRole as typeof VALID_ROLES[number])) {
             updateData.role = proposedRole;
             console.log(`[WEBHOOK] Updated role to "${proposedRole}" for user ${id}`);
           } else {
