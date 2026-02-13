@@ -172,7 +172,7 @@ export function QuoteComparison({ quotes, onSelectQuote, onCompare, className }:
               return (
                 <div key={seq} className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    <h4 className="text-sm font-semibold text-foreground">
                       {label || `Leg ${seq}`}
                     </h4>
                     <Badge variant="outline" className="text-xs">

@@ -78,7 +78,7 @@ function toKebabCase(str: string): string {
  * Generate Tailwind color class for brand colors
  *
  * @example
- * getColorClass('aviationBlue', 500, 'bg') // 'bg-aviation-blue-500'
+ * getColorClass('skyBlue', 500, 'bg') // 'bg-sky-blue-500'
  * getColorClass('skyBlue', 300, 'text') // 'text-sky-blue-300'
  * getColorClass('neutral', 700, 'border') // 'border-neutral-700'
  */
@@ -301,7 +301,7 @@ export function getZIndexClass(layer: ZIndexLayer): string {
 // ============================================================================
 
 interface ButtonClassOptions {
-  variant?: 'primary' | 'secondary' | 'accent' | 'outline' | 'ghost' | 'destructive';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -333,9 +333,8 @@ export function buttonClasses(options: ButtonClassOptions = {}): string {
   const variantClasses: Record<string, string[]> = {
     primary: ['bg-primary', 'text-primary-foreground', 'hover:bg-primary/90'],
     secondary: ['bg-secondary', 'text-secondary-foreground', 'hover:bg-secondary/80'],
-    accent: ['bg-accent', 'text-accent-foreground', 'hover:bg-accent/90'],
-    outline: ['border', 'border-input', 'bg-background', 'hover:bg-accent', 'hover:text-accent-foreground'],
-    ghost: ['hover:bg-accent', 'hover:text-accent-foreground'],
+    outline: ['border', 'border-input', 'bg-background', 'hover:bg-primary', 'hover:text-primary-foreground'],
+    ghost: ['hover:bg-primary', 'hover:text-primary-foreground'],
     destructive: ['bg-destructive', 'text-destructive-foreground', 'hover:bg-destructive/90'],
   };
 

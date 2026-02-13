@@ -2,7 +2,7 @@
  * Jetvision Group Design System Tokens
  *
  * Comprehensive design tokens for the private aviation charter platform.
- * Based on Sky Blue (#00a8e8) as primary, Aviation Blue (#0066cc) as legacy, and Sunset Orange (#ff6b35).
+ * Based on Sky Blue (#00a8e8) as primary brand color.
  *
  * Supports light and dark modes with WCAG AA accessibility compliance.
  */
@@ -16,20 +16,6 @@
  * Inspired by sky, clouds, and premium aviation aesthetics
  */
 export const brandColors = {
-  // Legacy - Aviation Blue (kept for backward compatibility)
-  aviationBlue: {
-    50: '#e6f2ff',
-    100: '#cce5ff',
-    200: '#99cbff',
-    300: '#66b0ff',
-    400: '#3396ff',
-    500: '#0066cc',
-    600: '#0052a3',
-    700: '#003d7a',
-    800: '#002952',
-    900: '#001429',
-  },
-
   // Primary - Sky Blue (Innovation, Speed, Trust, Professionalism)
   skyBlue: {
     50: '#e6f7fc',
@@ -42,20 +28,6 @@ export const brandColors = {
     700: '#00658b',
     800: '#00445d',
     900: '#00222e',
-  },
-
-  // Accent - Sunset Orange (Luxury, Premium)
-  sunsetOrange: {
-    50: '#fff3ed',
-    100: '#ffe7db',
-    200: '#ffcfb7',
-    300: '#ffb793',
-    400: '#ff9f6f',
-    500: '#ff6b35', // Accent brand color
-    600: '#cc562a',
-    700: '#99401f',
-    800: '#662b15',
-    900: '#33150a',
   },
 
   // Neutral Colors (Modern, Clean)
@@ -155,7 +127,7 @@ export const cssVarColors = {
     secondaryForeground: 'oklch(0.65 0.18 220)', // Sky Blue 500 (primary color for text)
     muted: 'oklch(0.98 0 0)',
     mutedForeground: 'oklch(0.3 0 0)',
-    accent: 'oklch(0.65 0.22 40)',
+    accent: 'oklch(0.65 0.18 220)', // Remapped to Sky Blue (same as primary)
     accentForeground: 'oklch(1 0 0)',
     destructive: 'oklch(0.55 0.22 25)',
     destructiveForeground: 'oklch(1 0 0)',
@@ -178,7 +150,7 @@ export const cssVarColors = {
     secondaryForeground: 'oklch(0.70 0.20 220)', // Sky Blue (primary color for text)
     muted: 'oklch(0.269 0 0)',
     mutedForeground: 'oklch(0.708 0 0)',
-    accent: 'oklch(0.70 0.24 40)',
+    accent: 'oklch(0.70 0.20 220)', // Remapped to Sky Blue (same as primary)
     accentForeground: 'oklch(0.98 0 0)',
     destructive: 'oklch(0.396 0.141 25.723)',
     destructiveForeground: 'oklch(0.637 0.237 25.331)',
@@ -350,7 +322,6 @@ export const shadows = {
 
   // Colored shadows for emphasis
   primary: '0 10px 15px -3px rgb(0 168 232 / 0.2), 0 4px 6px -4px rgb(0 168 232 / 0.1)', // Sky Blue
-  accent: '0 10px 15px -3px rgb(255 107 53 / 0.2), 0 4px 6px -4px rgb(255 107 53 / 0.1)',
 } as const;
 
 // ============================================================================

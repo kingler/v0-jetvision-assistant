@@ -133,7 +133,7 @@ export function DealPipelineTracker({
               className={cn(
                 'flex items-center gap-3 p-2 rounded-lg',
                 stage.status === 'active' && 'bg-blue-500/5',
-                onStageClick && 'cursor-pointer hover:bg-accent/50 transition-colors'
+                onStageClick && 'cursor-pointer hover:bg-primary/50 transition-colors'
               )}
               onClick={() => onStageClick?.(stage.id)}
             >

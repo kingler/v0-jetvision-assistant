@@ -27,13 +27,22 @@ function mapRequestStatusToChatStatus(
     pending: 'understanding_request',
     analyzing: 'understanding_request',
     fetching_client_data: 'understanding_request',
+    trip_created: 'searching_aircraft',
     searching_flights: 'searching_aircraft',
+    awaiting_user_action: 'searching_aircraft',
+    avinode_session_active: 'searching_aircraft',
+    monitoring_for_quotes: 'requesting_quotes',
     awaiting_quotes: 'requesting_quotes',
     analyzing_proposals: 'analyzing_options',
     generating_email: 'analyzing_options',
     sending_proposal: 'proposal_ready',
-    completed: 'proposal_ready',
-    failed: 'understanding_request', // Reset to beginning on failure
+    proposal_sent: 'proposal_sent',
+    contract_generated: 'contract_generated',
+    contract_sent: 'contract_sent',
+    payment_pending: 'payment_pending',
+    completed: 'closed_won',
+    closed_won: 'closed_won',
+    failed: 'understanding_request',
     cancelled: 'understanding_request',
   };
 
@@ -42,9 +51,9 @@ function mapRequestStatusToChatStatus(
 
 /**
  * Determines the current workflow step based on request status
- * 
+ *
  * @param dbStatus - Database request status enum value
- * @returns Step number (1-5)
+ * @returns Step number (1-10)
  */
 function getWorkflowStep(dbStatus: Request['status']): number {
   const stepMap: Record<string, number> = {
@@ -52,12 +61,21 @@ function getWorkflowStep(dbStatus: Request['status']): number {
     pending: 1,
     analyzing: 1,
     fetching_client_data: 1,
+    trip_created: 2,
     searching_flights: 2,
+    awaiting_user_action: 2,
+    avinode_session_active: 2,
+    monitoring_for_quotes: 3,
     awaiting_quotes: 3,
     analyzing_proposals: 4,
     generating_email: 4,
     sending_proposal: 5,
-    completed: 5,
+    proposal_sent: 6,
+    contract_generated: 7,
+    contract_sent: 8,
+    payment_pending: 9,
+    completed: 10,
+    closed_won: 10,
     failed: 1,
     cancelled: 1,
   };
@@ -133,7 +151,7 @@ export function requestToChatSession(
     date,
     status,
     currentStep,
-    totalSteps: 5,
+    totalSteps: 10,
 
     // Optional aircraft information
     aircraft: request.aircraft_type || undefined,

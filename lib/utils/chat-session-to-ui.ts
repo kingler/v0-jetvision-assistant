@@ -110,6 +110,10 @@ function mapCurrentStepToStatus(currentStep: string | null): ChatSession['status
     analyzing_options: 'analyzing_options',
     proposal_ready: 'proposal_ready',
     proposal_sent: 'proposal_sent',
+    contract_generated: 'contract_generated',
+    contract_sent: 'contract_sent',
+    payment_pending: 'payment_pending',
+    closed_won: 'closed_won',
   };
 
   return stepMap[currentStep] || 'understanding_request';
@@ -127,10 +131,52 @@ function getWorkflowStepFromCurrentStep(currentStep: string | null): number {
     requesting_quotes: 3,
     analyzing_options: 4,
     proposal_ready: 5,
-    proposal_sent: 5,
+    proposal_sent: 6,
+    contract_generated: 7,
+    contract_sent: 8,
+    payment_pending: 9,
+    closed_won: 10,
   };
 
   return stepMap[currentStep] || 1;
+}
+
+/**
+ * Maps request.status to ChatSession status when current_step is null.
+ * Returns null if no specific mapping exists (caller should use default).
+ */
+function mapRequestStatusToUIStatus(requestStatus: string): ChatSession['status'] | null {
+  const statusMap: Record<string, ChatSession['status']> = {
+    trip_created: 'searching_aircraft',
+    searching_flights: 'searching_aircraft',
+    awaiting_user_action: 'searching_aircraft',
+    avinode_session_active: 'searching_aircraft',
+    awaiting_quotes: 'requesting_quotes',
+    monitoring_for_quotes: 'requesting_quotes',
+    analyzing_proposals: 'analyzing_options',
+    generating_email: 'analyzing_options',
+    sending_proposal: 'proposal_ready',
+  };
+  return statusMap[requestStatus] || null;
+}
+
+/**
+ * Maps request.status to workflow step number when current_step is null.
+ * Returns null if no specific mapping exists (caller should use default).
+ */
+function getWorkflowStepFromRequestStatus(requestStatus: string): number | null {
+  const stepMap: Record<string, number> = {
+    trip_created: 2,
+    searching_flights: 2,
+    awaiting_user_action: 2,
+    avinode_session_active: 2,
+    awaiting_quotes: 3,
+    monitoring_for_quotes: 3,
+    analyzing_proposals: 4,
+    generating_email: 4,
+    sending_proposal: 5,
+  };
+  return stepMap[requestStatus] || null;
 }
 
 /**
@@ -191,13 +237,17 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
   // Format date for display
   const date = formatDateForDisplay(request?.departure_date || null);
 
-  // Map status - prefer current_step if available, otherwise use status
+  // Map status - prefer current_step, then request.status, then chat_session status
   const status = chatSessionRow.current_step
     ? mapCurrentStepToStatus(chatSessionRow.current_step)
-    : mapChatSessionStatusToUIStatus(chatSessionRow.status);
+    : (request?.status ? mapRequestStatusToUIStatus(request.status) : null)
+      ?? mapChatSessionStatusToUIStatus(chatSessionRow.status);
 
-  // Get workflow step
-  const currentStep = getWorkflowStepFromCurrentStep(chatSessionRow.current_step);
+  // Get workflow step - prefer current_step, then request.status, then default
+  const currentStep = chatSessionRow.current_step
+    ? getWorkflowStepFromCurrentStep(chatSessionRow.current_step)
+    : (request?.status ? getWorkflowStepFromRequestStatus(request.status) : null)
+      ?? 1;
 
   // Build ChatSession object for sidebar display
   const resolvedId = chatSessionRow.request_id || chatSessionRow.id;
@@ -226,7 +276,7 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     returnDate: request?.return_date ? request.return_date.split('T')[0] : undefined,
     status,
     currentStep,
-    totalSteps: 5,
+    totalSteps: 10,
 
     // Optional aircraft information
     aircraft: request?.aircraft_type || undefined,

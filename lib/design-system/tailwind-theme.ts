@@ -56,26 +56,8 @@ function toKebabCase(str: string): string {
 export function getTailwindTheme(): TailwindTheme {
   return {
     colors: {
-      // Brand colors - Aviation Blue
-      'aviation-blue': Object.entries(brandColors.aviationBlue).reduce(
-        (acc, [shade, value]) => {
-          acc[shade] = value;
-          return acc;
-        },
-        {} as Record<string, string>
-      ),
-
       // Brand colors - Sky Blue
       'sky-blue': Object.entries(brandColors.skyBlue).reduce(
-        (acc, [shade, value]) => {
-          acc[shade] = value;
-          return acc;
-        },
-        {} as Record<string, string>
-      ),
-
-      // Brand colors - Sunset Orange
-      'sunset-orange': Object.entries(brandColors.sunsetOrange).reduce(
         (acc, [shade, value]) => {
           acc[shade] = value;
           return acc;
@@ -166,7 +148,6 @@ export function getTailwindTheme(): TailwindTheme {
       inner: shadows.inner,
       none: shadows.none,
       primary: shadows.primary,
-      accent: shadows.accent,
     },
 
     // Z-index layers from tokens

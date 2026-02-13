@@ -14,7 +14,7 @@ import { tokens } from './tokens';
  * Get a brand color shade
  *
  * @example
- * getBrandColor('aviationBlue', 500) // #0066cc
+ * getBrandColor('skyBlue', 500) // #00a8e8
  * getBrandColor('skyBlue', 300) // #66cfed
  */
 export function getBrandColor(
@@ -77,7 +77,7 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } | nul
  * Create rgba color from hex
  *
  * @example
- * rgba('#0066cc', 0.5) // 'rgba(0, 102, 204, 0.5)'
+ * rgba('#00a8e8', 0.5) // 'rgba(0, 168, 232, 0.5)'
  */
 export function rgba(hex: string, alpha: number): string {
   const rgb = hexToRgb(hex);

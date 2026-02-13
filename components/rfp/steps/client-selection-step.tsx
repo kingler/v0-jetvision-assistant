@@ -88,7 +88,7 @@ export function ClientSelectionStep({ form }: ClientSelectionStepProps) {
           <Badge variant={vipStatus === 'vip' ? 'default' : 'outline'} className="bg-secondary">
             VIP
           </Badge>
-          <Badge variant={vipStatus === 'ultra_vip' ? 'default' : 'outline'} className="bg-accent">
+          <Badge variant={vipStatus === 'ultra_vip' ? 'default' : 'outline'}>
             Ultra VIP
           </Badge>
         </div>

@@ -15,21 +15,18 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        // Primary - Aviation Blue (#0066cc)
+        // Primary - Sky Blue (#00a8e8)
         default:
           'border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90',
-        // Secondary - Sky Blue (#00a8e8)
+        // Secondary
         secondary:
           'border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
-        // Accent - Sunset Orange (#ff6b35)
-        accent:
-          'border-transparent bg-accent text-accent-foreground [a&]:hover:bg-accent/90',
         // Destructive/Error
         destructive:
           'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
         // Outline
         outline:
-          'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
+          'text-foreground [a&]:hover:bg-primary [a&]:hover:text-primary-foreground',
         // Success - Semantic color
         success:
           'border-transparent bg-success text-white [a&]:hover:bg-success/90',

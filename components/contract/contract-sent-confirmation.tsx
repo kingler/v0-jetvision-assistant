@@ -79,7 +79,7 @@ export function ContractSentConfirmation({
 
   return (
     <div className="w-full">
-      <Card className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+      <Card className="w-full">
         <CardContent className="p-6 space-y-4">
           {/* Header */}
           <div className="flex items-start gap-3">
@@ -88,14 +88,14 @@ export function ContractSentConfirmation({
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                <h3 className="font-semibold text-lg text-foreground">
                   Contract Generated
                 </h3>
                 <Badge className={cn('text-xs', statusConfig.className)}>
                   {statusConfig.label}
                 </Badge>
               </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <p className="text-sm text-foreground">
                 Contract <span className="font-medium">{contractNumber}</span> for{' '}
                 <span className="font-medium">{customerName}</span> ({customerEmail})
               </p>
@@ -103,7 +103,7 @@ export function ContractSentConfirmation({
           </div>
 
           {/* Contract Details */}
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-muted rounded-lg p-4 border border-border">
             <div className="grid grid-cols-2 gap-4 text-sm">
               {/* Trip Type Badge */}
               {tripType && tripType !== 'one_way' && (
@@ -126,14 +126,14 @@ export function ContractSentConfirmation({
                 <div className="col-span-2 space-y-2">
                   {segments.map((seg, i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium w-10 shrink-0">
+                      <span className="text-xs text-muted-foreground font-medium w-10 shrink-0">
                         Leg {i + 1}
                       </span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                      <span className="font-medium text-foreground">
                         {seg.departureAirport} → {seg.arrivalAirport}
                       </span>
-                      <span className="text-gray-500 dark:text-gray-400">|</span>
-                      <span className="text-gray-700 dark:text-gray-300">
+                      <span className="text-muted-foreground">|</span>
+                      <span className="text-foreground">
                         {formatDate(seg.departureDate)}
                       </span>
                     </div>
@@ -142,29 +142,29 @@ export function ContractSentConfirmation({
               ) : (
                 <>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Route</span>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                    <span className="text-muted-foreground">Route</span>
+                    <p className="font-medium text-foreground">
                       {tripType === 'round_trip' ? flightRoute.replace('→', '⇄') : flightRoute}
                     </p>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span className="text-muted-foreground">
                       {tripType === 'round_trip' ? 'Outbound' : 'Departure'}
                     </span>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(departureDate)}</p>
+                    <p className="font-medium text-foreground">{formatDate(departureDate)}</p>
                   </div>
                   {tripType === 'round_trip' && returnDate && (
                     <div>
-                      <span className="text-gray-500 dark:text-gray-400">Return</span>
-                      <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(returnDate)}</p>
+                      <span className="text-muted-foreground">Return</span>
+                      <p className="font-medium text-foreground">{formatDate(returnDate)}</p>
                     </div>
                   )}
                 </>
               )}
 
               <div className="col-span-2">
-                <span className="text-gray-500 dark:text-gray-400">Total Amount</span>
-                <p className="font-medium text-lg text-gray-900 dark:text-gray-100">
+                <span className="text-muted-foreground">Total Amount</span>
+                <p className="font-medium text-lg text-foreground">
                   {currency} {(typeof totalAmount === 'number' ? totalAmount : Number(totalAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>

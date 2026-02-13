@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils'
  * Variants:
  * - default: Sky Blue (primary brand color)
  * - secondary: Text link style with primary color
- * - accent: Sunset Orange
  * - destructive: Error red
  * - outline: Bordered button
  * - ghost: Transparent background
@@ -29,9 +28,6 @@ const buttonVariants = cva(
         // Secondary - Text link style (flat, no background, primary color text)
         secondary:
           'bg-transparent text-primary underline-offset-4 hover:underline shadow-none',
-        // Accent - Sunset Orange (#ff6b35)
-        accent:
-          'bg-accent text-accent-foreground shadow-xs hover:bg-accent/90',
         // Destructive - Error red
         destructive:
           'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',

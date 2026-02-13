@@ -441,8 +441,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Parse request body
-    const body = await request.json() as { id: string; action: 'cancel' | 'archive'; reason?: string; tripId?: string; rfqId?: string };
-    const { id: requestId, action, reason, tripId: bodyTripId, rfqId: bodyRfqId } = body;
+    const body = await request.json() as { id: string; action: 'cancel' | 'archive'; reason?: string; tripId?: string; rfqId?: string; current_step?: string };
+    const { id: requestId, action, reason, tripId: bodyTripId, rfqId: bodyRfqId, current_step: bodyCurrentStep } = body;
 
     // Validate request ID and action
     if (!requestId || !action) {
@@ -482,7 +482,7 @@ export async function PATCH(request: NextRequest) {
     // Verify ownership - check if request exists and belongs to user
     const { data: existingRequest, error: fetchError } = await supabaseAdmin
       .from('requests')
-      .select('id, iso_agent_id, status, avinode_trip_id, avinode_rfq_id, metadata')
+      .select('id, iso_agent_id, status, avinode_trip_id, avinode_rfq_id, metadata, current_step')
       .eq('id', requestId)
       .single();
 
@@ -705,30 +705,42 @@ export async function PATCH(request: NextRequest) {
 
     // Handle archive action
     if (action === 'archive') {
-      // Only allow archiving completed/booked requests
-      const canArchive = existingRequest.status === 'completed' || 
+      // current_step is included in select but Supabase SDK type inference doesn't capture it
+      const currentStep = (existingRequest as Database['public']['Tables']['requests']['Row']).current_step;
+      // Allow archiving completed, cancelled, proposal-sent, contract, and payment-related requests
+      const canArchive = existingRequest.status === 'completed' ||
                         existingRequest.status === 'sending_proposal' ||
-                        existingRequest.status === 'cancelled';
+                        existingRequest.status === 'cancelled' ||
+                        currentStep === 'contract_sent' ||
+                        currentStep === 'payment_pending' ||
+                        currentStep === 'closed_won';
       if (!canArchive) {
         return NextResponse.json(
-          { error: 'Cannot archive request', message: 'Only completed, cancelled, or sent proposal requests can be archived' },
+          { error: 'Cannot archive request', message: 'Only completed, cancelled, contract-sent, payment-pending, or closed-won requests can be archived' },
           { status: 400 }
         );
       }
 
-      // Update request metadata to mark as archived
-      // Note: We're using metadata to track archived status rather than a separate field
-      // This preserves the request data while marking it as archived
+      const now = new Date().toISOString();
+      const updateData: Record<string, unknown> = {
+        session_status: 'archived',
+        session_ended_at: now,
+        updated_at: now,
+        metadata: {
+          ...(existingRequest.metadata as Record<string, unknown> || {}),
+          archived: true,
+          archived_at: now,
+        },
+      };
+
+      // Set current_step if provided (e.g., 'closed_won' when archiving after payment)
+      if (bodyCurrentStep) {
+        updateData.current_step = bodyCurrentStep;
+      }
+
       const { error: updateError } = await supabaseAdmin
         .from('requests')
-        .update({
-          updated_at: new Date().toISOString(),
-          metadata: {
-            ...(existingRequest.metadata as Record<string, unknown> || {}),
-            archived: true,
-            archived_at: new Date().toISOString(),
-          },
-        })
+        .update(updateData)
         .eq('id', requestId);
 
       if (updateError) {
