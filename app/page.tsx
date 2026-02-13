@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { ChatInterface } from "@/components/chat-interface"
 import { ChatSidebar, type ChatSession, type OperatorMessage, type OperatorThread } from "@/components/chat-sidebar"
@@ -25,11 +26,15 @@ const isValidUUID = (id: string): boolean => {
 
 export default function JetvisionAgent() {
   const { user, isLoaded } = useUser()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentView, setCurrentView] = useState<View>("landing")
   const [isProcessing, setIsProcessing] = useState(false)
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
+  const [onboardingChecked, setOnboardingChecked] = useState(false)
+  const showOnboardingBanner = searchParams.get('onboarding') === 'complete'
   const isMobile = useIsMobile()
   const isTabletOrSmaller = useIsTabletOrSmaller()
   // Sidebar starts collapsed on initial page load; closed on phone/tablet
@@ -44,6 +49,32 @@ export default function JetvisionAgent() {
       setSidebarOpen(false)
     }
   }, [isTabletOrSmaller, sidebarOpen])
+
+  // Onboarding guard: redirect to /onboarding if user hasn't completed onboarding
+  useEffect(() => {
+    if (!isLoaded || !user) {
+      return
+    }
+
+    async function checkOnboardingStatus() {
+      try {
+        const response = await fetch('/api/onboarding/status')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.onboardingStatus && data.onboardingStatus !== 'completed') {
+            router.replace('/onboarding')
+            return
+          }
+        }
+        // If API returns 404 (user not in iso_agents), or status is 'completed', proceed normally
+      } catch {
+        // On error, allow user through — don't block the app
+      }
+      setOnboardingChecked(true)
+    }
+
+    checkOnboardingStatus()
+  }, [isLoaded, user, router])
 
   /**
    * Load existing flight requests from the database on page mount
@@ -116,7 +147,7 @@ export default function JetvisionAgent() {
           // Otherwise deduplicate by session ID
           return index === self.findIndex((s) => s.id === session.id && !s.tripId)
         })
-        setChatSessions(uniqueSessions as any)
+        setChatSessions(uniqueSessions as ChatSession[])
 
         // Always show landing page on initial load, even if sessions exist
         // User can manually select chats from the sidebar
@@ -191,7 +222,7 @@ export default function JetvisionAgent() {
       const requestKey = session.requestId || session.conversationId;
       if (requestKey) {
         try {
-          console.log('[loadMessagesForSession] Attempting to load via requests API with requestKey:', requestKey);
+          console.log('[loadMessagesForSession] Attempting to load via requests API with lookupId:', requestKey);
           const requestsResponse = await fetch(`/api/requests?limit=50`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -211,13 +242,13 @@ export default function JetvisionAgent() {
                 richContent: msg.richContent ?? null,
               }));
               // DEBUG: Log proposal_shared messages specifically
-              const proposalMessages = messages.filter((m: any) => m.contentType === 'proposal_shared');
+              const proposalMessages = messages.filter((m: DbMessageLike) => m.contentType === 'proposal_shared');
               console.log('[loadMessagesForSession] ✅ Loaded messages via requests API:', {
                 requestKey,
                 messageCount: messages.length,
                 firstMessage: messages[0]?.content?.substring(0, 50),
                 proposalMessageCount: proposalMessages.length,
-                proposalMessages: proposalMessages.map((m: any) => ({
+                proposalMessages: proposalMessages.map((m: DbMessageLike) => ({
                   id: m.id,
                   contentType: m.contentType,
                   hasRichContent: !!m.richContent,
@@ -225,7 +256,7 @@ export default function JetvisionAgent() {
                 })),
               });
             } else {
-              console.warn('[loadMessagesForSession] ⚠️ No messages found in requests API for requestKey:', requestKey);
+              console.warn('[loadMessagesForSession] ⚠️ No messages found in requests API for lookupId:', requestKey);
             }
           } else {
             console.warn('[loadMessagesForSession] ⚠️ Requests API failed:', {
@@ -1800,14 +1831,14 @@ export default function JetvisionAgent() {
 
   const activeChat = activeChatId ? chatSessions.find((chat) => chat.id === activeChatId) : null
 
-  // Show loading state while Clerk is initializing or requests are loading
-  if (!isLoaded || isLoadingRequests) {
+  // Show loading state while Clerk is initializing, onboarding is checking, or requests are loading
+  if (!isLoaded || !onboardingChecked || isLoadingRequests) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">
-            {!isLoaded ? 'Loading...' : 'Loading your flight requests...'}
+            {!isLoaded ? 'Loading...' : !onboardingChecked ? 'Checking account status...' : 'Loading your flight requests...'}
           </p>
         </div>
       </div>
@@ -1816,6 +1847,13 @@ export default function JetvisionAgent() {
 
   return (
     <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
+      {/* Onboarding success banner */}
+      {showOnboardingBanner && (
+        <div className="fixed top-0 left-0 right-0 z-[60] bg-emerald-600 text-white text-center py-2 px-4 text-sm font-medium">
+          Onboarding complete — welcome to Jetvision!
+        </div>
+      )}
+
       {/* Backdrop when sidebar is overlay (phone + tablet); click to close */}
       {isTabletOrSmaller && sidebarOpen && (
         <div
