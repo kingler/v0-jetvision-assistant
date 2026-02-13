@@ -54,7 +54,7 @@ export function PaymentConfirmedCard({
 
   return (
     <div className="w-full">
-      <Card className="w-full bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+      <Card className="w-full">
         <CardContent className="p-6 space-y-4">
           {/* Header */}
           <div className="flex items-start gap-3">
@@ -62,37 +62,37 @@ export function PaymentConfirmedCard({
               <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-lg text-green-800 dark:text-green-200">
+              <h3 className="font-semibold text-lg text-foreground">
                 Payment Received
               </h3>
-              <p className="text-sm text-green-700 dark:text-green-300">
+              <p className="text-sm text-foreground">
                 Payment for contract <span className="font-medium">{contractNumber}</span> has been confirmed.
               </p>
             </div>
           </div>
 
           {/* Payment Details */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-green-200 dark:border-green-700">
+          <div className="bg-muted rounded-lg p-4 border border-border">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="col-span-2">
-                <span className="text-gray-500 dark:text-gray-400">Payment Amount</span>
+                <span className="text-muted-foreground">Payment Amount</span>
                 <p className="font-semibold text-xl text-green-700 dark:text-green-400">
                   {formatAmount(paymentAmount, currency)}
                 </p>
               </div>
               <div>
-                <span className="text-gray-500 dark:text-gray-400">Payment Method</span>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{paymentMethodLabel}</p>
+                <span className="text-muted-foreground">Payment Method</span>
+                <p className="font-medium text-foreground">{paymentMethodLabel}</p>
               </div>
               <div>
-                <span className="text-gray-500 dark:text-gray-400">Reference</span>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{paymentReference}</p>
+                <span className="text-muted-foreground">Reference</span>
+                <p className="font-medium text-foreground">{paymentReference}</p>
               </div>
             </div>
           </div>
 
           {/* Timestamp */}
-          <div className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="text-xs text-muted-foreground">
             Received: {formatTimestamp(paidAt)}
           </div>
         </CardContent>

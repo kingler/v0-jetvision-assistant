@@ -520,7 +520,7 @@ export const FlatQuoteCard: React.FC<FlatQuoteCardProps> = ({
             <div className="flex items-center gap-2">
               <CardTitle className="text-lg">{operatorName}</CardTitle>
               {isRecommended && (
-                <Badge variant="default" className="bg-accent">
+                <Badge variant="default">
                   Recommended
                 </Badge>
               )}

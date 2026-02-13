@@ -151,7 +151,7 @@ function OpportunityCard({
     <div
       className={cn(
         'flex items-center justify-between p-3 rounded-lg border border-l-4',
-        'hover:bg-accent/50 transition-colors cursor-pointer',
+        'hover:bg-primary/50 transition-colors cursor-pointer',
         config.borderColor,
         config.bgColor
       )}

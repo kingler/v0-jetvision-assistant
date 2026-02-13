@@ -9,9 +9,9 @@ import { responsiveTypographyPlugin } from './lib/design-system/tailwind-plugin'
  * The theme values are generated from lib/design-system/tokens.ts
  *
  * Available custom utilities:
- * - Colors: bg-aviation-blue-*, text-sky-blue-*, border-sunset-orange-*
+ * - Colors: bg-sky-blue-*, text-sky-blue-*
  * - Semantic: bg-success, bg-warning, bg-error, bg-info
- * - Shadows: shadow-primary, shadow-accent
+ * - Shadows: shadow-primary
  * - Z-index: z-dropdown, z-modal, z-tooltip
  * - Typography: text-responsive-h1, text-responsive-h2, etc.
  * - Display: text-responsive-display-xl, text-responsive-display-lg, etc.

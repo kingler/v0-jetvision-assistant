@@ -71,6 +71,9 @@ import {
   type PipelineData,
 } from "@/lib/chat"
 
+// Skeleton loading
+import { ChatLoadingSkeleton } from "@/components/chat/chat-loading-skeleton"
+
 // Flight request parser utility
 import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
 import { formatDate, formatMessageTimestamp, safeParseTimestamp } from "@/lib/utils/format"
@@ -101,6 +104,7 @@ interface ChatInterfaceProps {
   isProcessing: boolean
   onProcessingChange: (processing: boolean) => void
   onUpdateChat: (chatId: string, updates: Partial<ChatSession>) => void
+  isLoading?: boolean
 }
 
 export function ChatInterface({
@@ -108,6 +112,7 @@ export function ChatInterface({
   isProcessing,
   onProcessingChange,
   onUpdateChat,
+  isLoading,
 }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -205,7 +210,8 @@ export function ChatInterface({
   // Payment confirmation modal state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [paymentContractData, setPaymentContractData] = useState<{
-    contractId: string; contractNumber: string; totalAmount: number; currency: string
+    contractId: string; contractNumber: string; totalAmount: number; currency: string;
+    customerName?: string; flightRoute?: string
   } | null>(null)
 
   // Sync tripIdSubmitted with activeChat
@@ -464,6 +470,7 @@ export function ChatInterface({
       !!activeChat.tripId && // Must have tripId
       activeChat.id !== autoLoadedRfqsForChatIdRef.current && // Haven't already loaded for this chat
       !isTripIdLoading && // Not currently loading
+      !isLoading && // Prevent race with handleSelectChat loading
       (!hasRfqFlights || !hasRecentFetch || !activeChat.tripIdSubmitted) && // No RFQs OR not fetched recently OR not submitted
       !!handleTripIdSubmit && // Handler available
       !isTripJustCreated // Not within grace period after trip creation
@@ -507,7 +514,7 @@ export function ChatInterface({
       autoLoadedRfqsForChatIdRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChat.tripId, activeChat.id, activeChat.tripIdSubmitted, activeChat.rfqsLastFetchedAt, rfqFlights?.length, isTripIdLoading])
+  }, [activeChat.tripId, activeChat.id, activeChat.tripIdSubmitted, activeChat.rfqsLastFetchedAt, rfqFlights?.length, isTripIdLoading, isLoading])
 
   /**
    * Handle webhook events from Supabase realtime
@@ -1269,7 +1276,7 @@ export function ChatInterface({
       if (result.rfqData?.rfqs && result.rfqData.rfqs.length > 0 && newRfqFlights.length === 0) {
         console.error('[ChatInterface] ⚠️ RFQs exist but no flights were extracted:', {
           rfqs_count: result.rfqData.rfqs.length,
-          rfq_ids: result.rfqData.rfqs.map((r: any) => r.rfq_id || r.id),
+          rfq_ids: result.rfqData.rfqs.map((r: { rfq_id?: string; id?: string }) => r.rfq_id || r.id),
           has_flights: !!(result.rfqData?.flights),
           flights_count: result.rfqData?.flights?.length || 0,
           message: result.rfqData?.message,
@@ -2104,13 +2111,15 @@ export function ChatInterface({
   /**
    * Handle "Mark Payment Received" button click on a contract card
    */
-  const handleMarkPayment = useCallback((contractId: string, contractData: { contractNumber: string; totalAmount: number; currency: string }) => {
+  const handleMarkPayment = useCallback((contractId: string, contractData: { contractNumber: string; totalAmount: number; currency: string; customerName?: string; flightRoute?: string }) => {
     console.log('[ChatInterface] Mark payment:', { contractId, contractData })
     setPaymentContractData({
       contractId,
       contractNumber: contractData.contractNumber,
       totalAmount: contractData.totalAmount,
       currency: contractData.currency,
+      customerName: contractData.customerName,
+      flightRoute: contractData.flightRoute,
     })
     setIsPaymentModalOpen(true)
   }, [])
@@ -2123,6 +2132,20 @@ export function ChatInterface({
   }) => {
     if (!paymentContractData) return
 
+    // Derive requestId and contract data BEFORE the API call so server can persist
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const requestIdForSave = (activeChat.requestId && uuidRe.test(activeChat.requestId))
+      ? activeChat.requestId
+      : (activeChat.conversationId && uuidRe.test(activeChat.conversationId))
+        ? activeChat.conversationId
+        : (activeChat.id && uuidRe.test(activeChat.id))
+          ? activeChat.id
+          : undefined
+
+    // Find contract message data for deal closed card
+    const contractMsg = activeChat.messages?.find(m => m.contractSentData?.contractId === paymentContractData.contractId)
+    const contractData = contractMsg?.contractSentData
+
     const response = await fetch(`/api/contract/${paymentContractData.contractId}/payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2132,6 +2155,9 @@ export function ChatInterface({
         payment_method: paymentData.paymentMethod,
         payment_date: new Date().toISOString(),
         markComplete: true,
+        requestId: requestIdForSave,
+        customerName: paymentContractData.customerName || contractData?.customerName || '',
+        flightRoute: paymentContractData.flightRoute || contractData?.flightRoute || '',
       }),
     })
 
@@ -2141,10 +2167,6 @@ export function ChatInterface({
     }
 
     const paidAt = new Date().toISOString()
-
-    // Find contract message data for deal closed card
-    const contractMsg = activeChat.messages?.find(m => m.contractSentData?.contractId === paymentContractData.contractId)
-    const contractData = contractMsg?.contractSentData
 
     // Create payment confirmation message
     const paymentMessage = {
@@ -2173,8 +2195,8 @@ export function ChatInterface({
       showClosedWon: true,
       closedWonData: {
         contractNumber: paymentContractData.contractNumber,
-        customerName: contractData?.customerName || '',
-        flightRoute: contractData?.flightRoute || '',
+        customerName: paymentContractData.customerName || contractData?.customerName || '',
+        flightRoute: paymentContractData.flightRoute || contractData?.flightRoute || '',
         dealValue: paymentData.paymentAmount,
         currency: paymentContractData.currency,
         paymentReceivedAt: paidAt,
@@ -2184,46 +2206,10 @@ export function ChatInterface({
       },
     }
 
-    // Append both messages to chat
+    // Append both messages to chat (server already persisted to DB)
     onUpdateChat(activeChat.id, {
       messages: [...(activeChat.messages || []), paymentMessage, closedMessage],
     })
-
-    // Persist messages to DB
-    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    const requestIdForSave = (activeChat.requestId && uuidRe.test(activeChat.requestId))
-      ? activeChat.requestId
-      : (activeChat.conversationId && uuidRe.test(activeChat.conversationId))
-        ? activeChat.conversationId
-        : (activeChat.id && uuidRe.test(activeChat.id))
-          ? activeChat.id
-          : null
-
-    if (requestIdForSave) {
-      // Persist payment confirmed message
-      fetch('/api/chat-sessions/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestId: requestIdForSave,
-          content: paymentMessage.content,
-          contentType: 'payment_confirmed',
-          richContent: { paymentConfirmed: paymentMessage.paymentConfirmationData },
-        }),
-      }).catch(err => console.warn('[ChatInterface] Failed to persist payment message:', err))
-
-      // Persist deal closed message
-      fetch('/api/chat-sessions/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestId: requestIdForSave,
-          content: closedMessage.content,
-          contentType: 'deal_closed',
-          richContent: { dealClosed: closedMessage.closedWonData },
-        }),
-      }).catch(err => console.warn('[ChatInterface] Failed to persist closed message:', err))
-    }
 
     // Close modal and reset state
     setIsPaymentModalOpen(false)
@@ -2375,6 +2361,22 @@ export function ChatInterface({
   const getOperatorMessages = (): OperatorMessage[] => {
     if (!selectedQuoteId || !activeChat.operatorMessages) return []
     return activeChat.operatorMessages[selectedQuoteId] || []
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+        <DynamicChatHeader
+          activeChat={activeChat}
+          flightRequestName={activeChat.generatedName}
+          showTripId={!!activeChat.tripId}
+          quoteRequests={getQuoteRequestsForHeader()}
+          onViewQuoteDetails={handleViewQuoteDetails}
+          onCopyTripId={() => console.log('[Chat] Trip ID copied to clipboard')}
+        />
+        <ChatLoadingSkeleton />
+      </div>
+    )
   }
 
   return (

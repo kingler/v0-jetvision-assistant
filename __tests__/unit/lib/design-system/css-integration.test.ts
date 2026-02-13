@@ -15,12 +15,8 @@ describe('CSS Integration with Design System', () => {
       const theme = getTailwindTheme();
 
       // Verify the generated color values are valid hex codes
-      const aviationBlue = theme.colors['aviation-blue'] as Record<string, string>;
       const skyBlue = theme.colors['sky-blue'] as Record<string, string>;
-      const sunsetOrange = theme.colors['sunset-orange'] as Record<string, string>;
-      expect(aviationBlue['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(skyBlue['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
-      expect(sunsetOrange['500']).toMatch(/^#[0-9a-fA-F]{6}$/);
     });
 
     it('maps semantic colors with DEFAULT value for Tailwind shorthand', () => {
@@ -66,28 +62,12 @@ describe('CSS Integration with Design System', () => {
   });
 
   describe('Brand color consistency', () => {
-    it('aviation blue primary matches CSS variable equivalent', () => {
-      const theme = getTailwindTheme();
-      const aviationBlue = theme.colors['aviation-blue'] as Record<string, string>;
-      // The CSS variable --primary uses Aviation Blue 500
-      expect(aviationBlue['500']).toBe(brandColors.aviationBlue[500]);
-      expect(brandColors.aviationBlue[500]).toBe('#0066cc');
-    });
-
-    it('sky blue secondary matches CSS variable equivalent', () => {
+    it('sky blue primary matches CSS variable equivalent', () => {
       const theme = getTailwindTheme();
       const skyBlue = theme.colors['sky-blue'] as Record<string, string>;
-      // The CSS variable --secondary uses Sky Blue 500
+      // The CSS variable --primary uses Sky Blue 500
       expect(skyBlue['500']).toBe(brandColors.skyBlue[500]);
       expect(brandColors.skyBlue[500]).toBe('#00a8e8');
-    });
-
-    it('sunset orange accent matches CSS variable equivalent', () => {
-      const theme = getTailwindTheme();
-      const sunsetOrange = theme.colors['sunset-orange'] as Record<string, string>;
-      // The CSS variable --accent uses Sunset Orange 500
-      expect(sunsetOrange['500']).toBe(brandColors.sunsetOrange[500]);
-      expect(brandColors.sunsetOrange[500]).toBe('#ff6b35');
     });
   });
 

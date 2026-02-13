@@ -113,7 +113,7 @@ export function SettingsDropdownMenu() {
                 </div>
                 <div className="flex justify-between">
                   <span>Agent Commission ({commissionSplit[0]}%):</span>
-                  <span className="font-medium text-accent">${agentCommission.toLocaleString()}</span>
+                  <span className="font-medium text-primary">${agentCommission.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Jetvision Net ({100 - commissionSplit[0]}%):</span>
@@ -177,7 +177,7 @@ export function SettingsDropdownMenu() {
                     Margin Applied ({marginType === "fixed" ? "$" + marginValue.toLocaleString() : marginPercentage + "%"}
                     )
                   </p>
-                  <p className="text-2xl font-bold text-accent">+ ${appliedMargin.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-primary">+ ${appliedMargin.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Quote</p>

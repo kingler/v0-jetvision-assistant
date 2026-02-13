@@ -62,6 +62,7 @@ interface RecordPaymentResponse {
     payment_amount: number | null;
     payment_received_at: string | null;
   };
+  savedMessageIds?: string[];
   error?: string;
 }
 
@@ -205,10 +206,11 @@ export async function POST(
     }
 
     // Persist messages to chat history if requestId is provided
+    const savedMessageIds: string[] = [];
     if (body.requestId) {
       try {
         // Persist payment confirmation message
-        await saveMessage({
+        const paymentMsgId = await saveMessage({
           requestId: body.requestId,
           senderType: 'ai_assistant',
           content: `Payment confirmed for contract ${result.contract_number}`,
@@ -225,12 +227,13 @@ export async function POST(
             },
           },
         });
+        savedMessageIds.push(paymentMsgId);
 
         console.log('[RecordPayment] Payment confirmation message persisted');
 
         // Persist deal closed message if contract was marked complete
         if (body.markComplete) {
-          await saveMessage({
+          const closedMsgId = await saveMessage({
             requestId: body.requestId,
             senderType: 'ai_assistant',
             content: `Deal closed for contract ${result.contract_number}`,
@@ -246,6 +249,7 @@ export async function POST(
               },
             },
           });
+          savedMessageIds.push(closedMsgId);
 
           console.log('[RecordPayment] Deal closed message persisted');
         }
@@ -265,6 +269,7 @@ export async function POST(
         payment_amount: result.payment_amount,
         payment_received_at: result.payment_received_at,
       },
+      savedMessageIds,
     });
   } catch (error) {
     console.error('Error recording payment:', error);

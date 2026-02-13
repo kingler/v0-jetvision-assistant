@@ -40,7 +40,7 @@ type TripType = 'one-way' | 'round-trip' | 'multi-city';
 function ActionLog({ lastAction }: { lastAction: string | null }) {
   if (!lastAction) return null;
   return (
-    <div className="fixed bottom-4 right-4 z-50 bg-gray-900 text-gray-100 text-xs font-mono px-4 py-2 rounded-lg shadow-xl max-w-md truncate" data-testid="action-log">
+    <div className="fixed bottom-4 right-4 z-50 bg-foreground text-background text-xs font-mono px-4 py-2 rounded-lg shadow-xl max-w-md truncate" data-testid="action-log">
       {lastAction}
     </div>
   );
@@ -69,29 +69,29 @@ function DemoSection({
     <section id={id} data-testid={`section-${id}`} className="scroll-mt-24">
       <div className="mb-4 space-y-1">
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{component}</h2>
+          <h2 className="text-xl font-bold text-foreground">{component}</h2>
           <code className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded">
             {toolName}
           </code>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
         <div className="flex flex-wrap gap-1.5 mt-1">
           {dataDependencies.map((dep) => (
-            <span key={dep} className="text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">
+            <span key={dep} className="text-[11px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
               {dep}
             </span>
           ))}
         </div>
       </div>
       <div className="space-y-6">{children}</div>
-      <hr className="my-10 border-gray-200 dark:border-gray-800" />
+      <hr className="my-10 border-border" />
     </section>
   );
 }
 
 function TripTypeLabel({ type }: { type: string }) {
   const colors: Record<string, string> = {
-    'One-Way': 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+    'One-Way': 'bg-muted text-muted-foreground',
     'Round-Trip': 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
     'Multi-City': 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
   };
@@ -179,16 +179,16 @@ export default function AllToolUIDemoPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-muted dark:bg-background">
       <ActionLog lastAction={lastAction} />
 
       {/* Sticky header */}
-      <header className="sticky top-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 shadow-sm">
+      <header className="sticky top-0 z-40 bg-card border-b border-border px-6 py-4 shadow-sm">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100" data-testid="demo-title">
+          <h1 className="text-2xl font-bold text-foreground" data-testid="demo-title">
             Tool UI Registry — All Components
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             11 registered MCP UI components across one-way, round-trip, and multi-city trip types
           </p>
 
@@ -208,9 +208,9 @@ export default function AllToolUIDemoPage() {
           </div>
 
           {/* TOC */}
-          <nav className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-gray-500 dark:text-gray-400">
+          <nav className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-muted-foreground">
             {TOC.map((item) => (
-              <a key={item.id} href={`#${item.id}`} className="hover:text-gray-900 dark:hover:text-gray-100 hover:underline">
+              <a key={item.id} href={`#${item.id}`} className="hover:text-foreground hover:underline">
                 {item.label}
               </a>
             ))}

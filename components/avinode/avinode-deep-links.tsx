@@ -48,7 +48,7 @@ export function AvinodeDeepLinks({ links, onLinkClick }: AvinodeDeepLinksProps) 
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => handleLinkClick('search')}
-          className="flex items-start gap-3 rounded-lg border border-primary/50 bg-primary/5 p-3 md:p-4 transition-colors hover:bg-accent/50 min-h-[44px]"
+          className="flex items-start gap-3 rounded-lg border border-primary/50 bg-primary/5 p-3 md:p-4 transition-colors hover:bg-primary/50 min-h-[44px]"
         >
           <Search className="h-5 w-5 mt-0.5 text-primary flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -71,7 +71,7 @@ export function AvinodeDeepLinks({ links, onLinkClick }: AvinodeDeepLinksProps) 
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => handleLinkClick('view')}
-          className="flex items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-accent/50"
+          className="flex items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-primary/50"
         >
           <Eye className="h-5 w-5 mt-0.5 text-muted-foreground flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -94,7 +94,7 @@ export function AvinodeDeepLinks({ links, onLinkClick }: AvinodeDeepLinksProps) 
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => handleLinkClick('cancel')}
-          className="flex items-start gap-3 rounded-lg border border-destructive/30 p-4 transition-colors hover:bg-accent/50"
+          className="flex items-start gap-3 rounded-lg border border-destructive/30 p-4 transition-colors hover:bg-primary/50"
         >
           <X className="h-5 w-5 mt-0.5 text-destructive flex-shrink-0" />
           <div className="flex-1 min-w-0">
