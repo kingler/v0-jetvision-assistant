@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Copy, Check, FileText } from "lucide-react"
+import { Copy, Check, FileText, Loader2, Clock, CheckCircle, Plane, Receipt } from "lucide-react"
 import { QuoteRequestList } from "./quote-request-list"
 import type { QuoteRequest } from "./quote-request-item"
 import type { ChatSession } from "../chat-sidebar"
@@ -25,44 +24,100 @@ export interface DynamicChatHeaderProps {
 }
 
 /**
- * Get status badge based on chat status
+ * Status badge config for each flight request/booking stage.
+ * Maps ChatSession status to label, icon, and semantic color for consistency.
  */
-function getStatusBadge(status: ChatSession['status']) {
-  switch (status) {
-    case 'proposal_ready':
-      return (
-        <Badge className="bg-status-proposal-ready text-white">
-          <FileText className="w-3 h-3 mr-1" />
-          Proposal Ready
-        </Badge>
-      )
-    case 'requesting_quotes':
-      return (
-        <Badge className="bg-status-processing text-white">
-          Requesting Quotes
-        </Badge>
-      )
-    case 'understanding_request':
-      return (
-        <Badge className="bg-status-proposal-sent text-white">
-          Understanding Request
-        </Badge>
-      )
-    case 'searching_aircraft':
-      return (
-        <Badge className="bg-status-searching text-white">
-          Searching Aircraft
-        </Badge>
-      )
-    case 'analyzing_options':
-      return (
-        <Badge className="bg-status-analyzing text-white">
-          Analyzing Options
-        </Badge>
-      )
-    default:
-      return null
+const STATUS_BADGE_CONFIG: Record<
+  ChatSession["status"],
+  { label: string; icon: typeof FileText; className: string }
+> = {
+  understanding_request: {
+    label: "Understanding Request",
+    icon: Loader2,
+    className: "bg-status-proposal-sent text-white",
+  },
+  searching_aircraft: {
+    label: "Searching Aircraft",
+    icon: Plane,
+    className: "bg-primary text-primary-foreground",
+  },
+  requesting_quotes: {
+    label: "Requesting Quotes",
+    icon: Loader2,
+    className: "bg-status-processing text-white",
+  },
+  analyzing_options: {
+    label: "Analyzing Options",
+    icon: Clock,
+    className: "bg-status-analyzing text-[#00A5DA]",
+  },
+  proposal_ready: {
+    label: "Proposal Ready",
+    icon: FileText,
+    className: "bg-status-proposal-ready text-white",
+  },
+  proposal_sent: {
+    label: "Proposal Sent",
+    icon: FileText,
+    className: "bg-status-proposal-sent text-white",
+  },
+  contract_generated: {
+    label: "Contract Ready",
+    icon: Receipt,
+    className: "bg-status-contract-ready text-white",
+  },
+  contract_sent: {
+    label: "Contract Sent",
+    icon: Receipt,
+    className: "bg-status-contract-sent text-white",
+  },
+  payment_pending: {
+    label: "Payment Pending",
+    icon: Clock,
+    className: "bg-status-payment-pending text-white",
+  },
+  closed_won: {
+    label: "Closed Won",
+    icon: CheckCircle,
+    className: "bg-status-closed-won text-white",
+  },
+}
+
+/**
+ * Get status badge for the current flight request/booking stage.
+ * Renders Badge with appropriate icon and semantic color per workflow step.
+ */
+function getStatusBadge(session: ChatSession | null): React.ReactNode {
+  if (!session) return null
+
+  const config = STATUS_BADGE_CONFIG[session.status]
+  if (!config) {
+    return (
+      <Badge variant="secondary" className="bg-status-pending text-white text-xs">
+        Pending
+      </Badge>
+    )
   }
+
+  const Icon = config.icon
+  const isAnimated =
+    session.status === "requesting_quotes" ||
+    session.status === "understanding_request" ||
+    session.status === "searching_aircraft"
+
+  const displayLabel =
+    session.status === "requesting_quotes" &&
+    session.quotesReceived != null &&
+    session.quotesTotal != null
+      ? `Quotes ${session.quotesReceived}/${session.quotesTotal}`
+      : config.label
+
+  return (
+    <Badge className={`${config.className} text-xs`}>
+      <Icon className={`w-3 h-3 ${isAnimated ? "animate-spin" : ""}`} />
+      {displayLabel}
+    </Badge>
+  )
 }
 
 /**
@@ -158,15 +213,15 @@ export function DynamicChatHeader({
             >
               {activeChat.tripId}
               {copied ? (
-                <Check className="w-3 h-3 text-success" />
+                <Check className="w-3 h-3 text-green-500" />
               ) : (
                 <Copy className="w-3 h-3" />
               )}
             </Badge>
           )}
 
-          {/* Status Badge */}
-          {getStatusBadge(activeChat.status)}
+          {/* Status Badge - all 10 flight request/booking stages */}
+          {getStatusBadge(activeChat)}
         </div>
       </div>
 

@@ -540,11 +540,11 @@ export function FlightSearchProgress({
 
                     <div className="flex items-center gap-1.5 px-2 shrink-0">
                       <div className="h-px w-4 bg-border-strong" />
-                      <Plane className="h-3 w-3 text-primary rotate-90" />
+                      <Plane className="size-6 text-primary rotate-90" />
                       {flightRequest.tripType === 'round_trip' ? (
-                        <ArrowLeftRight className="h-3 w-3 text-primary" />
+                        <ArrowLeftRight className="size-6 text-primary" />
                       ) : (
-                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                        <ArrowRight className="size-6 text-muted-foreground" />
                       )}
                       <div className="h-px w-4 bg-border-strong" />
                     </div>

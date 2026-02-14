@@ -48,7 +48,7 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
               variant="ghost"
               size="sm"
               onClick={onSidebarToggle}
-              className="text-background/70 hover:text-background hover:bg-foreground/80 shrink-0"
+              className="text-[rgb(168,168,168)] hover:text-white hover:bg-white/10 shrink-0"
               aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
               aria-expanded={sidebarOpen}
             >
@@ -66,7 +66,7 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
 
             {/* Tagline (hidden on mobile) */}
             <div className="hidden md:block border-l border-background/30 pl-4">
-              <p className="text-sm text-background/70 font-medium">Jetvision Group</p>
+              <p className="text-sm text-white font-medium">Jetvision Group</p>
             </div>
           </div>
 

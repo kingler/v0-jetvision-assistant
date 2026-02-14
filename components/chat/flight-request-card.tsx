@@ -187,11 +187,11 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
       return <CheckCircle className="w-4 h-4 text-success" />
     } else if (step === currentStep) {
       if (status === "requesting_quotes") {
-        return <Loader2 className="w-4 h-4 text-interactive-text animate-spin" />
+        return <Loader2 className="w-4 h-4 text-status-processing animate-spin" />
       }
-      return <Loader2 className="w-4 h-4 text-interactive-text animate-spin" />
+      return <Loader2 className="w-4 h-4 text-status-processing animate-spin" />
     } else {
-      return <IconComponent className="w-4 h-4 text-text-placeholder" />
+      return <IconComponent className="w-4 h-4 text-status-pending" />
     }
   }
 
@@ -226,10 +226,29 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
   }
 
   /**
-   * Get status badge component
+   * Get status badge component.
+   * Uses Badge component with semantic colors for all 10 flight request/booking stages.
    */
   const getStatusBadge = () => {
     switch (session.status) {
+      case "understanding_request":
+        return (
+          <Badge variant="default" className="bg-status-proposal-sent text-white text-xs">
+            Understanding Request
+          </Badge>
+        )
+      case "searching_aircraft":
+        return (
+          <Badge variant="default" className="bg-primary text-primary-foreground text-xs">
+            Searching Aircraft
+          </Badge>
+        )
+      case "analyzing_options":
+        return (
+          <Badge variant="default" className="bg-status-analyzing text-[#00A5DA] text-xs">
+            Analyzing Options
+          </Badge>
+        )
       case "closed_won":
         return (
           <Badge variant="default" className="bg-status-closed-won text-xs">
@@ -399,7 +418,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
 
         {/* Progress Bar - show when we have tripId or route data */}
         {(session.tripId || (session.route && session.route !== 'Select route')) && (
-          <div className="w-full bg-surface-tertiary rounded-full h-1 mt-2">
+          <div className="w-full bg-muted rounded-full h-1 mt-2">
             <div
               className={cn(
                 "h-1 rounded-full transition-all duration-300",
@@ -462,7 +481,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="h-6 w-6 text-text-placeholder hover:text-muted-foreground"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
                 onClick={handleMenuClick}
                 aria-label="More options"
               >
@@ -502,7 +521,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
               <DropdownMenuItem
                 onClick={handleDeleteClick}
                 variant="destructive"
-                className="cursor-pointer"
+                className="cursor-pointer text-destructive focus:text-destructive"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete

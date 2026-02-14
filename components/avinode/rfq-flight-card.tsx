@@ -892,15 +892,12 @@ export function RFQFlightCard({
               )}
               style={{ height: 'fit-content' }}
             >
-              {/* Price Section - Prominent placement at top */}
+              {/* Price Section - Prominent placement at top (label removed in expanded view) */}
               <div data-testid="price-section" className="space-y-2">
-                {/* Price Label and Amount on same row - always shows initial price */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <h5 className="text-xs sm:text-sm font-semibold text-foreground">Price</h5>
-                  <p className="text-xl sm:text-2xl font-semibold text-foreground">
-                    {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
-                  </p>
-                </div>
+                {/* Price amount only - right-aligned; always shows initial price that operator must accept/acknowledge */}
+                <p className="text-xl sm:text-2xl font-semibold text-foreground text-right">
+                  {formatPrice(flight.totalPrice || 0, flight.currency || 'USD')}
+                </p>
                 {/* Leg Type + Status Badges - side by side on one line */}
                 <div className="flex items-center justify-end gap-1.5 mb-2">
                   {(flight.legType || (flight.legSequence && flight.legSequence >= 3)) && (

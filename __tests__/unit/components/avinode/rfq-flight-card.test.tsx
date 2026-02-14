@@ -172,7 +172,7 @@ describe('RFQFlightCard', () => {
       const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toBeInTheDocument();
       expect(badge).toHaveTextContent(/quoted/i);
-      expect(badge).toHaveClass('bg-green-100', 'text-green-700');
+      expect(badge).toHaveClass('bg-success-bg', 'text-success');
     });
 
     it('displays unanswered status badge', () => {
@@ -181,7 +181,7 @@ describe('RFQFlightCard', () => {
       const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toBeInTheDocument();
       expect(badge).toHaveTextContent(/unanswered/i);
-      expect(badge).toHaveClass('bg-gray-200', 'text-gray-700');
+      expect(badge).toHaveClass('bg-surface-tertiary', 'text-foreground');
     });
 
     it('displays sent status badge', () => {
@@ -190,7 +190,7 @@ describe('RFQFlightCard', () => {
 
       const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toHaveTextContent(/sent/i);
-      expect(badge).toHaveClass('bg-blue-100', 'text-blue-700');
+      expect(badge).toHaveClass('bg-info-bg', 'text-info');
     });
 
     it('displays declined status badge', () => {
@@ -199,7 +199,7 @@ describe('RFQFlightCard', () => {
 
       const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toHaveTextContent(/declined/i);
-      expect(badge).toHaveClass('bg-red-100', 'text-red-700');
+      expect(badge).toHaveClass('bg-error-bg', 'text-destructive');
     });
 
     it('displays expired status badge', () => {
@@ -208,7 +208,7 @@ describe('RFQFlightCard', () => {
 
       const badge = screen.getByTestId('rfq-status-badge');
       expect(badge).toHaveTextContent(/expired/i);
-      expect(badge).toHaveClass('bg-gray-100', 'text-gray-700');
+      expect(badge).toHaveClass('bg-surface-tertiary', 'text-muted-foreground');
     });
   });
 
@@ -338,7 +338,7 @@ describe('RFQFlightCard', () => {
       render(<RFQFlightCard flight={selectedFlight} selectable />);
 
       const card = screen.getByTestId('rfq-flight-card');
-      expect(card).toHaveClass('ring-2', 'ring-blue-500');
+      expect(card).toHaveClass('ring-2', 'ring-ring');
     });
   });
 

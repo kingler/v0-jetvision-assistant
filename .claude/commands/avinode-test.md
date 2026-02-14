@@ -33,23 +33,27 @@ Test Avinode API connectivity and endpoint functionality using the standardized 
 - Validates `BASE_URI` defaults to sandbox
 
 ### Health Check (`health`)
+
 - GET `/airports?query=KTEB`
 - Verifies API connectivity
 - Confirms authentication is working
 
 ### Trip Creation (`trip`)
+
 - POST `/trips` with verified correct format
 - Uses `segments` array (NOT `criteria.legs`)
 - Includes `X-Avinode-ActAsAccount` header
 - Returns trip ID and deep link on success
 
 ### Webhook Test (`webhook`)
+
 - POST to Jetvision webhook endpoint
 - Tests webhook processing pipeline
 
 ## Required Environment Variables:
 
 Located in `mcp-servers/avinode-mcp-server/.env.local`:
+
 ```env
 BASE_URI=https://sandbox.avinode.com/api
 API_TOKEN=your-api-token
