@@ -57,6 +57,7 @@
     "hooks/use-chat-agent.ts",
     "scripts/execute-task.ts",
     "app/page.tsx",
-    ".context/**"
+    ".context/**",
+    "app/_archived/**"
   ]
 }
