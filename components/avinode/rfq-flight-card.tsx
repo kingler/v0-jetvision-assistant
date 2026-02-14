@@ -630,10 +630,10 @@ export function RFQFlightCard({
                 className={cn(
                   'inline-block px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium leading-tight',
                   flight.legSequence && flight.legSequence >= 3
-                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                    ? 'bg-status-searching/15 text-status-searching'
                     : flight.legType === 'outbound'
                       ? 'bg-info-bg text-info'
-                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                      : 'bg-success-bg text-success'
                 )}
               >
                 {flight.legSequence && flight.legSequence >= 3
@@ -906,10 +906,10 @@ export function RFQFlightCard({
                       className={cn(
                         'inline-block px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium leading-tight',
                         flight.legSequence && flight.legSequence >= 3
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                          ? 'bg-status-searching/15 text-status-searching'
                           : flight.legType === 'outbound'
                             ? 'bg-info-bg text-info'
-                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                            : 'bg-success-bg text-success'
                       )}
                     >
                       {flight.legSequence && flight.legSequence >= 3

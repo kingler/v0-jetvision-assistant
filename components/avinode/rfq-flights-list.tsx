@@ -416,7 +416,7 @@ export function RFQFlightsList({
           {groupedFlights.outbound.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
-                <Plane className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <Plane className="h-4 w-4 text-primary" />
                 <h4 className="text-sm font-semibold text-foreground">
                   Outbound Flight Options
                 </h4>
@@ -440,7 +440,7 @@ export function RFQFlightsList({
           {groupedFlights.return.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
-                <Plane className="h-4 w-4 text-green-600 dark:text-green-400 rotate-180" />
+                <Plane className="h-4 w-4 text-success rotate-180" />
                 <h4 className="text-sm font-semibold text-foreground">
                   Return Flight Options
                 </h4>

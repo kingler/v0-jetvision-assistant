@@ -183,7 +183,7 @@ export function ProposalSentConfirmation({
                 className={cn(
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                   isMultiCity
-                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200'
+                    ? 'bg-status-searching/15 text-status-searching'
                     : isRoundTrip
                       ? 'bg-info-bg text-primary'
                       : 'bg-muted text-foreground'

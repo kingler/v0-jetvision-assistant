@@ -70,7 +70,7 @@ function DemoSection({
       <div className="mb-4 space-y-1">
         <div className="flex items-center gap-3 flex-wrap">
           <h2 className="text-xl font-bold text-foreground">{component}</h2>
-          <code className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded">
+          <code className="text-xs bg-info-bg text-info px-2 py-0.5 rounded">
             {toolName}
           </code>
         </div>
@@ -92,8 +92,8 @@ function DemoSection({
 function TripTypeLabel({ type }: { type: string }) {
   const colors: Record<string, string> = {
     'One-Way': 'bg-muted text-muted-foreground',
-    'Round-Trip': 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-    'Multi-City': 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+    'Round-Trip': 'bg-info-bg text-info',
+    'Multi-City': 'bg-status-searching/15 text-status-searching',
   };
   return (
     <h3 className="text-sm font-medium mb-2">

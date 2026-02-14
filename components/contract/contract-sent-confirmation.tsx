@@ -112,7 +112,7 @@ export function ContractSentConfirmation({
                     className={cn(
                       'text-xs',
                       tripType === 'multi_city'
-                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200'
+                        ? 'bg-status-searching/15 text-status-searching'
                         : 'bg-info-bg text-primary'
                     )}
                   >

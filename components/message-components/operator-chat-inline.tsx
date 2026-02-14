@@ -124,8 +124,8 @@ export function OperatorChatInline({
   return (
     <Card
       className={cn(
-        "border-l-4 border-l-sky-500",
-        hasNewMessages && "ring-2 ring-sky-500/50",
+        "border-l-4 border-l-primary",
+        hasNewMessages && "ring-2 ring-primary/50",
         className
       )}
     >
@@ -133,8 +133,8 @@ export function OperatorChatInline({
         {/* Header: Operator and Flight Context */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-full bg-sky-100 dark:bg-sky-900">
-              <MessageSquare className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+            <div className="p-1.5 rounded-full bg-primary/10">
+              <MessageSquare className="h-4 w-4 text-primary" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -142,7 +142,7 @@ export function OperatorChatInline({
                   {flightContext.operatorName}
                 </span>
                 {hasNewMessages && (
-                  <Badge variant="default" className="bg-sky-500 text-xs">
+                  <Badge variant="default" className="bg-primary text-xs">
                     New
                   </Badge>
                 )}
@@ -187,14 +187,14 @@ export function OperatorChatInline({
                 "rounded-lg p-3",
                 message.type === "RESPONSE"
                   ? "bg-card border border-border"
-                  : "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 ml-4"
+                  : "bg-info-bg border border-info-border ml-4"
               )}
             >
               <div className="flex items-center gap-2 mb-1">
                 {message.type === "RESPONSE" ? (
                   <Building2 className="h-3 w-3 text-muted-foreground" />
                 ) : (
-                  <User className="h-3 w-3 text-blue-500" />
+                  <User className="h-3 w-3 text-primary" />
                 )}
                 <span className="text-xs font-medium text-muted-foreground">
                   {message.sender ||
@@ -216,7 +216,7 @@ export function OperatorChatInline({
         {hasMoreMessages && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 text-xs text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 mt-2"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 mt-2"
           >
             {isExpanded ? (
               <>
@@ -327,7 +327,7 @@ export function OperatorChatsInline({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-sky-600" />
+          <MessageSquare className="h-4 w-4 text-primary" />
           <span className="font-medium text-sm text-foreground">
             Operator Messages
           </span>
@@ -335,7 +335,7 @@ export function OperatorChatsInline({
             {chatEntries.length} thread{chatEntries.length !== 1 ? "s" : ""}
           </Badge>
           {newMessagesCount > 0 && (
-            <Badge variant="default" className="bg-sky-500 text-xs">
+            <Badge variant="default" className="bg-primary text-xs">
               {newMessagesCount} new
             </Badge>
           )}
@@ -360,7 +360,7 @@ export function OperatorChatsInline({
       {hasMoreChats && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="flex items-center gap-1 text-sm text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300"
+          className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
         >
           {showAll ? (
             <>

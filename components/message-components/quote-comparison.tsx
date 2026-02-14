@@ -73,13 +73,13 @@ function QuoteGrid({
             className={`relative ${quote.isRecommended ? 'ring-2 ring-primary' : ''}`}
           >
             {quote.isRecommended && (
-              <Badge className="absolute -top-2 -right-2 bg-green-500">
+              <Badge className="absolute -top-2 -right-2 bg-success">
                 Best Value
               </Badge>
             )}
 
             {isLowestPrice && !quote.isRecommended && (
-              <Badge className="absolute -top-2 -right-2 bg-blue-500">
+              <Badge className="absolute -top-2 -right-2 bg-primary">
                 Lowest Price
               </Badge>
             )}
