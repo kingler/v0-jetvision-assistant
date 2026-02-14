@@ -104,6 +104,7 @@ interface ChatInterfaceProps {
   isProcessing: boolean
   onProcessingChange: (processing: boolean) => void
   onUpdateChat: (chatId: string, updates: Partial<ChatSession>) => void
+  onArchiveChat?: (chatId: string) => void
   isLoading?: boolean
 }
 
