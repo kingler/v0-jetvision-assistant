@@ -38,22 +38,29 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
   const { user } = useUser()
 
   return (
-    <header className="border-b border-foreground/20 bg-foreground sticky top-0 z-30">
+    <header className="border-b border-foreground/20 bg-foreground sticky top-0 z-30" data-app-header>
       <div className="container mx-auto px-3 sm:px-6 py-3">
         <div className="flex items-center justify-between">
           {/* Left side: Sidebar toggle, Logo, Tagline */}
           <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
-            {/* Sidebar Toggle Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onSidebarToggle}
-              className="text-[rgb(168,168,168)] hover:text-white hover:bg-white/10 shrink-0"
-              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-              aria-expanded={sidebarOpen}
+            {/* Sidebar Toggle Button - hover bg via globals.css (bypasses Tailwind) */}
+            <div
+              className="header-sidebar-toggle-wrapper rounded-md w-fit"
+              role="presentation"
             >
-              {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            </Button>
+              <Button
+                variant="header"
+                size="sm"
+                onClick={onSidebarToggle}
+                className="cursor-pointer shrink-0 hover:bg-transparent!"
+                style={{ color: '#ffffff' }}
+                data-header-sidebar-toggle=""
+                aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+                aria-expanded={sidebarOpen}
+              >
+                {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </Button>
+            </div>
 
             {/* Jetvision Logo - White for header */}
             <NextImage

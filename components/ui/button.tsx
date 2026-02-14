@@ -37,6 +37,9 @@ const buttonVariants = cva(
         // Ghost - Interactive hover (matches sidebar "New" button)
         ghost:
           'hover:bg-interactive-bg hover:text-interactive-text',
+        // Header - for dark header; white text only; hover bg applied via globals.css
+        header:
+          'bg-transparent !text-white hover:!text-white',
         // Link
         link: 'text-primary underline-offset-4 hover:underline',
         // Success variant
