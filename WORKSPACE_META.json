@@ -1,29 +1,32 @@
 {
-  "linearIssue": "ONEK-265",
-  "branch": "feat/onek-265-design-system-token-migration",
+  "linearIssue": "ONEK-257",
+  "title": "[Feature] Offline Payment Confirmation → Closed Won Status + Auto-Archive + Archive Tab",
+  "branch": "feat/onek-257-offline-payment-archive",
   "pullRequest": null,
   "prUrl": null,
-  "workspaceDir": "/Users/kinglerbercy/.claude/git-workspace/onek-265",
-  "agentRole": "Coding Agent",
-  "agentType": "frontend-developer",
-  "createdAt": "2026-02-13T00:00:00Z",
-  "lastAccessedAt": "2026-02-13T00:00:00Z",
+  "workspaceDir": "/Users/kinglerbercy/.claude/git-workspace/onek-257",
+  "agentRole": "Fullstack Developer",
+  "agentType": "fullstack-developer",
+  "createdAt": "2026-02-14T12:00:00Z",
+  "lastAccessedAt": "2026-02-14T12:00:00Z",
   "status": "active",
   "currentPhase": 1,
-  "completedPhases": [0],
+  "completedPhases": [],
   "phaseHistory": [
     {
-      "phase": 0,
-      "startedAt": "2026-02-13T00:00:00Z",
-      "completedAt": "2026-02-13T00:00:00Z",
-      "agent": "pre-existing",
-      "notes": "Foundation tokens already in globals.css and tailwind-theme.ts"
-    },
-    {
       "phase": 1,
-      "startedAt": "2026-02-13T00:00:00Z",
+      "startedAt": "2026-02-14T12:00:00Z",
       "completedAt": null,
-      "agent": "frontend-developer"
+      "agent": "work-on-issue"
     }
+  ],
+  "childIssues": [
+    "ONEK-258",
+    "ONEK-259",
+    "ONEK-260",
+    "ONEK-261",
+    "ONEK-262",
+    "ONEK-263",
+    "ONEK-264"
   ]
 }
