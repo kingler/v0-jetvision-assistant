@@ -43,7 +43,7 @@ export function MessageRenderer({ component, onAction, className }: MessageRende
   switch (component.type) {
     case 'text':
       return (
-        <div className={`prose prose-sm max-w-none ${className || ''} ${component.className || ''}`}>
+        <div className={`prose prose-base max-w-none ${className || ''} ${component.className || ''}`}>
           {component.markdown ? (
             <ReactMarkdown>{component.content}</ReactMarkdown>
           ) : (

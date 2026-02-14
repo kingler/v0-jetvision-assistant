@@ -24,8 +24,8 @@
 
 :root {
   /* Typography: min/max font size for responsive scaling across screen sizes */
-  --font-size-min: 14px;
-  --font-size-max: 18px;
+  --font-size-min: 16px;
+  --font-size-max: 20px;
   /* Base font size scales between min and max using viewport (0.875rem + 0.5vw, clamped) */
   --font-size-base: clamp(var(--font-size-min), 0.875rem + 0.5vw, var(--font-size-max));
 

@@ -242,7 +242,7 @@ export const MessageBubble = memo<MessageBubbleProps>(function MessageBubble({
             'rounded-lg px-4 py-3',
             isUser && 'bg-primary text-primary-foreground',
             !isUser && !isSystem && 'bg-muted',
-            isSystem && 'bg-muted/50 text-center text-sm text-muted-foreground'
+            isSystem && 'bg-muted/50 text-center text-base text-muted-foreground'
           )}
         >
           {/* Render all message components */}

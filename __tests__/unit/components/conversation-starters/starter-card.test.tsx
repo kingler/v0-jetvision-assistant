@@ -72,29 +72,29 @@ describe('StarterCard', () => {
       render(<StarterCard {...defaultProps} />)
 
       const card = screen.getByTestId('starter-card')
-      // Default variant is cyan, check for hover border class
-      expect(card.className).toContain('hover:border-cyan-300')
+      // Default variant is cyan, check for hover border class (design token)
+      expect(card.className).toContain('hover:border-interactive-border')
     })
 
     it('renders with blue variant', () => {
       render(<StarterCard {...defaultProps} variant="blue" />)
 
       const card = screen.getByTestId('starter-card')
-      expect(card.className).toContain('hover:border-blue-300')
+      expect(card.className).toContain('hover:border-interactive-border')
     })
 
     it('renders with green variant', () => {
       render(<StarterCard {...defaultProps} variant="green" />)
 
       const card = screen.getByTestId('starter-card')
-      expect(card.className).toContain('hover:border-green-300')
+      expect(card.className).toContain('hover:border-success-border')
     })
 
     it('renders with amber variant', () => {
       render(<StarterCard {...defaultProps} variant="amber" />)
 
       const card = screen.getByTestId('starter-card')
-      expect(card.className).toContain('hover:border-amber-300')
+      expect(card.className).toContain('hover:border-warning-border')
     })
   })
 

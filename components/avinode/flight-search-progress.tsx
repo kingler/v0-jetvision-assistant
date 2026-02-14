@@ -587,10 +587,10 @@ export function FlightSearchProgress({
                   <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
                     <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
                     <div className="min-w-0">
-                      <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-muted-foreground whitespace-nowrap">
+                      <p className="text-sm text-muted-foreground whitespace-nowrap">
                         {flightRequest.tripType === 'round_trip' ? 'Depart' : 'Date'}
                       </p>
-                      <p className="font-medium text-[clamp(0.25rem,1vw,0.7rem)] text-foreground whitespace-nowrap">
+                      <p className="font-medium text-sm text-foreground whitespace-nowrap">
                         {formatDateShort(flightRequest.departureDate)}
                       </p>
                     </div>
@@ -599,10 +599,10 @@ export function FlightSearchProgress({
                     <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
                       <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
-                        <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-muted-foreground whitespace-nowrap">
+                        <p className="text-sm text-muted-foreground whitespace-nowrap">
                           Return
                         </p>
-                        <p className="font-medium text-[clamp(0.25rem,1vw,0.7rem)] text-foreground whitespace-nowrap">
+                        <p className="font-medium text-sm text-foreground whitespace-nowrap">
                           {formatDateShort(flightRequest.returnDate)}
                         </p>
                       </div>
@@ -610,7 +610,7 @@ export function FlightSearchProgress({
                   )}
                   <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
                     <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-foreground whitespace-nowrap">
+                    <p className="text-sm text-foreground whitespace-nowrap">
                       <span className="text-muted-foreground">Passengers: </span>
                       <span className="font-medium">{flightRequest.passengers}</span>
                     </p>
