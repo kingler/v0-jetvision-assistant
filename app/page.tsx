@@ -65,10 +65,14 @@ export default function JetvisionAgent() {
             router.replace('/onboarding')
             return
           }
+        } else if (response.status === 404) {
+          // 404 means the iso_agents row doesn't exist yet (webhook may still be in flight).
+          // Redirect to onboarding so the user doesn't skip it.
+          router.replace('/onboarding')
+          return
         }
-        // If API returns 404 (user not in iso_agents), or status is 'completed', proceed normally
       } catch {
-        // On error, allow user through — don't block the app
+        // On network error, allow user through — don't block the app
       }
       setOnboardingChecked(true)
     }
