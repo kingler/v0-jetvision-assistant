@@ -113,8 +113,10 @@ export function ChatInterface({
   isProcessing,
   onProcessingChange,
   onUpdateChat,
+  onArchiveChat,
   isLoading,
 }: ChatInterfaceProps) {
+  const isArchived = activeChat.status === 'closed_won';
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
@@ -2207,15 +2209,21 @@ export function ChatInterface({
       },
     }
 
-    // Append both messages to chat (server already persisted to DB)
+    // Update status to closed_won and append messages
     onUpdateChat(activeChat.id, {
+      status: 'closed_won' as const,
       messages: [...(activeChat.messages || []), paymentMessage, closedMessage],
     })
+
+    // Auto-archive the session after payment confirmation
+    if (onArchiveChat) {
+      onArchiveChat(activeChat.id)
+    }
 
     // Close modal and reset state
     setIsPaymentModalOpen(false)
     setPaymentContractData(null)
-  }, [paymentContractData, activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat])
+  }, [paymentContractData, activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat, onArchiveChat])
 
   /**
    * Handle sending operator message
@@ -3067,27 +3075,32 @@ export function ChatInterface({
       {/* Input Area */}
       <div className="border-t border-border bg-background p-4">
         <div className="max-w-4xl mx-auto">
-          {/* Input Area */}
-          <div className="flex items-end space-x-3">
-            <div className="flex-1 relative">
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Message about this request..."
-                disabled={isProcessing}
-                className="min-h-[44px] py-3 px-4 pr-12 rounded-xl border-border-strong bg-card focus:border-ring focus:ring-ring resize-none placeholder:text-text-placeholder"
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isProcessing}
-                size="sm"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-primary hover:bg-primary/90 disabled:bg-muted rounded-lg"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
+          {isArchived ? (
+            <div className="flex items-center justify-center py-2 px-4 rounded-lg bg-muted text-muted-foreground text-sm">
+              This session is archived and read-only.
             </div>
-          </div>
+          ) : (
+            <div className="flex items-end space-x-3">
+              <div className="flex-1 relative">
+                <Input
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Message about this request..."
+                  disabled={isProcessing}
+                  className="min-h-[44px] py-3 px-4 pr-12 rounded-xl border-border-strong bg-card focus:border-ring focus:ring-ring resize-none placeholder:text-text-placeholder"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isProcessing}
+                  size="sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-primary hover:bg-primary/90 disabled:bg-muted rounded-lg"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

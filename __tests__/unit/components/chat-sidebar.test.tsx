@@ -46,6 +46,7 @@ function createMockSession(overrides: Record<string, unknown> = {}) {
     status: 'requesting_quotes' as const,
     currentStep: 2,
     totalSteps: 6,
+    tripId: `trp-${Math.random().toString(36).slice(2)}`,
     messages: [],
     ...overrides,
   };
@@ -99,8 +100,9 @@ describe('ChatSidebar', () => {
     it('should show active sessions count on Active tab', () => {
       render(<ChatSidebar {...defaultProps} />);
 
-      // Should show count of active sessions
-      expect(screen.getByText(/2/)).toBeInTheDocument();
+      // Active tab should include count
+      const activeTab = screen.getByRole('tab', { name: /active/i });
+      expect(activeTab.textContent).toContain('2');
     });
 
     it('should switch to Archive tab when clicked', () => {
@@ -115,8 +117,9 @@ describe('ChatSidebar', () => {
     it('should show active sessions when Active tab is selected', () => {
       render(<ChatSidebar {...defaultProps} />);
 
-      expect(screen.getByText(/KTEB → KLAX/)).toBeInTheDocument();
-      expect(screen.getByText(/KORD → KMIA/)).toBeInTheDocument();
+      // Flight request cards should be rendered for active sessions
+      expect(screen.getByText('KTEB → KLAX')).toBeInTheDocument();
+      expect(screen.getByText('KORD → KMIA')).toBeInTheDocument();
     });
 
     it('should hide active sessions when Archive tab is selected', () => {
@@ -126,7 +129,7 @@ describe('ChatSidebar', () => {
       fireEvent.click(archiveTab);
 
       // Active sessions should not be visible
-      expect(screen.queryByText(/KTEB → KLAX/)).not.toBeInTheDocument();
+      expect(screen.queryByText('KTEB → KLAX')).not.toBeInTheDocument();
     });
   });
 
@@ -168,14 +171,15 @@ describe('ChatSidebar', () => {
 
     it('should render archived sessions when Archive tab is selected', () => {
       const archivedSessions = [
-        createArchivedSession({ id: 'archived-1', route: 'KLAS → KSFO', generatedName: 'Vegas to SF Deal' }),
-        createArchivedSession({ id: 'archived-2', route: 'KJFK → KLAX', generatedName: 'NYC to LA Deal' }),
+        createArchivedSession({ id: 'archived-1', route: 'KLAS → KSFO' }),
+        createArchivedSession({ id: 'archived-2', route: 'KJFK → KLAX' }),
       ];
 
       render(
         <ChatSidebar
           {...defaultProps}
           archivedSessions={archivedSessions}
+          onLoadArchive={vi.fn()}
           isLoadingArchive={false}
         />
       );
@@ -183,8 +187,8 @@ describe('ChatSidebar', () => {
       const archiveTab = screen.getByRole('tab', { name: /archive/i });
       fireEvent.click(archiveTab);
 
-      expect(screen.getByText(/KLAS → KSFO|Vegas to SF/)).toBeInTheDocument();
-      expect(screen.getByText(/KJFK → KLAX|NYC to LA/)).toBeInTheDocument();
+      expect(screen.getByText('KLAS → KSFO')).toBeInTheDocument();
+      expect(screen.getByText('KJFK → KLAX')).toBeInTheDocument();
     });
 
     it('should show empty state when no archived sessions exist', () => {
@@ -213,6 +217,7 @@ describe('ChatSidebar', () => {
           {...defaultProps}
           onSelectChat={onSelectChat}
           archivedSessions={archivedSessions}
+          onLoadArchive={vi.fn()}
           isLoadingArchive={false}
         />
       );
@@ -221,9 +226,9 @@ describe('ChatSidebar', () => {
       const archiveTab = screen.getByRole('tab', { name: /archive/i });
       fireEvent.click(archiveTab);
 
-      // Click archived session
-      const archivedItem = screen.getByText(/KLAS → KSFO/);
-      fireEvent.click(archivedItem);
+      // Click the archived session card (FlightRequestCard wraps content in a clickable div)
+      const archivedItem = screen.getByText('KLAS → KSFO');
+      fireEvent.click(archivedItem.closest('[class*="cursor-pointer"]') || archivedItem);
 
       expect(onSelectChat).toHaveBeenCalledWith('archived-1');
     });

@@ -1,7 +1,8 @@
 "use client"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus } from "lucide-react"
+import { Plus, Loader2 } from "lucide-react"
 import { FlightRequestCard } from "@/components/chat/flight-request-card"
 import { GeneralChatCard } from "@/components/chat/general-chat-card"
 import type { PipelineData } from "@/lib/types/chat-agent"
@@ -264,7 +265,10 @@ interface ChatSidebarProps {
   isLoadingArchive?: boolean
 }
 
-export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewChat, onDeleteChat, onCancelChat, onArchiveChat }: ChatSidebarProps) {
+export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewChat, onDeleteChat, onCancelChat, onArchiveChat, archivedSessions, onLoadArchive, isLoadingArchive }: ChatSidebarProps) {
+  const [activeTab, setActiveTab] = useState<'active' | 'archive'>('active')
+  const [archiveLoaded, setArchiveLoaded] = useState(false)
+
   /**
    * Filter out empty/invalid flight request sessions
    *
@@ -288,12 +292,20 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
   // Filter out invalid/empty sessions before rendering
   const validSessions = chatSessions.filter(isValidSession);
 
+  const handleArchiveTabClick = () => {
+    setActiveTab('archive')
+    if (!archiveLoaded && onLoadArchive) {
+      onLoadArchive()
+      setArchiveLoaded(true)
+    }
+  };
+
   return (
     <div className="w-full min-w-[280px] max-w-[360px] bg-background border-r border-border flex flex-col h-full overflow-x-hidden">
       {/* Header */}
       <div className="p-3 sm:p-4 border-b border-border">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-[clamp(0.875rem,2vw,1rem)] text-foreground">Open Chats</h2>
+          <h2 className="font-semibold text-[clamp(0.875rem,2vw,1rem)] text-foreground">Chats</h2>
           <Button
             size="sm"
             variant="outline"
@@ -304,39 +316,94 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
             New
           </Button>
         </div>
-        <p className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-muted-foreground">
-          {validSessions.length} active flight request{validSessions.length !== 1 ? "s" : ""}
-        </p>
+
+        {/* Active / Archive Tabs */}
+        <div className="flex" role="tablist">
+          <button
+            role="tab"
+            aria-selected={activeTab === 'active'}
+            onClick={() => setActiveTab('active')}
+            className={`flex-1 text-xs sm:text-sm py-1.5 px-2 font-medium border-b-2 transition-colors ${
+              activeTab === 'active'
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Active ({validSessions.length})
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'archive'}
+            onClick={handleArchiveTabClick}
+            className={`flex-1 text-xs sm:text-sm py-1.5 px-2 font-medium border-b-2 transition-colors ${
+              activeTab === 'archive'
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Archive{archivedSessions && archivedSessions.length > 0 ? ` (${archivedSessions.length})` : ''}
+          </button>
+        </div>
       </div>
 
       {/* Chat List */}
       <div className="relative flex-1 min-h-0 w-full overflow-x-hidden">
         <ScrollArea className="h-full w-full overflow-x-hidden">
-          <div className="p-1 sm:p-2 space-y-2 flex flex-col items-center">
-            {validSessions.map((session) => (
-              // Render GeneralChatCard for general conversations, FlightRequestCard for flight requests
-              session.conversationType === 'general' ? (
-                <GeneralChatCard
-                  key={session.id}
-                  session={session}
-                  isActive={activeChatId === session.id}
-                  onClick={() => onSelectChat(session.id)}
-                  onDelete={onDeleteChat}
-                  onArchive={onArchiveChat}
-                />
+          {activeTab === 'active' ? (
+            <div className="p-1 sm:p-2 space-y-2 flex flex-col items-center">
+              {validSessions.map((session) => (
+                session.conversationType === 'general' ? (
+                  <GeneralChatCard
+                    key={session.id}
+                    session={session}
+                    isActive={activeChatId === session.id}
+                    onClick={() => onSelectChat(session.id)}
+                    onDelete={onDeleteChat}
+                    onArchive={onArchiveChat}
+                  />
+                ) : (
+                  <FlightRequestCard
+                    key={`${session.id}-${session.rfqsLastFetchedAt || ''}-${session.quotesReceived || 0}-${session.rfqFlights?.length || 0}`}
+                    session={session}
+                    isActive={activeChatId === session.id}
+                    onClick={() => onSelectChat(session.id)}
+                    onDelete={onDeleteChat}
+                    onCancel={onCancelChat}
+                    onArchive={onArchiveChat}
+                  />
+                )
+              ))}
+            </div>
+          ) : (
+            <div className="p-1 sm:p-2 space-y-2 flex flex-col items-center">
+              {isLoadingArchive ? (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <span className="text-sm">Loading archived sessions...</span>
+                </div>
+              ) : archivedSessions && archivedSessions.length > 0 ? (
+                archivedSessions.map((session) => (
+                  session.conversationType === 'general' ? (
+                    <GeneralChatCard
+                      key={session.id}
+                      session={session}
+                      isActive={activeChatId === session.id}
+                      onClick={() => onSelectChat(session.id)}
+                    />
+                  ) : (
+                    <FlightRequestCard
+                      key={session.id}
+                      session={session}
+                      isActive={activeChatId === session.id}
+                      onClick={() => onSelectChat(session.id)}
+                    />
+                  )
+                ))
               ) : (
-                <FlightRequestCard
-                  key={`${session.id}-${session.rfqsLastFetchedAt || ''}-${session.quotesReceived || 0}-${session.rfqFlights?.length || 0}`}
-                  session={session}
-                  isActive={activeChatId === session.id}
-                  onClick={() => onSelectChat(session.id)}
-                  onDelete={onDeleteChat}
-                  onCancel={onCancelChat}
-                  onArchive={onArchiveChat}
-                />
-              )
-            ))}
-          </div>
+                <p className="text-sm text-muted-foreground py-8 text-center">No archived sessions</p>
+              )}
+            </div>
+          )}
         </ScrollArea>
       </div>
 
