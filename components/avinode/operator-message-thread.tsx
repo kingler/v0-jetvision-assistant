@@ -133,28 +133,28 @@ const MessageStatusIndicator: React.FC<{ status?: OperatorMessage['status'] }> =
     case 'sent':
       return (
         <Check
-          className="w-3 h-3 text-gray-400"
+          className="w-3 h-3 text-text-placeholder"
           aria-label="Sent"
         />
       )
     case 'delivered':
       return (
         <CheckCheck
-          className="w-3 h-3 text-blue-500"
+          className="w-3 h-3 text-info"
           aria-label="Delivered"
         />
       )
     case 'read':
       return (
         <CheckCheck
-          className="w-3 h-3 text-green-500"
+          className="w-3 h-3 text-success"
           aria-label="Read"
         />
       )
     case 'failed':
       return (
         <AlertCircle
-          className="w-3 h-3 text-red-500"
+          className="w-3 h-3 text-destructive"
           aria-label="Failed"
         />
       )
@@ -421,14 +421,14 @@ export function OperatorMessageThread({
         )}
       >
         {/* Header */}
-        <ResponsiveModalHeader className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
+        <ResponsiveModalHeader className="p-4 sm:p-6 border-b border-border shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <ResponsiveModalTitle className="text-base sm:text-lg font-semibold">
                 Operator Messages
               </ResponsiveModalTitle>
               {operatorName && (
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   {operatorName}
                 </p>
               )}
@@ -452,8 +452,8 @@ export function OperatorMessageThread({
           {/* Loading State */}
           {isLoading && (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-              <span className="ml-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+              <Loader2 className="w-6 h-6 animate-spin text-info" />
+              <span className="ml-2 text-xs sm:text-sm text-muted-foreground">
                 Loading messages...
               </span>
             </div>
@@ -462,7 +462,7 @@ export function OperatorMessageThread({
           {/* Error State */}
           {error && !isLoading && (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
-              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <div className="flex items-center gap-2 text-destructive">
                 <AlertCircle className="w-5 h-5" />
                 <span className="text-xs sm:text-sm font-medium">{error}</span>
               </div>
@@ -480,11 +480,11 @@ export function OperatorMessageThread({
           {/* Empty State */}
           {!isLoading && !error && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Plane className="w-12 h-12 text-gray-400 mb-3" />
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">
+              <Plane className="w-12 h-12 text-text-placeholder mb-3" />
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                 No messages yet
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Start a conversation with the operator
               </p>
             </div>
@@ -515,8 +515,8 @@ export function OperatorMessageThread({
                       <Avatar className="w-8 h-8 shrink-0">
                         <AvatarFallback
                           className={cn(
-                            isOperator && 'bg-blue-500 text-white',
-                            isUser && 'bg-green-500 text-white'
+                            isOperator && 'bg-info text-white',
+                            isUser && 'bg-success text-white'
                           )}
                         >
                           {isOperator && <Plane className="w-4 h-4" />}
@@ -538,7 +538,7 @@ export function OperatorMessageThread({
                       {/* Sender Name */}
                       {!isGrouped && !isSystem && message.sender_name && (
                         <div className="flex items-center gap-2 px-1">
-                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          <span className="text-xs font-semibold text-foreground">
                             {message.sender_name}
                           </span>
                           {isOperator && (
@@ -554,10 +554,10 @@ export function OperatorMessageThread({
                         className={cn(
                           'px-4 py-2 rounded-lg',
                           isOperator &&
-                            'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                            'bg-surface-tertiary text-foreground',
                           isUser &&
-                            'bg-blue-600 dark:bg-blue-700 text-white',
-                          isSystem && 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100 border border-yellow-200 dark:border-yellow-800'
+                            'bg-primary text-primary-foreground',
+                          isSystem && 'bg-warning-bg text-warning border border-warning-border'
                         )}
                       >
                         {message.content && (
@@ -574,7 +574,7 @@ export function OperatorMessageThread({
                           isUser && 'flex-row-reverse'
                         )}
                       >
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-muted-foreground">
                           {formatTimestamp(message.created_at)}
                         </span>
                         {isUser && <MessageStatusIndicator status={message.status} />}
@@ -592,7 +592,7 @@ export function OperatorMessageThread({
 
         {/* Message Input */}
         {tripId ? (
-          <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+          <div className="p-3 sm:p-4 border-t border-border shrink-0">
             <div className="flex gap-2">
               <Input
                 value={messageInput}
@@ -617,8 +617,8 @@ export function OperatorMessageThread({
             </div>
           </div>
         ) : requestId ? (
-          <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
-            <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+          <div className="p-3 sm:p-4 border-t border-border shrink-0">
+            <div className="text-center text-xs sm:text-sm text-muted-foreground">
               <p>Message sending requires a trip ID. You can view messages but cannot reply at this time.</p>
             </div>
           </div>

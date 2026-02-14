@@ -215,13 +215,13 @@ function DealSkeleton() {
   return (
     <div data-testid="deal-skeleton" className="p-4 border rounded-lg animate-pulse">
       <div className="flex items-center justify-between mb-3">
-        <div className="h-5 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-5 w-32 bg-surface-tertiary rounded" />
+        <div className="h-5 w-16 bg-surface-tertiary rounded" />
       </div>
       <div className="space-y-2">
-        <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-4 w-28 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-4 w-40 bg-surface-tertiary rounded" />
+        <div className="h-4 w-28 bg-surface-tertiary rounded" />
+        <div className="h-4 w-20 bg-surface-tertiary rounded" />
       </div>
     </div>
   )
@@ -232,9 +232,9 @@ function DealSkeleton() {
  */
 function ConnectionStatusIndicator({ status }: { status: ConnectionStatus }) {
   const config = {
-    connected: { icon: Wifi, label: 'Live', className: 'text-green-500' },
-    connecting: { icon: Loader2, label: 'Connecting', className: 'text-yellow-500 animate-spin' },
-    disconnected: { icon: WifiOff, label: 'Offline', className: 'text-gray-400' },
+    connected: { icon: Wifi, label: 'Live', className: 'text-success' },
+    connecting: { icon: Loader2, label: 'Connecting', className: 'text-warning animate-spin' },
+    disconnected: { icon: WifiOff, label: 'Offline', className: 'text-text-placeholder' },
   }
 
   const { icon: Icon, label, className } = config[status]
@@ -279,19 +279,19 @@ function HotSummary({ deals, compact }: { deals: HotDeal[]; compact?: boolean })
       )}
       <div className="grid grid-cols-3 gap-3">
         <div className="text-center">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Hot Value</div>
+          <div className="text-xs text-muted-foreground">Hot Value</div>
           <div data-testid="hot-value-summary" className="text-lg font-bold text-orange-600 dark:text-orange-400">
             {formatCurrency(stats.totalValue, stats.primaryCurrency)}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Expiring</div>
-          <div data-testid="expiring-count" className="text-lg font-bold text-red-600 dark:text-red-400">
+          <div className="text-xs text-muted-foreground">Expiring</div>
+          <div data-testid="expiring-count" className="text-lg font-bold text-destructive">
             {stats.expiringCount}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Avg Value</div>
+          <div className="text-xs text-muted-foreground">Avg Value</div>
           <div data-testid="avg-value" className="text-lg font-bold text-orange-600 dark:text-orange-400">
             {formatCurrency(stats.avgValue, stats.primaryCurrency)}
           </div>
@@ -350,8 +350,8 @@ function HotDealCard({
               'w-4 h-4',
               deal.expiresWithin24Hours && 'animate-pulse',
               urgencyLevel === 'high' && 'text-orange-500',
-              urgencyLevel === 'medium' && 'text-yellow-500',
-              urgencyLevel === 'low' && 'text-gray-400'
+              urgencyLevel === 'medium' && 'text-warning',
+              urgencyLevel === 'low' && 'text-text-placeholder'
             )}
           />
           <Building2 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
@@ -362,9 +362,9 @@ function HotDealCard({
             data-testid="priority-score"
             variant="outline"
             className={cn(
-              urgencyLevel === 'high' && 'bg-red-100 text-red-700 border-red-300',
+              urgencyLevel === 'high' && 'bg-error-bg text-destructive border-error-border',
               urgencyLevel === 'medium' && 'bg-orange-100 text-orange-700 border-orange-300',
-              urgencyLevel === 'low' && 'bg-yellow-100 text-yellow-700 border-yellow-300'
+              urgencyLevel === 'low' && 'bg-warning-bg text-warning border-warning-border'
             )}
           >
             {deal.priorityScore}
@@ -374,22 +374,22 @@ function HotDealCard({
             className={cn(
               'w-2 h-2 rounded-full',
               `urgency-${urgencyLevel}`,
-              urgencyLevel === 'high' && 'bg-red-500',
+              urgencyLevel === 'high' && 'bg-destructive',
               urgencyLevel === 'medium' && 'bg-orange-500',
-              urgencyLevel === 'low' && 'bg-yellow-500'
+              urgencyLevel === 'low' && 'bg-warning'
             )}
           />
         </div>
       </div>
 
       {/* Route */}
-      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
         <Plane className="w-3 h-3" />
         <span>{route}</span>
       </div>
 
       {/* Deal info */}
-      <div className={cn('grid gap-2 text-sm text-gray-600 dark:text-gray-400', compact ? 'grid-cols-2' : 'grid-cols-3')}>
+      <div className={cn('grid gap-2 text-sm text-muted-foreground', compact ? 'grid-cols-2' : 'grid-cols-3')}>
         <div className="flex items-center gap-1">
           <span className="font-medium">{deal.aircraft}</span>
         </div>
@@ -413,7 +413,7 @@ function HotDealCard({
             data-testid={`countdown-${deal.id}`}
             className={cn(
               'flex items-center gap-1 text-xs',
-              isExpiringSoon ? 'text-red-500 font-medium' : 'text-orange-500'
+              isExpiringSoon ? 'text-destructive font-medium' : 'text-orange-500'
             )}
           >
             <Clock className="w-3 h-3" />
@@ -440,7 +440,7 @@ function HotDealCard({
 
       {/* Client viewed indicator */}
       {deal.clientViewed && (
-        <div className="mt-2 flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+        <div className="mt-2 flex items-center gap-1 text-xs text-primary">
           <Eye className="w-3 h-3" />
           <span>Client recently viewed</span>
         </div>
@@ -589,11 +589,11 @@ export function HotOpportunitiesStarter({
     if (!isLoading && displayedDeals.length === 0) {
       return (
         <div className="text-center py-8">
-          <div className="w-12 h-12 mx-auto mb-4 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-            <PartyPopper className="w-6 h-6 text-green-600 dark:text-green-400" />
+          <div className="w-12 h-12 mx-auto mb-4 bg-success-bg rounded-full flex items-center justify-center">
+            <PartyPopper className="w-6 h-6 text-success" />
           </div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium mb-1">No hot opportunities</p>
-          <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">You&apos;re all caught up!</p>
+          <p className="text-muted-foreground font-medium mb-1">No hot opportunities</p>
+          <p className="text-muted-foreground text-sm mb-4">You&apos;re all caught up!</p>
           {onViewAllDeals && (
             <Button onClick={onViewAllDeals} variant="outline" className="gap-2">
               View All Deals
@@ -687,12 +687,12 @@ export function HotOpportunitiesStarter({
 
         {/* Notification toggle */}
         {showNotificationToggle && (
-          <div className="flex items-center justify-between mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center justify-between mt-3 p-2 bg-surface-secondary rounded-lg">
             <div className="flex items-center gap-2">
               {notificationsEnabled ? (
                 <Bell className="w-4 h-4 text-orange-500" />
               ) : (
-                <BellOff className="w-4 h-4 text-gray-400" />
+                <BellOff className="w-4 h-4 text-text-placeholder" />
               )}
               <Label htmlFor="notifications" className="text-sm">
                 Push notifications
@@ -748,8 +748,8 @@ export function HotOpportunitiesStarter({
 
         {/* Error State */}
         {error && (
-          <div className="p-4 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-lg mb-4">
-            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+          <div className="p-4 border border-error-border bg-error-bg rounded-lg mb-4">
+            <div className="flex items-center gap-2 text-destructive">
               <AlertCircle data-testid="error-icon" className="w-4 h-4" />
               <span>{error}</span>
             </div>

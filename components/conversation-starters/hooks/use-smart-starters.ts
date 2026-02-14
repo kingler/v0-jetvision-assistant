@@ -1,8 +1,47 @@
 "use client"
 
 import { useMemo, useCallback, useRef, useEffect } from "react"
+import { Plane, ListChecks } from "lucide-react"
 import type { ConversationStarter } from "../types"
-import { DEFAULT_STARTERS } from "../default-starters"
+
+/**
+ * Prompt templates for conversation starters
+ */
+const STARTER_PROMPTS = {
+  "new-flight-request":
+    "I'd like to create a new flight request. Use the `create_trip` tool to set up a charter flight and generate a deep link for operator selection.",
+  "show-active-requests":
+    "Show me my active flight requests. Fetch my pending trips from the database and use the `get_rfq` tool to retrieve RFQ details and any quotes received for each trip.",
+} as const
+
+/**
+ * Default conversation starters displayed to users.
+ * The useSmartStarters hook overrides badges and disabled state based on user context.
+ */
+const DEFAULT_STARTERS: ConversationStarter[] = [
+  {
+    id: "new-flight-request",
+    title: "New Flight Request",
+    description: "Start a new charter request",
+    icon: Plane,
+    category: "flight",
+    variant: "cyan",
+    action: "new-flight-request",
+    prompt: STARTER_PROMPTS["new-flight-request"],
+    priority: 1,
+  },
+  {
+    id: "active-requests",
+    title: "My Active Requests",
+    description: "View pending flight requests",
+    icon: ListChecks,
+    category: "flight",
+    variant: "cyan",
+    action: "show-active-requests",
+    prompt: STARTER_PROMPTS["show-active-requests"],
+    priority: 2,
+  },
+]
 
 /**
  * User context for smart starter prioritization

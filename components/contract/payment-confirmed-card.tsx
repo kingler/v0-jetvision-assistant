@@ -59,7 +59,7 @@ export function PaymentConfirmedCard({
           {/* Header */}
           <div className="flex items-start gap-3">
             <div className="shrink-0 mt-0.5">
-              <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400" />
+              <CheckCircle2 className="h-7 w-7 text-success" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-lg text-foreground">
@@ -76,7 +76,7 @@ export function PaymentConfirmedCard({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="col-span-2">
                 <span className="text-muted-foreground">Payment Amount</span>
-                <p className="font-semibold text-xl text-green-700 dark:text-green-400">
+                <p className="font-semibold text-xl text-success">
                   {formatAmount(paymentAmount, currency)}
                 </p>
               </div>

@@ -281,18 +281,18 @@ function getStatusBadgeClasses(status: RFQFlight['rfqStatus']): string {
   const baseClasses = 'px-2 py-0.5 text-[10px] sm:text-[11px] font-medium rounded leading-tight';
   switch (status) {
     case 'sent':
-      return cn(baseClasses, 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400');
+      return cn(baseClasses, 'bg-info-bg text-info');
     case 'unanswered':
       // Gray badge for "Unanswered" per wireframe
-      return cn(baseClasses, 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300');
+      return cn(baseClasses, 'bg-surface-tertiary text-foreground');
     case 'quoted':
-      return cn(baseClasses, 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400');
+      return cn(baseClasses, 'bg-success-bg text-success');
     case 'declined':
-      return cn(baseClasses, 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400');
+      return cn(baseClasses, 'bg-error-bg text-destructive');
     case 'expired':
-      return cn(baseClasses, 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400');
+      return cn(baseClasses, 'bg-surface-tertiary text-muted-foreground');
     default:
-      return cn(baseClasses, 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300');
+      return cn(baseClasses, 'bg-surface-tertiary text-foreground');
   }
 }
 
@@ -410,7 +410,7 @@ function AmenityIcon({ type, enabled }: AmenityIconProps) {
       aria-label={labels[type]}
       className={cn(
         'inline-flex items-center justify-center w-6 h-6 rounded',
-        enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-300 dark:text-gray-600'
+        enabled ? 'text-success' : 'text-text-placeholder'
       )}
       title={`${labels[type]}: ${enabled ? 'Yes' : 'No'}`}
     >
@@ -606,7 +606,7 @@ export function RFQFlightCard({
       data-testid="rfq-flight-card"
       className={cn(
         'transition-all relative',
-        flight.isSelected && selectable && 'ring-2 ring-blue-500 border-transparent',
+        flight.isSelected && selectable && 'ring-2 ring-ring border-transparent',
         className
       )}
       style={{ height: 'fit-content' }}
@@ -632,7 +632,7 @@ export function RFQFlightCard({
                   flight.legSequence && flight.legSequence >= 3
                     ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
                     : flight.legType === 'outbound'
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      ? 'bg-info-bg text-info'
                       : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                 )}
               >
@@ -724,7 +724,7 @@ export function RFQFlightCard({
                     {/* Notification dot - positioned at top right corner, overlaps button border */}
                     {hasNewMessages && (
                       <span
-                        className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-gray-900 z-10"
+                        className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-info border-2 border-background z-10"
                         aria-label="New messages"
                         title="New messages from operator"
                       />
@@ -858,7 +858,7 @@ export function RFQFlightCard({
                   )}
                   {flight.operatorRating && (
                     <p className="flex items-center gap-1">
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500 shrink-0" />
+                      <Star className="h-3 w-3 text-warning fill-warning shrink-0" />
                       <span className="font-medium">Rating:</span> {flight.operatorRating}
                     </p>
                   )}
@@ -911,7 +911,7 @@ export function RFQFlightCard({
                         flight.legSequence && flight.legSequence >= 3
                           ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
                           : flight.legType === 'outbound'
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                            ? 'bg-info-bg text-info'
                             : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                       )}
                     >
@@ -990,7 +990,7 @@ export function RFQFlightCard({
                   {/* Notification dot - positioned at top right corner, overlaps button border */}
                   {hasNewMessages && (
                     <span
-                      className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-gray-900 z-10"
+                      className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-info border-2 border-background z-10"
                       aria-label="New messages"
                       title="New messages from operator"
                     />

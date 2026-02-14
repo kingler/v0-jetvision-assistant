@@ -87,7 +87,7 @@ export const ChatInput = memo(function ChatInput({
 
   return (
     <div
-      className={`border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 ${className}`}
+      className={`border-t border-border bg-background p-4 ${className}`}
     >
       <div className="max-w-4xl mx-auto">
         {/* Quick Actions */}
@@ -108,13 +108,13 @@ export const ChatInput = memo(function ChatInput({
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               disabled={isDisabled}
-              className="min-h-[44px] py-3 px-4 pr-12 rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400 resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="min-h-[44px] py-3 px-4 pr-12 rounded-xl border-border-strong bg-input focus:border-primary focus:ring-primary resize-none placeholder:text-text-placeholder"
             />
             <Button
               onClick={onSend}
               disabled={!canSend}
               size="sm"
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 rounded-lg"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground rounded-lg"
             >
               <Send className="w-4 h-4" />
             </Button>

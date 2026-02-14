@@ -459,49 +459,49 @@ The Jetvision Team`;
 
         <div className="space-y-3 md:space-y-4 py-2 md:py-4">
           {/* Customer Info: selected customer from generated proposal (name + email required for contract) */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 md:p-4">
-            <h4 className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <div className="rounded-lg border border-border p-3 md:p-4">
+            <h4 className="text-xs md:text-sm font-medium text-foreground mb-2">
               Customer
             </h4>
             {customer.name?.trim() && customer.email?.trim() ? (
               <>
-                <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
+                <p className="text-sm md:text-base font-semibold text-foreground">
                   {customer.name}
                 </p>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-xs md:text-sm text-muted-foreground">
                   {customer.email}
                 </p>
                 {customer.company && (
-                  <p className="text-xs md:text-sm text-gray-500 dark:text-gray-500">
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     {customer.company}
                   </p>
                 )}
               </>
             ) : (
-              <p className="text-xs md:text-sm text-amber-600 dark:text-amber-400" data-testid="book-flight-no-customer">
+              <p className="text-xs md:text-sm text-warning" data-testid="book-flight-no-customer">
                 No customer selected. Generate a proposal and select a customer first — the contract will be sent to that customer.
               </p>
             )}
           </div>
 
           {/* Flight Details */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 md:p-4 space-y-2.5 md:space-y-3">
-            <h4 className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">
+          <div className="rounded-lg border border-border p-3 md:p-4 space-y-2.5 md:space-y-3">
+            <h4 className="text-xs md:text-sm font-medium text-foreground">
               Flight Details
             </h4>
 
             {/* Route */}
             <div className="flex items-center gap-2 md:gap-3">
-              <Plane className="h-4 w-4 text-gray-400 shrink-0" />
-              <span className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100">
+              <Plane className="h-4 w-4 text-text-placeholder shrink-0" />
+              <span className="text-xs md:text-sm font-medium text-foreground">
                 {flight.departureAirport.icao} → {flight.arrivalAirport.icao}
               </span>
             </div>
 
             {/* Date */}
             <div className="flex items-center gap-2 md:gap-3">
-              <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
-              <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
+              <Calendar className="h-4 w-4 text-text-placeholder shrink-0" />
+              <span className="text-xs md:text-sm text-foreground">
                 {formatDate(flight.departureDate || tripDetails.departureDate)}
                 {flight.departureTime && ` at ${flight.departureTime}`}
               </span>
@@ -510,9 +510,9 @@ The Jetvision Team`;
             {/* Aircraft */}
             <div className="flex items-center gap-2 md:gap-3">
               <div className="h-4 w-4 flex items-center justify-center shrink-0">
-                <span className="text-xs text-gray-400">✈️</span>
+                <span className="text-xs text-text-placeholder">✈️</span>
               </div>
-              <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-xs md:text-sm text-foreground">
                 {flight.aircraftType}
                 {flight.aircraftModel && ` - ${flight.aircraftModel}`}
               </span>
@@ -520,8 +520,8 @@ The Jetvision Team`;
 
             {/* Passengers */}
             <div className="flex items-center gap-2 md:gap-3">
-              <Users className="h-4 w-4 text-gray-400 shrink-0" />
-              <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
+              <Users className="h-4 w-4 text-text-placeholder shrink-0" />
+              <span className="text-xs md:text-sm text-foreground">
                 {tripDetails.passengers} passenger{tripDetails.passengers !== 1 ? 's' : ''}
               </span>
             </div>
@@ -529,47 +529,47 @@ The Jetvision Team`;
             {/* Operator */}
             <div className="flex items-center gap-2 md:gap-3">
               <div className="h-4 w-4 flex items-center justify-center shrink-0">
-                <span className="text-xs text-gray-400">🏢</span>
+                <span className="text-xs text-text-placeholder">🏢</span>
               </div>
-              <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-xs md:text-sm text-foreground">
                 {flight.operatorName}
               </span>
             </div>
           </div>
 
           {/* Pricing Summary */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 md:p-4">
-            <h4 className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 md:mb-3">
+          <div className="rounded-lg border border-border p-3 md:p-4">
+            <h4 className="text-xs md:text-sm font-medium text-foreground mb-2 md:mb-3">
               Pricing Summary
             </h4>
             <div className="space-y-2 text-xs md:text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Flight Cost</span>
-                <span className="text-gray-900 dark:text-gray-100">
+                <span className="text-muted-foreground">Flight Cost</span>
+                <span className="text-foreground">
                   {formatCurrency(pricing.flightCost, pricing.currency)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">FET (7.5%)</span>
-                <span className="text-gray-900 dark:text-gray-100">
+                <span className="text-muted-foreground">FET (7.5%)</span>
+                <span className="text-foreground">
                   {formatCurrency(pricing.federalExciseTax, pricing.currency)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Segment Fee</span>
-                <span className="text-gray-900 dark:text-gray-100">
+                <span className="text-muted-foreground">Segment Fee</span>
+                <span className="text-foreground">
                   {formatCurrency(pricing.domesticSegmentFee, pricing.currency)}
                 </span>
               </div>
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+              <div className="border-t border-border pt-2 mt-2">
                 <div className="flex justify-between font-semibold">
-                  <span className="text-gray-900 dark:text-gray-100">Total</span>
+                  <span className="text-foreground">Total</span>
                   <span className="text-orange-600 dark:text-orange-400">
                     {formatCurrency(pricing.totalAmount, pricing.currency)}
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 * 5% fee applies for credit card payments
               </p>
             </div>
@@ -578,22 +578,22 @@ The Jetvision Team`;
           {/* Email Review State */}
           {state === 'email_review' && (
             <div className="space-y-3">
-              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 md:p-4">
+              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-info-bg p-3 md:p-4">
                 <h4 className="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-300 mb-3">
                   Review Email Before Sending
                 </h4>
 
                 {/* Recipient (read-only) */}
                 <div className="mb-3">
-                  <Label className="text-xs text-gray-600 dark:text-gray-400">To</Label>
-                  <p className="text-sm text-gray-900 dark:text-gray-100 mt-0.5">
+                  <Label className="text-xs text-muted-foreground">To</Label>
+                  <p className="text-sm text-foreground mt-0.5">
                     {customer.name} &lt;{customer.email}&gt;
                   </p>
                 </div>
 
                 {/* Subject */}
                 <div className="mb-3">
-                  <Label htmlFor="email-subject" className="text-xs text-gray-600 dark:text-gray-400">
+                  <Label htmlFor="email-subject" className="text-xs text-muted-foreground">
                     Subject
                   </Label>
                   <Input
@@ -606,7 +606,7 @@ The Jetvision Team`;
 
                 {/* Body */}
                 <div>
-                  <Label htmlFor="email-body" className="text-xs text-gray-600 dark:text-gray-400">
+                  <Label htmlFor="email-body" className="text-xs text-muted-foreground">
                     Message
                   </Label>
                   <Textarea
@@ -623,9 +623,9 @@ The Jetvision Team`;
 
           {/* Success State */}
           {state === 'success' && (
-            <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4">
+            <div className="rounded-lg bg-success-bg border border-success-border p-4">
               <div className="flex items-start gap-3">
-                <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                <CheckCircle className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-green-800 dark:text-green-300">
                     Contract Sent Successfully!
@@ -636,7 +636,7 @@ The Jetvision Team`;
                   {pdfUrl && (
                     <button
                       onClick={handleOpenPdf}
-                      className="text-sm text-green-600 dark:text-green-400 hover:underline mt-2 flex items-center gap-1"
+                      className="text-sm text-success hover:underline mt-2 flex items-center gap-1"
                     >
                       <ExternalLink className="h-3 w-3" />
                       View Contract PDF
@@ -649,9 +649,9 @@ The Jetvision Team`;
 
           {/* Error State */}
           {state === 'error' && error && (
-            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+            <div className="rounded-lg bg-error-bg border border-error-border p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-red-800 dark:text-red-300">
                     Error

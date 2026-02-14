@@ -13,11 +13,11 @@ export function AvinodeConnectionStatus({
   timestamp,
 }: AvinodeConnectionStatusProps) {
   const bgColor = success
-    ? 'bg-green-50 dark:bg-green-950/30'
-    : 'bg-red-50 dark:bg-red-950/30';
+    ? 'bg-success-bg'
+    : 'bg-error-bg';
 
-  const borderColor = success ? 'border-green-500' : 'border-red-500';
-  const iconColor = success ? 'text-green-500' : 'text-red-500';
+  const borderColor = success ? 'border-success-border' : 'border-error-border';
+  const iconColor = success ? 'text-success' : 'text-destructive';
   const statusText = success ? 'SUCCESS' : 'FAILED';
 
   const Icon = success ? CheckCircle : XCircle;

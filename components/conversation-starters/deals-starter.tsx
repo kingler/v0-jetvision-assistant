@@ -168,13 +168,13 @@ function DealSkeleton() {
   return (
     <div data-testid="deal-skeleton" className="p-4 border rounded-lg animate-pulse">
       <div className="flex items-center justify-between mb-3">
-        <div className="h-5 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-5 w-32 bg-surface-tertiary rounded" />
+        <div className="h-5 w-16 bg-surface-tertiary rounded" />
       </div>
       <div className="space-y-2">
-        <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-4 w-28 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-4 w-40 bg-surface-tertiary rounded" />
+        <div className="h-4 w-28 bg-surface-tertiary rounded" />
+        <div className="h-4 w-20 bg-surface-tertiary rounded" />
       </div>
     </div>
   )
@@ -185,9 +185,9 @@ function DealSkeleton() {
  */
 function ConnectionStatusIndicator({ status }: { status: ConnectionStatus }) {
   const config = {
-    connected: { icon: Wifi, label: 'Live', className: 'text-green-500' },
-    connecting: { icon: Loader2, label: 'Connecting', className: 'text-yellow-500 animate-spin' },
-    disconnected: { icon: WifiOff, label: 'Offline', className: 'text-gray-400' },
+    connected: { icon: Wifi, label: 'Live', className: 'text-success' },
+    connecting: { icon: Loader2, label: 'Connecting', className: 'text-warning animate-spin' },
+    disconnected: { icon: WifiOff, label: 'Offline', className: 'text-text-placeholder' },
   }
 
   const { icon: Icon, label, className } = config[status]
@@ -228,22 +228,22 @@ function PipelineSummary({ deals, compact }: { deals: Deal[]; compact?: boolean 
   }
 
   return (
-    <div data-testid="pipeline-summary" className="grid grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg mb-4">
+    <div data-testid="pipeline-summary" className="grid grid-cols-2 gap-3 p-3 bg-surface-secondary rounded-lg mb-4">
       <div className="text-center">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Pipeline Value</div>
-        <div data-testid="pipeline-value" className="text-lg font-bold text-cyan-600 dark:text-cyan-400">
+        <div className="text-xs text-muted-foreground">Pipeline Value</div>
+        <div data-testid="pipeline-value" className="text-lg font-bold text-interactive-text">
           {formatCurrency(stats.totalPipeline, 'USD')}
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-muted-foreground">
           {(stats.byStatus.active?.count || 0) + (stats.byStatus.pending?.count || 0)} active
         </div>
       </div>
       <div className="text-center">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Won This Month</div>
-        <div className="text-lg font-bold text-green-600 dark:text-green-400">
+        <div className="text-xs text-muted-foreground">Won This Month</div>
+        <div className="text-lg font-bold text-success">
           {formatCurrency(stats.wonValue, 'USD')}
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-muted-foreground">
           {stats.byStatus.won?.count || 0} deals
         </div>
       </div>
@@ -276,25 +276,25 @@ function DealCard({
       role="listitem"
       aria-label={`Deal ${deal.clientName} ${deal.route.from} to ${deal.route.to}`}
       className={cn(
-        'p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors',
+        'p-4 border rounded-lg hover:bg-surface-secondary cursor-pointer transition-colors',
         compact && 'p-3'
       )}
       onClick={() => onViewDeal(deal.id)}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+          <Building2 className="w-4 h-4 text-interactive-text" />
           <span className="font-medium">{deal.clientName}</span>
         </div>
         <Badge variant={variant}>{label}</Badge>
       </div>
 
-      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
         <Plane className="w-3 h-3" />
         <span>{route}</span>
       </div>
 
-      <div className={cn('grid gap-2 text-sm text-gray-600 dark:text-gray-400', compact ? 'grid-cols-2' : 'grid-cols-3')}>
+      <div className={cn('grid gap-2 text-sm text-muted-foreground', compact ? 'grid-cols-2' : 'grid-cols-3')}>
         <div className="flex items-center gap-1">
           <span className="font-medium">{deal.aircraft}</span>
         </div>
@@ -308,14 +308,14 @@ function DealCard({
       </div>
 
       <div className="mt-2 flex items-center justify-between">
-        <div className="flex items-center gap-1 font-bold text-cyan-600 dark:text-cyan-400">
+        <div className="flex items-center gap-1 font-bold text-interactive-text">
           <DollarSign className="w-4 h-4" />
           <span>{formatCurrency(deal.value, deal.currency)}</span>
         </div>
         {deal.expiresAt && deal.status === 'active' && (
           <div className={cn(
             'flex items-center gap-1 text-xs',
-            isExpiringSoon ? 'text-orange-500' : 'text-gray-500'
+            isExpiringSoon ? 'text-orange-500' : 'text-muted-foreground'
           )}>
             {isExpiringSoon && (
               <span data-testid="expiring-soon-indicator">
@@ -451,10 +451,10 @@ export function DealsStarter({
     if (!isLoading && displayedDeals.length === 0) {
       return (
         <div className="text-center py-8">
-          <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-            <Briefcase className="w-6 h-6 text-gray-400" />
+          <div className="w-12 h-12 mx-auto mb-4 bg-surface-tertiary rounded-full flex items-center justify-center">
+            <Briefcase className="w-6 h-6 text-text-placeholder" />
           </div>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">No deals</p>
+          <p className="text-muted-foreground mb-4">No deals</p>
           {onCreateRequest && (
             <Button onClick={onCreateRequest} className="gap-2">
               <Plus className="w-4 h-4" />
@@ -480,7 +480,7 @@ export function DealsStarter({
 
         {hasMoreDeals && (
           <div className="mt-4 text-center">
-            <Button variant="link" className="text-cyan-600 dark:text-cyan-400">
+            <Button variant="link" className="text-interactive-text">
               View all {deals.length} deals
             </Button>
           </div>
@@ -495,15 +495,15 @@ export function DealsStarter({
       role={modal ? 'dialog' : undefined}
       aria-modal={modal || undefined}
       className={cn(
-        'w-full max-w-lg border-2 border-cyan-200 dark:border-cyan-800',
+        'w-full max-w-lg border-2 border-interactive-border',
         compact && 'compact'
       )}
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <div className="w-8 h-8 bg-cyan-100 dark:bg-cyan-900 rounded-lg flex items-center justify-center">
-              <Briefcase className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+            <div className="w-8 h-8 bg-interactive-bg rounded-lg flex items-center justify-center">
+              <Briefcase className="w-4 h-4 text-interactive-text" />
             </div>
             My Deals
             {deals.length > 0 && (
@@ -577,8 +577,8 @@ export function DealsStarter({
 
         {/* Error State */}
         {error && (
-          <div className="p-4 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-lg mb-4">
-            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+          <div className="p-4 border border-error-border bg-error-bg rounded-lg mb-4">
+            <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="w-4 h-4" />
               <span>{error}</span>
             </div>

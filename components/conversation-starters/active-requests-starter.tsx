@@ -151,12 +151,12 @@ function RequestSkeleton() {
   return (
     <div data-testid="request-skeleton" className="p-4 border rounded-lg animate-pulse">
       <div className="flex items-center justify-between mb-3">
-        <div className="h-5 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-5 w-24 bg-surface-tertiary rounded" />
+        <div className="h-5 w-16 bg-surface-tertiary rounded" />
       </div>
       <div className="space-y-2">
-        <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-4 w-32 bg-surface-tertiary rounded" />
+        <div className="h-4 w-24 bg-surface-tertiary rounded" />
       </div>
     </div>
   )
@@ -167,9 +167,9 @@ function RequestSkeleton() {
  */
 function ConnectionStatusIndicator({ status }: { status: ConnectionStatus }) {
   const config = {
-    connected: { icon: Wifi, label: 'Live', className: 'text-green-500' },
-    connecting: { icon: Loader2, label: 'Connecting', className: 'text-yellow-500 animate-spin' },
-    disconnected: { icon: WifiOff, label: 'Offline', className: 'text-gray-400' },
+    connected: { icon: Wifi, label: 'Live', className: 'text-success' },
+    connecting: { icon: Loader2, label: 'Connecting', className: 'text-warning animate-spin' },
+    disconnected: { icon: WifiOff, label: 'Offline', className: 'text-text-placeholder' },
   }
 
   const { icon: Icon, label, className } = config[status]
@@ -205,20 +205,20 @@ function RequestCard({
       role="listitem"
       aria-label={`Flight request ${request.departureAirport} to ${request.arrivalAirport}`}
       className={cn(
-        'p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors',
+        'p-4 border rounded-lg hover:bg-surface-secondary cursor-pointer transition-colors',
         compact && 'p-3'
       )}
       onClick={() => onViewRequest(request.id)}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Plane className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+          <Plane className="w-4 h-4 text-interactive-text" />
           <span className="font-medium">{route}</span>
         </div>
         <Badge variant={variant}>{label}</Badge>
       </div>
 
-      <div className={cn('grid gap-2 text-sm text-gray-600 dark:text-gray-400', compact ? 'grid-cols-2' : 'grid-cols-3')}>
+      <div className={cn('grid gap-2 text-sm text-muted-foreground', compact ? 'grid-cols-2' : 'grid-cols-3')}>
         <div className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
           <span>{formatDate(request.departureDate)}</span>
@@ -237,14 +237,14 @@ function RequestCard({
 
         {request.status === 'booked' && request.bookedOperator && (
           <div className="flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-green-500" />
+            <CheckCircle2 className="w-3 h-3 text-success" />
             <span>{request.bookedOperator}</span>
           </div>
         )}
       </div>
 
       {request.status === 'booked' && request.bookedPrice !== undefined && (
-        <div className="mt-2 flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-400">
+        <div className="mt-2 flex items-center gap-1 text-sm font-medium text-success">
           <DollarSign className="w-3 h-3" />
           <span>{formatPrice(request.bookedPrice)}</span>
         </div>
@@ -346,15 +346,15 @@ export function ActiveRequestsStarter({
       role={modal ? 'dialog' : undefined}
       aria-modal={modal || undefined}
       className={cn(
-        'w-full max-w-lg border-2 border-cyan-200 dark:border-cyan-800',
+        'w-full max-w-lg border-2 border-interactive-border',
         compact && 'compact'
       )}
     >
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <div className="w-8 h-8 bg-cyan-100 dark:bg-cyan-900 rounded-lg flex items-center justify-center">
-                <Plane className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+              <div className="w-8 h-8 bg-interactive-bg rounded-lg flex items-center justify-center">
+                <Plane className="w-4 h-4 text-interactive-text" />
               </div>
               Active Requests
               {requests.length > 0 && (
@@ -428,8 +428,8 @@ export function ActiveRequestsStarter({
 
           {/* Error State */}
           {error && (
-            <div className="p-4 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-lg mb-4">
-              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+            <div className="p-4 border border-error-border bg-error-bg rounded-lg mb-4">
+              <div className="flex items-center gap-2 text-destructive">
                 <AlertCircle className="w-4 h-4" />
                 <span>{error}</span>
               </div>
@@ -457,10 +457,10 @@ export function ActiveRequestsStarter({
           {/* Empty State */}
           {!isLoading && !error && requests.length === 0 && (
             <div className="text-center py-8">
-              <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                <Plane className="w-6 h-6 text-gray-400" />
+              <div className="w-12 h-12 mx-auto mb-4 bg-surface-tertiary rounded-full flex items-center justify-center">
+                <Plane className="w-6 h-6 text-text-placeholder" />
               </div>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">No active requests</p>
+              <p className="text-muted-foreground mb-4">No active requests</p>
               {onCreateRequest && (
                 <Button onClick={onCreateRequest} className="gap-2">
                   <Plus className="w-4 h-4" />
@@ -487,7 +487,7 @@ export function ActiveRequestsStarter({
           {/* View All Link */}
           {hasMoreRequests && (
             <div className="mt-4 text-center">
-              <Button variant="link" className="text-cyan-600 dark:text-cyan-400">
+              <Button variant="link" className="text-interactive-text">
                 View all {requests.length} requests
               </Button>
             </div>

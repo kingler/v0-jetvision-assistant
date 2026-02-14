@@ -53,11 +53,11 @@ export function RFPFlowCard({
   const totalRequired = REQUIRED_FIELDS.length;
 
   return (
-    <Card className={cn('border-blue-200 dark:border-blue-800', className)}>
+    <Card className={cn('border-info-border', className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base text-blue-700 dark:text-blue-300">
+            <CardTitle className="text-base text-info">
               RFP Information Gathering
             </CardTitle>
             <CardDescription className="text-xs mt-1">
@@ -67,12 +67,12 @@ export function RFPFlowCard({
             </CardDescription>
           </div>
           {isComplete ? (
-            <Badge className="bg-green-500 text-white">
+            <Badge className="bg-status-proposal-ready text-white">
               <CheckCircle className="w-3 h-3 mr-1" />
               Complete
             </Badge>
           ) : (
-            <Badge variant="outline" className="border-blue-500 text-blue-600 dark:text-blue-400">
+            <Badge variant="outline" className="border-info text-info">
               Step {currentStepIndex + 1}/{allSteps.length}
             </Badge>
           )}
@@ -82,7 +82,7 @@ export function RFPFlowCard({
       <CardContent className="space-y-4">
         {/* Progress Bar */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Progress</span>
             <span>{Math.round(progress)}%</span>
           </div>
@@ -91,11 +91,11 @@ export function RFPFlowCard({
 
         {/* Current Question */}
         {showQuestion && !isComplete && (
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-700 dark:text-blue-300 font-medium mb-1">
+          <div className="p-3 bg-info-bg rounded-lg border border-info-border">
+            <p className="text-sm text-info font-medium mb-1">
               {STEP_LABELS[currentStep]}
             </p>
-            <p className="text-sm text-blue-600 dark:text-blue-400">{currentQuestion}</p>
+            <p className="text-sm text-info">{currentQuestion}</p>
           </div>
         )}
 
@@ -111,18 +111,18 @@ export function RFPFlowCard({
                 key={step}
                 className={cn(
                   'flex items-center space-x-3 p-2 rounded-lg transition-colors',
-                  isCurrentStep && 'bg-blue-50 dark:bg-blue-900/20',
-                  isPastStep && 'bg-gray-50 dark:bg-gray-800'
+                  isCurrentStep && 'bg-info-bg',
+                  isPastStep && 'bg-surface-secondary'
                 )}
               >
                 {isPastStep || (isComplete && index <= currentStepIndex) ? (
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />
                 ) : isCurrentStep ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center flex-shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  <div className="w-5 h-5 rounded-full border-2 border-info flex items-center justify-center flex-shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-info animate-pulse" />
                   </div>
                 ) : (
-                  <Circle className="w-5 h-5 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+                  <Circle className="w-5 h-5 text-text-placeholder flex-shrink-0" />
                 )}
 
                 <div className="flex-1">
@@ -130,9 +130,9 @@ export function RFPFlowCard({
                     <span
                       className={cn(
                         'text-sm font-medium',
-                        isCurrentStep && 'text-blue-700 dark:text-blue-300',
-                        isPastStep && 'text-gray-700 dark:text-gray-300',
-                        !isCurrentStep && !isPastStep && 'text-gray-400 dark:text-gray-600'
+                        isCurrentStep && 'text-info',
+                        isPastStep && 'text-foreground',
+                        !isCurrentStep && !isPastStep && 'text-text-placeholder'
                       )}
                     >
                       {STEP_LABELS[step]}
@@ -163,59 +163,59 @@ export function RFPFlowCard({
 
         {/* Collected Data Summary */}
         {completedFields.length > 0 && (
-          <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+          <div className="pt-3 border-t border-border">
+            <p className="text-xs font-medium text-muted-foreground mb-2">
               Collected Information
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {state.data.departure && state.data.arrival && (
                 <div className="col-span-2">
-                  <span className="text-gray-500 dark:text-gray-500">Route:</span>{' '}
-                  <span className="text-gray-900 dark:text-gray-100 font-medium">
+                  <span className="text-muted-foreground">Route:</span>{' '}
+                  <span className="text-foreground font-medium">
                     {state.data.departure} → {state.data.arrival}
                   </span>
                 </div>
               )}
               {state.data.departureDate && (
                 <div>
-                  <span className="text-gray-500 dark:text-gray-500">Departure:</span>{' '}
-                  <span className="text-gray-900 dark:text-gray-100">
+                  <span className="text-muted-foreground">Departure:</span>{' '}
+                  <span className="text-foreground">
                     {new Date(state.data.departureDate).toLocaleDateString()}
                   </span>
                 </div>
               )}
               {state.data.returnDate && (
                 <div>
-                  <span className="text-gray-500 dark:text-gray-500">Return:</span>{' '}
-                  <span className="text-gray-900 dark:text-gray-100">
+                  <span className="text-muted-foreground">Return:</span>{' '}
+                  <span className="text-foreground">
                     {new Date(state.data.returnDate).toLocaleDateString()}
                   </span>
                 </div>
               )}
               {state.data.passengers && (
                 <div>
-                  <span className="text-gray-500 dark:text-gray-500">Passengers:</span>{' '}
-                  <span className="text-gray-900 dark:text-gray-100">{state.data.passengers}</span>
+                  <span className="text-muted-foreground">Passengers:</span>{' '}
+                  <span className="text-foreground">{state.data.passengers}</span>
                 </div>
               )}
               {state.data.aircraftType && (
                 <div>
-                  <span className="text-gray-500 dark:text-gray-500">Aircraft:</span>{' '}
-                  <span className="text-gray-900 dark:text-gray-100">{state.data.aircraftType}</span>
+                  <span className="text-muted-foreground">Aircraft:</span>{' '}
+                  <span className="text-foreground">{state.data.aircraftType}</span>
                 </div>
               )}
               {state.data.budget && (
                 <div>
-                  <span className="text-gray-500 dark:text-gray-500">Budget:</span>{' '}
-                  <span className="text-gray-900 dark:text-gray-100">
+                  <span className="text-muted-foreground">Budget:</span>{' '}
+                  <span className="text-foreground">
                     ${state.data.budget.toLocaleString()}
                   </span>
                 </div>
               )}
               {state.data.specialRequirements && (
                 <div className="col-span-2">
-                  <span className="text-gray-500 dark:text-gray-500">Requirements:</span>{' '}
-                  <span className="text-gray-900 dark:text-gray-100">
+                  <span className="text-muted-foreground">Requirements:</span>{' '}
+                  <span className="text-foreground">
                     {state.data.specialRequirements}
                   </span>
                 </div>
@@ -226,12 +226,12 @@ export function RFPFlowCard({
 
         {/* Missing Required Fields Warning */}
         {missingFields.length > 0 && !isComplete && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+          <div className="p-3 bg-warning-bg rounded-lg border border-warning-border">
             <div className="flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-700 dark:text-amber-300">
+              <AlertCircle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-warning">
                 <p className="font-medium mb-1">Required Information Missing</p>
-                <p className="text-amber-600 dark:text-amber-400">
+                <p className="text-warning">
                   {missingFields.map((field: string) => field.replace(/([A-Z])/g, ' $1')).join(', ')}
                 </p>
               </div>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send } from "lucide-react"
 import {
-  ConversationStarterHub,
+  StarterCard,
   useSmartStarters,
   type ConversationStarter,
 } from "@/components/conversation-starters"
@@ -148,12 +148,27 @@ export function LandingPage({ onStartChat, userName, userContext }: LandingPageP
           <p className="text-center text-gray-500 dark:text-gray-400 font-medium">
             Or try one of these:
           </p>
-          <ConversationStarterHub
-            starters={starters}
-            onStarterClick={handleStarterClick}
-            loading={isLoading}
-            showCategoryHeaders={false}
-          />
+          <div className="grid gap-3">
+            {isLoading ? (
+              <>
+                <StarterCard icon={Send} title="" description="" onClick={() => {}} loading />
+                <StarterCard icon={Send} title="" description="" onClick={() => {}} loading />
+              </>
+            ) : (
+              starters.map((starter) => (
+                <StarterCard
+                  key={starter.id}
+                  icon={starter.icon}
+                  title={starter.title}
+                  description={starter.description}
+                  onClick={() => handleStarterClick(starter.action, starter)}
+                  variant={starter.variant}
+                  badge={starter.badge}
+                  disabled={starter.disabled}
+                />
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -139,8 +139,8 @@ export function GeneralChatCard({ session, isActive, onClick, onDelete, onArchiv
       className={cn(
         "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden w-full max-w-[300px] min-w-[260px] box-border py-0 gap-0",
         isActive
-          ? "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-950"
-          : "hover:bg-gray-50 dark:hover:bg-gray-800",
+          ? "ring-2 ring-active-ring bg-active-bg"
+          : "hover:bg-surface-secondary",
       )}
       onClick={onClick}
     >
@@ -148,8 +148,8 @@ export function GeneralChatCard({ session, isActive, onClick, onDelete, onArchiv
         {/* Header with title and actions */}
         <div className="flex items-start justify-between mb-2 min-w-0 w-full">
           <div className="flex items-center space-x-2 min-w-0 flex-1 overflow-hidden">
-            <MessageSquare className="w-4 h-4 text-gray-400 shrink-0" />
-            <h3 className="font-medium text-xs sm:text-sm text-gray-900 dark:text-white truncate min-w-0 flex-1">
+            <MessageSquare className="w-4 h-4 text-text-placeholder shrink-0" />
+            <h3 className="font-medium text-xs sm:text-sm text-foreground truncate min-w-0 flex-1">
               {getTitle()}
             </h3>
           </div>
@@ -160,7 +160,7 @@ export function GeneralChatCard({ session, isActive, onClick, onDelete, onArchiv
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="h-6 w-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0"
+                className="h-6 w-6 text-text-placeholder hover:text-muted-foreground shrink-0"
                 onClick={handleMenuClick}
                 aria-label="More options"
               >
@@ -178,7 +178,7 @@ export function GeneralChatCard({ session, isActive, onClick, onDelete, onArchiv
               <DropdownMenuItem
                 onClick={handleDeleteClick}
                 variant="destructive"
-                className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                className="cursor-pointer"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete
@@ -189,10 +189,10 @@ export function GeneralChatCard({ session, isActive, onClick, onDelete, onArchiv
 
         {/* Footer with message count and timestamp */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="text-xs text-muted-foreground">
             {getMessageCount()} message{getMessageCount() !== 1 ? "s" : ""}
           </span>
-          <span className="text-xs text-gray-400">{getLastActivity()}</span>
+          <span className="text-xs text-text-placeholder">{getLastActivity()}</span>
         </div>
       </CardContent>
 

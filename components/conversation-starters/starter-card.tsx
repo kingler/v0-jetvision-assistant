@@ -27,24 +27,24 @@ function sanitizeText(text: string, maxLength: number): string {
  */
 const variantStyles = {
   cyan: {
-    iconBg: "bg-cyan-100 dark:bg-cyan-900",
-    iconColor: "text-cyan-600 dark:text-cyan-400",
-    hoverBorder: "hover:border-cyan-300 dark:hover:border-cyan-600",
+    iconBg: "bg-interactive-bg",
+    iconColor: "text-interactive-text",
+    hoverBorder: "hover:border-interactive-border",
   },
   blue: {
-    iconBg: "bg-blue-100 dark:bg-blue-900",
-    iconColor: "text-blue-600 dark:text-blue-400",
-    hoverBorder: "hover:border-blue-300 dark:hover:border-blue-600",
+    iconBg: "bg-info-bg",
+    iconColor: "text-primary",
+    hoverBorder: "hover:border-interactive-border",
   },
   green: {
-    iconBg: "bg-green-100 dark:bg-green-900",
-    iconColor: "text-green-600 dark:text-green-400",
-    hoverBorder: "hover:border-green-300 dark:hover:border-green-600",
+    iconBg: "bg-success-bg",
+    iconColor: "text-success",
+    hoverBorder: "hover:border-success-border",
   },
   amber: {
-    iconBg: "bg-amber-100 dark:bg-amber-900",
-    iconColor: "text-amber-600 dark:text-amber-400",
-    hoverBorder: "hover:border-amber-300 dark:hover:border-amber-600",
+    iconBg: "bg-warning-bg",
+    iconColor: "text-warning",
+    hoverBorder: "hover:border-warning-border",
   },
 } as const
 
@@ -112,7 +112,7 @@ export function StarterCard({
     return (
       <div
         className={cn(
-          "h-auto p-3 sm:p-4 rounded-md border-2 border-gray-200 dark:border-gray-700 bg-transparent animate-pulse",
+          "h-auto p-3 sm:p-4 rounded-md border-2 border-border bg-transparent animate-pulse",
           className
         )}
         role="status"
@@ -122,11 +122,11 @@ export function StarterCard({
       >
         <div className="flex items-center space-x-3 w-full">
           {/* Icon skeleton */}
-          <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+          <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-surface-tertiary rounded-lg" />
           {/* Text skeleton */}
           <div className="flex-1 min-w-0 space-y-2">
-            <div className="h-4 sm:h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-            <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+            <div className="h-4 sm:h-5 bg-surface-tertiary rounded w-3/4" />
+            <div className="h-3 sm:h-4 bg-surface-tertiary rounded w-1/2" />
           </div>
         </div>
       </div>
@@ -148,10 +148,10 @@ export function StarterCard({
       aria-disabled={disabled}
       className={cn(
         "h-auto p-3 sm:p-4 justify-start text-left",
-        "hover:bg-gray-50 dark:hover:bg-gray-800",
+        "hover:bg-surface-secondary",
         "border-2 transition-all bg-transparent",
         styles.hoverBorder,
-        disabled && "opacity-50 cursor-not-allowed hover:bg-transparent dark:hover:bg-transparent",
+        disabled && "opacity-50 cursor-not-allowed hover:bg-transparent",
         className
       )}
       data-testid="starter-card"
@@ -169,10 +169,10 @@ export function StarterCard({
 
         {/* Text content */}
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">
+          <p className="font-medium text-sm sm:text-base text-foreground truncate">
             {safeTitle}
           </p>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">
             {safeDescription}
           </p>
         </div>
@@ -184,7 +184,7 @@ export function StarterCard({
               "absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5",
               "flex items-center justify-center",
               "rounded-full text-xs font-medium",
-              "bg-red-500 text-white"
+              "bg-destructive text-white"
             )}
             role="status"
             aria-label={`${badge > MAX_BADGE_COUNT ? 'Over 99' : badge} ${badge === 1 ? 'item' : 'items'}`}

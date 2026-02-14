@@ -31,12 +31,12 @@ const buttonVariants = cva(
         // Destructive - Error red
         destructive:
           'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
-        // Outline - Cyan hover (matches sidebar "New" button): light cyan bg + darker cyan border
+        // Outline - Interactive hover (matches sidebar "New" button)
         outline:
-          'border bg-background shadow-xs hover:bg-cyan-50 hover:border-cyan-500 hover:text-cyan-700 dark:bg-input/30 dark:border-input dark:hover:bg-cyan-900/20 dark:hover:border-cyan-400 dark:hover:text-cyan-300',
-        // Ghost - Cyan hover (matches sidebar "New" button): light cyan bg + darker cyan text
+          'border bg-background shadow-xs hover:bg-interactive-bg hover:border-interactive-border hover:text-interactive-text dark:bg-input/30 dark:border-input',
+        // Ghost - Interactive hover (matches sidebar "New" button)
         ghost:
-          'hover:bg-cyan-50 hover:text-cyan-700 dark:hover:bg-cyan-900/20 dark:hover:text-cyan-300',
+          'hover:bg-interactive-bg hover:text-interactive-text',
         // Link
         link: 'text-primary underline-offset-4 hover:underline',
         // Success variant

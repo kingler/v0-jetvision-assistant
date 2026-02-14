@@ -49,7 +49,7 @@ export function AgentMessageV2({
     <div className="space-y-3">
       {/* Avatar + Badge Header */}
       <div className="flex items-center space-x-2">
-        <div className="w-[26.46px] h-[26.46px] flex items-center justify-center shrink-0">
+        <div className="w-7 h-7 flex items-center justify-center shrink-0">
           <img
             src="/images/jvg-logo.svg"
             alt="Jetvision"
@@ -57,14 +57,14 @@ export function AgentMessageV2({
             style={{ filter: 'brightness(0)' }}
           />
         </div>
-        <span className="text-xs font-semibold text-black dark:text-gray-100">
+        <span className="text-xs font-semibold text-foreground">
           Jetvision Agent
         </span>
       </div>
 
       {/* Text content */}
       {content && (
-        <div className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
+        <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
           {stripMarkdown(content)}
         </div>
       )}

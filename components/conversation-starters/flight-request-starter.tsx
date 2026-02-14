@@ -245,11 +245,11 @@ export function FlightRequestStarter({
   const passengersInputId = `${idPrefix}-passengers`
 
   return (
-    <Card className="w-full max-w-lg border-2 border-cyan-200 dark:border-cyan-800">
+    <Card className="w-full max-w-lg border-2 border-interactive-border">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <div className="w-8 h-8 bg-cyan-100 dark:bg-cyan-900 rounded-lg flex items-center justify-center">
-            <Plane className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+          <div className="w-8 h-8 bg-interactive-bg rounded-lg flex items-center justify-center">
+            <Plane className="w-4 h-4 text-interactive-text" />
           </div>
           New Flight Request
         </CardTitle>
@@ -260,7 +260,7 @@ export function FlightRequestStarter({
           <div ref={departureRef} className="relative">
             <Label htmlFor={departureInputId} className="flex items-center gap-1">
               Departure Airport
-              <span className="text-red-500">*</span>
+              <span className="text-destructive">*</span>
             </Label>
             <div className="relative mt-1">
               <Input
@@ -272,30 +272,30 @@ export function FlightRequestStarter({
                 required
                 aria-describedby={errors.departureAirport ? `${departureInputId}-error` : undefined}
                 aria-invalid={!!errors.departureAirport}
-                className={errors.departureAirport ? 'border-red-500' : ''}
+                className={errors.departureAirport ? 'border-destructive' : ''}
               />
               {isSearchingDeparture && (
                 <div data-testid="airport-search-loading" className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-text-placeholder" />
                 </div>
               )}
             </div>
             {errors.departureAirport && (
-              <p id={`${departureInputId}-error`} className="text-sm text-red-500 mt-1">
+              <p id={`${departureInputId}-error`} className="text-sm text-destructive mt-1">
                 {errors.departureAirport}
               </p>
             )}
             {showDepartureSuggestions && departureSuggestions.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-48 overflow-auto">
+              <ul className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-auto">
                 {departureSuggestions.map((airport) => (
                   <li key={airport.icao}>
                     <button
                       type="button"
-                      className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                      className="w-full px-3 py-2 text-left hover:bg-surface-tertiary text-sm"
                       onClick={() => selectDepartureAirport(airport)}
                     >
                       <span className="font-medium">{airport.icao}</span>
-                      <span className="text-gray-500 ml-2">
+                      <span className="text-muted-foreground ml-2">
                         {airport.name} - {airport.city}
                       </span>
                     </button>
@@ -309,7 +309,7 @@ export function FlightRequestStarter({
           <div ref={arrivalRef} className="relative">
             <Label htmlFor={arrivalInputId} className="flex items-center gap-1">
               Arrival Airport
-              <span className="text-red-500">*</span>
+              <span className="text-destructive">*</span>
             </Label>
             <div className="relative mt-1">
               <Input
@@ -321,30 +321,30 @@ export function FlightRequestStarter({
                 required
                 aria-describedby={errors.arrivalAirport ? `${arrivalInputId}-error` : undefined}
                 aria-invalid={!!errors.arrivalAirport}
-                className={errors.arrivalAirport ? 'border-red-500' : ''}
+                className={errors.arrivalAirport ? 'border-destructive' : ''}
               />
               {isSearchingArrival && (
                 <div data-testid="airport-search-loading" className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-text-placeholder" />
                 </div>
               )}
             </div>
             {errors.arrivalAirport && (
-              <p id={`${arrivalInputId}-error`} className="text-sm text-red-500 mt-1">
+              <p id={`${arrivalInputId}-error`} className="text-sm text-destructive mt-1">
                 {errors.arrivalAirport}
               </p>
             )}
             {showArrivalSuggestions && arrivalSuggestions.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-48 overflow-auto">
+              <ul className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-auto">
                 {arrivalSuggestions.map((airport) => (
                   <li key={airport.icao}>
                     <button
                       type="button"
-                      className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                      className="w-full px-3 py-2 text-left hover:bg-surface-tertiary text-sm"
                       onClick={() => selectArrivalAirport(airport)}
                     >
                       <span className="font-medium">{airport.icao}</span>
-                      <span className="text-gray-500 ml-2">
+                      <span className="text-muted-foreground ml-2">
                         {airport.name} - {airport.city}
                       </span>
                     </button>
@@ -357,9 +357,9 @@ export function FlightRequestStarter({
           {/* Departure Date */}
           <div>
             <Label htmlFor={dateInputId} className="flex items-center gap-1">
-              <Calendar className="w-4 h-4 text-gray-500" />
+              <Calendar className="w-4 h-4 text-muted-foreground" />
               Departure Date
-              <span className="text-red-500">*</span>
+              <span className="text-destructive">*</span>
             </Label>
             <Input
               id={dateInputId}
@@ -372,11 +372,11 @@ export function FlightRequestStarter({
               required
               aria-describedby={errors.departureDate ? `${dateInputId}-error` : undefined}
               aria-invalid={!!errors.departureDate}
-              className={`mt-1 ${errors.departureDate ? 'border-red-500' : ''}`}
+              className={`mt-1 ${errors.departureDate ? 'border-destructive' : ''}`}
               min={new Date().toISOString().split('T')[0]}
             />
             {errors.departureDate && (
-              <p id={`${dateInputId}-error`} className="text-sm text-red-500 mt-1">
+              <p id={`${dateInputId}-error`} className="text-sm text-destructive mt-1">
                 {errors.departureDate}
               </p>
             )}
@@ -385,7 +385,7 @@ export function FlightRequestStarter({
           {/* Passengers */}
           <div>
             <Label htmlFor={passengersInputId} className="flex items-center gap-1">
-              <Users className="w-4 h-4 text-gray-500" />
+              <Users className="w-4 h-4 text-muted-foreground" />
               Passengers
             </Label>
             <Input
@@ -400,10 +400,10 @@ export function FlightRequestStarter({
               max={20}
               aria-describedby={errors.passengers ? `${passengersInputId}-error` : undefined}
               aria-invalid={!!errors.passengers}
-              className={`mt-1 ${errors.passengers ? 'border-red-500' : ''}`}
+              className={`mt-1 ${errors.passengers ? 'border-destructive' : ''}`}
             />
             {errors.passengers && (
-              <p id={`${passengersInputId}-error`} className="text-sm text-red-500 mt-1">
+              <p id={`${passengersInputId}-error`} className="text-sm text-destructive mt-1">
                 {errors.passengers}
               </p>
             )}
@@ -414,7 +414,7 @@ export function FlightRequestStarter({
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 bg-cyan-600 hover:bg-cyan-700"
+              className="flex-1 bg-primary hover:bg-primary/90"
             >
               {isSubmitting ? (
                 <>

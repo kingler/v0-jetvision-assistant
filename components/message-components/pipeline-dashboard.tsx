@@ -85,36 +85,36 @@ export function PipelineDashboard({
       label: 'Total Requests',
       value: stats.totalRequests,
       icon: FileText,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
+      color: 'text-status-proposal-sent',
+      bgColor: 'bg-status-proposal-sent/10',
     },
     {
       label: 'Pending',
       value: stats.pendingRequests,
       icon: Clock,
-      color: 'text-yellow-500',
-      bgColor: 'bg-yellow-500/10',
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
     },
     {
       label: 'Completed',
       value: stats.completedRequests,
       icon: CheckCircle,
-      color: 'text-green-500',
-      bgColor: 'bg-green-500/10',
+      color: 'text-success',
+      bgColor: 'bg-success/10',
     },
     {
       label: 'Total Quotes',
       value: stats.totalQuotes,
       icon: FileText,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-500/10',
+      color: 'text-status-processing',
+      bgColor: 'bg-status-processing/10',
     },
     {
       label: 'Active Workflows',
       value: stats.activeWorkflows,
       icon: Activity,
-      color: 'text-indigo-500',
-      bgColor: 'bg-indigo-500/10',
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
     },
   ];
 
@@ -172,7 +172,7 @@ export function PipelineDashboard({
                 return (
                   <div
                     key={request.id}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-primary/50 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-secondary transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex items-center gap-1 font-medium">

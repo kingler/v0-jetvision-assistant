@@ -7,7 +7,6 @@
 
 // Components
 export { StarterCard, type StarterCardProps, type StarterCardVariant } from "./starter-card"
-export { ConversationStarterHub } from "./conversation-starter-hub"
 export {
   FlightRequestStarter,
   type FlightRequestStarterProps,
@@ -42,30 +41,12 @@ export {
   type ConnectionStatus as HotConnectionStatus,
 } from "./hot-opportunities-starter"
 
-export {
-  PipelineSummaryStarter,
-  calculateConversionRate,
-  calculateAvgDealValue,
-  formatDuration,
-  type PipelineSummaryStarterProps,
-  type PipelineStage,
-  type PipelineMetrics,
-  type PeriodComparison,
-  type DateRange,
-  type PeriodOption,
-  type ExportFormat,
-} from "./pipeline-summary-starter"
-
 // Types
 export type {
   ConversationStarter,
-  ConversationStarterHubProps,
   StarterCategory,
   StarterCategoryConfig,
 } from "./types"
-
-// Default starters configuration
-export { DEFAULT_STARTERS, getDefaultStarters, STARTER_PROMPTS } from "./default-starters"
 
 // Hooks
 export {

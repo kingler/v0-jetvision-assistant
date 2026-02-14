@@ -124,28 +124,28 @@ export function ToolCallIndicator({
   // Status styling
   const statusStyles = {
     starting: {
-      bg: 'bg-blue-50 dark:bg-blue-900/20',
-      border: 'border-blue-200 dark:border-blue-800',
-      text: 'text-blue-700 dark:text-blue-300',
-      icon: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-info-bg',
+      border: 'border-info-border',
+      text: 'text-info',
+      icon: 'text-info',
     },
     in_progress: {
-      bg: 'bg-purple-50 dark:bg-purple-900/20',
-      border: 'border-purple-200 dark:border-purple-800',
-      text: 'text-purple-700 dark:text-purple-300',
-      icon: 'text-purple-600 dark:text-purple-400',
+      bg: 'bg-status-processing/10',
+      border: 'border-status-processing/30',
+      text: 'text-status-processing',
+      icon: 'text-status-processing',
     },
     complete: {
-      bg: 'bg-green-50 dark:bg-green-900/20',
-      border: 'border-green-200 dark:border-green-800',
-      text: 'text-green-700 dark:text-green-300',
-      icon: 'text-green-600 dark:text-green-400',
+      bg: 'bg-success-bg',
+      border: 'border-success-border',
+      text: 'text-success',
+      icon: 'text-success',
     },
     error: {
-      bg: 'bg-red-50 dark:bg-red-900/20',
-      border: 'border-red-200 dark:border-red-800',
-      text: 'text-red-700 dark:text-red-300',
-      icon: 'text-red-600 dark:text-red-400',
+      bg: 'bg-error-bg',
+      border: 'border-error-border',
+      text: 'text-destructive',
+      icon: 'text-destructive',
     },
   };
 
@@ -200,7 +200,7 @@ export function ToolCallIndicator({
             </div>
 
             {toolCall.status === 'complete' && toolCall.startTime && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="text-xs text-muted-foreground">
                 {formatDuration(toolCall.startTime, toolCall.endTime)}
               </span>
             )}
@@ -213,7 +213,7 @@ export function ToolCallIndicator({
           {showDetails && (toolCall.arguments || toolCall.result || toolCall.error) && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className={cn('p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors', styles.text)}
+              className={cn('p-1 rounded hover:bg-surface-tertiary transition-colors', styles.text)}
               aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
             >
               {isExpanded ? (
@@ -228,14 +228,14 @@ export function ToolCallIndicator({
 
       {/* Expanded details */}
       {isExpanded && showDetails && (
-        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
           {/* Arguments */}
           {toolCall.arguments && Object.keys(toolCall.arguments).length > 0 && (
             <div>
-              <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <div className="text-xs font-medium text-muted-foreground mb-1">
                 Arguments:
               </div>
-              <pre className="text-xs bg-white dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700 overflow-x-auto">
+              <pre className="text-xs bg-background p-2 rounded border border-border overflow-x-auto">
                 {JSON.stringify(toolCall.arguments, null, 2)}
               </pre>
             </div>
@@ -244,10 +244,10 @@ export function ToolCallIndicator({
           {/* Result */}
           {toolCall.result && (
             <div>
-              <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <div className="text-xs font-medium text-muted-foreground mb-1">
                 Result:
               </div>
-              <pre className="text-xs bg-white dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700 overflow-x-auto">
+              <pre className="text-xs bg-background p-2 rounded border border-border overflow-x-auto">
                 {JSON.stringify(toolCall.result, null, 2)}
               </pre>
             </div>
@@ -256,10 +256,10 @@ export function ToolCallIndicator({
           {/* Error */}
           {toolCall.error && (
             <div>
-              <div className="text-xs font-medium text-red-600 dark:text-red-400 mb-1">
+              <div className="text-xs font-medium text-destructive mb-1">
                 Error:
               </div>
-              <div className="text-xs bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200 dark:border-red-800">
+              <div className="text-xs bg-error-bg p-2 rounded border border-error-border">
                 {toolCall.error}
               </div>
             </div>

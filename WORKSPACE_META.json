@@ -1,24 +1,29 @@
 {
-  "linearIssue": "ONEK-212",
-  "branch": "feat/iso-agent-onboarding",
+  "linearIssue": "ONEK-265",
+  "branch": "feat/onek-265-design-system-token-migration",
   "pullRequest": null,
   "prUrl": null,
-  "workspaceDir": "/Users/kinglerbercy/.claude/git-workspace/onek-212",
+  "workspaceDir": "/Users/kinglerbercy/.claude/git-workspace/onek-265",
   "agentRole": "Coding Agent",
-  "agentType": "fullstack-developer",
-  "createdAt": "2026-02-10T00:55:00.000Z",
-  "lastAccessedAt": "2026-02-10T00:55:00.000Z",
+  "agentType": "frontend-developer",
+  "createdAt": "2026-02-13T00:00:00Z",
+  "lastAccessedAt": "2026-02-13T00:00:00Z",
   "status": "active",
-  "childIssues": [
-    "ONEK-213",
-    "ONEK-214",
-    "ONEK-215",
-    "ONEK-216",
-    "ONEK-217",
-    "ONEK-218",
-    "ONEK-219",
-    "ONEK-220",
-    "ONEK-221",
-    "ONEK-222"
+  "currentPhase": 1,
+  "completedPhases": [0],
+  "phaseHistory": [
+    {
+      "phase": 0,
+      "startedAt": "2026-02-13T00:00:00Z",
+      "completedAt": "2026-02-13T00:00:00Z",
+      "agent": "pre-existing",
+      "notes": "Foundation tokens already in globals.css and tailwind-theme.ts"
+    },
+    {
+      "phase": 1,
+      "startedAt": "2026-02-13T00:00:00Z",
+      "completedAt": null,
+      "agent": "frontend-developer"
+    }
   ]
 }

@@ -264,7 +264,7 @@ export function PipelineSummaryStarter({
   ) => {
     // For time metrics, negative is good (faster)
     const isPositive = isTimeMetric ? delta < 0 : delta > 0
-    const colorClass = isPositive ? 'text-green-500' : 'text-red-500'
+    const colorClass = isPositive ? 'text-success' : 'text-destructive'
 
     return (
       <span
@@ -283,8 +283,8 @@ export function PipelineSummaryStarter({
 
   // Get bar color based on stage
   const getBarColor = (stage: PipelineStage): string => {
-    if (stage.id === 'won') return 'bg-green-500'
-    if (stage.id === 'lost') return 'bg-red-500'
+    if (stage.id === 'won') return 'bg-success'
+    if (stage.id === 'lost') return 'bg-destructive'
     return 'bg-primary'
   }
 
@@ -587,13 +587,13 @@ export function PipelineSummaryStarter({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Won:</span>
-            <span data-testid="metric-won-deals" className="font-medium text-green-600">
+            <span data-testid="metric-won-deals" className="font-medium text-success">
               {metrics.wonDeals}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Lost:</span>
-            <span data-testid="metric-lost-deals" className="font-medium text-red-600">
+            <span data-testid="metric-lost-deals" className="font-medium text-destructive">
               {metrics.lostDeals}
             </span>
           </div>

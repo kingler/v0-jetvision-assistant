@@ -168,10 +168,10 @@ function CompactFlightItem({ flight }: CompactFlightItemProps) {
   const shortModel = flight.aircraftModel.split(' ').pop() || flight.aircraftModel;
 
   return (
-    <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+    <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-          <Plane className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <div className="w-8 h-8 bg-info-bg rounded-full flex items-center justify-center">
+          <Plane className="h-4 w-4 text-info" />
         </div>
         <div>
           <p className="text-sm font-medium text-foreground">{shortModel}</p>
@@ -199,29 +199,29 @@ function StatusIndicator({ status, error }: StatusIndicatorProps) {
     idle: {
       icon: CheckCircle2,
       text: 'Ready to send',
-      className: 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30',
+      className: 'text-success bg-success-bg',
     },
     generating: {
       icon: Loader2,
       text: 'Generating PDF...',
-      className: 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30',
+      className: 'text-info bg-info-bg',
       animate: true,
     },
     sending: {
       icon: Loader2,
       text: 'Sending proposal...',
-      className: 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30',
+      className: 'text-info bg-info-bg',
       animate: true,
     },
     sent: {
       icon: CheckCircle2,
       text: 'Proposal sent successfully!',
-      className: 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30',
+      className: 'text-success bg-success-bg',
     },
     error: {
       icon: AlertCircle,
       text: error || 'Failed to send proposal',
-      className: 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30',
+      className: 'text-destructive bg-error-bg',
     },
   };
 
@@ -373,7 +373,7 @@ export function SendProposalStep({
       </div>
 
       {/* Route Summary */}
-      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+      <div className="bg-surface-secondary rounded-lg p-4">
         <div className="flex items-center justify-center gap-3">
           <div className="text-center">
             <p className="text-lg font-bold text-foreground">{tripDetails.departureAirport.icao}</p>
@@ -399,15 +399,15 @@ export function SendProposalStep({
 
       {/* Selected Flights Summary */}
       {!hasFlights ? (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
-          <AlertCircle className="h-8 w-8 text-amber-500 mx-auto mb-2" />
-          <p className="text-sm text-amber-700 dark:text-amber-400">
+        <div className="bg-warning-bg border border-warning-border rounded-lg p-4 text-center">
+          <AlertCircle className="h-8 w-8 text-warning mx-auto mb-2" />
+          <p className="text-sm text-warning">
             No flights selected. Please go back and select at least one flight.
           </p>
         </div>
       ) : (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-          <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="bg-surface-secondary px-4 py-2 border-b border-border">
             <p className="text-sm font-medium text-foreground">
               {selectedFlights.length} flight{selectedFlights.length !== 1 ? 's' : ''} selected
             </p>
@@ -418,8 +418,8 @@ export function SendProposalStep({
             ))}
           </div>
           {/* Internal cost breakdown — not shown to client */}
-          <div className="bg-amber-50 dark:bg-amber-900/20 px-4 py-3 border-t border-gray-200 dark:border-gray-700 space-y-1.5">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
+          <div className="bg-warning-bg px-4 py-3 border-t border-border space-y-1.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-warning mb-1">
               Internal Only
             </p>
             <div className="flex items-center justify-between text-sm">
@@ -436,9 +436,9 @@ export function SendProposalStep({
                 {formatPrice(serviceFee, currency)}
               </span>
             </div>
-            <div className="flex items-center justify-between pt-1 border-t border-amber-200 dark:border-amber-800">
+            <div className="flex items-center justify-between pt-1 border-t border-warning-border">
               <span className="text-sm font-semibold text-foreground">Total Cost</span>
-              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              <span className="text-lg font-bold text-info">
                 {formatPrice(totalWithFee, currency)}
               </span>
             </div>
@@ -476,14 +476,14 @@ export function SendProposalStep({
               onChange={handleEmailChange}
               onBlur={() => email && validateEmail(email)}
               placeholder="customer@example.com"
-              className={cn('pl-9', emailError && 'border-red-500 focus:ring-red-500')}
+              className={cn('pl-9', emailError && 'border-destructive focus:ring-destructive')}
               aria-invalid={!!emailError}
               aria-describedby={emailError ? 'email-error' : undefined}
             />
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           </div>
           {emailError && (
-            <p id="email-error" className="text-sm text-red-600 dark:text-red-400">
+            <p id="email-error" className="text-sm text-destructive">
               {emailError}
             </p>
           )}

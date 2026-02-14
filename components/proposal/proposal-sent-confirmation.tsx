@@ -155,7 +155,7 @@ export function ProposalSentConfirmation({
         {/* Success Header */}
         <div className="flex items-start gap-3">
           <div className="shrink-0 mt-0.5">
-            <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <CheckCircle2 className="h-6 w-6 text-success" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-lg text-foreground mb-1">
@@ -183,10 +183,10 @@ export function ProposalSentConfirmation({
                 className={cn(
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                   isMultiCity
-                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200'
                     : isRoundTrip
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                      ? 'bg-info-bg text-primary'
+                      : 'bg-muted text-foreground'
                 )}
               >
                 {isMultiCity ? 'Multi-City' : isRoundTrip ? 'Round-Trip' : 'One-Way'}
@@ -287,7 +287,7 @@ export function ProposalSentConfirmation({
           <FileText className="h-4 w-4 text-muted-foreground" />
           <button
             onClick={handlePdfClick}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-primary hover:underline"
             aria-label={`Open proposal PDF: ${fileName || 'proposal.pdf'}`}
           >
             View Full Proposal PDF
@@ -334,7 +334,7 @@ export function ProposalSentConfirmation({
           The customer will review the proposal and respond via email at{" "}
           <a
             href={`mailto:${safeClient.email}`}
-            className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
+            className="font-medium text-primary hover:underline"
           >
             {safeClient.email}
           </a>

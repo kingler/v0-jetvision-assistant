@@ -48,19 +48,19 @@ export const ErrorDisplay = memo(function ErrorDisplay({
   return (
     <div className={cn('flex justify-center', className)}>
       <div className="max-w-md w-full">
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <div className="bg-error-bg border border-error-border rounded-lg p-4">
           <div className="flex items-start gap-3">
             {/* Error icon */}
             <div className="flex-shrink-0">
-              <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400" />
+              <AlertCircle className="h-5 w-5 text-destructive" />
             </div>
 
             {/* Error content */}
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+              <h3 className="text-sm font-medium text-destructive">
                 Something went wrong
               </h3>
-              <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+              <p className="mt-1 text-sm text-destructive/80">
                 {error}
               </p>
 
@@ -72,7 +72,7 @@ export const ErrorDisplay = memo(function ErrorDisplay({
                       variant="outline"
                       size="sm"
                       onClick={onRetry}
-                      className="h-7 px-2 text-xs border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30"
+                      className="h-7 px-2 text-xs border-error-border text-destructive hover:bg-error-bg"
                     >
                       <RefreshCw className="h-3 w-3 mr-1" />
                       Retry
@@ -83,7 +83,7 @@ export const ErrorDisplay = memo(function ErrorDisplay({
                       variant="ghost"
                       size="sm"
                       onClick={onDismiss}
-                      className="h-7 px-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
+                      className="h-7 px-2 text-xs text-destructive hover:bg-error-bg"
                     >
                       Dismiss
                     </Button>
@@ -96,7 +96,7 @@ export const ErrorDisplay = memo(function ErrorDisplay({
             {onDismiss && (
               <button
                 onClick={onDismiss}
-                className="flex-shrink-0 p-1 rounded-md text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                className="flex-shrink-0 p-1 rounded-md text-destructive/70 hover:text-destructive hover:bg-error-bg transition-colors"
                 aria-label="Dismiss error"
               >
                 <X className="h-4 w-4" />

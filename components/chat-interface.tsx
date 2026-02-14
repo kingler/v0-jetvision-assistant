@@ -2365,7 +2365,7 @@ export function ChatInterface({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+      <div className="flex flex-col h-full bg-background">
         <DynamicChatHeader
           activeChat={activeChat}
           flightRequestName={activeChat.generatedName}
@@ -2380,7 +2380,7 @@ export function ChatInterface({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-background">
       {/* Dynamic Chat Header - shows flight name, IDs, and quote requests */}
       <DynamicChatHeader
         activeChat={activeChat}
@@ -2692,9 +2692,9 @@ export function ChatInterface({
                     {message.type === 'user' ? (
                       // User message - blue bubble on the right
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
+                        <div className="max-w-[85%] bg-primary text-primary-foreground rounded-2xl px-4 py-3 shadow-sm">
                           <p className="text-sm leading-relaxed">{message.content}</p>
-                          <span className="block mt-1 text-[10px] text-blue-200 text-right">
+                          <span className="block mt-1 text-[10px] text-primary-foreground/60 text-right">
                             {formatMessageTimestamp(message.timestamp)}
                           </span>
                         </div>
@@ -2702,25 +2702,25 @@ export function ChatInterface({
                     ) : message.type === 'operator' ? (
                       // Operator message - distinct styling with operator name badge
                       <div className="flex justify-start">
-                        <div className="max-w-[85%] bg-amber-50 dark:bg-amber-900/30 text-gray-900 dark:text-gray-100 rounded-2xl px-4 py-3 border border-amber-200 dark:border-amber-700 shadow-sm">
+                        <div className="max-w-[85%] bg-warning-bg text-foreground rounded-2xl px-4 py-3 border border-warning-border shadow-sm">
                           <div className="flex items-center space-x-2 mb-2">
-                            <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-warning flex items-center justify-center">
                               <span className="text-xs font-bold text-white">
                                 {(message.operatorName || 'O')[0].toUpperCase()}
                               </span>
                             </div>
-                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                            <span className="text-xs font-semibold text-warning">
                               {message.operatorName || 'Operator'}
                             </span>
                             {message.operatorMessageType === 'RESPONSE' && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full">
+                              <span className="text-[10px] px-1.5 py-0.5 bg-warning-bg text-warning rounded-full">
                                 Quote Response
                               </span>
                             )}
                           </div>
                           <p className="text-sm leading-relaxed">{message.content}</p>
                           <div className="mt-1 flex items-center justify-between">
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                            <span className="text-[10px] text-muted-foreground">
                               {formatMessageTimestamp(message.timestamp)}
                             </span>
                             {message.operatorQuoteId && (
@@ -2731,7 +2731,7 @@ export function ChatInterface({
                                     handleViewChat(flight.id, message.operatorQuoteId)
                                   }
                                 }}
-                                className="text-[10px] text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 underline"
+                                className="text-[10px] text-warning hover:text-warning/80 underline"
                               >
                                 View Thread
                               </button>
@@ -2977,9 +2977,9 @@ export function ChatInterface({
                             style={{ filter: 'brightness(0)' }}
                           />
                         </div>
-                        <span className="text-xs font-semibold text-black dark:text-gray-100">Jetvision Agent</span>
+                        <span className="text-xs font-semibold text-foreground">Jetvision Agent</span>
                       </div>
-                      <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed">
+                      <p className="text-sm text-foreground leading-relaxed">
                         {(() => {
                           const quoted = rfqFlights.filter(f => f.rfqStatus === 'quoted').length
                           const unanswered = rfqFlights.filter(f => f.rfqStatus === 'unanswered' || !f.rfqStatus).length
@@ -2994,7 +2994,7 @@ export function ChatInterface({
                         })()}
                       </p>
                       {activeChat.rfqsLastFetchedAt && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-muted-foreground">
                           {new Date(activeChat.rfqsLastFetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       )}
@@ -3022,17 +3022,17 @@ export function ChatInterface({
                       style={{ filter: 'brightness(0)' }}
                     />
                   </div>
-                  <span className="text-xs font-semibold text-black dark:text-gray-100">Jetvision Agent</span>
+                  <span className="text-xs font-semibold text-foreground">Jetvision Agent</span>
                 </div>
                 {streamingContent ? (
-                  <div className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
+                  <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                     {stripMarkdown(streamingContent)}
-                    <span className="inline-block w-2 h-4 bg-black dark:bg-gray-900 animate-pulse ml-0.5" />
+                    <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-0.5" />
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-black dark:text-gray-100" />
-                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                    <Loader2 className="w-4 h-4 animate-spin text-foreground" />
+                    <span className="text-sm text-foreground">
                       {activeChat.status === 'searching_aircraft' ? 'Searching for flights...' :
                        activeChat.status === 'analyzing_options' ? 'Analyzing quotes...' :
                        activeChat.status === 'requesting_quotes' ? 'Requesting quotes from operators...' :
@@ -3046,11 +3046,11 @@ export function ChatInterface({
 
             {/* Error Display */}
             {streamError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-600">{streamError}</p>
+              <div className="bg-error-bg border border-error-border rounded-lg p-3">
+                <p className="text-sm text-error">{streamError}</p>
                 <button
                   onClick={() => setStreamError(null)}
-                  className="text-xs text-red-500 underline mt-1"
+                  className="text-xs text-error underline mt-1"
                 >
                   Dismiss
                 </button>
@@ -3064,7 +3064,7 @@ export function ChatInterface({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+      <div className="border-t border-border bg-background p-4">
         <div className="max-w-4xl mx-auto">
           {/* Input Area */}
           <div className="flex items-end space-x-3">
@@ -3075,13 +3075,13 @@ export function ChatInterface({
                 onKeyDown={handleKeyDown}
                 placeholder="Message about this request..."
                 disabled={isProcessing}
-                className="min-h-[44px] py-3 px-4 pr-12 rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400 resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                className="min-h-[44px] py-3 px-4 pr-12 rounded-xl border-border-strong bg-card focus:border-ring focus:ring-ring resize-none placeholder:text-text-placeholder"
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isProcessing}
                 size="sm"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 rounded-lg"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-primary hover:bg-primary/90 disabled:bg-muted rounded-lg"
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -3174,9 +3174,9 @@ export function ChatInterface({
       {/* Loading overlay when generating proposal */}
       {isGeneratingProposal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+          <div className="bg-card rounded-lg p-6 shadow-lg">
             <div className="flex items-center gap-3">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
               <span className="text-lg font-medium">Generating proposal...</span>
             </div>
           </div>

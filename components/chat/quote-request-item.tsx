@@ -32,7 +32,7 @@ export function QuoteRequestItem({ quote, onViewDetails }: QuoteRequestItemProps
     switch (quote.status) {
       case 'received':
         return (
-          <Badge className="bg-green-500 text-white text-xs">
+          <Badge className="bg-status-proposal-ready text-white text-xs">
             <CheckCircle className="w-3 h-3 mr-1" />
             Received
           </Badge>
@@ -68,12 +68,12 @@ export function QuoteRequestItem({ quote, onViewDetails }: QuoteRequestItemProps
     <div
       className={cn(
         "flex items-center gap-4 p-3 rounded-lg border transition-colors",
-        "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700",
-        "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+        "bg-card border-border",
+        "hover:bg-surface-secondary"
       )}
     >
       {/* Aircraft Image or Placeholder */}
-      <div className="flex-shrink-0 w-16 h-12 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700">
+      <div className="flex-shrink-0 w-16 h-12 rounded-md overflow-hidden bg-surface-tertiary">
         {quote.aircraftImageUrl ? (
           <img
             src={quote.aircraftImageUrl}
@@ -82,7 +82,7 @@ export function QuoteRequestItem({ quote, onViewDetails }: QuoteRequestItemProps
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Plane className="w-6 h-6 text-gray-400" />
+            <Plane className="w-6 h-6 text-text-placeholder" />
           </div>
         )}
       </div>
@@ -91,17 +91,17 @@ export function QuoteRequestItem({ quote, onViewDetails }: QuoteRequestItemProps
       <div className="flex-1 min-w-0">
         {/* Top Row: Jet Type and Operator */}
         <div className="flex items-center gap-2">
-          <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+          <span className="font-medium text-sm text-foreground truncate">
             {quote.jetType}
           </span>
-          <span className="text-gray-400 dark:text-gray-500">|</span>
-          <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+          <span className="text-text-placeholder">|</span>
+          <span className="text-sm text-muted-foreground truncate">
             {quote.operatorName}
           </span>
         </div>
 
         {/* Bottom Row: Route */}
-        <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
           <span className="font-mono">{quote.departureAirport}</span>
           <ArrowRight className="w-3 h-3" />
           <span className="font-mono">{quote.arrivalAirport}</span>
@@ -116,7 +116,7 @@ export function QuoteRequestItem({ quote, onViewDetails }: QuoteRequestItemProps
       {/* Duration */}
       {quote.flightDuration && (
         <div className="flex-shrink-0 text-right">
-          <span className="text-sm font-medium text-gray-900 dark:text-white">
+          <span className="text-sm font-medium text-foreground">
             {quote.flightDuration}
           </span>
         </div>
@@ -125,11 +125,11 @@ export function QuoteRequestItem({ quote, onViewDetails }: QuoteRequestItemProps
       {/* Price */}
       <div className="flex-shrink-0 text-right min-w-[80px]">
         {quote.price ? (
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+          <span className="text-sm font-semibold text-foreground">
             {formatPrice(quote.price, quote.currency)}
           </span>
         ) : (
-          <span className="text-sm text-gray-400 dark:text-gray-500">--</span>
+          <span className="text-sm text-text-placeholder">--</span>
         )}
       </div>
 
