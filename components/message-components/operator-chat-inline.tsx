@@ -124,7 +124,7 @@ export function OperatorChatInline({
   return (
     <Card
       className={cn(
-        "border-l-4 border-l-sky-500 bg-sky-50/50 dark:bg-sky-950/20",
+        "border-l-4 border-l-sky-500",
         hasNewMessages && "ring-2 ring-sky-500/50",
         className
       )}
@@ -138,7 +138,7 @@ export function OperatorChatInline({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                <span className="font-semibold text-sm text-foreground">
                   {flightContext.operatorName}
                 </span>
                 {hasNewMessages && (
@@ -147,7 +147,7 @@ export function OperatorChatInline({
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {flightContext.aircraftType && (
                   <span className="flex items-center gap-1">
                     <Plane className="h-3 w-3" />
@@ -174,7 +174,7 @@ export function OperatorChatInline({
         </div>
 
         {/* Quote ID Reference */}
-        <div className="mb-3 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono text-gray-600 dark:text-gray-400 inline-block">
+        <div className="mb-3 px-2 py-1 bg-muted rounded text-xs font-mono text-muted-foreground inline-block">
           Quote: {flightContext.quoteId.substring(0, 12)}...
         </div>
 
@@ -186,26 +186,26 @@ export function OperatorChatInline({
               className={cn(
                 "rounded-lg p-3",
                 message.type === "RESPONSE"
-                  ? "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                  ? "bg-card border border-border"
                   : "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 ml-4"
               )}
             >
               <div className="flex items-center gap-2 mb-1">
                 {message.type === "RESPONSE" ? (
-                  <Building2 className="h-3 w-3 text-gray-500" />
+                  <Building2 className="h-3 w-3 text-muted-foreground" />
                 ) : (
                   <User className="h-3 w-3 text-blue-500" />
                 )}
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                <span className="text-xs font-medium text-muted-foreground">
                   {message.sender ||
                     (message.type === "RESPONSE" ? "Operator" : "You")}
                 </span>
-                <span className="text-xs text-gray-400 flex items-center gap-1">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {formatTimestamp(message.timestamp)}
                 </span>
               </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              <p className="text-sm text-foreground whitespace-pre-wrap">
                 {message.content}
               </p>
             </div>
@@ -234,7 +234,7 @@ export function OperatorChatInline({
         )}
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
           {onReply && (
             <Button
               variant="outline"
@@ -251,7 +251,7 @@ export function OperatorChatInline({
               variant="ghost"
               size="sm"
               onClick={() => onViewFullThread(flightContext.quoteId)}
-              className="text-xs text-gray-500"
+              className="text-xs text-muted-foreground"
             >
               <ExternalLink className="h-3 w-3 mr-1" />
               View Full Thread
@@ -328,7 +328,7 @@ export function OperatorChatsInline({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-sky-600" />
-          <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
+          <span className="font-medium text-sm text-foreground">
             Operator Messages
           </span>
           <Badge variant="secondary" className="text-xs">

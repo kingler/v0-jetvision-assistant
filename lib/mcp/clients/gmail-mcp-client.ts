@@ -39,6 +39,35 @@ export interface GmailSendEmailResult {
   labelIds: string[];
 }
 
+export interface GmailSearchEmailsParams {
+  query: string;
+  maxResults?: number;
+  from?: string;
+  to?: string;
+  subject?: string;
+  after?: string;
+  before?: string;
+  labelIds?: string[];
+}
+
+export interface GmailSearchResult {
+  id: string;
+  threadId: string;
+  from: string;
+  to: string[];
+  cc?: string[];
+  subject: string;
+  body: string;
+  snippet: string;
+  date: string;
+  labels: string[];
+  attachments?: {
+    filename: string;
+    mimeType: string;
+    size: number;
+  }[];
+}
+
 // ============================================================================
 // Client
 // ============================================================================
@@ -129,6 +158,40 @@ export async function sendEmail(
 }
 
 /**
+ * Search emails via the Gmail MCP server.
+ *
+ * @throws Error if the MCP server is unreachable or returns an error
+ */
+export async function searchEmails(
+  params: GmailSearchEmailsParams
+): Promise<GmailSearchResult[]> {
+  const client = await getClient();
+
+  const result = await client.callTool({
+    name: 'search_emails',
+    arguments: params as unknown as Record<string, unknown>,
+  });
+
+  // The MCP server returns JSON text in content[0].text
+  const content = result.content;
+  if (!Array.isArray(content) || content.length === 0) {
+    return [];
+  }
+
+  const firstContent = content[0];
+  if (firstContent.type !== 'text' || typeof firstContent.text !== 'string') {
+    return [];
+  }
+
+  if (result.isError) {
+    throw new Error(`Gmail MCP search_emails error: ${firstContent.text}`);
+  }
+
+  const parsed = JSON.parse(firstContent.text);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+/**
  * Gracefully shut down the MCP client and transport.
  * Safe to call multiple times.
  */
@@ -156,6 +219,7 @@ export async function disconnect(): Promise<void> {
 
 const gmailMCPClient = {
   sendEmail,
+  searchEmails,
   disconnect,
 };
 

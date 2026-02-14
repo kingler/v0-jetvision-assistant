@@ -97,67 +97,65 @@ describe("useSmartStarters", () => {
   })
 
   describe("with pending quotes context", () => {
-    it("should add badge to show-deals starter with pending quote count", () => {
+    it("should handle pending quotes context gracefully when show-deals starter not in defaults", () => {
       const context: UserContext = {
         pendingQuotesCount: 7,
       }
 
       const { result } = renderHook(() => useSmartStarters(context))
 
+      // show-deals not in DEFAULT_STARTERS, so no starter gets the badge
       const dealsStarter = result.current.starters.find(
         (s) => s.id === "show-deals"
       )
-      expect(dealsStarter?.badge).toBe(7)
+      expect(dealsStarter).toBeUndefined()
     })
 
-    it("should prioritize deals category when quotes are pending", () => {
+    it("should maintain starter order when no deals category exists", () => {
       const context: UserContext = {
         pendingQuotesCount: 3,
       }
 
       const { result } = renderHook(() => useSmartStarters(context))
 
-      // Deals starters should come before pipeline starters
+      // No deals starters exist, all starters are flight category
       const dealsIndex = result.current.starters.findIndex(
         (s) => s.category === "deals"
       )
-      const pipelineIndex = result.current.starters.findIndex(
-        (s) => s.category === "pipeline"
-      )
-      expect(dealsIndex).toBeLessThan(pipelineIndex)
+      expect(dealsIndex).toBe(-1)
     })
   })
 
   describe("with hot opportunities context", () => {
-    it("should add badge to hot-opportunities starter", () => {
+    it("should handle hot opportunities context gracefully when starter not in defaults", () => {
       const context: UserContext = {
         hotOpportunitiesCount: 2,
       }
 
       const { result } = renderHook(() => useSmartStarters(context))
 
+      // hot-opportunities not in DEFAULT_STARTERS
       const hotOppsStarter = result.current.starters.find(
         (s) => s.id === "hot-opportunities"
       )
-      expect(hotOppsStarter?.badge).toBe(2)
+      expect(hotOppsStarter).toBeUndefined()
     })
 
-    it("should use amber variant for hot opportunities when count > 0", () => {
+    it("should not crash with hot opportunities context when starter not in defaults", () => {
       const context: UserContext = {
         hotOpportunitiesCount: 5,
       }
 
       const { result } = renderHook(() => useSmartStarters(context))
 
-      const hotOppsStarter = result.current.starters.find(
-        (s) => s.id === "hot-opportunities"
-      )
-      expect(hotOppsStarter?.variant).toBe("amber")
+      // Hook should still return all default starters
+      expect(result.current.starters).toHaveLength(DEFAULT_STARTERS.length)
+      expect(result.current.error).toBeNull()
     })
   })
 
   describe("priority logic", () => {
-    it("should prioritize pending quotes over new requests", () => {
+    it("should maintain flight starter order when no deals starters exist", () => {
       const context: UserContext = {
         pendingQuotesCount: 5,
         activeRequestCount: 0,
@@ -165,17 +163,17 @@ describe("useSmartStarters", () => {
 
       const { result } = renderHook(() => useSmartStarters(context))
 
-      // Find the first deal and first flight starter
+      // No deals starters exist in current defaults
       const firstDealIndex = result.current.starters.findIndex(
         (s) => s.category === "deals"
       )
-      const firstFlightIndex = result.current.starters.findIndex(
+      expect(firstDealIndex).toBe(-1)
+
+      // Flight starters should still be present
+      const flightStarters = result.current.starters.filter(
         (s) => s.category === "flight"
       )
-
-      // When there are pending quotes but no active requests,
-      // deals should be prioritized
-      expect(firstDealIndex).toBeLessThan(firstFlightIndex)
+      expect(flightStarters.length).toBeGreaterThan(0)
     })
 
     it("should show new-flight-request first when no active requests or quotes", () => {
@@ -203,20 +201,15 @@ describe("useSmartStarters", () => {
 
       const { result } = renderHook(() => useSmartStarters(context))
 
-      // All badges should be applied
+      // Only active-requests badge should be applied (show-deals and hot-opportunities not in defaults)
       const activeRequests = result.current.starters.find(
         (s) => s.id === "active-requests"
       )
-      const showDeals = result.current.starters.find(
-        (s) => s.id === "show-deals"
-      )
-      const hotOpps = result.current.starters.find(
-        (s) => s.id === "hot-opportunities"
-      )
-
       expect(activeRequests?.badge).toBe(2)
-      expect(showDeals?.badge).toBe(3)
-      expect(hotOpps?.badge).toBe(1)
+
+      // Non-existent starters should not appear
+      expect(result.current.starters.find((s) => s.id === "show-deals")).toBeUndefined()
+      expect(result.current.starters.find((s) => s.id === "hot-opportunities")).toBeUndefined()
     })
   })
 

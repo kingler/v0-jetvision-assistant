@@ -33,7 +33,12 @@ const workflowSteps = {
   2: { title: "Searching Aircraft", icon: Clock },
   3: { title: "Requesting Quotes", icon: Loader2 },
   4: { title: "Analyzing Options", icon: Clock },
-  5: { title: "Generating Proposal", icon: FileText },
+  5: { title: "Proposal Ready", icon: FileText },
+  6: { title: "Proposal Sent", icon: FileText },
+  7: { title: "Contract Ready", icon: FileText },
+  8: { title: "Contract Sent", icon: FileText },
+  9: { title: "Payment Pending", icon: Clock },
+  10: { title: "Closed Won", icon: CheckCircle },
 }
 
 interface FlightRequestCardProps {

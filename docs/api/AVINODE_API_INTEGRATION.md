@@ -1,7 +1,7 @@
 # Avinode API Integration Guide
 
-**Version**: 2.0.0
-**Updated**: December 2025
+**Version**: 2.1.0
+**Updated**: February 2026
 **Status**: Production Ready
 **Related Issues**: ONEK-120, ONEK-116, ONEK-117, ONEK-118, ONEK-119
 
@@ -101,46 +101,126 @@ AVINODE_API_KEY=mock_key npm run start
 
 ### 1. create_trip
 
-Creates a new trip in Avinode and returns a deep link for manual operator selection.
+Creates a new trip in Avinode and returns a deep link for manual operator selection. Supports one-way, round-trip, and multi-city (multi-leg) trips.
 
 **Input Schema:**
 
+The tool accepts two input modes: a **`segments[]` array** (preferred for multi-city) or **legacy flat params** (backward-compatible for one-way/round-trip). If `segments[]` is provided, it takes priority over flat params.
+
 ```typescript
-interface CreateTripParams {
+interface TripSegment {
   departure_airport: string    // ICAO code (e.g., "KTEB")
-  arrival_airport: string      // ICAO code (e.g., "KLAX")
+  arrival_airport: string      // ICAO code (e.g., "EGGW")
   departure_date: string       // YYYY-MM-DD format
+  departure_time?: string      // HH:MM format (default: "10:00")
+  passengers: number           // Passengers for this segment
+}
+
+interface CreateTripParams {
+  // ---- Multi-segment mode (preferred) ----
+  segments?: TripSegment[]     // Array of flight segments
+
+  // ---- Legacy flat mode (backward-compatible) ----
+  departure_airport?: string   // ICAO code (required in legacy mode)
+  arrival_airport?: string     // ICAO code (required in legacy mode)
+  departure_date?: string      // YYYY-MM-DD (required in legacy mode)
   departure_time?: string      // HH:MM format (optional)
-  passengers: number           // Number of passengers
-  aircraft_preferences?: string[] // Optional aircraft type filters
+  passengers?: number          // Number of passengers (required in legacy mode)
+  return_date?: string         // YYYY-MM-DD — adds return segment for round-trip
+  return_time?: string         // HH:MM format for return segment
+  return_passengers?: number   // Passengers on return (defaults to outbound)
+
+  // ---- Common params ----
+  aircraft_category?: 'light' | 'midsize' | 'heavy' | 'ultra-long-range'
+  special_requirements?: string
+  client_reference?: string    // Internal tracking ID
 }
 ```
+
+**Trip Type Determination:**
+
+| Segment Count | Trip Type | Avinode Deep Link Tab |
+|---------------|-----------|----------------------|
+| 1 | `single_leg` | "One way" |
+| 2 | `round_trip` | "Round trip" |
+| 3+ | `multi_city` | "Multi leg" |
 
 **Response:**
 
 ```typescript
+type TripType = 'single_leg' | 'round_trip' | 'multi_city'
+
 interface CreateTripResponse {
-  trip_id: string      // e.g., "trp456789"
-  deep_link: string    // e.g., "https://www.avinode.com/web/trips/trp456789"
-  status: string       // "created" | "pending"
-  created_at: string   // ISO 8601 timestamp
+  trip_id: string              // e.g., "trp456789"
+  deep_link: string            // Avinode search deep link (from API actions.searchInAvinode.href)
+  search_link?: string         // Same as deep_link (alias)
+  view_link?: string           // Avinode view link (from API actions.viewInAvinode.href)
+  cancel_link?: string         // Cancel trip link (from API actions.cancel.href)
+  status: 'created'
+  created_at: string           // ISO 8601 timestamp
+  trip_type: TripType          // Derived from segment count
+  segment_count: number        // Number of segments sent to Avinode
+  segments: TripSegment[]      // All segments (normalized)
+  passengers: number           // Passengers from first segment (backward-compat)
+  route?: {                    // Legacy route format (one-way/round-trip only)
+    departure: { airport: string; date: string; time?: string }
+    arrival: { airport: string }
+    return?: { date: string; time?: string }
+  }
 }
 ```
 
-**Example:**
+**Deep Link Behavior:**
+
+The deep link is returned by the Avinode API (not constructed by Jetvision). It opens the Avinode Marketplace search UI pre-filled with the trip's itinerary. The tab shown matches the trip type:
+
+- **1 segment** → Opens on "One way" tab
+- **2 segments (round-trip)** → Opens on "Round trip" tab
+- **3+ segments (multi-city)** → Opens on "Multi leg" tab with all legs prefilled
+
+The `sourcing: true` flag is set on all requests, which is required for search prefill functionality.
+
+**Examples:**
 
 ```typescript
-const result = await mcpClient.callTool('avinode', {
+// One-way (legacy flat params)
+const oneWay = await mcpClient.callTool('avinode', {
   tool: 'create_trip',
   arguments: {
     departure_airport: 'KTEB',
     arrival_airport: 'KLAX',
-    departure_date: '2025-12-20',
+    departure_date: '2026-03-20',
     departure_time: '09:00',
     passengers: 8,
   },
 })
-// Returns: { trip_id: "trp456789", deep_link: "https://...", ... }
+// Returns: { trip_type: "single_leg", segment_count: 1, ... }
+
+// Round-trip (legacy flat params with return_date)
+const roundTrip = await mcpClient.callTool('avinode', {
+  tool: 'create_trip',
+  arguments: {
+    departure_airport: 'KTEB',
+    arrival_airport: 'KVNY',
+    departure_date: '2026-03-20',
+    return_date: '2026-03-25',
+    passengers: 6,
+  },
+})
+// Returns: { trip_type: "round_trip", segment_count: 2, ... }
+
+// Multi-city (segments array)
+const multiCity = await mcpClient.callTool('avinode', {
+  tool: 'create_trip',
+  arguments: {
+    segments: [
+      { departure_airport: 'KTEB', arrival_airport: 'EGGW', departure_date: '2026-03-20', passengers: 4 },
+      { departure_airport: 'EGGW', arrival_airport: 'LFPB', departure_date: '2026-03-22', passengers: 4 },
+      { departure_airport: 'LFPB', arrival_airport: 'KTEB', departure_date: '2026-03-25', passengers: 4 },
+    ],
+  },
+})
+// Returns: { trip_type: "multi_city", segment_count: 3, ... }
 ```
 
 ### 2. get_rfq
@@ -844,5 +924,6 @@ logger.error('Webhook processing failed', {
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.1.0 | Feb 2026 | Document `segments[]` param, multi-leg/round-trip support, deep link tab behavior (ONEK-227) |
 | 2.0.0 | Dec 2025 | Deep link workflow, 8 MCP tools, webhook integration |
 | 1.0.0 | Oct 2025 | Initial automated workflow |

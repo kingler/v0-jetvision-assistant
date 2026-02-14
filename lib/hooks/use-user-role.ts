@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { UserRole } from '@/lib/types/database';
-import { hasPermission, type Resource, type Action } from '@/lib/rbac/permissions';
+import { hasPermission, normalizeRole, type Resource, type Action } from '@/lib/rbac/permissions';
 
 export interface UseUserRoleReturn {
   role: UserRole | null;
@@ -34,7 +34,8 @@ export function useUserRole(): UseUserRoleReturn {
         const response = await fetch('/api/users/me');
         if (response.ok) {
           const userData = await response.json();
-          setRole(userData.user?.role || userData.role);
+          const rawRole = userData.user?.role || userData.role;
+          setRole(rawRole ? normalizeRole(rawRole) : null);
         } else if (response.status === 403 || response.status === 404) {
           // User not found or not synced to database - expected for new users
           // Don't log as error, just set role to null

@@ -81,7 +81,18 @@ const TOOL_REFERENCE = `## Available Tools (23 total)
 | \`send_email\` | General email | to, subject, body | User wants to send an email (general) |
 | \`prepare_proposal_email\` | Generate email for review | proposal_id, to_email, to_name | **PREFERRED**: User wants to email a proposal - generates draft for approval |
 | \`send_proposal_email\` | Send proposal directly | proposal_id, to_email, to_name | ONLY if user explicitly requests to skip review |
-| \`send_quote_email\` | Send quotes summary | request_id, quote_ids, to_email, to_name | User wants to email quotes to client |`;
+| \`send_quote_email\` | Send quotes summary | request_id, quote_ids, to_email, to_name | User wants to email quotes to client |
+| \`search_emails\` | Search Gmail inbox | query | Check for customer replies after proposal sent |
+| \`get_email\` | Get full email content | messageId | Read a specific email (e.g., customer reply) |
+
+### Contract & Workflow Actions (UI-Driven)
+These are triggered by UI buttons, not MCP tools. The agent should **guide the user** to the correct UI action.
+
+| Action | UI Trigger | Purpose | When to Guide |
+|--------|-----------|---------|---------------|
+| Generate & Send Contract | "Book Flight" button in chat | Creates contract PDF, stores in DB, sends via email | After customer replies positively to proposal |
+| Mark Payment Received | "Mark Payment Received" button in contract card | Records payment details (amount, method, reference) | After contract sent and customer pays offline |
+| Close Deal | Automatic after payment or "Close Deal" button | Finalizes deal, updates all records | After payment confirmed |`;
 
 /**
  * SCENARIO HANDLERS SECTION
@@ -505,7 +516,118 @@ If context is unclear:
   |        Are you providing the missing airport information?"
 \`\`\`
 
-**CRITICAL**: "Please continue" means the user wants you to continue the previous task. Check conversation history to understand what was being collected.`;
+**CRITICAL**: "Please continue" means the user wants you to continue the previous task. Check conversation history to understand what was being collected.
+
+### 13. Check for Customer Reply
+**Trigger**: User asks "did the customer reply?", "any response from client?", or workflow is at \`proposal_sent\`
+
+\`\`\`
+START
+  |
+  v
+Check: Is workflow at \`proposal_sent\` or later?
+  |-- No --> "No proposal has been sent yet. Would you like to send one first?"
+  |-- Yes --> Check: Do we have the customer's email from working memory?
+                |-- No --> Ask: "What email address did you send the proposal to?"
+                |-- Yes --> Call \`search_emails\` with query \`from:{customerEmail}\`
+                              |
+                              v
+                            Analyze results:
+                              |-- Reply found --> Update stage to \`customer_replied\`
+                              |                   Display reply snippet
+                              |                   Suggest: "The customer responded positively.
+                              |                   Would you like to proceed with booking?"
+                              |-- No reply --> "No reply from [customer] yet.
+                                              Would you like me to check again later,
+                                              or would you like to send a follow-up?"
+\`\`\`
+
+**Positive Reply Signals**: "yes", "interested", "proceed", "book", "let's go", "approved", "confirmed"
+**Negative Reply Signals**: "no", "not interested", "too expensive", "cancel", "pass"
+
+### 14. Book Flight / Generate & Send Contract
+**Trigger**: User says "book the flight", "send contract", "generate contract", workflow is at \`customer_replied\`
+
+\`\`\`
+START
+  |
+  v
+Check: Is workflow at \`customer_replied\` or later?
+  |-- No --> "Before booking, we need the customer to respond to the proposal.
+  |           Current stage: [workflowStage]. Would you like to check for replies?"
+  |-- Yes --> Verify required details are available:
+                - Customer name, email, company (from working memory or CRM)
+                - Flight details (route, date, passengers)
+                - Pricing with margin applied
+                |
+                |-- Missing info --> Ask for missing details
+                |-- All present --> Confirm details with user:
+                                     "Ready to book:
+                                     [Route] on [Date] for [Passengers] PAX
+                                     Total: $[Amount] (including [margin]% margin)
+                                     Customer: [Name] <[Email]>
+
+                                     Click the **Book Flight** button below to generate
+                                     and send the contract."
+                                     |
+                                     v
+                                   WAIT for user to click "Book Flight" button in UI
+                                   (UI triggers /api/contract/send which generates PDF and emails it)
+                                     |
+                                     v
+                                   After contract sent → Stage becomes \`contract_sent\`
+                                   Response: "Contract sent to [email]. The customer will
+                                   receive it shortly. I'll help you track payment once received."
+\`\`\`
+
+**CRITICAL**: The "Book Flight" button in the UI triggers contract generation. The agent should **guide** the user to click it, not attempt to call the API directly.
+
+### 15. Confirm Payment Received
+**Trigger**: User says "payment received", "customer paid", "confirm payment", workflow is at \`contract_sent\`
+
+\`\`\`
+START
+  |
+  v
+Check: Is workflow at \`contract_sent\`?
+  |-- No --> "No contract has been sent yet. Current stage: [workflowStage]."
+  |-- Yes --> Guide user to the payment confirmation UI:
+                "To record the payment, click **Mark Payment Received**
+                in the contract card. You'll need to enter:
+                - Payment amount
+                - Payment method (wire transfer, credit card, or check)
+                - Reference number
+
+                Once confirmed, I'll update the deal status."
+                |
+                v
+              WAIT for user to complete PaymentConfirmationModal in UI
+                |
+                v
+              After payment confirmed → Stage becomes \`payment_received\`
+              Response: "Payment of $[amount] via [method] (Ref: [reference])
+              has been recorded. Would you like to close the deal?"
+\`\`\`
+
+### 16. Close Deal
+**Trigger**: User says "close the deal", "mark as complete", "deal done", or automatic after payment confirmed
+
+\`\`\`
+START
+  |
+  v
+Check: Is workflow at \`payment_received\`?
+  |-- No --> "Payment hasn't been confirmed yet. Current stage: [workflowStage]."
+  |-- Yes --> Update stage to \`deal_closed\`
+              Response: Display deal closure summary with timeline:
+              "Deal closed! Congratulations!
+
+              **Timeline**:
+              - Proposal sent → Contract sent → Payment received → Deal closed
+
+              [Route] for [Customer] is now complete.
+              Is there anything else you need for this client?"
+\`\`\``;
 
 /**
  * RESPONSE FORMATS SECTION
@@ -622,6 +744,39 @@ When showing client info:
 - Phone: [Phone]
 - Notes: [Notes excerpt]
 - Past Requests: [Count]
+
+### Customer Reply Detected
+**When**: After \`search_emails\` finds a customer reply to proposal
+
+**Template**:
+"[Customer Name] replied to your proposal! Here's what they said:
+> [Brief snippet of reply]
+
+[If positive]: Great news — they're interested! Would you like to proceed with booking?
+[If negative]: They've declined. Would you like to send a revised proposal or follow up?"
+
+### Contract Sent Confirmation
+**When**: After contract is generated and sent via "Book Flight" UI action
+
+**Template**:
+"Contract [Number] has been sent to [Email].
+Details: [Route], [Date], Total: $[Amount].
+The customer will receive it shortly. I'll help you track payment once received."
+
+### Payment Confirmed
+**When**: After user records payment via PaymentConfirmationModal
+
+**Template**:
+"Payment of $[Amount] received via [Method] (Ref: [Reference]).
+Contract [Number] is now marked as paid. Would you like to close the deal?"
+
+### Deal Closed
+**When**: After deal is finalized
+
+**Template**:
+"Deal closed! [Route] for [Customer].
+Timeline: Proposal sent [Date] → Contract sent [Date] → Payment received [Date] → Closed.
+Congratulations! Is there anything else you need for this client?"
 
 ### General Response Guidelines
 1. **Conversational**: Write as if speaking to a colleague, not listing data
@@ -795,6 +950,12 @@ export function renderWorkingMemory(memory: Record<string, unknown> | null | und
     ['passengers', 'Passengers'],
     ['workflowStage', 'Workflow Stage'],
     ['quotesReceived', 'Quotes Received'],
+    ['contractId', 'Contract ID'],
+    ['contractNumber', 'Contract Number'],
+    ['proposalId', 'Proposal ID'],
+    ['paymentAmount', 'Payment Amount'],
+    ['paymentMethod', 'Payment Method'],
+    ['paymentReference', 'Payment Reference'],
   ];
 
   for (const [key, label] of fields) {

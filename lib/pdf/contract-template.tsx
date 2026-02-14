@@ -2,10 +2,11 @@
  * Contract PDF Template
  *
  * React PDF template for generating charter flight service agreements.
- * Matches the Jetvision contract format with 13 pages:
+ * Matches the Jetvision contract format with 14 pages:
  * - Page 1: Quote summary (client, aircraft, amenities, itinerary, pricing)
  * - Pages 2-12: Terms and conditions (12 sections)
- * - Page 13: Credit card authorization form
+ * - Page 13: Payment instructions (wire transfer, check)
+ * - Page 14: Credit card authorization form
  *
  * @see https://react-pdf.org/
  * @see docs/plans/2026-01-28-book-flight-contract-generation.md
@@ -373,6 +374,50 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
 
+  // Payment Instructions styles
+  paymentInstructionsTitle: {
+    fontSize: 14,
+    fontFamily: 'Helvetica-Bold',
+    textAlign: 'center',
+    marginBottom: 20,
+    textTransform: 'uppercase' as const,
+  },
+  paymentSectionTitle: {
+    fontSize: 11,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 10,
+    marginTop: 16,
+    textTransform: 'uppercase' as const,
+    color: '#333333',
+  },
+  paymentInfoRow: {
+    flexDirection: 'row' as const,
+    marginBottom: 8,
+  },
+  paymentInfoLabel: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    width: 140,
+    color: '#555555',
+  },
+  paymentInfoValue: {
+    fontSize: 9,
+    flex: 1,
+    color: '#000000',
+  },
+  paymentDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#cccccc',
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  paymentNote: {
+    fontSize: 8,
+    color: '#666666',
+    marginTop: 12,
+    fontStyle: 'italic' as const,
+  },
+
   // Footer styles
   footer: {
     position: 'absolute',
@@ -587,7 +632,7 @@ function CoverPage({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 1 of 13</Text>
+        <Text>Page 1 of 14</Text>
       </View>
     </Page>
   );
@@ -689,7 +734,7 @@ function TermsPage1({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 2 of 13</Text>
+        <Text>Page 2 of 14</Text>
       </View>
     </Page>
   );
@@ -799,7 +844,7 @@ function TermsPage2({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 3 of 13</Text>
+        <Text>Page 3 of 14</Text>
       </View>
     </Page>
   );
@@ -897,7 +942,7 @@ function TermsPage3({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 4 of 13</Text>
+        <Text>Page 4 of 14</Text>
       </View>
     </Page>
   );
@@ -1012,7 +1057,7 @@ function TermsPage4({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 5 of 13</Text>
+        <Text>Page 5 of 14</Text>
       </View>
     </Page>
   );
@@ -1119,7 +1164,7 @@ function TermsPage5({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 6 of 13</Text>
+        <Text>Page 6 of 14</Text>
       </View>
     </Page>
   );
@@ -1232,7 +1277,7 @@ function TermsPage6({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 7 of 13</Text>
+        <Text>Page 7 of 14</Text>
       </View>
     </Page>
   );
@@ -1326,7 +1371,7 @@ function TermsPage7({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 8 of 13</Text>
+        <Text>Page 8 of 14</Text>
       </View>
     </Page>
   );
@@ -1420,7 +1465,7 @@ function TermsPage8({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 9 of 13</Text>
+        <Text>Page 9 of 14</Text>
       </View>
     </Page>
   );
@@ -1530,7 +1575,7 @@ function TermsPage9({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 10 of 13</Text>
+        <Text>Page 10 of 14</Text>
       </View>
     </Page>
   );
@@ -1626,7 +1671,7 @@ function TermsPage10({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 11 of 13</Text>
+        <Text>Page 11 of 14</Text>
       </View>
     </Page>
   );
@@ -1755,7 +1800,110 @@ function TermsPage11({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 12 of 13</Text>
+        <Text>Page 12 of 14</Text>
+      </View>
+    </Page>
+  );
+}
+
+// =============================================================================
+// PAYMENT INSTRUCTIONS PAGE
+// =============================================================================
+
+function PaymentInstructionsPage({ data }: { data: ContractData }) {
+  const logoPath = path.join(process.cwd(), 'public', 'images', 'jetvision-logo.png');
+  const totalAmount = data.pricing.totalAmount || 0;
+  const currency = data.pricing.currency || 'USD';
+
+  return (
+    <Page size="LETTER" style={[styles.page, styles.pageWithFooter]}>
+      {/* Header with logo */}
+      <View style={[styles.header, { justifyContent: 'flex-end', marginBottom: 30 }]}>
+        <Image src={logoPath} style={[styles.logo, { width: 100, height: 45 }]} />
+      </View>
+
+      <Text style={styles.paymentInstructionsTitle}>PAYMENT INSTRUCTIONS</Text>
+
+      <Text style={styles.ccAuthIntro}>
+        Please remit payment using one of the methods below. Reference your contract number
+        on all payments to ensure proper crediting.
+      </Text>
+
+      {/* Wire Transfer Section */}
+      <Text style={styles.paymentSectionTitle}>Wire Transfer</Text>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Bank Name:</Text>
+        <Text style={styles.paymentInfoValue}>[Bank Name]</Text>
+      </View>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Routing Number (ABA):</Text>
+        <Text style={styles.paymentInfoValue}>[Routing Number]</Text>
+      </View>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Account Number:</Text>
+        <Text style={styles.paymentInfoValue}>[Account Number]</Text>
+      </View>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Account Name:</Text>
+        <Text style={styles.paymentInfoValue}>Jetvision LLC</Text>
+      </View>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>SWIFT Code (Intl):</Text>
+        <Text style={styles.paymentInfoValue}>[SWIFT Code]</Text>
+      </View>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Reference:</Text>
+        <Text style={styles.paymentInfoValue}>Contract #{data.contractNumber}</Text>
+      </View>
+
+      <View style={styles.paymentDivider} />
+
+      {/* Check Payment Section */}
+      <Text style={styles.paymentSectionTitle}>Check Payment</Text>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Payable To:</Text>
+        <Text style={styles.paymentInfoValue}>Jetvision LLC</Text>
+      </View>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Mailing Address:</Text>
+        <Text style={styles.paymentInfoValue}>[Company Address]</Text>
+      </View>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Memo / Reference:</Text>
+        <Text style={styles.paymentInfoValue}>Contract #{data.contractNumber}</Text>
+      </View>
+
+      <View style={styles.paymentDivider} />
+
+      {/* Payment Amount Due */}
+      <Text style={styles.paymentSectionTitle}>Payment Amount Due</Text>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Total Amount:</Text>
+        <Text style={[styles.paymentInfoValue, { fontFamily: 'Helvetica-Bold', fontSize: 12 }]}>
+          {currency} {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </Text>
+      </View>
+      <View style={styles.paymentInfoRow}>
+        <Text style={styles.paymentInfoLabel}>Contract Reference:</Text>
+        <Text style={styles.paymentInfoValue}>{data.contractNumber}</Text>
+      </View>
+      {data.quoteValidUntil && (
+        <View style={styles.paymentInfoRow}>
+          <Text style={styles.paymentInfoLabel}>Payment Due By:</Text>
+          <Text style={styles.paymentInfoValue}>{data.quoteValidUntil}</Text>
+        </View>
+      )}
+
+      <Text style={styles.paymentNote}>
+        All payments must be received in full before the scheduled departure. For questions
+        regarding payment, please contact your Jetvision representative.
+      </Text>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text>Reference #{data.contractNumber}</Text>
+        <Text>Jetvision LLC</Text>
+        <Text>Page 13 of 14</Text>
       </View>
     </Page>
   );
@@ -1877,7 +2025,7 @@ function CreditCardAuthPage({ data }: { data: ContractData }) {
       <View style={styles.footer}>
         <Text>Reference #{data.contractNumber}</Text>
         <Text>Jetvision LLC</Text>
-        <Text>Page 13 of 13</Text>
+        <Text>Page 14 of 14</Text>
       </View>
     </Page>
   );
@@ -1906,7 +2054,10 @@ export function ContractDocument({ data }: { data: ContractData }) {
       <TermsPage10 data={data} />
       <TermsPage11 data={data} />
 
-      {/* Page 13: Credit Card Authorization */}
+      {/* Page 13: Payment Instructions */}
+      <PaymentInstructionsPage data={data} />
+
+      {/* Page 14: Credit Card Authorization */}
       <CreditCardAuthPage data={data} />
     </Document>
   );

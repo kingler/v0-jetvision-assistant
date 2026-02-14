@@ -142,7 +142,7 @@ export function PipelineDashboard({
             return (
               <div
                 key={stat.label}
-                className="flex flex-col items-center p-3 rounded-lg border bg-card"
+                className="flex flex-col items-center p-3 rounded-lg border"
               >
                 <div className={`p-2 rounded-full ${stat.bgColor} mb-2`}>
                   <Icon className={`h-4 w-4 ${stat.color}`} />
@@ -172,7 +172,7 @@ export function PipelineDashboard({
                 return (
                   <div
                     key={request.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-primary/50 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex items-center gap-1 font-medium">

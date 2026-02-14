@@ -18,7 +18,7 @@ vi.mock('next/headers', () => ({
   headers: vi.fn(),
 }));
 
-// Mock Supabase admin client (used by the route)
+// Mock Supabase Admin (route uses supabaseAdmin exclusively)
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
     from: vi.fn(),

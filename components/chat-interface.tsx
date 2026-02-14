@@ -16,7 +16,7 @@ import React from "react"
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Loader2, Plane, Eye } from "lucide-react"
+import { Send, Loader2, Plane } from "lucide-react"
 import type { ChatSession } from "./chat-sidebar"
 import { createSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -29,6 +29,7 @@ import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./q
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
 import { FlightSearchProgress } from "./avinode/flight-search-progress"
 import { BookFlightModal } from "./avinode/book-flight-modal"
+import { PaymentConfirmationModal } from "./contract/payment-confirmation-modal"
 import { CustomerSelectionDialog, type ClientProfile } from "./customer-selection-dialog"
 import type { QuoteRequest } from "./chat/quote-request-item"
 import type { RFQFlight } from "./avinode/rfq-flight-card"
@@ -70,6 +71,9 @@ import {
   type PipelineData,
 } from "@/lib/chat"
 
+// Skeleton loading
+import { ChatLoadingSkeleton } from "@/components/chat/chat-loading-skeleton"
+
 // Flight request parser utility
 import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
 import { formatDate, formatMessageTimestamp, safeParseTimestamp } from "@/lib/utils/format"
@@ -100,6 +104,8 @@ interface ChatInterfaceProps {
   isProcessing: boolean
   onProcessingChange: (processing: boolean) => void
   onUpdateChat: (chatId: string, updates: Partial<ChatSession>) => void
+  onArchiveChat?: (chatId: string) => void
+  isLoading?: boolean
 }
 
 export function ChatInterface({
@@ -107,6 +113,7 @@ export function ChatInterface({
   isProcessing,
   onProcessingChange,
   onUpdateChat,
+  isLoading,
 }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -198,6 +205,16 @@ export function ChatInterface({
   const [selectedBookingCustomer, setSelectedBookingCustomer] = useState<{ name: string; email: string; company?: string; phone?: string } | null>(null)
   const [isBookingCustomerDialogOpen, setIsBookingCustomerDialogOpen] = useState(false)
 
+  // Customer reply detection for gating Book Flight button
+  const [customerReplied, setCustomerReplied] = useState(false)
+
+  // Payment confirmation modal state
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [paymentContractData, setPaymentContractData] = useState<{
+    contractId: string; contractNumber: string; totalAmount: number; currency: string;
+    customerName?: string; flightRoute?: string
+  } | null>(null)
+
   // Sync tripIdSubmitted with activeChat
   useEffect(() => {
     if (activeChat.tripIdSubmitted !== undefined) {
@@ -207,6 +224,34 @@ export function ChatInterface({
 
   // Parse route to get airport info using extracted utility
   const routeParts = extractRouteParts(activeChat.route)
+
+  // Auto-detect customer reply from chat messages
+  useEffect(() => {
+    if (customerReplied) return; // Already detected
+
+    const messages = activeChat.messages || [];
+    for (const msg of messages) {
+      if (msg.type === 'user') {
+        const content = (msg.content || '').toLowerCase();
+        if (content.includes('customer replied') || content.includes('client replied') || content.includes('customer responded')) {
+          setCustomerReplied(true);
+          return;
+        }
+      }
+      // Also set if we're past contract stage
+      if (msg.showContractSentConfirmation || msg.showPaymentConfirmation || msg.showClosedWon) {
+        setCustomerReplied(true);
+        return;
+      }
+    }
+  }, [activeChat.messages, customerReplied])
+
+  // Determine if Book Flight should be gated (proposal sent but no customer reply yet)
+  const hasProposalSent = useMemo(() => {
+    return (activeChat.messages || []).some(m => m.showProposalSentConfirmation || m.proposalSentData);
+  }, [activeChat.messages]);
+
+  const isBookFlightGated = hasProposalSent && !customerReplied;
 
   /**
    * Show FlightSearchProgress ONLY when a trip has been successfully created.
@@ -426,6 +471,7 @@ export function ChatInterface({
       !!activeChat.tripId && // Must have tripId
       activeChat.id !== autoLoadedRfqsForChatIdRef.current && // Haven't already loaded for this chat
       !isTripIdLoading && // Not currently loading
+      !isLoading && // Prevent race with handleSelectChat loading
       (!hasRfqFlights || !hasRecentFetch || !activeChat.tripIdSubmitted) && // No RFQs OR not fetched recently OR not submitted
       !!handleTripIdSubmit && // Handler available
       !isTripJustCreated // Not within grace period after trip creation
@@ -469,7 +515,7 @@ export function ChatInterface({
       autoLoadedRfqsForChatIdRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChat.tripId, activeChat.id, activeChat.tripIdSubmitted, activeChat.rfqsLastFetchedAt, rfqFlights?.length, isTripIdLoading])
+  }, [activeChat.tripId, activeChat.id, activeChat.tripIdSubmitted, activeChat.rfqsLastFetchedAt, rfqFlights?.length, isTripIdLoading, isLoading])
 
   /**
    * Handle webhook events from Supabase realtime
@@ -1231,7 +1277,7 @@ export function ChatInterface({
       if (result.rfqData?.rfqs && result.rfqData.rfqs.length > 0 && newRfqFlights.length === 0) {
         console.error('[ChatInterface] ⚠️ RFQs exist but no flights were extracted:', {
           rfqs_count: result.rfqData.rfqs.length,
-          rfq_ids: result.rfqData.rfqs.map((r: any) => r.rfq_id || r.id),
+          rfq_ids: result.rfqData.rfqs.map((r: { rfq_id?: string; id?: string }) => r.rfq_id || r.id),
           has_flights: !!(result.rfqData?.flights),
           flights_count: result.rfqData?.flights?.length || 0,
           message: result.rfqData?.message,
@@ -1328,13 +1374,6 @@ export function ChatInterface({
       e.preventDefault()
       handleSendMessage()
     }
-  }
-
-  /**
-   * Scroll to workflow progress section
-   */
-  const handleViewWorkflow = () => {
-    workflowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   /**
@@ -2071,6 +2110,114 @@ export function ChatInterface({
   }, [activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat])
 
   /**
+   * Handle "Mark Payment Received" button click on a contract card
+   */
+  const handleMarkPayment = useCallback((contractId: string, contractData: { contractNumber: string; totalAmount: number; currency: string; customerName?: string; flightRoute?: string }) => {
+    console.log('[ChatInterface] Mark payment:', { contractId, contractData })
+    setPaymentContractData({
+      contractId,
+      contractNumber: contractData.contractNumber,
+      totalAmount: contractData.totalAmount,
+      currency: contractData.currency,
+      customerName: contractData.customerName,
+      flightRoute: contractData.flightRoute,
+    })
+    setIsPaymentModalOpen(true)
+  }, [])
+
+  /**
+   * Handle payment confirmation - calls API and appends messages to chat
+   */
+  const handlePaymentConfirm = useCallback(async (paymentData: {
+    paymentAmount: number; paymentMethod: string; paymentReference: string
+  }) => {
+    if (!paymentContractData) return
+
+    // Derive requestId and contract data BEFORE the API call so server can persist
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const requestIdForSave = (activeChat.requestId && uuidRe.test(activeChat.requestId))
+      ? activeChat.requestId
+      : (activeChat.conversationId && uuidRe.test(activeChat.conversationId))
+        ? activeChat.conversationId
+        : (activeChat.id && uuidRe.test(activeChat.id))
+          ? activeChat.id
+          : undefined
+
+    // Find contract message data for deal closed card
+    const contractMsg = activeChat.messages?.find(m => m.contractSentData?.contractId === paymentContractData.contractId)
+    const contractData = contractMsg?.contractSentData
+
+    const response = await fetch(`/api/contract/${paymentContractData.contractId}/payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payment_reference: paymentData.paymentReference,
+        payment_amount: paymentData.paymentAmount,
+        payment_method: paymentData.paymentMethod,
+        payment_date: new Date().toISOString(),
+        markComplete: true,
+        requestId: requestIdForSave,
+        customerName: paymentContractData.customerName || contractData?.customerName || '',
+        flightRoute: paymentContractData.flightRoute || contractData?.flightRoute || '',
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to record payment' }))
+      throw new Error(errorData.error || 'Failed to record payment')
+    }
+
+    const paidAt = new Date().toISOString()
+
+    // Create payment confirmation message
+    const paymentMessage = {
+      id: `msg-payment-${Date.now()}`,
+      type: 'agent' as const,
+      content: `Payment of ${paymentContractData.currency} ${paymentData.paymentAmount.toLocaleString()} received for contract ${paymentContractData.contractNumber}.`,
+      timestamp: new Date(),
+      showPaymentConfirmation: true,
+      paymentConfirmationData: {
+        contractId: paymentContractData.contractId,
+        contractNumber: paymentContractData.contractNumber,
+        paymentAmount: paymentData.paymentAmount,
+        paymentMethod: paymentData.paymentMethod,
+        paymentReference: paymentData.paymentReference,
+        paidAt,
+        currency: paymentContractData.currency,
+      },
+    }
+
+    // Create deal closed message
+    const closedMessage = {
+      id: `msg-closed-${Date.now()}`,
+      type: 'agent' as const,
+      content: `Deal closed! Contract ${paymentContractData.contractNumber} is complete.`,
+      timestamp: new Date(),
+      showClosedWon: true,
+      closedWonData: {
+        contractNumber: paymentContractData.contractNumber,
+        customerName: paymentContractData.customerName || contractData?.customerName || '',
+        flightRoute: paymentContractData.flightRoute || contractData?.flightRoute || '',
+        dealValue: paymentData.paymentAmount,
+        currency: paymentContractData.currency,
+        paymentReceivedAt: paidAt,
+        contractSentAt: contractMsg?.timestamp instanceof Date
+          ? contractMsg.timestamp.toISOString()
+          : typeof contractMsg?.timestamp === 'string' ? contractMsg.timestamp : undefined,
+      },
+    }
+
+    // Append both messages to chat (server already persisted to DB)
+    onUpdateChat(activeChat.id, {
+      messages: [...(activeChat.messages || []), paymentMessage, closedMessage],
+    })
+
+    // Close modal and reset state
+    setIsPaymentModalOpen(false)
+    setPaymentContractData(null)
+  }, [paymentContractData, activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat])
+
+  /**
    * Handle sending operator message
    */
   const handleSendOperatorMessage = async (message: string) => {
@@ -2217,6 +2364,22 @@ export function ChatInterface({
     return activeChat.operatorMessages[selectedQuoteId] || []
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+        <DynamicChatHeader
+          activeChat={activeChat}
+          flightRequestName={activeChat.generatedName}
+          showTripId={!!activeChat.tripId}
+          quoteRequests={getQuoteRequestsForHeader()}
+          onViewQuoteDetails={handleViewQuoteDetails}
+          onCopyTripId={() => console.log('[Chat] Trip ID copied to clipboard')}
+        />
+        <ChatLoadingSkeleton />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
       {/* Dynamic Chat Header - shows flight name, IDs, and quote requests */}
@@ -2265,6 +2428,20 @@ export function ChatInterface({
                 proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
                 showContractSentConfirmation?: boolean
                 contractSentData?: import('@/components/contract/contract-sent-confirmation').ContractSentConfirmationProps
+                // Payment confirmation
+                showPaymentConfirmation?: boolean
+                paymentConfirmationData?: {
+                  contractId: string; contractNumber: string
+                  paymentAmount: number; paymentMethod: string
+                  paymentReference: string; paidAt: string; currency: string
+                }
+                // Deal closed
+                showClosedWon?: boolean
+                closedWonData?: {
+                  contractNumber: string; customerName: string
+                  flightRoute: string; dealValue: number; currency: string
+                  proposalSentAt?: string; contractSentAt?: string; paymentReceivedAt?: string
+                }
                 // Email approval workflow properties (human-in-the-loop)
                 showEmailApprovalRequest?: boolean
                 emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
@@ -2658,6 +2835,11 @@ export function ChatInterface({
                         proposalSentData={message.proposalSentData}
                         showContractSentConfirmation={message.showContractSentConfirmation}
                         contractSentData={message.contractSentData}
+                        onMarkPayment={handleMarkPayment}
+                        showPaymentConfirmation={message.showPaymentConfirmation}
+                        paymentConfirmationData={message.paymentConfirmationData}
+                        showClosedWon={message.showClosedWon}
+                        closedWonData={message.closedWonData}
                         showEmailApprovalRequest={message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}
@@ -2727,6 +2909,8 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
+                        bookFlightDisabled={isBookFlightGated}
+                        bookFlightDisabledReason="Waiting for customer reply to proposal"
                         // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
                         // This prevents cards from appearing during clarification dialogue before trip creation
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -2773,6 +2957,8 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
+                        bookFlightDisabled={isBookFlightGated}
+                        bookFlightDisabledReason="Waiting for customer reply to proposal"
                         marginPercentage={selectedMarginPercentage}
                         onGoBackFromProposal={() => setSelectedRfqFlightIds([])}
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -2881,49 +3067,6 @@ export function ChatInterface({
       {/* Input Area */}
       <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
         <div className="max-w-4xl mx-auto">
-          {/* Quick Actions */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInputValue("Can you update the passenger count?")}
-              disabled={isProcessing}
-              className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-            >
-              Update Details
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInputValue("Show me alternative aircraft options")}
-              disabled={isProcessing}
-              className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-            >
-              Alternative Options
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInputValue("What's the status of my request?")}
-              disabled={isProcessing}
-              className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-            >
-              Check Status
-            </Button>
-            {/* View Workflow button - scrolls to workflow progress section */}
-            {activeChat.currentStep && activeChat.currentStep >= 1 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleViewWorkflow}
-                className="text-xs bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-              >
-                <Eye className="w-3 h-3 mr-1" />
-                View Workflow
-              </Button>
-            )}
-          </div>
-
           {/* Input Area */}
           <div className="flex items-end space-x-3">
             <div className="flex-1 relative">
@@ -3002,7 +3145,7 @@ export function ChatInterface({
             setSelectedBookingCustomer(null)
           }}
           flight={bookFlightData}
-          customer={bookFlightCustomer}
+          customer={selectedBookingCustomer || bookFlightCustomer}
           tripDetails={{
             departureAirport: routeParts?.[0] ? { icao: routeParts[0], name: routeParts[0] } : { icao: 'KTEB', name: 'Teterboro Airport' },
             arrivalAirport: routeParts?.[1] ? { icao: routeParts[1], name: routeParts[1] } : { icao: 'KVNY', name: 'Van Nuys Airport' },
@@ -3014,6 +3157,20 @@ export function ChatInterface({
           onContractSent={handleContractSent}
         />
       )}
+
+      {/* Payment Confirmation Modal */}
+      <PaymentConfirmationModal
+        open={isPaymentModalOpen}
+        onClose={() => {
+          setIsPaymentModalOpen(false)
+          setPaymentContractData(null)
+        }}
+        contractId={paymentContractData?.contractId ?? ''}
+        contractNumber={paymentContractData?.contractNumber ?? ''}
+        totalAmount={paymentContractData?.totalAmount ?? 0}
+        currency={paymentContractData?.currency ?? 'USD'}
+        onConfirm={handlePaymentConfirm}
+      />
 
       {/* Loading overlay when generating proposal */}
       {isGeneratingProposal && (

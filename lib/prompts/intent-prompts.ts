@@ -272,6 +272,115 @@ Showing [N] of [Total]. Want to see more or filter differently?"`,
 1. Answer the question directly (1-2 sentences)
 2. If relevant, offer to take action
 3. If out of scope, redirect to charter flight assistance`,
+
+  check_inbox: `## Current Task: Check for Customer Reply
+
+**Priority**: Search inbox for customer response to proposal
+
+### Context
+The proposal has been sent. Now check if the customer has replied.
+
+### Flow
+1. Use \`search_emails\` with query \`from:{customerEmail}\` (get email from working memory)
+2. If reply found:
+   - Analyze content for positive signals: "yes", "interested", "proceed", "book", "approved"
+   - Analyze for negative signals: "no", "not interested", "too expensive", "cancel"
+   - Update workflow stage to \`customer_replied\`
+   - Display reply snippet and recommend next action
+3. If no reply found:
+   - Inform user no reply yet
+   - Offer to send a follow-up email
+
+### Response Template (Reply Found)
+"[Customer Name] replied to your proposal:
+> [Brief snippet]
+
+[If positive]: They're interested! Would you like to proceed with booking?
+[If negative]: They've declined. Would you like to send a revised proposal?"
+
+### Response Template (No Reply)
+"No reply from [Customer] yet. Would you like me to check again later, or send a follow-up email?"`,
+
+  book_flight: `## Current Task: Book Flight / Generate Contract
+
+**Priority**: Guide user through contract generation after customer acceptance
+
+### Prerequisites
+- Workflow must be at \`customer_replied\` or later
+- Customer details (name, email, company) must be available
+- Flight details and pricing must be confirmed
+
+### Flow
+1. Verify all required details from working memory and CRM
+2. Confirm pricing with margin applied
+3. Guide user to click the **"Book Flight"** button in the UI
+4. The UI triggers contract generation via \`/api/contract/send\`
+5. After contract sent, update stage to \`contract_sent\`
+
+### Required Fields
+- Customer: name, email, company
+- Flight: route, date, passengers
+- Pricing: base price, margin, total amount
+
+### CRITICAL
+The agent does NOT call the contract API directly. The "Book Flight" button in the UI triggers it.
+Guide the user to click the button, then confirm the contract was sent.
+
+### Response Template (Confirming Details)
+"Ready to book:
+[Route] on [Date] for [Passengers] PAX
+Total: $[Amount]
+Customer: [Name] <[Email]>
+
+Click the **Book Flight** button to generate and send the contract."`,
+
+  confirm_payment: `## Current Task: Confirm Payment Received
+
+**Priority**: Guide user through payment recording after contract sent
+
+### Prerequisites
+- Workflow must be at \`contract_sent\`
+- Contract must have been sent to customer
+
+### Flow
+1. Guide user to click **"Mark Payment Received"** in the contract card
+2. User enters payment details in PaymentConfirmationModal:
+   - Payment amount
+   - Payment method (wire transfer, credit card, check)
+   - Reference number
+3. After confirmation, update stage to \`payment_received\`
+4. Ask if ready to close the deal
+
+### CRITICAL
+The agent does NOT record payments directly. The PaymentConfirmationModal handles it.
+Guide the user to the correct UI action.
+
+### Response Template
+"To record the payment, click **Mark Payment Received** in the contract card.
+You'll need: amount, payment method, and reference number.
+Once confirmed, we can close the deal."`,
+
+  close_deal: `## Current Task: Close Deal
+
+**Priority**: Finalize the deal and display completion summary
+
+### Prerequisites
+- Workflow must be at \`payment_received\`
+- Payment must have been confirmed
+
+### Flow
+1. Verify payment is confirmed
+2. Update stage to \`deal_closed\`
+3. Display deal closure summary with full timeline
+
+### Response Template
+"Deal closed! Congratulations!
+
+**Timeline**:
+Proposal sent → Contract sent → Payment received → Deal closed
+
+[Route] for [Customer] is now complete.
+Is there anything else you need for this client?"`,
 };
 
 /**
@@ -332,6 +441,31 @@ export const INTENT_PATTERNS: Record<string, RegExp[]> = {
     /(?:show|list|view)\s+(?:my\s+)?(?:recent\s+)?(?:requests?|history)/i,
     /(?:past|previous)\s+(?:trips?|requests?|rfqs?)/i,
     /(?:what\s+)?(?:have\s+)?(?:i|we)\s+(?:done|requested)/i,
+  ],
+  check_inbox: [
+    /(?:did\s+(?:the|they)\s+)?(?:customer|client)\s+repl/i,
+    /(?:any|check)\s+(?:response|reply|replies)/i,
+    /check\s+(?:the\s+)?inbox/i,
+    /(?:hear|heard)\s+(?:back|from)\s+(?:the\s+)?(?:customer|client)/i,
+    /(?:any\s+)?(?:response|reply)\s+(?:from|to)\s+(?:the\s+)?(?:customer|client|proposal)/i,
+  ],
+  book_flight: [
+    /book\s+(?:the\s+)?flight/i,
+    /(?:send|generate|create)\s+(?:a\s+)?contract/i,
+    /proceed\s+(?:with\s+)?(?:the\s+)?booking/i,
+    /(?:let'?s?\s+)?(?:book|confirm)\s+(?:it|this|the\s+flight)/i,
+  ],
+  confirm_payment: [
+    /payment\s+(?:received|confirmed|made)/i,
+    /(?:customer|client)\s+(?:paid|has\s+paid)/i,
+    /(?:confirm|record|mark)\s+(?:the\s+)?payment/i,
+    /(?:mark|set)\s+(?:as\s+)?paid/i,
+  ],
+  close_deal: [
+    /close\s+(?:the\s+)?deal/i,
+    /(?:mark|set)\s+(?:as\s+)?complete/i,
+    /deal\s+(?:is\s+)?done/i,
+    /finalize\s+(?:the\s+)?(?:deal|booking|transaction)/i,
   ],
 };
 

@@ -20,8 +20,16 @@ vi.mock('@/lib/supabase/client', () => ({
   },
 }));
 
+// Mock Supabase Admin (used by withAuth middleware for iso_agents lookup)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
+  },
+}));
+
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 describe('GET /api/quotes', () => {
   beforeEach(() => {
@@ -59,6 +67,7 @@ describe('GET /api/quotes', () => {
         }),
       }),
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/quotes');
@@ -123,6 +132,7 @@ describe('GET /api/quotes', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/quotes');
@@ -179,6 +189,7 @@ describe('GET /api/quotes', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/quotes?request_id=req-specific');
@@ -233,6 +244,7 @@ describe('GET /api/quotes', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/quotes?status=accepted');
@@ -323,6 +335,7 @@ describe('PATCH /api/quotes', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/quotes', {
@@ -386,6 +399,7 @@ describe('PATCH /api/quotes', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/quotes', {
@@ -460,6 +474,7 @@ describe('PATCH /api/quotes', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/quotes', {
@@ -518,6 +533,7 @@ describe('PATCH /api/quotes', () => {
         };
       }
     });
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
     vi.mocked(supabase.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/quotes', {

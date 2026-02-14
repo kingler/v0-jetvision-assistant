@@ -110,6 +110,10 @@ function mapCurrentStepToStatus(currentStep: string | null): ChatSession['status
     analyzing_options: 'analyzing_options',
     proposal_ready: 'proposal_ready',
     proposal_sent: 'proposal_sent',
+    contract_generated: 'contract_generated',
+    contract_sent: 'contract_sent',
+    payment_pending: 'payment_pending',
+    closed_won: 'closed_won',
   };
 
   return stepMap[currentStep] || 'understanding_request';
@@ -127,7 +131,11 @@ function getWorkflowStepFromCurrentStep(currentStep: string | null): number {
     requesting_quotes: 3,
     analyzing_options: 4,
     proposal_ready: 5,
-    proposal_sent: 5,
+    proposal_sent: 6,
+    contract_generated: 7,
+    contract_sent: 8,
+    payment_pending: 9,
+    closed_won: 10,
   };
 
   return stepMap[currentStep] || 1;
@@ -226,7 +234,7 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     returnDate: request?.return_date ? request.return_date.split('T')[0] : undefined,
     status,
     currentStep,
-    totalSteps: 5,
+    totalSteps: 10,
 
     // Optional aircraft information
     aircraft: request?.aircraft_type || undefined,

@@ -34,6 +34,29 @@ export interface UnifiedMessage {
   // Contract sent confirmation
   showContractSentConfirmation?: boolean;
   contractSentData?: ContractSentConfirmationProps;
+  // Payment confirmation
+  showPaymentConfirmation?: boolean;
+  paymentConfirmationData?: {
+    contractId: string;
+    contractNumber: string;
+    paymentAmount: number;
+    paymentMethod: string;
+    paymentReference: string;
+    paidAt: string;
+    currency: string;
+  };
+  // Deal closed
+  showClosedWon?: boolean;
+  closedWonData?: {
+    contractNumber: string;
+    customerName: string;
+    flightRoute: string;
+    dealValue: number;
+    currency: string;
+    proposalSentAt?: string;
+    contractSentAt?: string;
+    paymentReceivedAt?: string;
+  };
   // Email approval workflow
   showEmailApprovalRequest?: boolean;
   emailApprovalData?: EmailApprovalRequestContent;
@@ -92,6 +115,8 @@ export interface ChatMessageListProps {
   customerName?: string;
   operatorMessages?: Record<string, OperatorMessageItem[]>;
   // Handlers
+  /** Callback when "Mark Payment Received" is clicked on a contract card */
+  onMarkPayment?: (contractId: string, contractData: ContractSentConfirmationProps) => void;
   onTripIdSubmit: (tripId: string) => Promise<void>;
   onRfqFlightSelectionChange: (ids: string[]) => void;
   onViewChat: (flightId: string, quoteId?: string) => void;

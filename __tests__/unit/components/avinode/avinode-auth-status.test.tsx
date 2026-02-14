@@ -12,7 +12,7 @@ describe('AvinodeAuthStatus', () => {
     method: 'bearer' as const,
     environment: 'sandbox' as const,
     baseUrl: 'sandbox.avinode.com',
-    expiresAt: new Date('2026-02-08T00:00:00Z'),
+    expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days from now
     isValid: true,
   };
 
@@ -123,8 +123,8 @@ describe('AvinodeAuthStatus', () => {
       render(<AvinodeAuthStatus {...mockPropsValid} />);
 
       expect(screen.getByText(/expires/i)).toBeInTheDocument();
-      // Date may vary by timezone, just check for February 2026
-      expect(screen.getByText(/february \d+, 2026/i)).toBeInTheDocument();
+      // Date varies based on when test runs, check for any formatted date
+      expect(screen.getByText(/\w+ \d+, \d{4}/i)).toBeInTheDocument();
     });
 
     it('calculates days until expiration correctly', () => {

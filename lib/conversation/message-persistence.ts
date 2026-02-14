@@ -25,7 +25,10 @@ type MessageContentType =
   | 'email_approved'
   | 'email_rejected'
   // Margin / customer selection summary
-  | 'margin_selection';
+  | 'margin_selection'
+  // Payment and deal closure workflow types
+  | 'payment_confirmed'
+  | 'deal_closed';
 
 /**
  * Interface for saving a message (consolidated schema)

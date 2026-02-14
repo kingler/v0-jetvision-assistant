@@ -60,6 +60,10 @@ export interface RFQFlightsListProps {
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
   /** Callback when "Book Flight" button is clicked (triggers contract generation modal) */
   onBookFlight?: (flightId: string, quoteId?: string) => void;
+  /** Whether the Book Flight button should be disabled */
+  bookFlightDisabled?: boolean;
+  /** Tooltip reason when Book Flight is disabled */
+  bookFlightDisabledReason?: string;
   /**
    * Enable round-trip leg grouping mode.
    * When true, flights will be grouped by legType (outbound/return) with section headers.
@@ -128,6 +132,8 @@ export function RFQFlightsList({
   onViewChat,
   onGenerateProposal,
   onBookFlight,
+  bookFlightDisabled,
+  bookFlightDisabledReason,
   groupByLeg = false,
 }: RFQFlightsListProps) {
   const [sortBy, setSortBy] = useState<SortOption>(initialSortBy);
@@ -259,7 +265,7 @@ export function RFQFlightsList({
     }
 
     return (
-      <li key={flight.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-6 last:pb-0">
+      <li key={flight.id} className="border-b border-border last:border-b-0 pb-6 last:pb-0">
         <RFQFlightCard
           key={cardKey} // CRITICAL: Force re-render when price/status changes
           flight={{ ...flight, isSelected: selectedIds.has(flight.id) }}
@@ -272,6 +278,8 @@ export function RFQFlightsList({
           onViewChat={onViewChat}
           onGenerateProposal={onGenerateProposal}
           onBookFlight={onBookFlight}
+          bookFlightDisabled={bookFlightDisabled}
+          bookFlightDisabledReason={bookFlightDisabledReason}
           hasMessages={(flight as any).hasMessages ?? (flight.rfqStatus === 'quoted')}
           hasNewMessages={(flight as any).hasNewMessages ?? false}
           quoteId={flight.quoteId}
@@ -294,6 +302,8 @@ export function RFQFlightsList({
     onViewChat,
     onGenerateProposal,
     onBookFlight,
+    bookFlightDisabled,
+    bookFlightDisabledReason,
   ]);
 
   // Loading state
@@ -303,7 +313,7 @@ export function RFQFlightsList({
     return (
       <div 
         data-testid="flights-loading" 
-        className="flex flex-col items-center justify-center py-12 bg-white dark:bg-gray-900"
+        className="flex flex-col items-center justify-center py-12 bg-card"
       >
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">Loading available flights...</p>
@@ -318,9 +328,9 @@ export function RFQFlightsList({
     // No flights at all - show initial empty state
     if (flights.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-12 text-center bg-white dark:bg-gray-900">
-          <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-          <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">No RFQs available</h3>
+        <div className="flex flex-col items-center justify-center py-12 text-center bg-card">
+          <Plane className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2 text-foreground">No RFQs available</h3>
           <p className="text-muted-foreground max-w-md">
             No RFQ has been submitted yet. Please follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.
           </p>
@@ -329,9 +339,9 @@ export function RFQFlightsList({
     }
     // This case should not occur since we removed filtering, but keeping for safety
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center bg-white dark:bg-gray-900">
-        <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">No flights available</h3>
+      <div className="flex flex-col items-center justify-center py-12 text-center bg-card">
+        <Plane className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold mb-2 text-foreground">No flights available</h3>
         <p className="text-muted-foreground max-w-md">
           No flights are currently available to display.
         </p>
@@ -340,8 +350,8 @@ export function RFQFlightsList({
   }
 
   return (
-    <div 
-      className={cn('space-y-4 bg-white dark:bg-gray-900', className)}
+    <div
+      className={cn('space-y-4', className)}
       style={{ 
         height: 'auto', 
         minHeight: 'auto',
@@ -383,7 +393,7 @@ export function RFQFlightsList({
               onChange={handleSortChange}
               aria-label="Sort by"
               role="combobox"
-              className="text-sm border border-gray-200 dark:border-gray-700 rounded-md px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              className="text-sm border border-border rounded-md px-3 py-1.5 bg-card text-foreground"
             >
               <option value="price-asc">Price: Low to High</option>
               <option value="price-desc">Price: High to Low</option>
@@ -405,12 +415,12 @@ export function RFQFlightsList({
           {/* Outbound Flight Options */}
           {groupedFlights.outbound.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
                 <Plane className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                <h4 className="text-sm font-semibold text-foreground">
                   Outbound Flight Options
                 </h4>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-muted-foreground">
                   ({groupedFlights.outbound.length} option{groupedFlights.outbound.length !== 1 ? 's' : ''})
                 </span>
               </div>
@@ -429,12 +439,12 @@ export function RFQFlightsList({
           {/* Return Flight Options */}
           {groupedFlights.return.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
                 <Plane className="h-4 w-4 text-green-600 dark:text-green-400 rotate-180" />
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                <h4 className="text-sm font-semibold text-foreground">
                   Return Flight Options
                 </h4>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-muted-foreground">
                   ({groupedFlights.return.length} option{groupedFlights.return.length !== 1 ? 's' : ''})
                 </span>
               </div>
@@ -453,12 +463,12 @@ export function RFQFlightsList({
           {/* Unassigned flights (no leg type) */}
           {groupedFlights.unassigned.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <Plane className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+                <Plane className="h-4 w-4 text-muted-foreground" />
+                <h4 className="text-sm font-semibold text-foreground">
                   Additional Flight Options
                 </h4>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-muted-foreground">
                   ({groupedFlights.unassigned.length} option{groupedFlights.unassigned.length !== 1 ? 's' : ''})
                 </span>
               </div>
@@ -494,7 +504,7 @@ export function RFQFlightsList({
 
       {/* Continue Button */}
       {showContinueButton && (
-        <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex justify-end pt-4 border-t border-border">
           <Button
             onClick={handleContinue}
             disabled={selectedIds.size === 0}

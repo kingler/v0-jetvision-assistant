@@ -38,13 +38,30 @@ type PermissionMatrix = {
 };
 
 // ============================================================================
+// ROLE NORMALIZATION
+// ============================================================================
+
+/**
+ * Normalize DB role to app-layer role.
+ * The DB stores 'iso_agent' (matches the iso_agents table), but the app
+ * layer uses 'sales_rep' as the canonical name. This is the single
+ * boundary where the translation happens.
+ */
+export function normalizeRole(role: UserRole): UserRole {
+  if (role === 'iso_agent') return 'sales_rep' as UserRole;
+  return role;
+}
+
+// ============================================================================
 // PERMISSION MATRIX
 // ============================================================================
 
 /**
  * Complete permission matrix for all roles
  *
- * Defines what actions each role can perform on each resource
+ * Defines what actions each role can perform on each resource.
+ * Note: 'iso_agent' is NOT listed here — it is normalized to 'sales_rep'
+ * at the data boundary via normalizeRole().
  */
 export const PERMISSIONS: PermissionMatrix = {
   sales_rep: {

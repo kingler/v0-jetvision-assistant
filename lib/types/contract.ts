@@ -237,7 +237,7 @@ export interface ContractPaymentData {
   /** Last 4 digits of credit card (if applicable) */
   cc_last_four?: string;
   /** Payment method used */
-  payment_method: 'wire' | 'credit_card';
+  payment_method: 'wire' | 'credit_card' | 'check';
 }
 
 // =============================================================================
@@ -356,6 +356,8 @@ export interface GenerateContractInput {
   paymentMethod?: 'wire' | 'credit_card';
   /** Save as draft in database */
   saveDraft?: boolean;
+  /** Proposal PDF buffer to prepend as first pages of the contract */
+  proposalPdfBuffer?: Buffer;
 }
 
 /**

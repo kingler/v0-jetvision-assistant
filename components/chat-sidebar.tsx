@@ -259,6 +259,9 @@ interface ChatSidebarProps {
   onDeleteChat?: (chatId: string) => void
   onCancelChat?: (chatId: string) => void
   onArchiveChat?: (chatId: string) => void
+  archivedSessions?: ChatSession[]
+  onLoadArchive?: () => void
+  isLoadingArchive?: boolean
 }
 
 export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewChat, onDeleteChat, onCancelChat, onArchiveChat }: ChatSidebarProps) {

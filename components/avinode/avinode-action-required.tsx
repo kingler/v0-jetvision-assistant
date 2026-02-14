@@ -227,10 +227,10 @@ export function AvinodeActionRequired({
         </div>
 
         {/* Tip */}
-        <div className="flex gap-3 rounded-lg bg-accent/10 dark:bg-accent/5 p-4 border border-accent/20">
-          <Info className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+        <div className="flex gap-3 rounded-lg bg-primary/10 dark:bg-primary/5 p-4 border border-primary/20">
+          <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-accent mb-1">Tip</p>
+            <p className="text-sm font-medium text-primary mb-1">Tip</p>
             <p className="text-sm text-muted-foreground">
               Keep this tab open while you work in Avinode. We&apos;ll automatically
               update when quotes are received.

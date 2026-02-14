@@ -13,15 +13,15 @@ vi.mock('@clerk/nextjs/server', () => ({
   auth: vi.fn(),
 }));
 
-// Mock Supabase
-vi.mock('@/lib/supabase/client', () => ({
-  supabase: {
+// Mock Supabase Admin (route uses supabaseAdmin exclusively)
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
     from: vi.fn(),
   },
 }));
 
 import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 describe('GET /api/clients', () => {
   beforeEach(() => {
@@ -59,7 +59,7 @@ describe('GET /api/clients', () => {
         }),
       }),
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/clients');
     const response = await GET(request);
@@ -122,7 +122,7 @@ describe('GET /api/clients', () => {
         };
       }
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/clients');
     const response = await GET(request);
@@ -176,7 +176,7 @@ describe('GET /api/clients', () => {
         };
       }
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/clients?client_id=client-specific');
     const response = await GET(request);
@@ -260,7 +260,7 @@ describe('POST /api/clients', () => {
         };
       }
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/clients', {
       method: 'POST',
@@ -328,7 +328,7 @@ describe('POST /api/clients', () => {
         };
       }
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/clients', {
       method: 'POST',
@@ -419,7 +419,7 @@ describe('PATCH /api/clients', () => {
         };
       }
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/clients', {
       method: 'PATCH',
@@ -480,7 +480,7 @@ describe('PATCH /api/clients', () => {
         };
       }
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/clients', {
       method: 'PATCH',
@@ -533,7 +533,7 @@ describe('PATCH /api/clients', () => {
         };
       }
     });
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabaseAdmin.from).mockImplementation(mockFrom as any);
 
     const request = new NextRequest('http://localhost:3000/api/clients', {
       method: 'PATCH',

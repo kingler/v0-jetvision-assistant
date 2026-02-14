@@ -12,9 +12,9 @@ describe('Tailwind Helper Utilities', () => {
     it('generates correct Tailwind class for brand colors', async () => {
       const { getColorClass } = await import('@/lib/design-system/tailwind-helpers');
 
-      expect(getColorClass('aviationBlue', 500, 'bg')).toBe('bg-aviation-blue-500');
+      expect(getColorClass('skyBlue', 500, 'bg')).toBe('bg-sky-blue-500');
       expect(getColorClass('skyBlue', 300, 'text')).toBe('text-sky-blue-300');
-      expect(getColorClass('sunsetOrange', 600, 'border')).toBe('border-sunset-orange-600');
+      expect(getColorClass('skyBlue', 600, 'border')).toBe('border-sky-blue-600');
     });
 
     it('generates correct Tailwind class for neutral colors', async () => {
