@@ -48,20 +48,3 @@ export interface StarterCategoryConfig {
   variant: StarterCardVariant
 }
 
-/**
- * Props for the ConversationStarterHub component
- */
-export interface ConversationStarterHubProps {
-  /** Array of starters to display */
-  starters: ConversationStarter[]
-  /** Handler called when a starter is clicked */
-  onStarterClick: (action: string, starter: ConversationStarter) => void
-  /** Whether all starters are in loading state */
-  loading?: boolean
-  /** Custom class name */
-  className?: string
-  /** Whether to show category headers */
-  showCategoryHeaders?: boolean
-  /** Maximum starters to show per category (0 = unlimited) */
-  maxPerCategory?: number
-}

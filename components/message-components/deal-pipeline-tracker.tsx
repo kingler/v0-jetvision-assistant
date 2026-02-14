@@ -71,15 +71,15 @@ export function DealPipelineTracker({
                   className={cn(
                     'w-8 h-8 rounded-full flex items-center justify-center',
                     'border-2 bg-background',
-                    stage.status === 'completed' && 'border-green-500 bg-green-500/10',
-                    stage.status === 'active' && 'border-blue-500 bg-blue-500/10',
+                    stage.status === 'completed' && 'border-status-proposal-ready bg-status-proposal-ready/10',
+                    stage.status === 'active' && 'border-status-proposal-sent bg-status-proposal-sent/10',
                     stage.status === 'pending' && 'border-muted-foreground/30 bg-muted/50'
                   )}
                 >
                   {stage.status === 'completed' ? (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <CheckCircle className="h-5 w-5 text-success" />
                   ) : stage.status === 'active' ? (
-                    <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                    <Loader2 className="h-5 w-5 text-status-proposal-sent animate-spin" />
                   ) : (
                     <Circle className="h-5 w-5 text-muted-foreground/50" />
                   )}
@@ -89,8 +89,8 @@ export function DealPipelineTracker({
                 <span
                   className={cn(
                     'mt-2 text-xs font-medium text-center',
-                    stage.status === 'completed' && 'text-green-600',
-                    stage.status === 'active' && 'text-blue-600',
+                    stage.status === 'completed' && 'text-success',
+                    stage.status === 'active' && 'text-primary',
                     stage.status === 'pending' && 'text-muted-foreground'
                   )}
                 >
@@ -102,8 +102,8 @@ export function DealPipelineTracker({
                   variant={stage.status === 'active' ? 'default' : 'secondary'}
                   className={cn(
                     'mt-1 text-xs',
-                    stage.status === 'completed' && 'bg-green-100 text-green-700 hover:bg-green-100',
-                    stage.status === 'active' && 'bg-blue-100 text-blue-700 hover:bg-blue-100',
+                    stage.status === 'completed' && 'bg-success-bg text-success hover:bg-success-bg',
+                    stage.status === 'active' && 'bg-info-bg text-info hover:bg-info-bg',
                     stage.status === 'pending' && 'bg-muted text-muted-foreground'
                   )}
                 >
@@ -132,8 +132,8 @@ export function DealPipelineTracker({
               key={stage.id}
               className={cn(
                 'flex items-center gap-3 p-2 rounded-lg',
-                stage.status === 'active' && 'bg-blue-500/5',
-                onStageClick && 'cursor-pointer hover:bg-primary/50 transition-colors'
+                stage.status === 'active' && 'bg-status-proposal-sent/5',
+                onStageClick && 'cursor-pointer hover:bg-surface-secondary transition-colors'
               )}
               onClick={() => onStageClick?.(stage.id)}
             >
@@ -143,15 +143,15 @@ export function DealPipelineTracker({
                   className={cn(
                     'w-6 h-6 rounded-full flex items-center justify-center',
                     'border-2',
-                    stage.status === 'completed' && 'border-green-500 bg-green-500/10',
-                    stage.status === 'active' && 'border-blue-500 bg-blue-500/10',
+                    stage.status === 'completed' && 'border-status-proposal-ready bg-status-proposal-ready/10',
+                    stage.status === 'active' && 'border-status-proposal-sent bg-status-proposal-sent/10',
                     stage.status === 'pending' && 'border-muted-foreground/30 bg-muted/50'
                   )}
                 >
                   {stage.status === 'completed' ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <CheckCircle className="h-4 w-4 text-success" />
                   ) : stage.status === 'active' ? (
-                    <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                    <Loader2 className="h-4 w-4 text-status-proposal-sent animate-spin" />
                   ) : (
                     <Circle className="h-4 w-4 text-muted-foreground/50" />
                   )}
@@ -167,8 +167,8 @@ export function DealPipelineTracker({
                   <span
                     className={cn(
                       'text-sm font-medium',
-                      stage.status === 'completed' && 'text-green-600',
-                      stage.status === 'active' && 'text-blue-600',
+                      stage.status === 'completed' && 'text-success',
+                      stage.status === 'active' && 'text-primary',
                       stage.status === 'pending' && 'text-muted-foreground'
                     )}
                   >
@@ -179,8 +179,8 @@ export function DealPipelineTracker({
                       variant="secondary"
                       className={cn(
                         'text-xs',
-                        stage.status === 'completed' && 'bg-green-100 text-green-700',
-                        stage.status === 'active' && 'bg-blue-100 text-blue-700'
+                        stage.status === 'completed' && 'bg-success-bg text-success',
+                        stage.status === 'active' && 'bg-info-bg text-info'
                       )}
                     >
                       {stage.count}

@@ -289,22 +289,22 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
   const validSessions = chatSessions.filter(isValidSession);
 
   return (
-    <div className="w-full min-w-[280px] max-w-[360px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full overflow-x-hidden">
+    <div className="w-full min-w-[280px] max-w-[360px] bg-background border-r border-border flex flex-col h-full overflow-x-hidden">
       {/* Header */}
-      <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
+      <div className="p-3 sm:p-4 border-b border-border">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-[clamp(0.875rem,2vw,1rem)] text-gray-900 dark:text-white">Open Chats</h2>
+          <h2 className="font-semibold text-[clamp(0.875rem,2vw,1rem)] text-foreground">Open Chats</h2>
           <Button
             size="sm"
             variant="outline"
             onClick={onNewChat}
-            className="bg-transparent border-cyan-600 text-cyan-600 hover:bg-cyan-50 hover:text-cyan-700 dark:border-cyan-400 dark:text-cyan-300 dark:hover:bg-cyan-900/20 text-xs sm:text-sm"
+            className="text-xs sm:text-sm"
           >
             <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             New
           </Button>
         </div>
-        <p className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-gray-500 dark:text-gray-400">
+        <p className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-muted-foreground">
           {validSessions.length} active flight request{validSessions.length !== 1 ? "s" : ""}
         </p>
       </div>
@@ -341,22 +341,22 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
       </div>
 
       {/* Footer */}
-      <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-800">
-        <div className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-gray-500 dark:text-gray-400 space-y-1">
+      <div className="p-3 sm:p-4 border-t border-border">
+        <div className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-muted-foreground space-y-1">
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
+            <div className="w-2 h-2 bg-status-proposal-sent rounded-full shrink-0"></div>
             <span>Proposal Sent</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full shrink-0"></div>
+            <div className="w-2 h-2 bg-status-proposal-ready rounded-full shrink-0"></div>
             <span>Proposal Ready</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-cyan-500 rounded-full shrink-0"></div>
+            <div className="w-2 h-2 bg-status-processing rounded-full shrink-0"></div>
             <span>Processing</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-gray-400 rounded-full shrink-0"></div>
+            <div className="w-2 h-2 bg-status-pending rounded-full shrink-0"></div>
             <span>Pending</span>
           </div>
         </div>

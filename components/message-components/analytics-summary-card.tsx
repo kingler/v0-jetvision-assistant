@@ -48,7 +48,7 @@ function TrendIndicator({ delta, label }: { delta: number; label?: string }) {
 
   const isPositive = delta > 0;
   const Icon = isPositive ? TrendingUp : TrendingDown;
-  const colorClass = isPositive ? 'text-green-600' : 'text-red-600';
+  const colorClass = isPositive ? 'text-success' : 'text-destructive';
 
   return (
     <div className={cn('flex items-center gap-1', colorClass)}>
@@ -131,32 +131,32 @@ export function AnalyticsSummaryCard({
       value: `${analytics.successRate.toFixed(0)}%`,
       delta: analytics.periodComparison.successRateDelta,
       icon: Target,
-      iconColor: 'text-green-500',
-      iconBgColor: 'bg-green-500/10',
+      iconColor: 'text-success',
+      iconBgColor: 'bg-success/10',
     },
     {
       label: 'Conversion',
       value: `${analytics.conversionRate.toFixed(0)}%`,
       delta: analytics.periodComparison.conversionDelta,
       icon: BarChart3,
-      iconColor: 'text-blue-500',
-      iconBgColor: 'bg-blue-500/10',
+      iconColor: 'text-status-proposal-sent',
+      iconBgColor: 'bg-status-proposal-sent/10',
     },
     {
       label: 'Avg Value',
       value: formatCurrency(analytics.avgDealValue),
       delta: analytics.periodComparison.valueDelta,
       icon: DollarSign,
-      iconColor: 'text-purple-500',
-      iconBgColor: 'bg-purple-500/10',
+      iconColor: 'text-status-processing',
+      iconBgColor: 'bg-status-processing/10',
     },
     {
       label: 'Time to Close',
       value: formatDays(analytics.avgTimeToClose),
       delta: -analytics.periodComparison.timeToCloseDelta, // Negative is good for time
       icon: Clock,
-      iconColor: 'text-orange-500',
-      iconBgColor: 'bg-orange-500/10',
+      iconColor: 'text-warning',
+      iconBgColor: 'bg-warning/10',
     },
   ];
 

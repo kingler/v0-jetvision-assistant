@@ -108,9 +108,9 @@ function CountdownTimer({ expiresAt }: { expiresAt: string }) {
     <div
       className={cn(
         'flex items-center gap-1 text-xs font-medium',
-        isExpired && 'text-red-600',
-        isCritical && !isExpired && 'text-red-500 animate-pulse',
-        isUrgent && !isCritical && !isExpired && 'text-orange-500',
+        isExpired && 'text-destructive',
+        isCritical && !isExpired && 'text-destructive animate-pulse',
+        isUrgent && !isCritical && !isExpired && 'text-warning',
         !isUrgent && !isExpired && 'text-muted-foreground'
       )}
     >
@@ -129,18 +129,18 @@ function OpportunityCard({
 }) {
   const urgencyConfig = {
     critical: {
-      borderColor: 'border-l-red-500',
-      bgColor: 'bg-red-500/5',
+      borderColor: 'border-l-destructive',
+      bgColor: 'bg-destructive/5',
       badgeVariant: 'destructive' as const,
     },
     high: {
-      borderColor: 'border-l-orange-500',
-      bgColor: 'bg-orange-500/5',
+      borderColor: 'border-l-warning',
+      bgColor: 'bg-warning/5',
       badgeVariant: 'default' as const,
     },
     medium: {
-      borderColor: 'border-l-yellow-500',
-      bgColor: 'bg-yellow-500/5',
+      borderColor: 'border-l-status-payment-pending',
+      bgColor: 'bg-status-payment-pending/5',
       badgeVariant: 'secondary' as const,
     },
   };
@@ -151,7 +151,7 @@ function OpportunityCard({
     <div
       className={cn(
         'flex items-center justify-between p-3 rounded-lg border border-l-4',
-        'hover:bg-primary/50 transition-colors cursor-pointer',
+        'hover:bg-surface-secondary transition-colors cursor-pointer',
         config.borderColor,
         config.bgColor
       )}
@@ -198,7 +198,7 @@ export function HotOpportunities({
     return (
       <div className={cn('w-full', className)}>
         <div className="flex items-center gap-2 mb-3">
-          <Flame className="h-4 w-4 text-orange-500" />
+          <Flame className="h-4 w-4 text-warning" />
           <h4 className="font-medium text-sm text-muted-foreground">
             Hot Opportunities
           </h4>
@@ -214,7 +214,7 @@ export function HotOpportunities({
     <div className={cn('w-full', className)}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Flame className="h-4 w-4 text-orange-500" />
+          <Flame className="h-4 w-4 text-warning" />
           <h4 className="font-medium text-sm text-muted-foreground">
             Hot Opportunities
           </h4>

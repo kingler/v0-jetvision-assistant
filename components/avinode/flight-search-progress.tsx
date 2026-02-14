@@ -197,14 +197,14 @@ function FlightCard({
   onViewChat?: (flightId: string) => void;
 }) {
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900">
+    <div className="border border-border rounded-lg overflow-hidden bg-card">
       <div className="flex">
         {/* Aircraft Image Placeholder */}
-        <div className="w-32 h-40 bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+        <div className="w-32 h-40 bg-surface-tertiary flex items-center justify-center shrink-0">
           {flight.imageUrl ? (
             <img src={flight.imageUrl} alt={flight.aircraftType} className="w-full h-full object-cover" />
           ) : (
-            <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600" />
+            <Plane className="h-12 w-12 text-text-placeholder" />
           )}
         </div>
 
@@ -212,46 +212,46 @@ function FlightCard({
         <div className="flex-1 p-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           {/* Aircraft Info */}
           <div>
-            <p className="font-semibold text-gray-900 dark:text-gray-100">Aircraft</p>
-            <p className="text-gray-600 dark:text-gray-400">Category: <span className="text-gray-900 dark:text-gray-100">{flight.aircraftCategory || 'Heavy jet'}</span></p>
-            <p className="text-gray-600 dark:text-gray-400">Year of Make: <span className="text-gray-900 dark:text-gray-100">{flight.yearOfMake || 'N/A'}</span></p>
+            <p className="font-semibold text-foreground">Aircraft</p>
+            <p className="text-muted-foreground">Category: <span className="text-foreground">{flight.aircraftCategory || 'Heavy jet'}</span></p>
+            <p className="text-muted-foreground">Year of Make: <span className="text-foreground">{flight.yearOfMake || 'N/A'}</span></p>
           </div>
 
           {/* Price Info */}
           <div>
-            <p className="font-semibold text-gray-900 dark:text-gray-100">Price</p>
-            <p className="text-gray-900 dark:text-gray-100">${flight.price.toLocaleString()} {flight.currency || 'USD'}</p>
-            <p className="text-gray-600 dark:text-gray-400">RFQ Status: <span className={cn(
-              flight.rfqStatus === 'quoted' && 'text-green-600',
-              flight.rfqStatus === 'unanswered' && 'text-amber-600',
-              flight.rfqStatus === 'declined' && 'text-red-600',
-              !flight.rfqStatus && 'text-gray-900 dark:text-gray-100'
+            <p className="font-semibold text-foreground">Price</p>
+            <p className="text-foreground">${flight.price.toLocaleString()} {flight.currency || 'USD'}</p>
+            <p className="text-muted-foreground">RFQ Status: <span className={cn(
+              flight.rfqStatus === 'quoted' && 'text-success',
+              flight.rfqStatus === 'unanswered' && 'text-warning',
+              flight.rfqStatus === 'declined' && 'text-destructive',
+              !flight.rfqStatus && 'text-foreground'
             )}>{flight.rfqStatus || 'Unanswered'}</span></p>
           </div>
 
           {/* Transport Info */}
           <div>
-            <p className="font-semibold text-gray-900 dark:text-gray-100">Transport</p>
-            <p className="text-gray-600 dark:text-gray-400">Passenger Capacity: <span className="text-gray-900 dark:text-gray-100">{flight.passengerCapacity || 'N/A'}</span></p>
-            <p className="text-gray-600 dark:text-gray-400">Medical: <span className="text-gray-900 dark:text-gray-100">{flight.hasMedical ? 'YES' : 'NO'}</span></p>
-            <p className="text-gray-600 dark:text-gray-400">Package: <span className="text-gray-900 dark:text-gray-100">{flight.hasPackage ? 'YES' : 'NO'}</span></p>
+            <p className="font-semibold text-foreground">Transport</p>
+            <p className="text-muted-foreground">Passenger Capacity: <span className="text-foreground">{flight.passengerCapacity || 'N/A'}</span></p>
+            <p className="text-muted-foreground">Medical: <span className="text-foreground">{flight.hasMedical ? 'YES' : 'NO'}</span></p>
+            <p className="text-muted-foreground">Package: <span className="text-foreground">{flight.hasPackage ? 'YES' : 'NO'}</span></p>
           </div>
 
           {/* Amenities */}
           <div>
-            <p className="font-semibold text-gray-900 dark:text-gray-100">Amenities</p>
-            <p className="text-gray-600 dark:text-gray-400">Pets Allowed: <span className="text-gray-900 dark:text-gray-100">{flight.petsAllowed ? 'YES' : 'NO'}</span></p>
-            <p className="text-gray-600 dark:text-gray-400">Smoking Allowed: <span className="text-gray-900 dark:text-gray-100">{flight.smokingAllowed ? 'YES' : 'NO'}</span></p>
-            <p className="text-gray-600 dark:text-gray-400">Wi-Fi: <span className="text-gray-900 dark:text-gray-100">{flight.hasWifi ? 'YES' : 'NO'}</span></p>
+            <p className="font-semibold text-foreground">Amenities</p>
+            <p className="text-muted-foreground">Pets Allowed: <span className="text-foreground">{flight.petsAllowed ? 'YES' : 'NO'}</span></p>
+            <p className="text-muted-foreground">Smoking Allowed: <span className="text-foreground">{flight.smokingAllowed ? 'YES' : 'NO'}</span></p>
+            <p className="text-muted-foreground">Wi-Fi: <span className="text-foreground">{flight.hasWifi ? 'YES' : 'NO'}</span></p>
           </div>
 
           {/* Operator Info */}
-          <div className="col-span-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-            <p className="font-semibold text-gray-900 dark:text-gray-100">Operator</p>
-            <p className="text-gray-600 dark:text-gray-400">Company: <span className="text-gray-900 dark:text-gray-100">{flight.operatorName}</span></p>
-            <p className="text-gray-600 dark:text-gray-400">Email: <span className="text-gray-900 dark:text-gray-100">{flight.operatorEmail || 'N/A'}</span></p>
+          <div className="col-span-2 mt-2 pt-2 border-t border-border">
+            <p className="font-semibold text-foreground">Operator</p>
+            <p className="text-muted-foreground">Company: <span className="text-foreground">{flight.operatorName}</span></p>
+            <p className="text-muted-foreground">Email: <span className="text-foreground">{flight.operatorEmail || 'N/A'}</span></p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-gray-600 dark:text-gray-400">Messages:</span>
+              <span className="text-muted-foreground">Messages:</span>
               <Button
                 variant="outline"
                 size="sm"
@@ -475,7 +475,7 @@ export function FlightSearchProgress({
   }, [validatedDeepLink, onDeepLinkClick, deepLink]);
 
   return (
-    <div data-testid="flight-search-progress" className={cn('w-full bg-white dark:bg-gray-900', className)}>
+    <div data-testid="flight-search-progress" className={cn('w-full bg-background', className)}>
       <div className="py-6">
         {/* Step Content */}
         <div className="space-y-4">
@@ -485,15 +485,15 @@ export function FlightSearchProgress({
           {showSteps12 && currentStep >= 1 && isTripCreated && (
             <div
               data-testid="step-1-content"
-              className="text-card-foreground flex flex-col gap-4 rounded-xl py-4 sm:py-6 px-3 sm:px-4 shadow-sm w-full min-w-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-4 sm:py-6 px-3 sm:px-4 shadow-sm w-full min-w-0 bg-background border border-border"
             >
               <div className="flex items-center gap-2 mb-3">
                 {currentStep > 1 ? (
-                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
                 ) : (
                   <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
                 )}
-                <h4 className="font-semibold text-[clamp(0.8125rem,2vw,0.875rem)] text-gray-900 dark:text-gray-100">
+                <h4 className="font-semibold text-[clamp(0.8125rem,2vw,0.875rem)] text-foreground">
                   Step 1: Trip Request {currentStep > 1 ? 'Created' : 'Creating'}
                 </h4>
               </div>
@@ -501,13 +501,13 @@ export function FlightSearchProgress({
               {/* Flight Request Details */}
               <div className="space-y-3">
                 {/* Route Visualization */}
-                <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-3 space-y-2">
+                <div className="rounded-md bg-surface-secondary p-3 space-y-2">
                   {/* Trip Type Badge */}
                   <span className={cn(
                     "inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap",
                     flightRequest.tripType === 'round_trip'
                       ? "bg-primary/10 text-primary"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      : "bg-surface-tertiary text-muted-foreground"
                   )}>
                     {flightRequest.tripType === 'round_trip' ? 'Round-Trip' : 'One-Way'}
                   </span>
@@ -539,14 +539,14 @@ export function FlightSearchProgress({
                     </div>
 
                     <div className="flex items-center gap-1.5 px-2 shrink-0">
-                      <div className="h-px w-4 bg-gray-300 dark:bg-gray-600" />
+                      <div className="h-px w-4 bg-border-strong" />
                       <Plane className="h-3 w-3 text-primary rotate-90" />
                       {flightRequest.tripType === 'round_trip' ? (
                         <ArrowLeftRight className="h-3 w-3 text-primary" />
                       ) : (
                         <ArrowRight className="h-3 w-3 text-muted-foreground" />
                       )}
-                      <div className="h-px w-4 bg-gray-300 dark:bg-gray-600" />
+                      <div className="h-px w-4 bg-border-strong" />
                     </div>
 
                     <div className="flex-1 text-right min-w-0">
@@ -584,33 +584,33 @@ export function FlightSearchProgress({
                       : 'grid-cols-1 sm:grid-cols-2'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800 p-1.5 min-w-0">
+                  <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
                     <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
                     <div className="min-w-0">
                       <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-muted-foreground whitespace-nowrap">
                         {flightRequest.tripType === 'round_trip' ? 'Depart' : 'Date'}
                       </p>
-                      <p className="font-medium text-[clamp(0.25rem,1vw,0.7rem)] text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                      <p className="font-medium text-[clamp(0.25rem,1vw,0.7rem)] text-foreground whitespace-nowrap">
                         {formatDateShort(flightRequest.departureDate)}
                       </p>
                     </div>
                   </div>
                   {flightRequest.tripType === 'round_trip' && flightRequest.returnDate && (
-                    <div className="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800 p-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
                       <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
                         <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-muted-foreground whitespace-nowrap">
                           Return
                         </p>
-                        <p className="font-medium text-[clamp(0.25rem,1vw,0.7rem)] text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                        <p className="font-medium text-[clamp(0.25rem,1vw,0.7rem)] text-foreground whitespace-nowrap">
                           {formatDateShort(flightRequest.returnDate)}
                         </p>
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800 p-1.5 min-w-0">
+                  <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
                     <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                    <p className="text-[clamp(0.25rem,1vw,0.7rem)] text-foreground whitespace-nowrap">
                       <span className="text-muted-foreground">Passengers: </span>
                       <span className="font-medium">{flightRequest.passengers}</span>
                     </p>
@@ -621,13 +621,13 @@ export function FlightSearchProgress({
                 {(flightRequest.aircraftPreferences || flightRequest.specialRequirements) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                     {flightRequest.aircraftPreferences && (
-                      <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-2">
+                      <div className="rounded-md bg-surface-secondary p-2">
                         <p className="text-xs text-muted-foreground">Aircraft Preferences</p>
                         <p className="font-medium text-xs">{flightRequest.aircraftPreferences}</p>
                       </div>
                     )}
                     {flightRequest.specialRequirements && (
-                      <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-2">
+                      <div className="rounded-md bg-surface-secondary p-2">
                         <p className="text-xs text-muted-foreground">Special Requirements</p>
                         <p className="font-medium text-xs">{flightRequest.specialRequirements}</p>
                       </div>
@@ -644,22 +644,22 @@ export function FlightSearchProgress({
           {showSteps12 && currentStep >= 2 && isTripCreated && (deepLink || tripId) && (
             <div
               data-testid="step-2-content"
-              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-background border border-border"
             >
               <div className="flex items-center gap-2 mb-3">
                 {currentStep > 2 ? (
-                  <CheckCircle2 className="h-5 w-5 text-gray-500" />
+                  <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
                 ) : (
                   <ExternalLink className="h-5 w-5 text-primary" />
                 )}
-                <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                <h4 className="font-semibold text-sm text-foreground">
                   Step 2: {currentStep > 2 ? 'Flight & RFQ Selected' : 'Select Flight & RFQ'}
                 </h4>
               </div>
 
               {/* Instructions for searching flights */}
-              <div className="mb-4 p-3 rounded-md bg-gray-50 dark:bg-gray-800 text-sm">
-                <p className="font-medium mb-2 text-gray-900 dark:text-gray-100">How to search and select flights:</p>
+              <div className="mb-4 p-3 rounded-md bg-surface-secondary text-sm">
+                <p className="font-medium mb-2 text-foreground">How to search and select flights:</p>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                   <li>Click the button below to open Avinode Marketplace</li>
                   <li>Enter the airport codes: <span className="font-semibold text-foreground">{flightRequest.departureAirport?.icao?.toUpperCase() || ''}</span> (departure) and <span className="font-semibold text-foreground">{flightRequest.arrivalAirport?.icao?.toUpperCase() || ''}</span> (arrival)</li>
@@ -687,7 +687,7 @@ export function FlightSearchProgress({
                   variant="outline"
                   onClick={handleCopyLink}
                   disabled={!deepLink}
-                  className="sm:w-auto text-gray-900 dark:text-gray-100"
+                  className="sm:w-auto text-foreground"
                 >
                   {copied ? (
                     <>
@@ -711,7 +711,7 @@ export function FlightSearchProgress({
           {showSteps34 && currentStep >= 3 && isTripCreated && (
             <div
               data-testid="step-3-content"
-              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 shadow-sm w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 mb-6"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 shadow-sm w-full bg-background border border-border mb-6"
               style={{ 
                 minHeight: 'auto',
                 height: 'auto',
@@ -722,22 +722,22 @@ export function FlightSearchProgress({
               }}
             >
               {/* Fixed header section - not scrollable */}
-              <div className="p-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="p-6 pb-4 border-b border-border">
                 {/* Header Section - Improved spacing */}
                 <div className="flex items-center gap-2 mb-6">
                   {tripIdSubmitted ? (
-                    <CheckCircle2 className="h-5 w-5 text-gray-500" />
+                    <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
                   ) : (
                     <Search className="h-5 w-5 text-primary" />
                   )}
-                  <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                  <h4 className="font-semibold text-sm text-foreground">
                     Step 3: View RFQ Flights
                   </h4>
                 </div>
 
                 {/* Trip ID not available yet */}
                 {!tripId && (
-                  <div className="mb-6 p-4 rounded-md bg-amber-50 dark:bg-amber-950/30">
+                  <div className="mb-6 p-4 rounded-md bg-warning-bg">
                     <p className="text-sm font-medium mb-2">Waiting for Trip ID</p>
                     <p className="text-xs text-muted-foreground">
                       Your trip is being created. The Trip ID will appear here once ready.
@@ -796,7 +796,7 @@ export function FlightSearchProgress({
                       )}
                     </div>
                     {tripIdError && (
-                      <p className="mt-3 text-xs text-red-600 dark:text-red-400">
+                      <p className="mt-3 text-xs text-destructive">
                         {tripIdError}
                       </p>
                     )}
@@ -812,7 +812,7 @@ export function FlightSearchProgress({
                 Added explicit height auto and overflow visible to ensure content expands naturally and isn't clipped during scroll.
               */}
               <div 
-                className="bg-white dark:bg-gray-900" 
+                className="bg-background" 
                 style={{ 
                   height: 'auto', 
                   minHeight: 'auto',
@@ -852,18 +852,18 @@ export function FlightSearchProgress({
                     >
                       {/* Success message - Only show when Trip ID is submitted */}
                       {tripIdSubmitted && (
-                        <div className="flex items-start gap-3 p-4 rounded-md bg-green-50 dark:bg-green-950/30">
-                          <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-3 p-4 rounded-md bg-success-bg">
+                          <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-green-700 dark:text-green-300 text-sm mb-2">
+                            <p className="font-medium text-success text-sm mb-2">
                               Trip ID verified successfully!
                             </p>
                             {rfqFlights.length > 0 ? (
-                              <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                              <p className="text-xs text-success leading-relaxed">
                                 {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Select the flights you want to include in your proposal, then click "Create Proposal" to generate and send the PDF to your customer.
                               </p>
                             ) : (
-                              <p className="text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                              <p className="text-xs text-success leading-relaxed">
                                 No RFQs have been submitted yet. Please check back later or try refreshing.
                               </p>
                             )}
@@ -873,13 +873,13 @@ export function FlightSearchProgress({
 
                       {/* Show info message when quotes are available but Trip ID not submitted */}
                       {!tripIdSubmitted && rfqFlights.length > 0 && (
-                        <div className="flex items-start gap-3 p-4 rounded-md bg-blue-50 dark:bg-blue-950/30">
-                          <CheckCircle2 className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-3 p-4 rounded-md bg-info-bg">
+                          <CheckCircle2 className="h-5 w-5 text-info shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-blue-700 dark:text-blue-300 text-sm mb-2">
+                            <p className="font-medium text-info text-sm mb-2">
                               Quotes Received
                             </p>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 leading-relaxed">
+                            <p className="text-xs text-info leading-relaxed">
                               {rfqFlights.length} flight{rfqFlights.length !== 1 ? 's' : ''} available. Review the options below and select flights for your proposal.
                             </p>
                           </div>
@@ -929,8 +929,8 @@ export function FlightSearchProgress({
                   {/* Show empty state when no RFQs and not loading */}
                   {!isRfqFlightsLoading && !tripIdSubmitted && rfqFlights.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <Plane className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-                      <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">No RFQs available yet</h3>
+                      <Plane className="h-12 w-12 text-text-placeholder mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-foreground">No RFQs available yet</h3>
                       <p className="text-sm text-muted-foreground max-w-md">
                         Follow the instructions in Step 2 to search for flights and send RFQs to operators via the Avinode marketplace.
                       </p>
@@ -945,7 +945,7 @@ export function FlightSearchProgress({
           {showSteps34 && currentStep >= 4 && selectedRfqFlightIds.length > 0 && (
             <div
               data-testid="step-4-content"
-              className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 p-4"
+              className="rounded-lg border border-info-border bg-info-bg p-4"
             >
               {/* SendProposalStep component - handles PDF generation and email sending */}
               <SendProposalStep
@@ -968,7 +968,7 @@ export function FlightSearchProgress({
               {/* Legacy: Selected Flights List - kept for backward compatibility */}
               {selectedFlights.length > 0 && (
                 <div className="space-y-4 mt-4">
-                  <h5 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
+                  <h5 className="font-semibold text-sm text-foreground">
                     Selected Flights - Quote Requests Sent to Operators
                   </h5>
                   <div className="space-y-3">

@@ -38,7 +38,7 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
   const { user } = useUser()
 
   return (
-    <header className="border-b border-gray-800 bg-black sticky top-0 z-30">
+    <header className="border-b border-foreground/20 bg-foreground sticky top-0 z-30">
       <div className="container mx-auto px-3 sm:px-6 py-3">
         <div className="flex items-center justify-between">
           {/* Left side: Sidebar toggle, Logo, Tagline */}
@@ -48,7 +48,7 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
               variant="ghost"
               size="sm"
               onClick={onSidebarToggle}
-              className="text-gray-300 hover:text-white hover:bg-gray-800 shrink-0"
+              className="text-background/70 hover:text-background hover:bg-foreground/80 shrink-0"
               aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
               aria-expanded={sidebarOpen}
             >
@@ -65,8 +65,8 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
             />
 
             {/* Tagline (hidden on mobile) */}
-            <div className="hidden md:block border-l border-gray-600 pl-4">
-              <p className="text-sm text-gray-300 font-medium">Jetvision Group</p>
+            <div className="hidden md:block border-l border-background/30 pl-4">
+              <p className="text-sm text-background/70 font-medium">Jetvision Group</p>
             </div>
           </div>
 
@@ -77,7 +77,7 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
               <SettingsDropdownMenu />
               {/* User name (hidden on mobile) */}
               {user && (
-                <span className="hidden sm:inline text-sm text-gray-300">
+                <span className="hidden sm:inline text-sm text-background/70">
                   {user.firstName || user.username || user.emailAddresses[0]?.emailAddress}
                 </span>
               )}

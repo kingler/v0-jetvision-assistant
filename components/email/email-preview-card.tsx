@@ -204,28 +204,28 @@ export function EmailPreviewCard({
     switch (status) {
       case 'draft':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-warning-bg text-warning">
             <Edit3 className="h-3 w-3" />
             Pending Approval
           </span>
         )
       case 'sending':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-info-bg text-primary">
             <Loader2 className="h-3 w-3 animate-spin" />
             Sending...
           </span>
         )
       case 'sent':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-success-bg text-success">
             <Check className="h-3 w-3" />
             Sent
           </span>
         )
       case 'error':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-error-bg text-destructive">
             <AlertCircle className="h-3 w-3" />
             Failed
           </span>
@@ -320,7 +320,7 @@ export function EmailPreviewCard({
                   className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors"
                 >
                   {attachment.type?.includes('pdf') ? (
-                    <FileText className="h-4 w-4 text-red-500" />
+                    <FileText className="h-4 w-4 text-destructive" />
                   ) : (
                     <Paperclip className="h-4 w-4 text-muted-foreground" />
                   )}
@@ -420,13 +420,13 @@ export function EmailPreviewCard({
 
         {/* Error Display */}
         {currentError && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
-            <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 p-3 bg-error-bg rounded-lg border border-error-border">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-700 dark:text-red-300">{currentError}</p>
+              <p className="text-sm text-destructive">{currentError}</p>
               <button
                 onClick={handleSend}
-                className="mt-2 text-xs text-red-600 dark:text-red-400 hover:underline inline-flex items-center gap-1"
+                className="mt-2 text-xs text-destructive hover:underline inline-flex items-center gap-1"
               >
                 <RotateCcw className="h-3 w-3" />
                 Retry
@@ -488,7 +488,7 @@ export function EmailPreviewCard({
                 size="sm"
                 onClick={handleSend}
                 disabled={isSending || status === 'sending' || isEditing}
-                className="bg-black dark:bg-gray-900 hover:bg-gray-800 dark:hover:bg-gray-800 text-white"
+                className="bg-foreground hover:bg-foreground/90 text-background"
               >
                 {isSending || status === 'sending' ? (
                   <>

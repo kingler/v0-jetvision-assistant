@@ -24,46 +24,46 @@ const stageConfig = {
   analyzing: {
     label: 'Analyzing Request',
     icon: Loader2,
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-500/10',
+    color: 'text-status-proposal-sent',
+    bgColor: 'bg-status-proposal-sent/10',
   },
   searching: {
     label: 'Searching Aircraft',
     icon: Loader2,
-    color: 'text-purple-500',
-    bgColor: 'bg-purple-500/10',
+    color: 'text-status-processing',
+    bgColor: 'bg-status-processing/10',
   },
   awaiting_quotes: {
     label: 'Awaiting Quotes',
     icon: Clock,
-    color: 'text-yellow-500',
-    bgColor: 'bg-yellow-500/10',
+    color: 'text-warning',
+    bgColor: 'bg-warning/10',
   },
   analyzing_proposals: {
     label: 'Analyzing Proposals',
     icon: Loader2,
-    color: 'text-indigo-500',
-    bgColor: 'bg-indigo-500/10',
+    color: 'text-primary',
+    bgColor: 'bg-primary/10',
   },
   completed: {
     label: 'Completed',
     icon: CheckCircle,
-    color: 'text-green-500',
-    bgColor: 'bg-green-500/10',
+    color: 'text-success',
+    bgColor: 'bg-success/10',
   },
   failed: {
     label: 'Failed',
     icon: AlertCircle,
-    color: 'text-red-500',
-    bgColor: 'bg-red-500/10',
+    color: 'text-destructive',
+    bgColor: 'bg-destructive/10',
   },
 };
 
 const detailStatusConfig = {
-  pending: { icon: Clock, color: 'text-muted-foreground' },
-  in_progress: { icon: Loader2, color: 'text-blue-500' },
-  completed: { icon: CheckCircle, color: 'text-green-500' },
-  failed: { icon: AlertCircle, color: 'text-red-500' },
+  pending: { icon: Clock, color: 'text-text-placeholder' },
+  in_progress: { icon: Loader2, color: 'text-status-processing' },
+  completed: { icon: CheckCircle, color: 'text-success' },
+  failed: { icon: AlertCircle, color: 'text-destructive' },
 };
 
 export function WorkflowStatus({ stage, progress, message, details, className }: WorkflowStatusProps) {

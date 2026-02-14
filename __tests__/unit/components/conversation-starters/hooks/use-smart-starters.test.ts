@@ -9,7 +9,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { renderHook, waitFor } from "@testing-library/react"
 import { useSmartStarters } from "@/components/conversation-starters/hooks/use-smart-starters"
 import type { UserContext, SmartStartersResult } from "@/components/conversation-starters/hooks/use-smart-starters"
-import { DEFAULT_STARTERS } from "@/components/conversation-starters/default-starters"
+
+/** Expected number of default starters (new-flight-request, active-requests) */
+const EXPECTED_STARTER_COUNT = 2
 
 // Mock analytics
 const mockTrackEvent = vi.fn()
@@ -26,7 +28,7 @@ describe("useSmartStarters", () => {
     it("should return default starters when no context is provided", () => {
       const { result } = renderHook(() => useSmartStarters())
 
-      expect(result.current.starters).toHaveLength(DEFAULT_STARTERS.length)
+      expect(result.current.starters).toHaveLength(EXPECTED_STARTER_COUNT)
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBeNull()
     })
@@ -149,7 +151,7 @@ describe("useSmartStarters", () => {
       const { result } = renderHook(() => useSmartStarters(context))
 
       // Hook should still return all default starters
-      expect(result.current.starters).toHaveLength(DEFAULT_STARTERS.length)
+      expect(result.current.starters).toHaveLength(EXPECTED_STARTER_COUNT)
       expect(result.current.error).toBeNull()
     })
   })
@@ -321,7 +323,7 @@ describe("useSmartStarters", () => {
     it("should handle undefined context gracefully", () => {
       const { result } = renderHook(() => useSmartStarters(undefined))
 
-      expect(result.current.starters).toHaveLength(DEFAULT_STARTERS.length)
+      expect(result.current.starters).toHaveLength(EXPECTED_STARTER_COUNT)
       expect(result.current.isLoading).toBe(false)
     })
   })

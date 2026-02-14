@@ -51,7 +51,7 @@ export function ClosedWonConfirmation({
           {/* Header */}
           <div className="flex items-start gap-3">
             <div className="shrink-0 mt-0.5">
-              <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400" />
+              <CheckCircle2 className="h-7 w-7 text-success" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-lg text-foreground">
@@ -76,7 +76,7 @@ export function ClosedWonConfirmation({
               </div>
               <div className="col-span-2">
                 <span className="text-muted-foreground">Deal Value</span>
-                <p className="font-semibold text-xl text-green-700 dark:text-green-400">
+                <p className="font-semibold text-xl text-success">
                   {currency} {dealValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
@@ -88,7 +88,7 @@ export function ClosedWonConfirmation({
             <div className="space-y-2">
               {timeline.map((step, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                  <Calendar className="h-3.5 w-3.5 text-success" />
                   <span className="text-muted-foreground">{step.label}:</span>
                   <span className="font-medium text-foreground">{step.date}</span>
                 </div>

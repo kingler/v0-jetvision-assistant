@@ -101,7 +101,7 @@ export function ConversationStarterHub({
   if (!loading && activeCategories.length === 0) {
     return (
       <div
-        className={cn("text-center py-8 text-gray-500 dark:text-gray-400", className)}
+        className={cn("text-center py-8 text-muted-foreground", className)}
         data-testid="starter-hub-empty"
       >
         <p>No conversation starters available</p>
@@ -116,7 +116,7 @@ export function ConversationStarterHub({
         {CATEGORY_ORDER.map((category) => (
           <div key={category} className="space-y-3">
             {showCategoryHeaders && (
-              <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
+              <div className="h-5 bg-surface-tertiary rounded w-32 animate-pulse" />
             )}
             <div className="grid gap-3">
               <StarterCard
@@ -151,7 +151,7 @@ export function ConversationStarterHub({
           <div key={category} className="space-y-3" data-testid={`starter-category-${category}`}>
             {/* Category Header */}
             {showCategoryHeaders && (
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <CategoryIcon className="w-4 h-4" />
                 <span className="text-sm font-medium">{config.label}</span>
               </div>

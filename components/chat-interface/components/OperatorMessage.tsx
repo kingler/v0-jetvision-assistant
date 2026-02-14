@@ -82,17 +82,17 @@ export const OperatorMessage = memo(function OperatorMessage({
 
   return (
     <div className={`flex justify-start ${className}`}>
-      <div className="max-w-[85%] bg-amber-50 dark:bg-amber-900/30 text-gray-900 dark:text-gray-100 rounded-2xl px-4 py-3 border border-amber-200 dark:border-amber-700 shadow-sm">
+      <div className="max-w-[85%] bg-warning-bg text-foreground rounded-2xl px-4 py-3 border border-warning-border shadow-sm">
         {/* Operator header with avatar and name */}
         <div className="flex items-center space-x-2 mb-2">
-          <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+          <div className="w-6 h-6 rounded-full bg-warning flex items-center justify-center flex-shrink-0">
             <span className="text-xs font-bold text-white">{initial}</span>
           </div>
-          <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+          <span className="text-xs font-semibold text-warning">
             {operatorName}
           </span>
           {typeLabel && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full">
+            <span className="text-[10px] px-1.5 py-0.5 bg-warning-border text-warning rounded-full">
               {typeLabel}
             </span>
           )}
@@ -103,13 +103,13 @@ export const OperatorMessage = memo(function OperatorMessage({
 
         {/* Footer with timestamp and view thread link */}
         <div className="mt-1 flex items-center justify-between">
-          <span className="text-[10px] text-gray-500 dark:text-gray-400">
+          <span className="text-[10px] text-muted-foreground">
             {formatMessageTimestamp(timestamp)}
           </span>
           {quoteId && onViewThread && (
             <button
               onClick={handleViewThread}
-              className="text-[10px] text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 underline transition-colors"
+              className="text-[10px] text-warning hover:text-warning/80 underline transition-colors"
             >
               View Thread
             </button>

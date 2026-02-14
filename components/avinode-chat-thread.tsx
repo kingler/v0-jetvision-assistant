@@ -135,7 +135,7 @@ const MessageStatusIndicator: React.FC<{ status: Message['status'] }> = ({ statu
       return (
         <Check
           data-testid="status-sent"
-          className="w-3 h-3 text-gray-400"
+          className="w-3 h-3 text-text-placeholder"
           aria-label="Sent"
         />
       );
@@ -143,7 +143,7 @@ const MessageStatusIndicator: React.FC<{ status: Message['status'] }> = ({ statu
       return (
         <CheckCheck
           data-testid="status-delivered"
-          className="w-3 h-3 text-blue-500"
+          className="w-3 h-3 text-primary"
           aria-label="Delivered"
         />
       );
@@ -151,7 +151,7 @@ const MessageStatusIndicator: React.FC<{ status: Message['status'] }> = ({ statu
       return (
         <CheckCheck
           data-testid="status-read"
-          className="w-3 h-3 text-green-500"
+          className="w-3 h-3 text-success"
           aria-label="Read"
         />
       );
@@ -159,7 +159,7 @@ const MessageStatusIndicator: React.FC<{ status: Message['status'] }> = ({ statu
       return (
         <AlertCircle
           data-testid="status-failed"
-          className="w-3 h-3 text-red-500"
+          className="w-3 h-3 text-destructive"
           aria-label="Failed"
         />
       );
@@ -174,13 +174,13 @@ const MessageStatusIndicator: React.FC<{ status: Message['status'] }> = ({ statu
 
 const QuoteSharedContent: React.FC<{ data: any }> = ({ data }) => {
   return (
-    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+    <div className="mt-2 p-3 bg-info-bg rounded-lg border border-blue-200 dark:border-blue-800">
       <div className="flex items-start justify-between mb-2">
         <div>
           <div className="font-semibold text-blue-900 dark:text-blue-100">
             {data.aircraft_type}
           </div>
-          <div className="text-sm text-blue-700 dark:text-blue-300">
+          <div className="text-sm text-primary">
             {data.operator_name}
           </div>
         </div>
@@ -217,7 +217,7 @@ const QuoteSharedContent: React.FC<{ data: any }> = ({ data }) => {
         </div>
       )}
 
-      <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+      <div className="mt-2 text-xs text-muted-foreground">
         Valid until: {new Date(data.valid_until).toLocaleDateString()}
       </div>
     </div>
@@ -233,7 +233,7 @@ const RichMessageContent: React.FC<{ message: Message }> = ({ message }) => {
       return <QuoteSharedContent data={message.rich_content.data} />;
     case 'quote_updated':
       return (
-        <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+        <div className="mt-2 p-3 bg-warning-bg rounded-lg border border-warning-border">
           <div className="text-sm font-semibold text-orange-900 dark:text-orange-100">
             Quote Updated
           </div>
@@ -299,7 +299,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGrouped }) => 
         {/* Sender Name */}
         {!isGrouped && !isSystem && message.sender_name && (
           <div className="flex items-center gap-2 px-1">
-            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+            <span className="text-xs font-semibold text-foreground">
               {message.sender_name}
             </span>
             {isOperator && (
@@ -315,10 +315,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGrouped }) => 
           className={cn(
             'px-4 py-2 rounded-lg',
             isOperator &&
-              'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 operator',
+              'bg-surface-tertiary text-foreground operator',
             isUser &&
               'bg-black dark:bg-gray-900 text-white iso_agent',
-            isSystem && 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100 border border-yellow-200 dark:border-yellow-800'
+            isSystem && 'bg-warning-bg text-yellow-900 dark:text-yellow-100 border border-warning-border'
           )}
         >
           {message.content && (
@@ -355,7 +355,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGrouped }) => 
         >
           <span
             data-testid={`timestamp-${message.id}`}
-            className="text-xs text-gray-500 dark:text-gray-400"
+            className="text-xs text-muted-foreground"
           >
             {formatTimestamp(message.created_at)}
           </span>
@@ -431,8 +431,8 @@ export const AvinodeChatThread: React.FC<AvinodeChatThreadProps> = ({
                   data-testid="loading-spinner"
                   className="flex items-center justify-center py-8"
                 >
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <span className="ml-2 text-sm text-muted-foreground">
                     Loading messages...
                   </span>
                 </div>
@@ -441,7 +441,7 @@ export const AvinodeChatThread: React.FC<AvinodeChatThreadProps> = ({
               {/* Error State */}
               {error && (
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <div className="flex items-center gap-2 text-destructive">
                     <AlertCircle className="w-5 h-5" />
                     <span className="text-sm font-medium">{error}</span>
                   </div>
@@ -461,11 +461,11 @@ export const AvinodeChatThread: React.FC<AvinodeChatThreadProps> = ({
               {/* Empty State */}
               {!isLoading && !error && messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Plane className="w-12 h-12 text-gray-400 mb-3" />
-                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  <Plane className="w-12 h-12 text-text-placeholder mb-3" />
+                  <p className="text-sm text-muted-foreground font-medium">
                     No messages yet
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Messages with operators will appear here
                   </p>
                 </div>

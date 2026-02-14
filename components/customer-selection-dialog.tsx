@@ -449,8 +449,8 @@ export function CustomerSelectionDialog({
           {/* Loading state */}
           {isLoading && (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-              <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+              <Loader2 className="h-6 w-6 animate-spin text-text-placeholder" />
+              <span className="ml-2 text-sm text-muted-foreground">
                 Loading customers...
               </span>
             </div>
@@ -458,7 +458,7 @@ export function CustomerSelectionDialog({
 
           {/* Error state */}
           {error && !isLoading && (
-            <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+            <div className="rounded-md bg-error-bg border border-error-border p-3">
               <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
             </div>
           )}
@@ -468,15 +468,15 @@ export function CustomerSelectionDialog({
             <div className="space-y-2">
               <label
                 htmlFor="customer-typeahead"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                className="text-sm font-medium text-foreground"
               >
-                Customer <span className="text-red-500">*</span>
+                Customer <span className="text-destructive">*</span>
               </label>
 
               <div className="relative" ref={dropdownRef}>
                 {/* Input field */}
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-placeholder pointer-events-none" />
                   <Input
                     id="customer-typeahead"
                     type="text"
@@ -494,13 +494,13 @@ export function CustomerSelectionDialog({
                   />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     {selectedClient && (
-                      <Check className="h-4 w-4 text-green-500" />
+                      <Check className="h-4 w-4 text-success" />
                     )}
                     {searchQuery && (
                       <button
                         type="button"
                         onClick={handleClear}
-                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        className="p-1 text-text-placeholder hover:text-foreground"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -508,7 +508,7 @@ export function CustomerSelectionDialog({
                     <button
                       type="button"
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      className="p-1 text-text-placeholder hover:text-foreground"
                     >
                       <ChevronDown
                         className={cn(
@@ -522,12 +522,12 @@ export function CustomerSelectionDialog({
 
                 {/* Dropdown list */}
                 {isDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                  <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-background shadow-lg">
                     {/* Create New Customer button */}
                     <button
                       type="button"
                       onClick={handleSwitchToCreate}
-                      className="flex w-full items-center gap-2 px-3 py-3 md:py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b-2 border-gray-200 dark:border-gray-700 min-h-[44px] md:min-h-0"
+                      className="flex w-full items-center gap-2 px-3 py-3 md:py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b-2 border-border min-h-[44px] md:min-h-0"
                     >
                       <Plus className="h-4 w-4" />
                       <span>Create New Customer</span>
@@ -538,11 +538,11 @@ export function CustomerSelectionDialog({
                       role="listbox"
                     >
                       {clients.length === 0 ? (
-                        <li className="px-3 py-6 text-center text-sm text-gray-500">
+                        <li className="px-3 py-6 text-center text-sm text-muted-foreground">
                           No customers found. Click above to create one.
                         </li>
                       ) : filteredClients.length === 0 ? (
-                        <li className="px-3 py-6 text-center text-sm text-gray-500">
+                        <li className="px-3 py-6 text-center text-sm text-muted-foreground">
                           No customers match "{searchQuery}"
                         </li>
                       ) : (
@@ -561,7 +561,7 @@ export function CustomerSelectionDialog({
                                 ? 'cursor-not-allowed opacity-50'
                                 : 'cursor-pointer',
                               !isLocked && highlightedIndex === index &&
-                                'bg-gray-100 dark:bg-gray-800',
+                                'bg-surface-tertiary',
                               selectedClient?.id === client.id &&
                                 'bg-orange-50 dark:bg-orange-900/20'
                             )}
@@ -570,15 +570,15 @@ export function CustomerSelectionDialog({
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex flex-col">
-                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                <span className="font-medium text-foreground">
                                   {client.company_name}
                                 </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                <span className="text-xs text-muted-foreground">
                                   {client.contact_name} • {client.email}
                                 </span>
                               </div>
                               {lockedCustomerId === client.id ? (
-                                <Lock className="h-4 w-4 text-amber-500" />
+                                <Lock className="h-4 w-4 text-warning" />
                               ) : selectedClient?.id === client.id ? (
                                 <Check className="h-4 w-4 text-orange-500" />
                               ) : null}
@@ -594,21 +594,21 @@ export function CustomerSelectionDialog({
 
               {/* Selected customer details preview */}
               {selectedClient && (
-                <div className="mt-4 rounded-md bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-3">
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <div className="mt-4 rounded-md bg-surface-secondary border border-border p-3">
+                  <p className="text-xs font-medium text-foreground mb-1">
                     Selected Customer:
                   </p>
-                  <p className="text-sm text-gray-900 dark:text-gray-100">
+                  <p className="text-sm text-foreground">
                     {selectedClient.company_name}
                   </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                  <p className="text-xs text-muted-foreground">
                     Contact: {selectedClient.contact_name}
                   </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                  <p className="text-xs text-muted-foreground">
                     Email: {selectedClient.email}
                   </p>
                   {selectedClient.phone && (
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                    <p className="text-xs text-muted-foreground">
                       Phone: {selectedClient.phone}
                     </p>
                   )}
@@ -619,8 +619,8 @@ export function CustomerSelectionDialog({
 
           {/* Service Charge Selector - shown when customer is selected */}
           {!isLoading && mode === 'select' && selectedClient && showMarginSlider && (
-            <div className="space-y-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 md:p-4">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div className="space-y-3 rounded-md bg-info-bg border border-blue-200 dark:border-blue-800 p-3 md:p-4">
+              <label className="text-sm font-medium text-foreground">
                 Jetvision Service Charge
               </label>
               <div className="flex flex-wrap items-center gap-2">
@@ -636,7 +636,7 @@ export function CustomerSelectionDialog({
                       'px-3 py-2 md:py-1.5 text-sm font-medium rounded-md border transition-colors min-h-[44px] md:min-h-0',
                       !isCustomMargin && marginPercentage === preset
                         ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        : 'bg-card text-foreground border-border-strong hover:bg-surface-secondary'
                     )}
                   >
                     {preset}%
@@ -649,7 +649,7 @@ export function CustomerSelectionDialog({
                     'px-3 py-2 md:py-1.5 text-sm font-medium rounded-md border transition-colors min-h-[44px] md:min-h-0',
                     isCustomMargin
                       ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      : 'bg-card text-foreground border-border-strong hover:bg-surface-secondary'
                   )}
                 >
                   Custom
@@ -666,13 +666,13 @@ export function CustomerSelectionDialog({
                         setMarginPercentage(val);
                       }}
                       autoFocus
-                      className="w-16 text-right text-sm font-semibold rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1"
+                      className="w-16 text-right text-sm font-semibold rounded border border-border-strong bg-card text-foreground px-2 py-1"
                     />
                     <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">%</span>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 This charge is added on top of the operator cost. The client proposal shows only the total.
               </p>
             </div>
@@ -685,7 +685,7 @@ export function CustomerSelectionDialog({
               <button
                 type="button"
                 onClick={handleSwitchToSelect}
-                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 py-2 px-1 -ml-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground py-2 px-1 -ml-1 rounded hover:bg-surface-tertiary"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back to customer list</span>
@@ -704,7 +704,7 @@ export function CustomerSelectionDialog({
               <div className="space-y-3">
                 <div className="space-y-1">
                   <Label htmlFor="company_name">
-                    Company Name <span className="text-red-500">*</span>
+                    Company Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="company_name"
@@ -718,7 +718,7 @@ export function CustomerSelectionDialog({
 
                 <div className="space-y-1">
                   <Label htmlFor="contact_name">
-                    Contact Name <span className="text-red-500">*</span>
+                    Contact Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="contact_name"
@@ -732,7 +732,7 @@ export function CustomerSelectionDialog({
 
                 <div className="space-y-1">
                   <Label htmlFor="email">
-                    Email <span className="text-red-500">*</span>
+                    Email <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="email"

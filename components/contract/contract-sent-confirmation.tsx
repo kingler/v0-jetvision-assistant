@@ -38,12 +38,12 @@ export interface ContractSentConfirmationProps extends ContractSentPayload {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft: { label: 'Draft', className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
-  sent: { label: 'Sent', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
-  signed: { label: 'Signed', className: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' },
-  payment_pending: { label: 'Awaiting Payment', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' },
-  paid: { label: 'Paid', className: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' },
-  completed: { label: 'Completed', className: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' },
+  draft: { label: 'Draft', className: 'bg-muted text-muted-foreground' },
+  sent: { label: 'Sent', className: 'bg-info-bg text-primary' },
+  signed: { label: 'Signed', className: 'bg-success-bg text-success' },
+  payment_pending: { label: 'Awaiting Payment', className: 'bg-warning-bg text-warning' },
+  paid: { label: 'Paid', className: 'bg-success-bg text-success' },
+  completed: { label: 'Completed', className: 'bg-success-bg text-success' },
 }
 
 export function ContractSentConfirmation({
@@ -84,7 +84,7 @@ export function ContractSentConfirmation({
           {/* Header */}
           <div className="flex items-start gap-3">
             <div className="shrink-0 mt-0.5">
-              <ScrollText className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+              <ScrollText className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
@@ -112,8 +112,8 @@ export function ContractSentConfirmation({
                     className={cn(
                       'text-xs',
                       tripType === 'multi_city'
-                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
-                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200'
+                        : 'bg-info-bg text-primary'
                     )}
                   >
                     {tripType === 'multi_city' ? 'Multi-City' : 'Round-Trip'}

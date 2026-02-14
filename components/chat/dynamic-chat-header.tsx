@@ -31,32 +31,32 @@ function getStatusBadge(status: ChatSession['status']) {
   switch (status) {
     case 'proposal_ready':
       return (
-        <Badge className="bg-green-500 text-white">
+        <Badge className="bg-status-proposal-ready text-white">
           <FileText className="w-3 h-3 mr-1" />
           Proposal Ready
         </Badge>
       )
     case 'requesting_quotes':
       return (
-        <Badge className="bg-cyan-500 text-white">
+        <Badge className="bg-status-processing text-white">
           Requesting Quotes
         </Badge>
       )
     case 'understanding_request':
       return (
-        <Badge className="bg-blue-500 text-white">
+        <Badge className="bg-status-proposal-sent text-white">
           Understanding Request
         </Badge>
       )
     case 'searching_aircraft':
       return (
-        <Badge className="bg-purple-500 text-white">
+        <Badge className="bg-status-searching text-white">
           Searching Aircraft
         </Badge>
       )
     case 'analyzing_options':
       return (
-        <Badge className="bg-orange-500 text-white">
+        <Badge className="bg-status-analyzing text-white">
           Analyzing Options
         </Badge>
       )
@@ -81,13 +81,13 @@ export function DynamicChatHeader({
 
   if (!activeChat) {
     return (
-      <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+      <div className="border-b border-border bg-surface-secondary px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white text-[clamp(1rem,2.5vw,1.125rem)]">
+            <h2 className="font-semibold text-foreground text-[clamp(1rem,2.5vw,1.125rem)]">
               No Chat Selected
             </h2>
-            <p className="text-[clamp(0.8125rem,2vw,0.875rem)] text-gray-600 dark:text-gray-400">
+            <p className="text-[clamp(0.8125rem,2vw,0.875rem)] text-muted-foreground">
               Select a chat from the sidebar or start a new conversation
             </p>
           </div>
@@ -127,12 +127,12 @@ export function DynamicChatHeader({
   ].filter(Boolean).join(' • ')
 
   return (
-    <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+    <div className="border-b border-border bg-surface-secondary px-4 sm:px-6 py-3 sm:py-4">
       {/* Primary Row: single line, no wrap - route summary truncates; trip ID and status stay visible */}
       <div className="flex items-center justify-between gap-3 flex-nowrap min-w-0">
         <div className="flex-1 min-w-0 overflow-hidden">
           <span
-            className="block text-[clamp(0.8125rem,2vw,0.875rem)] text-gray-600 dark:text-gray-400 truncate"
+            className="block text-[clamp(0.8125rem,2vw,0.875rem)] text-muted-foreground truncate"
             title={routeSummary}
           >
             {routeSummary || '—'}
@@ -158,7 +158,7 @@ export function DynamicChatHeader({
             >
               {activeChat.tripId}
               {copied ? (
-                <Check className="w-3 h-3 text-green-500" />
+                <Check className="w-3 h-3 text-success" />
               ) : (
                 <Copy className="w-3 h-3" />
               )}

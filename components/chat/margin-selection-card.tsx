@@ -43,11 +43,11 @@ export function MarginSelectionCard({
   }
 
   return (
-    <Card className="w-full bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+    <Card className="w-full bg-info-bg border border-info-border">
       <CardContent className="p-4 space-y-2">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
+          <div className="flex items-center gap-2 text-sm font-medium text-info">
             <UserCheck className="h-4 w-4" />
             <span>Customer &amp; Service Charge Selected</span>
           </div>
@@ -56,7 +56,7 @@ export function MarginSelectionCard({
               variant="ghost"
               size="sm"
               onClick={onEditMargin}
-              className="h-7 px-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+              className="h-7 px-2 text-xs text-primary hover:text-primary/80"
             >
               <Pencil className="h-3 w-3 mr-1" />
               Edit
@@ -65,31 +65,31 @@ export function MarginSelectionCard({
         </div>
 
         {/* Details */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700 dark:text-gray-300">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground">
           <span className="font-medium">{customerName}</span>
           {companyName && (
             <>
-              <span className="text-gray-400">|</span>
+              <span className="text-text-placeholder">|</span>
               <span>{companyName}</span>
             </>
           )}
-          <span className="text-gray-400">|</span>
-          <span className="text-gray-500 dark:text-gray-400">{customerEmail}</span>
+          <span className="text-text-placeholder">|</span>
+          <span className="text-muted-foreground">{customerEmail}</span>
         </div>
 
         {/* Margin badge */}
         <div className="flex items-center gap-2 text-sm">
-          <Percent className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-          <span className="font-semibold text-blue-700 dark:text-blue-300">
+          <Percent className="h-3.5 w-3.5 text-primary" />
+          <span className="font-semibold text-info">
             {marginPercentage}% service charge
           </span>
           {isPreset && (
-            <span className="px-1.5 py-0.5 text-xs rounded bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+            <span className="px-1.5 py-0.5 text-xs rounded bg-info-bg text-primary">
               preset
             </span>
           )}
           {selectedAt && (
-            <span className="ml-auto text-xs text-gray-400">
+            <span className="ml-auto text-xs text-text-placeholder">
               {formatTime(selectedAt)}
             </span>
           )}

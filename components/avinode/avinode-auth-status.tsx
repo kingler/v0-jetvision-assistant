@@ -47,9 +47,9 @@ export function AvinodeAuthStatus({
 
   const getExpirationWarningClass = (daysRemaining: number) => {
     if (daysRemaining < 7) {
-      return 'text-red-500 font-semibold';
+      return 'text-destructive font-semibold';
     } else if (daysRemaining < 30) {
-      return 'text-yellow-600 dark:text-yellow-500 font-semibold';
+      return 'text-warning font-semibold';
     }
     return 'text-muted-foreground';
   };
@@ -70,7 +70,7 @@ export function AvinodeAuthStatus({
           <span className="text-muted-foreground">Method</span>
           <div className="flex items-center gap-2">
             <span className="font-medium">{getMethodLabel(method)}</span>
-            <span className={isValid ? 'text-green-500' : 'text-red-500'}>
+            <span className={isValid ? 'text-success' : 'text-destructive'}>
               {isValid ? '✓ Valid' : '✗ Invalid'}
             </span>
           </div>

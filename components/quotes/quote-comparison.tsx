@@ -114,7 +114,7 @@ const getPriceDifference = (quote: StrictQuote, baselinePrice: number): React.Re
   }
 
   return (
-    <Badge variant="default" className="gap-1 bg-green-500">
+    <Badge variant="default" className="gap-1 bg-success">
       <TrendingDown className="h-3 w-3" />
       {percentDiff}%
     </Badge>
@@ -469,7 +469,7 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({
                   {displayQuotes.map((quote) => (
                     <TableCell key={quote.id} className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-3 w-3 fill-warning text-warning" />
                         {quote.operator.rating.toFixed(1)}
                       </div>
                     </TableCell>
@@ -508,9 +508,9 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({
                       return (
                         <TableCell key={quote.id} className="text-center">
                           {hasFeature ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
+                            <CheckCircle2 className="h-5 w-5 text-success mx-auto" />
                           ) : (
-                            <XCircle className="h-5 w-5 text-gray-300 mx-auto" />
+                            <XCircle className="h-5 w-5 text-muted-foreground/50 mx-auto" />
                           )}
                         </TableCell>
                       );
@@ -533,11 +533,11 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({
             <CardContent className="space-y-4">
               {quote.prosCons.pros.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-green-600">Pros</h4>
+                  <h4 className="text-sm font-semibold text-success">Pros</h4>
                   <ul className="space-y-1">
                     {quote.prosCons.pros.map((pro, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
                         <span>{pro}</span>
                       </li>
                     ))}
@@ -546,11 +546,11 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({
               )}
               {quote.prosCons.cons.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-red-600">Cons</h4>
+                  <h4 className="text-sm font-semibold text-destructive">Cons</h4>
                   <ul className="space-y-1">
                     {quote.prosCons.cons.map((con, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm">
-                        <MinusCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                        <MinusCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                         <span>{con}</span>
                       </li>
                     ))}

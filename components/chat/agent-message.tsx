@@ -420,8 +420,8 @@ export function AgentMessage({
     >
       {/* Avatar + Badge Header */}
       <div className="flex items-center space-x-2">
-        {/* Jetvision Logo - Dark outlined, 10% bigger than original (24px * 1.10 = 26.46px) */}
-        <div className="w-[26.46px] h-[26.46px] flex items-center justify-center shrink-0">
+        {/* Jetvision Logo */}
+        <div className="w-7 h-7 flex items-center justify-center shrink-0">
           <img
             src="/images/jvg-logo.svg"
             alt="Jetvision"
@@ -429,19 +429,19 @@ export function AgentMessage({
             style={{ filter: 'brightness(0)' }}
           />
         </div>
-        <span className="text-xs font-semibold text-black dark:text-gray-100">
+        <span className="text-xs font-semibold text-foreground">
           Jetvision Agent
         </span>
       </div>
 
       {/* Plain text content - transparent background, no border/shadow */}
-      <div className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
+      <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
         {stripMarkdown(content)}
       </div>
 
       {/* Customer Preferences - embedded in single card level */}
       {showCustomerPreferences && customer && (
-        <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="p-4 bg-background rounded-lg border border-border">
           <CustomerPreferencesDisplay customer={customer} />
         </div>
       )}
@@ -517,14 +517,14 @@ export function AgentMessage({
 
       {/* Quote Status Display - only when waiting for quotes (no workflow shown) */}
       {showQuotes && quotes.length === 0 && !shouldShowFlightSearchProgress && (
-        <div data-testid="quote-status-waiting" className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div data-testid="quote-status-waiting" className="p-4 bg-background rounded-lg border border-border">
           <QuoteStatusDisplay />
         </div>
       )}
 
       {/* Quote Comparison - embedded in single card level */}
       {showQuotes && quotes.length > 0 && (
-        <div data-testid="quote-comparison" className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div data-testid="quote-comparison" className="p-4 bg-background rounded-lg border border-border">
           <QuoteComparisonDisplay
             quotes={sortedQuotes}
             onSelectQuote={onSelectQuote}
@@ -535,13 +535,13 @@ export function AgentMessage({
       {/* Proposal Preview - embedded in single card level */}
       {/* Create Customer Proposal Button - Shown when quotes are available and Trip ID is submitted */}
       {showProposal && onContinueToProposal && rfqFlights && rfqFlights.length > 0 && tripIdSubmitted && (
-        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="mt-4 p-4 bg-info-bg rounded-lg border border-info-border">
           <div className="flex items-start gap-3">
             <div className="flex-1">
-              <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+              <h4 className="font-semibold text-foreground mb-2">
                 Ready to Create Your Proposal?
               </h4>
-              <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Select the flights you want to include from the list above in Step 3, then click the button below to generate and send a professional PDF proposal to your customer. Once they pay, the flight will be automatically booked.
               </p>
               <Button
@@ -554,7 +554,7 @@ export function AgentMessage({
                     onContinueToProposal(rfqFlights)
                   }
                 }}
-                className="bg-black dark:bg-gray-900 hover:bg-gray-800 dark:hover:bg-gray-800 text-white font-medium"
+                className="bg-foreground hover:bg-foreground/90 text-background font-medium"
                 size="lg"
               >
                 <FileText className="h-5 w-5 mr-2" />
@@ -566,7 +566,7 @@ export function AgentMessage({
       )}
 
       {showProposal && chatData && !onContinueToProposal && (
-        <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="p-4 bg-background rounded-lg border border-border">
           <ProposalPreview embedded={true} chatData={chatData} />
         </div>
       )}
@@ -701,7 +701,7 @@ export function AgentMessage({
         })()}
 
       {/* Timestamp - show time-only for today, date+time for older messages */}
-      <span className="text-xs text-gray-500 dark:text-gray-400">
+      <span className="text-xs text-muted-foreground">
         {(() => {
           if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) return ''
           const now = new Date()
@@ -729,8 +729,8 @@ function CustomerPreferencesDisplay({ customer }: { customer: ChatSession['custo
   return (
     <div className="space-y-3">
       <div className="flex items-center space-x-2">
-        <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+        <div className="w-5 h-5 rounded-full bg-info-bg flex items-center justify-center">
+          <span className="text-xs font-semibold text-primary">
             {customer.name?.charAt(0) || 'C'}
           </span>
         </div>
@@ -738,19 +738,19 @@ function CustomerPreferencesDisplay({ customer }: { customer: ChatSession['custo
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         {customer.preferences?.catering && (
-          <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+          <div className="p-3 bg-warning-bg rounded-lg border border-warning-border">
             <div className="flex items-center space-x-2 mb-1">
-              <span className="text-orange-600 dark:text-orange-400 font-medium">Catering</span>
+              <span className="text-warning font-medium">Catering</span>
             </div>
-            <p className="text-orange-700 dark:text-orange-300">{customer.preferences.catering}</p>
+            <p className="text-foreground">{customer.preferences.catering}</p>
           </div>
         )}
         {customer.preferences?.groundTransport && (
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+          <div className="p-3 bg-status-processing/10 rounded-lg border border-status-processing/30">
             <div className="flex items-center space-x-2 mb-1">
-              <span className="text-purple-600 dark:text-purple-400 font-medium">Ground Transport</span>
+              <span className="text-status-processing font-medium">Ground Transport</span>
             </div>
-            <p className="text-purple-700 dark:text-purple-300">{customer.preferences.groundTransport}</p>
+            <p className="text-foreground">{customer.preferences.groundTransport}</p>
           </div>
         )}
       </div>
@@ -766,7 +766,7 @@ function QuoteStatusDisplay() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="font-medium text-sm">Live Quote Status:</h4>
-        <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
+        <span className="text-xs px-2 py-1 bg-surface-tertiary rounded-full">
           Waiting for responses...
         </span>
       </div>
@@ -791,7 +791,7 @@ function QuoteComparisonDisplay({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="font-medium">Compare Flight Quotes</h4>
-        <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
+        <span className="text-xs px-2 py-1 bg-surface-tertiary rounded-full">
           {quotes.length} quote{quotes.length !== 1 ? 's' : ''} received
         </span>
       </div>
