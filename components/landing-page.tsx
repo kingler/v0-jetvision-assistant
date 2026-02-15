@@ -111,16 +111,16 @@ export function LandingPage({ onStartChat, userName, userContext }: LandingPageP
               style={{ width: 'auto', height: 'auto' }}
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
             {getGreeting()}{userName ? `, ${userName}` : ''}
           </h1>
-          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300">How can I help you today?</p>
+          <p className="text-lg sm:text-xl text-muted-foreground">How can I help you today?</p>
         </div>
 
         {/* Main Input */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-800 dark:text-red-300">
+            <div className="bg-error-bg border border-error-border rounded-lg p-3 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -129,12 +129,12 @@ export function LandingPage({ onStartChat, userName, userContext }: LandingPageP
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Type your message to start a new chat..."
-              className="pr-12 h-12 sm:h-14 text-base sm:text-lg border-2 border-gray-200 dark:border-gray-700 focus:border-cyan-500 dark:focus:border-cyan-400"
+              className="pr-12 h-12 sm:h-14 text-base sm:text-lg border-2 border-border focus:border-primary"
             />
             <Button
               type="submit"
               size="sm"
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-cyan-600 hover:bg-cyan-700"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary hover:bg-primary/90"
               disabled={!message.trim()}
               aria-label="Send message"
             >
@@ -145,7 +145,7 @@ export function LandingPage({ onStartChat, userName, userContext }: LandingPageP
 
         {/* Conversation Starters */}
         <div className="space-y-4">
-          <p className="text-center text-gray-500 dark:text-gray-400 font-medium">
+          <p className="text-center text-muted-foreground font-medium">
             Or try one of these:
           </p>
           <div className="grid gap-3">

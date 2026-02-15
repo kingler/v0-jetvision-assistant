@@ -1723,10 +1723,10 @@ export default function JetvisionAgent() {
   // Show loading state while Clerk is initializing or requests are loading
   if (!isLoaded || isLoadingRequests) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-muted-foreground">
             {!isLoaded ? 'Loading...' : 'Loading your flight requests...'}
           </p>
         </div>
@@ -1735,7 +1735,7 @@ export default function JetvisionAgent() {
   }
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
+    <div className="h-screen bg-background flex overflow-hidden">
       {/* Backdrop when sidebar is overlay (phone + tablet); click to close */}
       {isTabletOrSmaller && sidebarOpen && (
         <div

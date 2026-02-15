@@ -54,7 +54,7 @@ export function SettingsDropdownMenu() {
         <Button
           variant="ghost"
           size="sm"
-          className="flex items-center space-x-2 rounded-lg border-0 bg-transparent text-gray-300 transition-colors hover:bg-cyan-700 hover:text-white data-[state=open]:bg-cyan-600 data-[state=open]:text-white data-[state=open]:shadow-sm"
+          className="flex items-center space-x-2 rounded-lg border-0 bg-transparent text-header-button transition-colors hover:bg-header-button-hover-bg hover:text-header-button-hover data-[state=open]:bg-primary data-[state=open]:text-primary-foreground data-[state=open]:shadow-sm"
         >
           <Settings className="w-4 h-4" />
           <span className="hidden sm:inline">Settings</span>
