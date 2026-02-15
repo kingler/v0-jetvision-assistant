@@ -39,7 +39,7 @@ export const FLIGHT_REQUEST_STAGES: FlightRequestStage[] = [
   'closed_won',
 ];
 
-export function FlightRequestStageBadge({ stage, className }: { stage: FlightRequestStage; className?: string }) {
+export function FlightRequestStageBadge({ stage, label, className }: { stage: FlightRequestStage; label?: string; className?: string }) {
   const config = STAGE_CONFIG[stage];
   return (
     <Badge
@@ -47,7 +47,7 @@ export function FlightRequestStageBadge({ stage, className }: { stage: FlightReq
       className={cn('rounded-full border-0 text-xs font-medium', className)}
       style={{ backgroundColor: config.bg, color: config.text }}
     >
-      {config.label}
+      {label ?? config.label}
     </Badge>
   );
 }

@@ -22,6 +22,8 @@ import {
 import { CheckCircle, Clock, Loader2, FileText, MessageSquare, Trash2, MoreVertical, X, Archive } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AvinodeTripBadge } from "@/components/avinode-trip-badge"
+import { FlightRequestStageBadge } from "@/components/flight-request-stage-badge"
+import type { FlightRequestStage } from "@/components/flight-request-stage-badge"
 import type { ChatSession } from "@/components/chat-sidebar"
 import { formatDate } from "@/lib/utils/format"
 
@@ -226,78 +228,17 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
   }
 
   /**
-   * Get status badge component.
-   * Uses Badge component with semantic colors for all 10 flight request/booking stages.
+   * Get status badge for the current flight request/booking stage.
+   * Uses FlightRequestStageBadge with tinted bg + dark text in matching hue.
    */
   const getStatusBadge = () => {
-    switch (session.status) {
-      case "understanding_request":
-        return (
-          <Badge variant="default" className="bg-status-proposal-sent text-white text-xs">
-            Understanding Request
-          </Badge>
-        )
-      case "searching_aircraft":
-        return (
-          <Badge variant="default" className="bg-primary text-primary-foreground text-xs">
-            Searching Aircraft
-          </Badge>
-        )
-      case "analyzing_options":
-        return (
-          <Badge variant="default" className="bg-status-analyzing text-[#00A5DA] text-xs">
-            Analyzing Options
-          </Badge>
-        )
-      case "closed_won":
-        return (
-          <Badge variant="default" className="bg-status-closed-won text-xs">
-            Closed Won
-          </Badge>
-        )
-      case "payment_pending":
-        return (
-          <Badge variant="default" className="bg-status-payment-pending text-xs">
-            Payment Pending
-          </Badge>
-        )
-      case "contract_sent":
-        return (
-          <Badge variant="default" className="bg-status-contract-sent text-xs">
-            Contract Sent
-          </Badge>
-        )
-      case "contract_generated":
-        return (
-          <Badge variant="default" className="bg-status-contract-ready text-xs">
-            Contract Ready
-          </Badge>
-        )
-      case "proposal_sent":
-        return (
-          <Badge variant="default" className="bg-status-proposal-sent text-xs">
-            Proposal Sent
-          </Badge>
-        )
-      case "proposal_ready":
-        return (
-          <Badge variant="default" className="bg-status-proposal-ready text-xs">
-            Proposal Ready
-          </Badge>
-        )
-      case "requesting_quotes":
-        return (
-          <Badge variant="default" className="bg-status-processing text-xs">
-            Quotes {session.quotesReceived || 0}/{session.quotesTotal || 5}
-          </Badge>
-        )
-      default:
-        return (
-          <Badge variant="secondary" className="bg-status-pending text-white text-xs">
-            Pending
-          </Badge>
-        )
-    }
+    const stage = session.status as FlightRequestStage
+    const quoteLabel =
+      session.status === "requesting_quotes"
+        ? `Quotes ${session.quotesReceived || 0}/${session.quotesTotal || 5}`
+        : undefined
+
+    return <FlightRequestStageBadge stage={stage} label={quoteLabel} />
   }
 
   /**
