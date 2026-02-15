@@ -65,18 +65,18 @@ export function ClosedWonConfirmation({
 
           {/* Deal Summary */}
           <div className="bg-muted rounded-lg p-4 border border-border">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Route</span>
-                <p className="font-medium text-foreground">{flightRoute}</p>
+                <p className="font-medium text-foreground break-words">{flightRoute}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Customer</span>
                 <p className="font-medium text-foreground">{customerName}</p>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full">
                 <span className="text-muted-foreground">Deal Value</span>
-                <p className="font-semibold text-xl text-success">
+                <p className="font-semibold text-xl text-success break-words">
                   {currency} {dealValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>

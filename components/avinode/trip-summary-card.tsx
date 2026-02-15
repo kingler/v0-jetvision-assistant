@@ -86,12 +86,12 @@ export function TripSummaryCard({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2">
             <Plane className="h-5 w-5" />
             Trip Details
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant={isRoundTrip || isMultiCity ? 'default' : 'secondary'}>
               {isMultiCity ? 'Multi-City' : isRoundTrip ? 'Round-Trip' : 'One-Way'}
             </Badge>
@@ -103,18 +103,19 @@ export function TripSummaryCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Trip ID */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <span className="text-xs text-muted-foreground uppercase tracking-wider">
               Trip ID
             </span>
-            <p className="font-mono text-sm font-medium">{tripId}</p>
+            <p className="font-mono text-sm font-medium truncate">{tripId}</p>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={onCopyTripId}
             aria-label="Copy trip ID"
+            className="shrink-0"
           >
             <Copy className="h-4 w-4" />
             Copy
@@ -125,7 +126,7 @@ export function TripSummaryCard({
         {isMultiCity && segments && segments.length > 1 ? (
           <div className="space-y-2">
             {segments.map((seg, idx) => (
-              <div key={idx} className="rounded-lg border p-4 space-y-3">
+              <div key={idx} className="rounded-lg border p-3 sm:p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Leg {idx + 1}
@@ -143,9 +144,9 @@ export function TripSummaryCard({
                   </div>
                   <div className="flex-1 flex items-center justify-center">
                     <div className="flex items-center gap-1">
-                      <div className="h-px w-12 bg-border" />
+                      <div className="h-px w-4 sm:w-12 bg-border" />
                       <Plane className="h-4 w-4 text-muted-foreground" />
-                      <div className="h-px w-12 bg-border" />
+                      <div className="h-px w-4 sm:w-12 bg-border" />
                     </div>
                   </div>
                   <div className="flex-1 text-right">
@@ -161,7 +162,7 @@ export function TripSummaryCard({
         ) : (
           <>
             {/* Outbound Route Visualization */}
-            <div className="rounded-lg border p-4 space-y-3">
+            <div className="rounded-lg border p-3 sm:p-4 space-y-3">
               {isRoundTrip && (
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Outbound
@@ -176,9 +177,9 @@ export function TripSummaryCard({
                 </div>
                 <div className="flex-1 flex items-center justify-center">
                   <div className="flex items-center gap-1">
-                    <div className="h-px w-12 bg-border" />
+                    <div className="h-px w-4 sm:w-12 bg-border" />
                     <Plane className="h-4 w-4 text-muted-foreground" />
-                    <div className="h-px w-12 bg-border" />
+                    <div className="h-px w-4 sm:w-12 bg-border" />
                   </div>
                 </div>
                 <div className="flex-1 text-right">
@@ -192,7 +193,7 @@ export function TripSummaryCard({
 
             {/* Return Route Visualization (round-trip only) */}
             {isRoundTrip && (
-              <div className="rounded-lg border border-dashed p-4 space-y-3">
+              <div className="rounded-lg border border-dashed p-3 sm:p-4 space-y-3">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Return
                 </span>
@@ -205,9 +206,9 @@ export function TripSummaryCard({
                   </div>
                   <div className="flex-1 flex items-center justify-center">
                     <div className="flex items-center gap-1">
-                      <div className="h-px w-12 bg-border" />
+                      <div className="h-px w-4 sm:w-12 bg-border" />
                       <Plane className="h-4 w-4 text-muted-foreground rotate-180" />
-                      <div className="h-px w-12 bg-border" />
+                      <div className="h-px w-4 sm:w-12 bg-border" />
                     </div>
                   </div>
                   <div className="flex-1 text-right">
@@ -223,7 +224,7 @@ export function TripSummaryCard({
         )}
 
         {/* Flight Details */}
-        <div className={`grid ${(isRoundTrip && returnDate) || isMultiCity ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
+        <div className={`grid ${(isRoundTrip && returnDate) || isMultiCity ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'} gap-3 sm:gap-4`}>
           <div>
             <span className="text-xs text-muted-foreground uppercase tracking-wider">
               {isRoundTrip ? 'Outbound' : isMultiCity ? 'First Leg' : 'Departure'}

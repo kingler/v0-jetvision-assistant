@@ -149,8 +149,8 @@ describe('Prompt Sections', () => {
   });
 
   describe('TOOL_REFERENCE section', () => {
-    it('should document all 23 tools', () => {
-      expect(TOOL_REFERENCE).toContain('23 total');
+    it('should document all 26 tools', () => {
+      expect(TOOL_REFERENCE).toContain('26 total');
     });
 
     it('should document Avinode tools (8)', () => {
@@ -165,8 +165,8 @@ describe('Prompt Sections', () => {
       expect(TOOL_REFERENCE).toContain('search_empty_legs');
     });
 
-    it('should document Database/CRM tools (12)', () => {
-      expect(TOOL_REFERENCE).toContain('Database/CRM Tools (12)');
+    it('should document Database/CRM tools (14)', () => {
+      expect(TOOL_REFERENCE).toContain('Database/CRM Tools (14)');
       expect(TOOL_REFERENCE).toContain('get_client');
       expect(TOOL_REFERENCE).toContain('list_clients');
       expect(TOOL_REFERENCE).toContain('create_client');
@@ -179,6 +179,8 @@ describe('Prompt Sections', () => {
       expect(TOOL_REFERENCE).toContain('list_preferred_operators');
       expect(TOOL_REFERENCE).toContain('create_proposal');
       expect(TOOL_REFERENCE).toContain('get_proposal');
+      expect(TOOL_REFERENCE).toContain('generate_contract');
+      expect(TOOL_REFERENCE).toContain('confirm_payment');
     });
 
     it('should document Gmail tools (4)', () => {

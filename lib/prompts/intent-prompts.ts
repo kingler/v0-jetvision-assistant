@@ -303,62 +303,135 @@ The proposal has been sent. Now check if the customer has replied.
 
   book_flight: `## Current Task: Book Flight / Generate Contract
 
-**Priority**: Guide user through contract generation after customer acceptance
+**Priority**: Generate contract after customer acceptance using \`generate_contract\` tool
 
 ### Prerequisites
 - Workflow must be at \`customer_replied\` or later
-- Customer details (name, email, company) must be available
+- proposal_id and request_id must be available (from working memory or CRM)
 - Flight details and pricing must be confirmed
 
 ### Flow
-1. Verify all required details from working memory and CRM
-2. Confirm pricing with margin applied
-3. Guide user to click the **"Book Flight"** button in the UI
-4. The UI triggers contract generation via \`/api/contract/send\`
-5. After contract sent, update stage to \`contract_sent\`
+1. Verify workflow is at \`customer_replied\` or later
+2. Retrieve proposal_id and request_id from working memory (or use \`get_proposal\` to find them)
+3. Confirm details with user before proceeding
+4. Call \`generate_contract\` with proposal_id and request_id
+5. After contract generated, stage becomes \`contract_sent\`
 
 ### Required Fields
-- Customer: name, email, company
-- Flight: route, date, passengers
-- Pricing: base price, margin, total amount
+- proposal_id: The accepted proposal UUID
+- request_id: The flight request UUID
 
-### CRITICAL
-The agent does NOT call the contract API directly. The "Book Flight" button in the UI triggers it.
-Guide the user to click the button, then confirm the contract was sent.
+### Tool Call
+\`generate_contract(proposal_id, request_id)\`
+
+### Alternative Path
+The "Book Flight" button in the UI triggers the same action. Guide user to the button only when proposal_id or request_id are missing and need manual selection.
 
 ### Response Template (Confirming Details)
-"Ready to book:
+"Ready to generate contract for [Customer]:
 [Route] on [Date] for [Passengers] PAX
 Total: $[Amount]
-Customer: [Name] <[Email]>
 
-Click the **Book Flight** button to generate and send the contract."`,
+Shall I proceed?"
+
+### Response Template (After Contract Generated)
+"Contract [Number] has been generated and sent to [Email].
+The customer will receive it shortly. I'll help you track payment once received."`,
 
   confirm_payment: `## Current Task: Confirm Payment Received
 
-**Priority**: Guide user through payment recording after contract sent
+**Priority**: Record payment using \`confirm_payment\` tool after contract sent
 
 ### Prerequisites
 - Workflow must be at \`contract_sent\`
 - Contract must have been sent to customer
+- contract_id must be available from working memory
 
 ### Flow
-1. Guide user to click **"Mark Payment Received"** in the contract card
-2. User enters payment details in PaymentConfirmationModal:
-   - Payment amount
-   - Payment method (wire transfer, credit card, check)
-   - Reference number
-3. After confirmation, update stage to \`payment_received\`
-4. Ask if ready to close the deal
+1. Verify workflow is at \`contract_sent\`
+2. Collect payment details from user: amount, method, reference
+3. Call \`confirm_payment\` with contract_id, payment_amount, payment_method, payment_reference
+4. After confirmation, stage becomes \`payment_received\`
+5. Ask if ready to close the deal
 
-### CRITICAL
-The agent does NOT record payments directly. The PaymentConfirmationModal handles it.
-Guide the user to the correct UI action.
+### Required Fields
+- contract_id: The contract UUID (from working memory)
+- payment_amount: Payment amount received (number)
+- payment_method: "wire", "credit_card", or "check"
+- payment_reference: Payment reference or transaction ID
 
-### Response Template
-"To record the payment, click **Mark Payment Received** in the contract card.
-You'll need: amount, payment method, and reference number.
-Once confirmed, we can close the deal."`,
+### Tool Call
+\`confirm_payment(contract_id, payment_amount, payment_method, payment_reference)\`
+
+### Alternative Path
+The "Mark Payment Received" button in the contract card is an alternative UI path.
+Guide user to the button only when they prefer the UI or details are complex.
+
+### Response Template (Collecting Details)
+"To record the payment, I need:
+- Payment amount
+- Payment method (wire transfer, credit card, or check)
+- Reference number"
+
+### Response Template (After Payment Confirmed)
+"Payment of $[Amount] via [Method] (Ref: [Reference]) has been recorded.
+Would you like to close the deal?"`,
+
+  get_request: `## Current Task: Request Details Lookup
+
+**Priority**: Look up a specific flight request using \`get_request\` tool
+
+### Flow
+1. Identify request_id from user message or session context
+2. Call \`get_request\` with request_id
+3. Display contextual summary with status highlights and next steps
+
+### Required Fields
+- request_id: The flight request UUID
+
+### Tool Call
+\`get_request(request_id)\`
+
+### Response Guidelines
+- Highlight current status and any notable changes
+- Suggest next steps based on status (e.g., "Quotes are in — ready to create a proposal?")
+- The TripDetailsCard UI component renders automatically — don't duplicate its data`,
+
+  get_operator: `## Current Task: Operator Lookup
+
+**Priority**: Look up operator details using \`get_operator\` tool
+
+### Flow
+1. Identify operator_id or avinode_operator_id from user message or context
+2. Call \`get_operator\` with the ID
+3. Display operator profile: name, rating, fleet info, preferred status
+
+### Required Fields
+- operator_id or avinode_operator_id
+
+### Tool Call
+\`get_operator(operator_id)\` or \`get_operator(avinode_operator_id)\`
+
+### Response Guidelines
+- Show operator name, rating, fleet, and preferred status
+- If operator is preferred, highlight that relationship
+- Suggest: "Would you like to send an RFQ to this operator?"`,
+
+  list_preferred_operators: `## Current Task: List Preferred Operators
+
+**Priority**: Show preferred/partner operators using \`list_preferred_operators\` tool
+
+### Flow
+1. Call \`list_preferred_operators\` with optional filters
+2. Display ranked table of preferred operators
+
+### Tool Call
+\`list_preferred_operators()\` with optional filters
+
+### Response Guidelines
+- Display operators ranked by rating or relationship strength
+- Include: name, rating, fleet info, preferred status
+- Suggest: "Would you like to send an RFQ to any of these operators?"`,
 
   close_deal: `## Current Task: Close Deal
 
@@ -460,6 +533,19 @@ export const INTENT_PATTERNS: Record<string, RegExp[]> = {
     /(?:customer|client)\s+(?:paid|has\s+paid)/i,
     /(?:confirm|record|mark)\s+(?:the\s+)?payment/i,
     /(?:mark|set)\s+(?:as\s+)?paid/i,
+  ],
+  get_request: [
+    /(?:show|get|lookup)\s+request/i,
+    /request\s+(?:details|status|info)/i,
+    /(?:what'?s?\s+)?(?:the\s+)?status\s+of\s+(?:the\s+)?request/i,
+  ],
+  get_operator: [
+    /(?:who\s+is|about|show)\s+(?:the\s+)?operator/i,
+    /operator\s+(?:profile|details|info)/i,
+  ],
+  list_preferred_operators: [
+    /(?:show|list)\s+(?:our\s+)?(?:preferred|partner)\s+operators/i,
+    /(?:preferred|partner)\s+operators/i,
   ],
   close_deal: [
     /close\s+(?:the\s+)?deal/i,

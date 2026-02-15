@@ -103,19 +103,19 @@ export function WorkflowStatus({ stage, progress, message, details, className }:
               return (
                 <div
                   key={index}
-                  className="flex items-center justify-between text-sm py-1 border-b last:border-0"
+                  className="flex flex-wrap items-center justify-between gap-1 text-sm py-1 border-b last:border-0"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     {DetailIcon && (
                       <DetailIcon
-                        className={`h-4 w-4 ${detailColor} ${
+                        className={`h-4 w-4 shrink-0 ${detailColor} ${
                           detail.status === 'in_progress' ? 'animate-spin' : ''
                         }`}
                       />
                     )}
                     <span className="text-muted-foreground">{detail.label}</span>
                   </div>
-                  <span className="font-medium">{detail.value}</span>
+                  <span className="font-medium text-right break-words">{detail.value}</span>
                 </div>
               );
             })}

@@ -26,11 +26,11 @@ export function AvinodeConnectionStatus({
     <div className={`${bgColor} ${borderColor} border-l-4 rounded-lg p-4`}>
       <div className="flex items-start gap-3">
         <Icon className={`h-5 w-5 ${iconColor} flex-shrink-0 mt-0.5`} />
-        <div className="flex-1 space-y-2">
-          <div className="text-base font-semibold">
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="text-sm sm:text-base font-semibold break-words">
             Avinode API Connection Test - {statusText}
           </div>
-          <div className="text-sm">
+          <div className="text-sm break-words">
             {message}
           </div>
           <div className="text-xs text-muted-foreground">

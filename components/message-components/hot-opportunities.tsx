@@ -150,15 +150,15 @@ function OpportunityCard({
   return (
     <div
       className={cn(
-        'flex items-center justify-between p-3 rounded-lg border border-l-4',
+        'flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-l-4',
         'hover:bg-surface-secondary transition-colors cursor-pointer',
         config.borderColor,
         config.bgColor
       )}
       onClick={onView}
     >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="flex items-center gap-1 font-medium">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-1 font-medium shrink-0">
           <Plane className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm">{opportunity.departureAirport}</span>
           <span className="text-muted-foreground">→</span>
@@ -174,7 +174,7 @@ function OpportunityCard({
         <CountdownTimer expiresAt={opportunity.expiresAt} />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <span className="font-semibold text-sm">
           {formatCurrency(opportunity.value, opportunity.currency)}
         </span>

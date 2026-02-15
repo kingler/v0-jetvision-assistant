@@ -98,41 +98,41 @@ export function TripDetailsCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Trip ID Row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Trip ID</span>
-            <span className="font-mono font-medium">{getTripIdDisplay()}</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
+            <span className="text-muted-foreground shrink-0">Trip ID</span>
+            <span className="font-mono font-medium truncate">{getTripIdDisplay()}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={onCopyTripId} aria-label="Copy Trip ID">
+          <Button variant="ghost" size="sm" onClick={onCopyTripId} aria-label="Copy Trip ID" className="shrink-0">
             <Clipboard className="h-4 w-4" />
             Copy
           </Button>
         </div>
 
         {/* Route Visualization */}
-        <div className="rounded-lg border p-4 bg-muted/30">
-          <div className="flex items-center justify-between gap-4">
+        <div className="rounded-lg border p-3 sm:p-4 bg-muted/30">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Departure */}
-            <div className="flex flex-col items-center text-center flex-1">
-              <Plane className="h-5 w-5 mb-2 -rotate-45" />
-              <div className="font-bold text-lg">{departureAirport.icao}</div>
-              <div className="text-xs text-muted-foreground">
+            <div className="flex flex-col items-center text-center flex-1 min-w-0">
+              <Plane className="h-5 w-5 mb-2 -rotate-45 shrink-0" />
+              <div className="font-bold text-base sm:text-lg">{departureAirport.icao}</div>
+              <div className="text-[10px] sm:text-xs text-muted-foreground break-words">
                 {departureAirport.name}, {departureAirport.city}
               </div>
             </div>
 
             {/* Flight Path */}
-            <div className="flex items-center gap-2 px-4">
-              <div className="h-px bg-border flex-1 w-24" />
-              <Plane className="h-4 w-4 text-muted-foreground" />
-              <div className="h-px bg-border flex-1 w-24" />
+            <div className="flex items-center gap-1 sm:gap-2 px-1 sm:px-4 shrink-0">
+              <div className="h-px bg-border w-4 sm:w-12 md:w-24" />
+              <Plane className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="h-px bg-border w-4 sm:w-12 md:w-24" />
             </div>
 
             {/* Arrival */}
-            <div className="flex flex-col items-center text-center flex-1">
-              <Plane className="h-5 w-5 mb-2 rotate-45" />
-              <div className="font-bold text-lg">{arrivalAirport.icao}</div>
-              <div className="text-xs text-muted-foreground">
+            <div className="flex flex-col items-center text-center flex-1 min-w-0">
+              <Plane className="h-5 w-5 mb-2 rotate-45 shrink-0" />
+              <div className="font-bold text-base sm:text-lg">{arrivalAirport.icao}</div>
+              <div className="text-[10px] sm:text-xs text-muted-foreground break-words">
                 {arrivalAirport.name}, {arrivalAirport.city}
               </div>
             </div>
@@ -140,22 +140,22 @@ export function TripDetailsCard({
         </div>
 
         {/* Departure Date/Time */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">📅 Departure</span>
-          <span className="font-medium">{getDateTimeDisplay()}</span>
+        <div className="flex flex-wrap items-center justify-between gap-1 text-sm">
+          <span className="text-muted-foreground shrink-0">📅 Departure</span>
+          <span className="font-medium text-right break-words">{getDateTimeDisplay()}</span>
         </div>
 
         {/* Passengers */}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">👥 Passengers</span>
+          <span className="text-muted-foreground shrink-0">👥 Passengers</span>
           <span className="font-medium">{passengers}</span>
         </div>
 
         {/* Buyer (optional) */}
         {buyer && (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">🏢 Buyer</span>
-            <span className="font-medium">
+          <div className="flex flex-wrap items-center justify-between gap-1 text-sm">
+            <span className="text-muted-foreground shrink-0">🏢 Buyer</span>
+            <span className="font-medium text-right break-words">
               {buyer.company} ({buyer.contact})
             </span>
           </div>

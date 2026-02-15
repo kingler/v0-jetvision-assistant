@@ -60,7 +60,7 @@ export function AvinodeMessageCard({
 
         {/* Message Content */}
         <div className="rounded-lg border p-3 bg-muted/20">
-          <div className="text-sm">"{content}"</div>
+          <div className="text-sm break-words overflow-wrap-anywhere">"{content}"</div>
         </div>
 
         {/* Timestamp */}

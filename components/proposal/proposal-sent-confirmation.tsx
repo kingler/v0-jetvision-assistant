@@ -176,9 +176,9 @@ export function ProposalSentConfirmation({
 
         {/* Flight Details Summary */}
         <div className="bg-muted rounded-lg p-4 border border-border">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
             {/* Trip Type Badge */}
-            <div className="col-span-2 flex items-center gap-2">
+            <div className="col-span-full flex items-center gap-2">
               <span
                 className={cn(
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -195,16 +195,16 @@ export function ProposalSentConfirmation({
 
             {/* Multi-city: show each segment */}
             {isMultiCity && safeFlightDetails.segments && safeFlightDetails.segments.length > 0 ? (
-              <div className="col-span-2 space-y-2">
+              <div className="col-span-full space-y-2">
                 {safeFlightDetails.segments.map((seg, i) => (
-                  <div key={i} className="flex items-center gap-3">
+                  <div key={i} className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <span className="text-xs text-muted-foreground font-medium w-10 shrink-0">
                       Leg {i + 1}
                     </span>
-                    <span className="font-medium text-foreground">
+                    <span className="font-medium text-foreground break-words">
                       {seg.departureAirport} → {seg.arrivalAirport}
                     </span>
-                    <span className="text-muted-foreground">|</span>
+                    <span className="hidden sm:inline text-muted-foreground">|</span>
                     <span className="text-foreground">
                       {formatDate(seg.departureDate)}
                     </span>
@@ -243,7 +243,7 @@ export function ProposalSentConfirmation({
               <>
                 {/* Show leg breakdown for round-trip if available */}
                 {isRoundTrip && (pricing.outboundCost || pricing.returnCost) && (
-                  <div className="col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-border">
+                  <div className="col-span-full grid grid-cols-2 gap-4 pt-2 border-t border-border">
                     {pricing.outboundCost && (
                       <div>
                         <span className="text-muted-foreground">Outbound:</span>
@@ -268,7 +268,7 @@ export function ProposalSentConfirmation({
                     )}
                   </div>
                 )}
-                <div className="col-span-2">
+                <div className="col-span-full">
                   <span className="text-muted-foreground">Total Price:</span>
                   <p className="font-medium text-lg text-foreground">
                     {pricing.currency} {pricing.total.toLocaleString(undefined, {
@@ -301,7 +301,7 @@ export function ProposalSentConfirmation({
 
         {/* Action Buttons */}
         {(onEditMargin || onGenerateContract) && (
-          <div className="flex items-center gap-2 pt-2 border-t border-border">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-border">
             {onEditMargin && (
               <Button
                 variant="outline"

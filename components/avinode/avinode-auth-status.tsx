@@ -66,8 +66,8 @@ export function AvinodeAuthStatus({
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Method Row */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Method</span>
+        <div className="flex flex-wrap items-center justify-between gap-1 text-sm">
+          <span className="text-muted-foreground shrink-0">Method</span>
           <div className="flex items-center gap-2">
             <span className="font-medium">{getMethodLabel(method)}</span>
             <span className={isValid ? 'text-success' : 'text-destructive'}>
@@ -77,20 +77,20 @@ export function AvinodeAuthStatus({
         </div>
 
         {/* Environment Row */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Environment</span>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-1 text-sm">
+          <span className="text-muted-foreground shrink-0">Environment</span>
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <Badge variant={getEnvironmentVariant(environment)}>
               {getEnvironmentLabel(environment)}
             </Badge>
-            <span className="text-xs text-muted-foreground">({baseUrl})</span>
+            <span className="text-xs text-muted-foreground break-all min-w-0">({baseUrl})</span>
           </div>
         </div>
 
         {/* Expiration Row */}
         {expiresAt && (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Expires</span>
+          <div className="flex flex-wrap items-center justify-between gap-1 text-sm">
+            <span className="text-muted-foreground shrink-0">Expires</span>
             <div className="flex items-center gap-2">
               <span className="font-medium">{formatExpirationDate(expiresAt)}</span>
               {daysRemaining !== null && (

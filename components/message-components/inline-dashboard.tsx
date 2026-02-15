@@ -83,12 +83,15 @@ export function InlineDashboard({
 
   return (
     <Card className={cn('w-full', className)}>
+      {/* Title rendered above CardHeader per layout requirements */}
+      <div className="px-6">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <BarChart3 className="h-5 w-5 text-primary" />
+          Your Deal Pipeline
+        </CardTitle>
+      </div>
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Your Deal Pipeline
-          </CardTitle>
+        <div className="flex items-center justify-end">
           <CardAction>
             <div className="flex items-center gap-2">
               {/* Period Selector */}

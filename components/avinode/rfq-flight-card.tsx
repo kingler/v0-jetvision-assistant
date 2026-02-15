@@ -654,11 +654,10 @@ export function RFQFlightCard({
 
       {/* Compact View: Smaller thumbnail, essential info only */}
       {showCompactView ? (
-        <div className="flex gap-4 pb-4 pt-2">
-          {/* Compact Image: 120x120 thumbnail */}
+        <div className="flex gap-3 sm:gap-4 pb-4 pt-2">
+          {/* Compact Image: 80x80 on small screens, 120x120 thumbnail on larger */}
           <div
-            className="bg-muted flex flex-col items-center justify-center shrink-0"
-            style={{ width: `${compactImageSize}px`, height: `${compactImageSize}px` }}
+            className="bg-muted flex flex-col items-center justify-center shrink-0 w-20 h-20 sm:w-[120px] sm:h-[120px]"
           >
             {flight.tailPhotoUrl && !imageError ? (
               <img
@@ -793,15 +792,15 @@ export function RFQFlightCard({
             className={cn(
               'pb-4 pt-2 gap-4',
               compact && isExpanded
-                ? 'grid grid-cols-3 min-w-0'
-                : 'flex flex-row'
+                ? 'grid grid-cols-1 sm:grid-cols-3 min-w-0'
+                : 'flex flex-col sm:flex-row'
             )}
           >
             {/* Column 1: Aircraft Image - 33.3% width, constrained to grid cell */}
             <div
               className={cn(
                 'bg-muted flex flex-col items-center justify-center rounded-lg overflow-hidden min-w-0',
-                compact && isExpanded ? 'w-full aspect-5/6 max-h-[180px]' : 'w-[150px] h-[180px] shrink-0'
+                compact && isExpanded ? 'w-full aspect-5/6 max-h-[180px]' : 'w-full sm:w-[150px] h-[150px] sm:h-[180px] shrink-0'
               )}
             >
               {flight.tailPhotoUrl && !imageError ? (
@@ -888,7 +887,7 @@ export function RFQFlightCard({
             <div
               className={cn(
                 'py-4 flex flex-col space-y-4 min-w-0',
-                compact && isExpanded ? 'w-full' : 'w-[220px] shrink-0'
+                compact && isExpanded ? 'w-full' : 'w-full sm:w-[220px] shrink-0'
               )}
               style={{ height: 'fit-content' }}
             >

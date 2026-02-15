@@ -172,10 +172,10 @@ export function PipelineDashboard({
                 return (
                   <div
                     key={request.id}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-secondary transition-colors"
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-lg border hover:bg-surface-secondary transition-colors"
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex items-center gap-1 font-medium">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                      <div className="flex items-center gap-1 font-medium shrink-0">
                         <span className="text-sm">{request.departureAirport}</span>
                         <span className="text-muted-foreground">→</span>
                         <span className="text-sm">{request.arrivalAirport}</span>
@@ -194,7 +194,7 @@ export function PipelineDashboard({
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                       {onViewRequest && (
                         <Button

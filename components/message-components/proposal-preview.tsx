@@ -134,12 +134,12 @@ export function ProposalPreview({ proposal, onDownload, onView, onAccept, classN
         {/* Selected Quote */}
         <div className="space-y-2">
           <h4 className="font-semibold text-sm">Selected Quote</h4>
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div>
-              <p className="font-medium">{selectedQuote.operatorName}</p>
-              <p className="text-sm text-muted-foreground">{selectedQuote.aircraftType}</p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 border rounded-lg">
+            <div className="min-w-0">
+              <p className="font-medium break-words">{selectedQuote.operatorName}</p>
+              <p className="text-sm text-muted-foreground break-words">{selectedQuote.aircraftType}</p>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right shrink-0">
               <p className="text-xl font-bold text-primary">
                 ${selectedQuote.price.toLocaleString()}
               </p>

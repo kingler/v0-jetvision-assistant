@@ -236,10 +236,10 @@ export function EmailPreviewCard({
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-muted-foreground" />
-            <CardTitle className="text-base font-semibold text-foreground">
+            <Mail className="h-5 w-5 text-muted-foreground shrink-0" />
+            <CardTitle className="text-sm sm:text-base font-semibold text-foreground">
               Review Email Before Sending
             </CardTitle>
           </div>
@@ -258,11 +258,11 @@ export function EmailPreviewCard({
           <Label className="text-xs font-medium text-muted-foreground">
             To
           </Label>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium text-foreground">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
+            <span className="font-medium text-foreground shrink-0">
               {to.name}
             </span>
-            <span className="text-muted-foreground">
+            <span className="text-muted-foreground break-all">
               &lt;{to.email}&gt;
             </span>
           </div>
@@ -345,7 +345,7 @@ export function EmailPreviewCard({
               // Multi-city: show each segment
               <div className="space-y-1.5 text-sm">
                 {flightDetails.segments.map((seg, i) => (
-                  <div key={i} className="flex items-center gap-3">
+                  <div key={i} className="flex flex-wrap items-center gap-1 sm:gap-3">
                     <span className="text-xs text-primary font-medium w-10 shrink-0">
                       Leg {i + 1}
                     </span>
@@ -407,9 +407,9 @@ export function EmailPreviewCard({
 
         {/* Pricing Summary */}
         {pricing && (
-          <div className="flex items-center justify-between text-sm bg-muted rounded-lg px-3 py-2">
-            <span className="text-muted-foreground">Total Price</span>
-            <span className="font-semibold text-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-1 text-sm bg-muted rounded-lg px-3 py-2">
+            <span className="text-muted-foreground shrink-0">Total Price</span>
+            <span className="font-semibold text-foreground break-words">
               {pricing.currency} {pricing.total.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -437,7 +437,7 @@ export function EmailPreviewCard({
 
         {/* Actions */}
         {status !== 'sent' && (
-          <div className="flex items-center justify-between pt-2 border-t border-border">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-2 pt-2 border-t border-border">
             <div className="flex items-center gap-2">
               {isEditing ? (
                 <>
@@ -473,7 +473,7 @@ export function EmailPreviewCard({
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 justify-end">
               {onCancel && (
                 <Button
                   variant="ghost"

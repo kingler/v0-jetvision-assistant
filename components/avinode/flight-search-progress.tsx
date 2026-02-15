@@ -198,9 +198,9 @@ function FlightCard({
 }) {
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-card">
-      <div className="flex">
+      <div className="flex flex-col sm:flex-row">
         {/* Aircraft Image Placeholder */}
-        <div className="w-32 h-40 bg-surface-tertiary flex items-center justify-center shrink-0">
+        <div className="w-full sm:w-32 h-32 sm:h-40 bg-surface-tertiary flex items-center justify-center shrink-0">
           {flight.imageUrl ? (
             <img src={flight.imageUrl} alt={flight.aircraftType} className="w-full h-full object-cover" />
           ) : (
@@ -209,7 +209,7 @@ function FlightCard({
         </div>
 
         {/* Flight Details */}
-        <div className="flex-1 p-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+        <div className="flex-1 p-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 sm:gap-y-1 text-sm min-w-0">
           {/* Aircraft Info */}
           <div>
             <p className="font-semibold text-foreground">Aircraft</p>
@@ -220,7 +220,7 @@ function FlightCard({
           {/* Price Info */}
           <div>
             <p className="font-semibold text-foreground">Price</p>
-            <p className="text-foreground">${flight.price.toLocaleString()} {flight.currency || 'USD'}</p>
+            <p className="text-foreground break-words">${flight.price.toLocaleString()} {flight.currency || 'USD'}</p>
             <p className="text-muted-foreground">RFQ Status: <span className={cn(
               flight.rfqStatus === 'quoted' && 'text-success',
               flight.rfqStatus === 'unanswered' && 'text-warning',
@@ -246,10 +246,10 @@ function FlightCard({
           </div>
 
           {/* Operator Info */}
-          <div className="col-span-2 mt-2 pt-2 border-t border-border">
+          <div className="col-span-full mt-2 pt-2 border-t border-border">
             <p className="font-semibold text-foreground">Operator</p>
-            <p className="text-muted-foreground">Company: <span className="text-foreground">{flight.operatorName}</span></p>
-            <p className="text-muted-foreground">Email: <span className="text-foreground">{flight.operatorEmail || 'N/A'}</span></p>
+            <p className="text-muted-foreground">Company: <span className="text-foreground break-words">{flight.operatorName}</span></p>
+            <p className="text-muted-foreground">Email: <span className="text-foreground break-all">{flight.operatorEmail || 'N/A'}</span></p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-muted-foreground">Messages:</span>
               <Button
@@ -475,7 +475,7 @@ export function FlightSearchProgress({
   }, [validatedDeepLink, onDeepLinkClick, deepLink]);
 
   return (
-    <div data-testid="flight-search-progress" className={cn('w-full bg-background', className)}>
+    <div data-testid="flight-search-progress" className={cn('w-full', className)}>
       <div className="py-6">
         {/* Step Content */}
         <div className="space-y-4">
@@ -485,7 +485,7 @@ export function FlightSearchProgress({
           {showSteps12 && currentStep >= 1 && isTripCreated && (
             <div
               data-testid="step-1-content"
-              className="text-card-foreground flex flex-col gap-4 rounded-xl py-4 sm:py-6 px-3 sm:px-4 shadow-sm w-full min-w-0 bg-background border border-border"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-4 sm:py-6 px-3 sm:px-4 shadow-sm w-full min-w-0 bg-card border border-border"
             >
               <div className="flex items-center gap-2 mb-3">
                 {currentStep > 1 ? (
@@ -644,7 +644,7 @@ export function FlightSearchProgress({
           {showSteps12 && currentStep >= 2 && isTripCreated && (deepLink || tripId) && (
             <div
               data-testid="step-2-content"
-              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-background border border-border"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-card border border-border"
             >
               <div className="flex items-center gap-2 mb-3">
                 {currentStep > 2 ? (
@@ -711,7 +711,7 @@ export function FlightSearchProgress({
           {showSteps34 && currentStep >= 3 && isTripCreated && (
             <div
               data-testid="step-3-content"
-              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 shadow-sm w-full bg-background border border-border mb-6"
+              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 shadow-sm w-full bg-card border border-border mb-6"
               style={{ 
                 minHeight: 'auto',
                 height: 'auto',
@@ -812,7 +812,7 @@ export function FlightSearchProgress({
                 Added explicit height auto and overflow visible to ensure content expands naturally and isn't clipped during scroll.
               */}
               <div 
-                className="bg-background" 
+                className="bg-card"
                 style={{ 
                   height: 'auto', 
                   minHeight: 'auto',

@@ -97,36 +97,38 @@ export function RfqQuoteDetailsCard({
       <CardContent className="space-y-6">
         {/* RFQ and Quote IDs */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">
                 RFQ ID
               </span>
-              <p className="font-mono text-sm font-medium">{rfqId}</p>
+              <p className="font-mono text-sm font-medium truncate">{rfqId}</p>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={onCopyRfqId}
               aria-label="Copy RFQ ID"
+              className="shrink-0"
             >
               <Copy className="h-4 w-4" />
               Copy
             </Button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">
                 Quote ID
               </span>
-              <p className="font-mono text-sm font-medium">{quoteId}</p>
+              <p className="font-mono text-sm font-medium truncate">{quoteId}</p>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={onCopyQuoteId}
               aria-label="Copy Quote ID"
+              className="shrink-0"
             >
               <Copy className="h-4 w-4" />
               Copy
@@ -177,8 +179,8 @@ export function RfqQuoteDetailsCard({
             <DollarSign className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-semibold">Price</span>
           </div>
-          <div className="rounded-lg border p-6 text-center">
-            <div className="text-3xl font-bold text-primary">
+          <div className="rounded-lg border p-4 sm:p-6 text-center">
+            <div className="text-2xl sm:text-3xl font-bold text-primary break-words">
               {formatPrice(price.amount, price.currency)}
             </div>
           </div>
@@ -191,14 +193,14 @@ export function RfqQuoteDetailsCard({
             <span className="text-sm font-semibold">Flight Details</span>
           </div>
           <div className="rounded-lg border p-3 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Flight Time</span>
-              <span className="font-medium">
+            <div className="flex flex-wrap justify-between gap-1 text-sm">
+              <span className="text-muted-foreground shrink-0">Flight Time</span>
+              <span className="font-medium text-right">
                 {formatFlightTime(flightDetails.flightTimeMinutes)} ({flightDetails.flightTimeMinutes} min)
               </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Distance</span>
+            <div className="flex flex-wrap justify-between gap-1 text-sm">
+              <span className="text-muted-foreground shrink-0">Distance</span>
               <span className="font-medium">
                 {flightDetails.distanceNm.toLocaleString()} NM
               </span>

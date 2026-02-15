@@ -73,10 +73,10 @@ export function PaymentConfirmedCard({
 
           {/* Payment Details */}
           <div className="bg-muted rounded-lg p-4 border border-border">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+              <div className="col-span-full">
                 <span className="text-muted-foreground">Payment Amount</span>
-                <p className="font-semibold text-xl text-success">
+                <p className="font-semibold text-xl text-success break-words">
                   {formatAmount(paymentAmount, currency)}
                 </p>
               </div>
@@ -86,7 +86,7 @@ export function PaymentConfirmedCard({
               </div>
               <div>
                 <span className="text-muted-foreground">Reference</span>
-                <p className="font-medium text-foreground">{paymentReference}</p>
+                <p className="font-medium text-foreground break-all">{paymentReference}</p>
               </div>
             </div>
           </div>

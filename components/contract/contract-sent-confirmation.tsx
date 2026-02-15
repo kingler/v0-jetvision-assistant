@@ -104,10 +104,10 @@ export function ContractSentConfirmation({
 
           {/* Contract Details */}
           <div className="bg-muted rounded-lg p-4 border border-border">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               {/* Trip Type Badge */}
               {tripType && tripType !== 'one_way' && (
-                <div className="col-span-2">
+                <div className="col-span-full">
                   <Badge
                     className={cn(
                       'text-xs',
@@ -123,16 +123,16 @@ export function ContractSentConfirmation({
 
               {/* Multi-city segments */}
               {tripType === 'multi_city' && segments && segments.length > 0 ? (
-                <div className="col-span-2 space-y-2">
+                <div className="col-span-full space-y-2">
                   {segments.map((seg, i) => (
-                    <div key={i} className="flex items-center gap-3">
+                    <div key={i} className="flex flex-wrap items-center gap-2 sm:gap-3">
                       <span className="text-xs text-muted-foreground font-medium w-10 shrink-0">
                         Leg {i + 1}
                       </span>
-                      <span className="font-medium text-foreground">
+                      <span className="font-medium text-foreground break-words">
                         {seg.departureAirport} → {seg.arrivalAirport}
                       </span>
-                      <span className="text-muted-foreground">|</span>
+                      <span className="hidden sm:inline text-muted-foreground">|</span>
                       <span className="text-foreground">
                         {formatDate(seg.departureDate)}
                       </span>
@@ -162,9 +162,9 @@ export function ContractSentConfirmation({
                 </>
               )}
 
-              <div className="col-span-2">
+              <div className="col-span-full">
                 <span className="text-muted-foreground">Total Amount</span>
-                <p className="font-medium text-lg text-foreground">
+                <p className="font-medium text-lg text-foreground break-words">
                   {currency} {(typeof totalAmount === 'number' ? totalAmount : Number(totalAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
@@ -172,7 +172,7 @@ export function ContractSentConfirmation({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             {pdfUrl && (
               <Button
                 variant="outline"

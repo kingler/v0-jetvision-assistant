@@ -234,7 +234,7 @@ export function OperatorChatInline({
         )}
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+        <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border">
           {onReply && (
             <Button
               variant="outline"
