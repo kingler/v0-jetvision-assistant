@@ -349,10 +349,9 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
     <Card
       className={cn(
         "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden w-full max-w-[300px] min-w-[260px] box-border py-0 gap-0",
-        isActive
-          ? "ring-2 ring-active-ring bg-active-bg"
-          : "hover:bg-surface-secondary",
+        !isActive && "hover:bg-surface-secondary",
       )}
+      style={isActive ? { backgroundColor: '#e6f7fc', borderColor: '#00a8e8', borderWidth: '3px' } : undefined}
       onClick={onClick}
     >
       <CardContent className="px-3! py-3! w-full box-border overflow-hidden">
@@ -420,10 +419,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
         {(session.tripId || (session.route && session.route !== 'Select route')) && (
           <div className="w-full bg-muted rounded-full h-1 mt-2">
             <div
-              className={cn(
-                "h-1 rounded-full transition-all duration-300",
-                session.status === "proposal_sent" ? "bg-status-proposal-sent" : session.status === "proposal_ready" ? "bg-status-proposal-ready" : "bg-status-processing",
-              )}
+              className="h-1 rounded-full transition-all duration-300 bg-primary"
               style={{
                 width: `${Math.min((session.currentStep / session.totalSteps) * 100, 100)}%`,
               }}

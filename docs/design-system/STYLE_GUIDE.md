@@ -244,6 +244,34 @@ Provides helpful information and guidance.
 - Tips and hints
 - Neutral notifications
 
+### Flight Request Stage Colors
+
+The flight request lifecycle uses 10 distinct stage colors. Each stage has a **tinted background** (10% opacity of the base color) and a **dark text** (same hue at lower lightness, higher chroma) for readability. These are used by the `FlightRequestStageBadge` component.
+
+All values use OKLCh color space for perceptual uniformity.
+
+| Stage | Label | Hue | Background (oklch) | Text (oklch) |
+|-------|-------|-----|-------------------|-------------|
+| `understanding_request` | Understanding Request | 250 (blue-gray) | `0.65 0.02 250 / 0.10` | `0.40 0.03 250` |
+| `searching_aircraft` | Searching Aircraft | 300 (purple) | `0.55 0.15 300 / 0.10` | `0.38 0.18 300` |
+| `requesting_quotes` | Requesting Quotes | 200 (cyan) | `0.65 0.15 200 / 0.10` | `0.42 0.18 200` |
+| `analyzing_options` | Analyzing Options | 55 (orange) | `0.65 0.18 55 / 0.10` | `0.42 0.20 55` |
+| `proposal_ready` | Proposal Ready | 155 (green) | `0.60 0.18 155 / 0.10` | `0.38 0.20 155` |
+| `proposal_sent` | Proposal Sent | 240 (blue) | `0.60 0.15 240 / 0.10` | `0.38 0.18 240` |
+| `contract_generated` | Contract Ready | 240 (blue-600) | `0.55 0.18 240 / 0.10` | `0.35 0.20 240` |
+| `contract_sent` | Contract Sent | 280 (indigo) | `0.55 0.15 280 / 0.10` | `0.35 0.18 280` |
+| `payment_pending` | Payment Pending | 75 (amber) | `0.70 0.18 75 / 0.10` | `0.42 0.20 75` |
+| `closed_won` | Closed Won | 155 (green-600) | `0.55 0.18 155 / 0.10` | `0.35 0.20 155` |
+
+**Pattern:** Background uses the base color at 10% alpha for a subtle tint. Text uses the same hue at ~0.20 lower lightness and ~0.02-0.05 higher chroma for clear contrast against the tint.
+
+**Usage:**
+- Flight request cards in the sidebar
+- Pipeline dashboards and status displays
+- Workflow progress indicators
+
+**Note:** These colors are applied via inline `style` (not Tailwind classes) because Tailwind v4's opacity modifier (`/10`) does not work with `var()` references in `@theme inline`. The `text-status-*` Tailwind classes remain available for full-opacity text usage.
+
 ### Neutral Colors
 
 Foundation for text, backgrounds, and UI elements.

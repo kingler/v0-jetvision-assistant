@@ -237,6 +237,72 @@ import { Badge } from '@/components/ui/badge'
 
 ---
 
+### FlightRequestStageBadge
+
+Color-coded pill badge for the 10 flight request lifecycle stages. Uses tinted backgrounds with darker text in the same hue for readability.
+
+**Import:**
+
+```tsx
+import {
+  FlightRequestStageBadge,
+  FLIGHT_REQUEST_STAGES,
+  type FlightRequestStage,
+} from '@/components/flight-request-stage-badge'
+```
+
+**Usage:**
+
+```tsx
+// Single badge
+<FlightRequestStageBadge stage="proposal_ready" />
+
+// All 10 stages
+{FLIGHT_REQUEST_STAGES.map((stage) => (
+  <FlightRequestStageBadge key={stage} stage={stage} />
+))}
+```
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `stage` | `FlightRequestStage` | Yes | One of the 10 lifecycle stages |
+| `className` | `string` | No | Additional CSS classes |
+
+**10 Stages (in order):**
+1. `understanding_request` — blue-gray
+2. `searching_aircraft` — purple
+3. `requesting_quotes` — cyan
+4. `analyzing_options` — orange
+5. `proposal_ready` — green
+6. `proposal_sent` — blue
+7. `contract_generated` — blue-600
+8. `contract_sent` — indigo
+9. `payment_pending` — amber
+10. `closed_won` — green-600
+
+**Specifications:**
+- Shape: Pill (`rounded-full`)
+- Border: None
+- Background: OKLCh base color at 10% alpha
+- Text: Same hue at darker lightness (~0.35-0.42)
+- Font size: 12px (`text-xs`)
+- Font weight: 500 (`font-medium`)
+- Colors applied via inline `style` (see Style Guide for values)
+
+**Do:**
+- Use for flight request status display in cards, sidebars, dashboards
+- Pass valid `FlightRequestStage` values
+- Use `FLIGHT_REQUEST_STAGES` array for ordered iteration
+
+**Don't:**
+- Use for non-flight-request statuses (use `<Badge>` instead)
+- Override the inline styles (they ensure color consistency)
+
+**Demo:** `/component-demo/all-tool-ui` — Component #24, "Status Badges" group
+
+---
+
 ### Avatar
 
 User profile image or placeholder.

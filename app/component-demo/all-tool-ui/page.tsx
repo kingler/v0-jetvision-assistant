@@ -34,6 +34,7 @@ import { ProposalSentConfirmation } from '@/components/proposal/proposal-sent-co
 import { ContractSentConfirmation } from '@/components/contract/contract-sent-confirmation';
 import { PaymentConfirmedCard } from '@/components/contract/payment-confirmed-card';
 import { ClosedWonConfirmation } from '@/components/contract/closed-won-confirmation';
+import { FlightRequestStageBadge, FLIGHT_REQUEST_STAGES } from '@/components/flight-request-stage-badge';
 
 /**
  * Unified demo page for ALL Tool UI Registry components.
@@ -64,7 +65,7 @@ interface ComponentGroup {
 }
 
 // =============================================================================
-// COMPONENT GROUPS (9 lifecycle categories, 23 components)
+// COMPONENT GROUPS (10 lifecycle categories, 24 components)
 // =============================================================================
 
 const COMPONENT_GROUPS: ComponentGroup[] = [
@@ -134,6 +135,12 @@ const COMPONENT_GROUPS: ComponentGroup[] = [
       { id: 'book-flight', label: 'ContractSentConfirmation', number: 21 },
       { id: 'payment-confirmed', label: 'PaymentConfirmedCard', number: 22 },
       { id: 'closed-won', label: 'ClosedWonConfirmation', number: 23 },
+    ],
+  },
+  {
+    label: 'Status Badges',
+    items: [
+      { id: 'stage-badge', label: 'FlightRequestStageBadge', number: 24 },
     ],
   },
 ];
@@ -413,7 +420,7 @@ export default function AllToolUIDemoPage() {
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              23 registered MCP UI components across one-way, round-trip, and multi-city trip types
+              24 registered MCP UI components across one-way, round-trip, and multi-city trip types
             </p>
           </div>
         </div>
@@ -433,7 +440,7 @@ export default function AllToolUIDemoPage() {
 
           {/* Summary */}
           <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground flex-none">
-            <span>23 components</span>
+            <span>24 components</span>
             {tripFilter !== 'all' && (
               <>
                 <span>&middot;</span>
@@ -481,10 +488,10 @@ export default function AllToolUIDemoPage() {
                     <button
                       key={id}
                       onClick={() => scrollToSection(id)}
-                      className={`w-full flex items-center justify-between text-sm px-2.5 py-1.5 rounded-md transition-colors text-left ${
+                      className={`w-full flex items-center justify-between text-sm px-2.5 py-1.5 rounded-md border transition-colors text-left ${
                         activeSection === id
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-primary/10 text-primary font-medium border-primary/30'
+                          : 'text-muted-foreground border-transparent hover:text-primary hover:bg-primary/5 hover:border-primary/20'
                       }`}
                     >
                       <span className="truncate">{label}</span>
@@ -1710,6 +1717,25 @@ export default function AllToolUIDemoPage() {
                   />
                 </div>
               )}
+            </DemoSection>
+
+            {/* ================================================================
+                24. FlightRequestStageBadge — flight request lifecycle stages
+               ================================================================ */}
+            <DemoSection
+              id="stage-badge"
+              toolName="flight_request_stage"
+              component="FlightRequestStageBadge"
+              description="Color-coded badge for each of the 10 flight request lifecycle stages. Uses design-system status tokens."
+              dataDependencies={['stage']}
+              category={getCategoryForId('stage-badge')}
+              componentNumber={getNumberForId('stage-badge')}
+            >
+              <div className="flex flex-wrap gap-2">
+                {FLIGHT_REQUEST_STAGES.map((stage) => (
+                  <FlightRequestStageBadge key={stage} stage={stage} />
+                ))}
+              </div>
             </DemoSection>
 
           </div>
