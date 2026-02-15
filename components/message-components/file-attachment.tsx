@@ -63,19 +63,19 @@ export function FileAttachment({ file, onDownload, onPreview, className }: FileA
 
   return (
     <Card className={`${className || ''}`}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-4">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start gap-3 sm:gap-4">
           {/* Thumbnail or Icon */}
           <div className="flex-shrink-0">
             {thumbnail ? (
               <img
                 src={thumbnail}
                 alt={name}
-                className="w-16 h-16 rounded object-cover border"
+                className="w-12 h-12 sm:w-16 sm:h-16 rounded object-cover border"
               />
             ) : (
-              <div className="w-16 h-16 rounded bg-muted flex items-center justify-center border">
-                <FileIcon className="h-8 w-8 text-muted-foreground" />
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-muted flex items-center justify-center border">
+                <FileIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
               </div>
             )}
           </div>
@@ -85,22 +85,23 @@ export function FileAttachment({ file, onDownload, onPreview, className }: FileA
             <h4 className="font-medium text-sm truncate" title={name}>
               {name}
             </h4>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 mt-1 min-w-0">
+              <span className="text-xs text-muted-foreground shrink-0">
                 {formatFileSize(size)}
               </span>
-              <span className="text-xs text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground uppercase">
+              <span className="text-xs text-muted-foreground shrink-0">•</span>
+              <span className="text-xs text-muted-foreground uppercase truncate">
                 {type.split('/')[1] || 'file'}
               </span>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex flex-col sm:flex-row gap-2 mt-3">
               {showPreview && (
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => onPreview(id)}
                 >
                   <Eye className="h-4 w-4 mr-1.5" />
@@ -111,6 +112,7 @@ export function FileAttachment({ file, onDownload, onPreview, className }: FileA
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => onDownload(id)}
                 >
                   <Download className="h-4 w-4 mr-1.5" />
