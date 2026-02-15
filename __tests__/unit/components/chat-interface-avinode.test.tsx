@@ -53,6 +53,9 @@ vi.mock('@/components/avinode', () => ({
   TripSummaryCard: vi.fn(() => (
     <div data-testid="trip-summary-card">Trip Summary</div>
   )),
+  TripDetailsCard: vi.fn(() => (
+    <div data-testid="trip-details-card">Trip Details</div>
+  )),
 }));
 
 // Mock useAvinodeQuotes hook

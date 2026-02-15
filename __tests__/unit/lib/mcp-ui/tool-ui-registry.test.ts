@@ -32,6 +32,7 @@ vi.mock('@/components/mcp-ui/composites/EmailApprovalUI', () => ({
 }));
 vi.mock('@/components/avinode', () => ({
   RfqQuoteDetailsCard: vi.fn(),
+  TripDetailsCard: vi.fn(),
 }));
 vi.mock('@/components/message-components/proposal-preview', () => ({
   ProposalPreview: vi.fn(),
