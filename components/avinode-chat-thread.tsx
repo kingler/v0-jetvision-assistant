@@ -174,10 +174,10 @@ const MessageStatusIndicator: React.FC<{ status: Message['status'] }> = ({ statu
 
 const QuoteSharedContent: React.FC<{ data: any }> = ({ data }) => {
   return (
-    <div className="mt-2 p-3 bg-info-bg rounded-lg border border-blue-200 dark:border-blue-800">
+    <div className="mt-2 p-3 bg-info-bg rounded-lg border border-info-border">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <div className="font-semibold text-blue-900 dark:text-blue-100">
+          <div className="font-semibold text-foreground">
             {data.aircraft_type}
           </div>
           <div className="text-sm text-primary">
@@ -185,10 +185,10 @@ const QuoteSharedContent: React.FC<{ data: any }> = ({ data }) => {
           </div>
         </div>
         <div className="text-right">
-          <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
+          <div className="text-lg font-bold text-foreground">
             ${data.price.toLocaleString()}
           </div>
-          <div className="text-xs text-blue-600 dark:text-blue-400">
+          <div className="text-xs text-primary">
             {data.currency}
           </div>
         </div>
@@ -206,11 +206,11 @@ const QuoteSharedContent: React.FC<{ data: any }> = ({ data }) => {
 
       {data.ranking && (
         <div className="mt-2 flex items-center gap-2">
-          <Badge variant="default" className="bg-green-500 text-white">
+          <Badge variant="default" className="bg-success text-white">
             #{data.ranking}
           </Badge>
           {data.score && (
-            <span className="text-xs text-blue-700 dark:text-blue-300">
+            <span className="text-xs text-primary">
               Score: {data.score}/100
             </span>
           )}
@@ -234,10 +234,10 @@ const RichMessageContent: React.FC<{ message: Message }> = ({ message }) => {
     case 'quote_updated':
       return (
         <div className="mt-2 p-3 bg-warning-bg rounded-lg border border-warning-border">
-          <div className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+          <div className="text-sm font-semibold text-foreground">
             Quote Updated
           </div>
-          <div className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+          <div className="text-xs text-warning mt-1">
             {message.rich_content.data.change_reason || 'Quote details have been updated'}
           </div>
         </div>
@@ -276,8 +276,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGrouped }) => 
         <Avatar className="w-8 h-8 shrink-0">
           <AvatarFallback
             className={cn(
-              isOperator && 'bg-blue-500 text-white',
-              isUser && 'bg-green-500 text-white'
+              isOperator && 'bg-primary text-primary-foreground',
+              isUser && 'bg-success text-white'
             )}
           >
             {isOperator && <Plane className="w-4 h-4" />}
@@ -317,8 +317,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGrouped }) => 
             isOperator &&
               'bg-surface-tertiary text-foreground operator',
             isUser &&
-              'bg-black dark:bg-gray-900 text-white iso_agent',
-            isSystem && 'bg-warning-bg text-yellow-900 dark:text-yellow-100 border border-warning-border'
+              'bg-foreground text-background iso_agent',
+            isSystem && 'bg-warning-bg text-foreground border border-warning-border'
           )}
         >
           {message.content && (

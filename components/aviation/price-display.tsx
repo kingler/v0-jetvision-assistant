@@ -78,8 +78,8 @@ export function PriceDisplay({
           )}
           {difference.isUnder && (
             <>
-              <TrendingDown className="h-4 w-4 text-green-600" />
-              <span className="text-green-600">
+              <TrendingDown className="h-4 w-4 text-success" />
+              <span className="text-success">
                 {formatPrice(difference.amount)} ({difference.percent}%) under {comparisonLabel}
               </span>
             </>

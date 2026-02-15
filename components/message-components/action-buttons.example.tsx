@@ -234,9 +234,9 @@ export function ChatMessageExample(): React.ReactElement {
   };
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+    <div className="p-4 bg-card rounded-lg shadow-md">
       <div className="mb-4">
-        <p className="text-gray-900 dark:text-gray-100">
+        <p className="text-foreground">
           How many passengers will be traveling?
         </p>
       </div>

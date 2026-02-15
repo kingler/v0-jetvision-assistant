@@ -315,7 +315,7 @@ function DealCard({
         {deal.expiresAt && deal.status === 'active' && (
           <div className={cn(
             'flex items-center gap-1 text-xs',
-            isExpiringSoon ? 'text-orange-500' : 'text-muted-foreground'
+            isExpiringSoon ? 'text-warning' : 'text-muted-foreground'
           )}>
             {isExpiringSoon && (
               <span data-testid="expiring-soon-indicator">

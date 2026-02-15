@@ -12,7 +12,7 @@ import { ChatSkeletonTheme, Skeleton } from '@/components/ui/chat-skeleton'
 export function ChatLoadingSkeleton() {
   return (
     <ChatSkeletonTheme>
-      <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+      <div className="flex flex-col h-full bg-background">
         {/* Message area skeleton */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-4">
@@ -70,7 +70,7 @@ export function ChatLoadingSkeleton() {
         </div>
 
         {/* Input area skeleton */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+        <div className="border-t border-border p-4">
           <div className="max-w-4xl mx-auto flex items-center space-x-2">
             <Skeleton height={44} containerClassName="flex-1" />
             <Skeleton circle width={44} height={44} />

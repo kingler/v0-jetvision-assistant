@@ -224,10 +224,10 @@ export default function OnboardingPage() {
 
   if (phase === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90">
         <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
-          <p className="mt-4 text-sm text-slate-500">Loading...</p>
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -235,11 +235,11 @@ export default function OnboardingPage() {
 
   if (phase === 'success') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-              <svg className="h-8 w-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-bg">
+              <svg className="h-8 w-8 text-success" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
               </svg>
             </div>
@@ -250,7 +250,7 @@ export default function OnboardingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Please review and sign the contract using the link in the email.
               The link is valid for 72 hours.
             </p>
@@ -262,10 +262,10 @@ export default function OnboardingPage() {
 
   if (phase === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-red-600">Something Went Wrong</CardTitle>
+            <CardTitle className="text-destructive">Something Went Wrong</CardTitle>
             <CardDescription>{errorMessage}</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-3">
@@ -274,7 +274,7 @@ export default function OnboardingPage() {
                 <Button onClick={() => { setErrorSource(null); generateAndSendContract(); }}>
                   Retry Contract
                 </Button>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Your profile was saved. Only the contract step will be retried.
                 </p>
               </>
@@ -291,10 +291,10 @@ export default function OnboardingPage() {
 
   if (phase === 'submitting' || phase === 'sending') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90">
         <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
-          <p className="mt-4 text-sm text-slate-500">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">
             {phase === 'submitting' ? 'Saving your profile...' : 'Generating and sending your contract...'}
           </p>
         </div>
@@ -305,13 +305,13 @@ export default function OnboardingPage() {
   const watchedValues = watch();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90 p-4">
       <div className="w-full max-w-2xl">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+          <h1 className="text-3xl font-bold text-foreground">
             Welcome to Jetvision
           </h1>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-2 text-sm text-muted-foreground">
             Complete your profile to get started as an ISO agent
           </p>
         </div>
@@ -335,14 +335,14 @@ export default function OnboardingPage() {
                       <Label htmlFor="firstName">First Name *</Label>
                       <Input id="firstName" {...register('firstName')} />
                       {errors.firstName && (
-                        <p className="text-xs text-red-500">{errors.firstName.message}</p>
+                        <p className="text-xs text-destructive">{errors.firstName.message}</p>
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name *</Label>
                       <Input id="lastName" {...register('lastName')} />
                       {errors.lastName && (
-                        <p className="text-xs text-red-500">{errors.lastName.message}</p>
+                        <p className="text-xs text-destructive">{errors.lastName.message}</p>
                       )}
                     </div>
                   </div>
@@ -352,14 +352,14 @@ export default function OnboardingPage() {
                       <Label htmlFor="dateOfBirth">Date of Birth *</Label>
                       <Input id="dateOfBirth" type="date" {...register('dateOfBirth')} />
                       {errors.dateOfBirth && (
-                        <p className="text-xs text-red-500">{errors.dateOfBirth.message}</p>
+                        <p className="text-xs text-destructive">{errors.dateOfBirth.message}</p>
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone *</Label>
                       <Input id="phone" type="tel" placeholder="+1 (555) 000-0000" {...register('phone')} />
                       {errors.phone && (
-                        <p className="text-xs text-red-500">{errors.phone.message}</p>
+                        <p className="text-xs text-destructive">{errors.phone.message}</p>
                       )}
                     </div>
                   </div>
@@ -368,7 +368,7 @@ export default function OnboardingPage() {
                     <Label htmlFor="addressLine1">Address Line 1 *</Label>
                     <Input id="addressLine1" placeholder="Street address" {...register('addressLine1')} />
                     {errors.addressLine1 && (
-                      <p className="text-xs text-red-500">{errors.addressLine1.message}</p>
+                      <p className="text-xs text-destructive">{errors.addressLine1.message}</p>
                     )}
                   </div>
 
@@ -382,21 +382,21 @@ export default function OnboardingPage() {
                       <Label htmlFor="city">City *</Label>
                       <Input id="city" {...register('city')} />
                       {errors.city && (
-                        <p className="text-xs text-red-500">{errors.city.message}</p>
+                        <p className="text-xs text-destructive">{errors.city.message}</p>
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="state">State *</Label>
                       <Input id="state" {...register('state')} />
                       {errors.state && (
-                        <p className="text-xs text-red-500">{errors.state.message}</p>
+                        <p className="text-xs text-destructive">{errors.state.message}</p>
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="zipCode">ZIP Code *</Label>
                       <Input id="zipCode" placeholder="12345" {...register('zipCode')} />
                       {errors.zipCode && (
-                        <p className="text-xs text-red-500">{errors.zipCode.message}</p>
+                        <p className="text-xs text-destructive">{errors.zipCode.message}</p>
                       )}
                     </div>
                   </div>
@@ -420,9 +420,9 @@ export default function OnboardingPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="rounded-lg border bg-slate-50 p-4 dark:bg-slate-900/50">
+                  <div className="rounded-lg border bg-muted p-4">
                     <h3 className="font-semibold mb-2">Commission Structure</h3>
-                    <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                    <ul className="space-y-2 text-sm text-muted-foreground">
                       <li>
                         <strong>Rate:</strong> 10% of net brokerage fee per transaction
                       </li>
@@ -439,9 +439,9 @@ export default function OnboardingPage() {
                     </ul>
                   </div>
 
-                  <div className="rounded-lg border bg-slate-50 p-4 dark:bg-slate-900/50">
+                  <div className="rounded-lg border bg-muted p-4">
                     <h3 className="font-semibold mb-2">Key Terms</h3>
-                    <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                    <ul className="space-y-2 text-sm text-muted-foreground">
                       <li>You will operate as an independent contractor</li>
                       <li>
                         Confidentiality of business operations and client data is required
@@ -471,7 +471,7 @@ export default function OnboardingPage() {
                     </Label>
                   </div>
                   {errors.acknowledgeCommissionTerms && (
-                    <p className="text-xs text-red-500">{errors.acknowledgeCommissionTerms.message}</p>
+                    <p className="text-xs text-destructive">{errors.acknowledgeCommissionTerms.message}</p>
                   )}
 
                   <div className="flex justify-between pt-4">
@@ -500,24 +500,24 @@ export default function OnboardingPage() {
                     <h3 className="font-semibold">Personal Information</h3>
                     <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                       <div>
-                        <span className="text-slate-500">Name:</span>{' '}
+                        <span className="text-muted-foreground">Name:</span>{' '}
                         {watchedValues.firstName} {watchedValues.lastName}
                       </div>
                       <div>
-                        <span className="text-slate-500">Date of Birth:</span>{' '}
+                        <span className="text-muted-foreground">Date of Birth:</span>{' '}
                         {watchedValues.dateOfBirth}
                       </div>
                       <div>
-                        <span className="text-slate-500">Phone:</span>{' '}
+                        <span className="text-muted-foreground">Phone:</span>{' '}
                         {watchedValues.phone}
                       </div>
                       <div>
-                        <span className="text-slate-500">Email:</span>{' '}
+                        <span className="text-muted-foreground">Email:</span>{' '}
                         {user?.primaryEmailAddress?.emailAddress}
                       </div>
                     </div>
                     <div className="text-sm">
-                      <span className="text-slate-500">Address:</span>{' '}
+                      <span className="text-muted-foreground">Address:</span>{' '}
                       {watchedValues.addressLine1}
                       {watchedValues.addressLine2 ? `, ${watchedValues.addressLine2}` : ''},{' '}
                       {watchedValues.city}, {watchedValues.state} {watchedValues.zipCode}
@@ -526,12 +526,12 @@ export default function OnboardingPage() {
 
                   <div className="rounded-lg border p-4">
                     <h3 className="font-semibold mb-1">Commission Terms</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                    <p className="text-sm text-muted-foreground">
                       10% of net brokerage fee — Acknowledged
                     </p>
                   </div>
 
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     By clicking Submit, your profile will be saved and a full Independent Sales
                     Agent Agreement will be sent to your email for review and digital signature.
                   </p>

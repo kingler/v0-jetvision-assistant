@@ -459,7 +459,7 @@ export function CustomerSelectionDialog({
           {/* Error state */}
           {error && !isLoading && (
             <div className="rounded-md bg-error-bg border border-error-border p-3">
-              <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+              <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
 
@@ -488,7 +488,7 @@ export function CustomerSelectionDialog({
                     className={cn(
                       'pl-9 pr-16',
                       selectedClient &&
-                        'border-green-500 dark:border-green-600 focus-visible:ring-green-500/50'
+                        'border-success dark:border-success focus-visible:ring-success/50'
                     )}
                     autoComplete="off"
                   />
@@ -527,7 +527,7 @@ export function CustomerSelectionDialog({
                     <button
                       type="button"
                       onClick={handleSwitchToCreate}
-                      className="flex w-full items-center gap-2 px-3 py-3 md:py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b-2 border-border min-h-[44px] md:min-h-0"
+                      className="flex w-full items-center gap-2 px-3 py-3 md:py-2.5 text-sm text-warning hover:bg-warning-bg border-b-2 border-border min-h-[44px] md:min-h-0"
                     >
                       <Plus className="h-4 w-4" />
                       <span>Create New Customer</span>
@@ -563,7 +563,7 @@ export function CustomerSelectionDialog({
                               !isLocked && highlightedIndex === index &&
                                 'bg-surface-tertiary',
                               selectedClient?.id === client.id &&
-                                'bg-orange-50 dark:bg-orange-900/20'
+                                'bg-warning-bg'
                             )}
                             onClick={() => !isLocked && handleSelectClient(client)}
                             onMouseEnter={() => !isLocked && setHighlightedIndex(index)}
@@ -580,7 +580,7 @@ export function CustomerSelectionDialog({
                               {lockedCustomerId === client.id ? (
                                 <Lock className="h-4 w-4 text-warning" />
                               ) : selectedClient?.id === client.id ? (
-                                <Check className="h-4 w-4 text-orange-500" />
+                                <Check className="h-4 w-4 text-warning" />
                               ) : null}
                             </div>
                           </li>
@@ -619,7 +619,7 @@ export function CustomerSelectionDialog({
 
           {/* Service Charge Selector - shown when customer is selected */}
           {!isLoading && mode === 'select' && selectedClient && showMarginSlider && (
-            <div className="space-y-3 rounded-md bg-info-bg border border-blue-200 dark:border-blue-800 p-3 md:p-4">
+            <div className="space-y-3 rounded-md bg-info-bg border border-info-border p-3 md:p-4">
               <label className="text-sm font-medium text-foreground">
                 Jetvision Service Charge
               </label>
@@ -635,7 +635,7 @@ export function CustomerSelectionDialog({
                     className={cn(
                       'px-3 py-2 md:py-1.5 text-sm font-medium rounded-md border transition-colors min-h-[44px] md:min-h-0',
                       !isCustomMargin && marginPercentage === preset
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-card text-foreground border-border-strong hover:bg-surface-secondary'
                     )}
                   >
@@ -648,7 +648,7 @@ export function CustomerSelectionDialog({
                   className={cn(
                     'px-3 py-2 md:py-1.5 text-sm font-medium rounded-md border transition-colors min-h-[44px] md:min-h-0',
                     isCustomMargin
-                      ? 'bg-blue-600 text-white border-blue-600'
+                      ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-card text-foreground border-border-strong hover:bg-surface-secondary'
                   )}
                 >
@@ -668,7 +668,7 @@ export function CustomerSelectionDialog({
                       autoFocus
                       className="w-16 text-right text-sm font-semibold rounded border border-border-strong bg-card text-foreground px-2 py-1"
                     />
-                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">%</span>
+                    <span className="text-sm font-semibold text-primary">%</span>
                   </div>
                 )}
               </div>
@@ -691,11 +691,11 @@ export function CustomerSelectionDialog({
                 <span>Back to customer list</span>
               </button>
 
-              <div className="rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-3">
-                <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
+              <div className="rounded-md bg-warning-bg border border-warning-border p-3">
+                <p className="text-sm font-medium text-foreground">
                   Create New Customer
                 </p>
-                <p className="text-xs text-orange-700 dark:text-orange-400 mt-1">
+                <p className="text-xs text-warning mt-1">
                   Fill in the details below to add a new customer to your client profiles.
                 </p>
               </div>
