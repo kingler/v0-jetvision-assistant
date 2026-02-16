@@ -99,12 +99,27 @@ export interface ProposalData {
 }
 
 // =============================================================================
+// BRAND COLORS
+// =============================================================================
+
+export const BRAND_COLORS = {
+  headerBg: '#0a1628',
+  footerBg: '#0a1628',
+  accent: '#00a8e8',
+  headerText: '#ffffff',
+  footerText: '#94a3b8',
+  gold: '#d4af37',
+} as const;
+
+// =============================================================================
 // STYLES
 // =============================================================================
 
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
+    paddingTop: 40,
+    paddingHorizontal: 40,
+    paddingBottom: 80,
     fontFamily: 'Helvetica',
     fontSize: 10,
     color: '#1a1a1a',
@@ -113,10 +128,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 30,
-    paddingBottom: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: '#00a8e8',
+    padding: 20,
+    backgroundColor: BRAND_COLORS.headerBg,
+    borderRadius: 4,
   },
   logoContainer: {
     marginBottom: 4,
@@ -128,7 +144,7 @@ const styles = StyleSheet.create({
   },
   logoTagline: {
     fontSize: 9,
-    color: '#666666',
+    color: BRAND_COLORS.gold,
     marginTop: 4,
   },
   documentTitle: {
@@ -137,11 +153,11 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 18,
     fontFamily: 'Helvetica-Bold',
-    color: '#1a1a1a',
+    color: BRAND_COLORS.headerText,
   },
   proposalMeta: {
     fontSize: 9,
-    color: '#666666',
+    color: BRAND_COLORS.footerText,
     marginTop: 4,
   },
   section: {
@@ -286,18 +302,30 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    textAlign: 'center',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    paddingHorizontal: 40,
+    backgroundColor: BRAND_COLORS.footerBg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   footerText: {
     fontSize: 8,
-    color: '#666666',
+    color: BRAND_COLORS.footerText,
     marginBottom: 2,
+  },
+  footerBrand: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: BRAND_COLORS.accent,
+  },
+  footerContact: {
+    fontSize: 8,
+    color: BRAND_COLORS.footerText,
+    textAlign: 'right',
   },
   ctaSection: {
     backgroundColor: '#e6f7fc',
@@ -805,13 +833,15 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
         </View>
 
         {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Jetvision Group | Private Aviation Solutions
-          </Text>
-          <Text style={styles.footerText}>
-            This proposal is confidential and intended only for the named recipient.
-          </Text>
+        <View style={styles.footer} fixed>
+          <View>
+            <Text style={styles.footerBrand}>Jetvision Group</Text>
+            <Text style={styles.footerText}>Private Aviation Solutions</Text>
+          </View>
+          <View>
+            <Text style={styles.footerContact}>bookings@jetvision.com</Text>
+            <Text style={styles.footerContact}>+1 (888) 555-JETS</Text>
+          </View>
         </View>
       </Page>
     </Document>
