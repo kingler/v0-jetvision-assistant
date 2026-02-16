@@ -19,6 +19,7 @@ import {
 } from '@react-pdf/renderer';
 import path from 'path';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
+import { resolveAircraftImageUrl } from '@/lib/aircraft/image-resolver';
 
 // =============================================================================
 // TYPES
@@ -175,6 +176,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+  },
+  aircraftImageContainer: {
+    width: '100%',
+    height: 120,
+    marginBottom: 12,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+  },
+  aircraftImage: {
+    width: '100%',
+    height: 120,
+    objectFit: 'cover',
   },
   flightHeader: {
     flexDirection: 'row',
@@ -449,6 +463,11 @@ interface FlightCardProps {
 function FlightCard({ flight, index, legLabel }: FlightCardProps) {
   const amenityLabels = getAmenityLabels(flight.amenities);
   const isReturn = legLabel === 'Return' || flight.legType === 'return';
+  const imageUrl = resolveAircraftImageUrl({
+    tailPhotoUrl: flight.tailPhotoUrl,
+    aircraftType: flight.aircraftType,
+    aircraftModel: flight.aircraftModel,
+  });
 
   return (
     <View style={styles.flightCard}>
@@ -458,6 +477,12 @@ function FlightCard({ flight, index, legLabel }: FlightCardProps) {
           {legLabel}
         </Text>
       )}
+
+      {/* Aircraft Image */}
+      <View style={styles.aircraftImageContainer}>
+        <Image src={imageUrl} style={styles.aircraftImage} />
+      </View>
+
       <View style={styles.flightHeader}>
         <View>
           <Text style={styles.routeText}>

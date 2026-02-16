@@ -477,3 +477,27 @@ describe('generateProposal', () => {
     expect(result.pricing.subtotal).toBe(45000);
   });
 });
+
+describe('Aircraft Image Resolution', () => {
+  it('should preserve tailPhotoUrl through proposal data preparation', () => {
+    const input: GenerateProposalInput = {
+      ...validInput,
+      selectedFlights: [mockFlight1],
+    };
+    const data = prepareProposalData(input);
+    expect(data.selectedFlights[0].tailPhotoUrl).toBe('https://example.com/g650.jpg');
+  });
+
+  it('should preserve tailPhotoUrl for flights without one', () => {
+    const flightNoPhoto: RFQFlight = {
+      ...mockFlight1,
+      tailPhotoUrl: undefined,
+    };
+    const input: GenerateProposalInput = {
+      ...validInput,
+      selectedFlights: [flightNoPhoto],
+    };
+    const data = prepareProposalData(input);
+    expect(data.selectedFlights[0].tailPhotoUrl).toBeUndefined();
+  });
+});
