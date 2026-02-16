@@ -436,6 +436,55 @@ describe('RFQFlightCard', () => {
     });
   });
 
+  describe('Book Flight Button', () => {
+    it('is enabled and clickable for quoted flights when not gated', () => {
+      const onBookFlight = vi.fn();
+      render(
+        <RFQFlightCard
+          flight={mockFlight}
+          onBookFlight={onBookFlight}
+          bookFlightDisabled={false}
+          quoteId="quote-abc123"
+        />
+      );
+
+      const bookBtn = screen.getByRole('button', { name: /book flight/i });
+      expect(bookBtn).not.toBeDisabled();
+      fireEvent.click(bookBtn);
+      expect(onBookFlight).toHaveBeenCalledWith('flight-001', 'quote-abc123');
+    });
+
+    it('is disabled when bookFlightDisabled is true', () => {
+      const onBookFlight = vi.fn();
+      render(
+        <RFQFlightCard
+          flight={mockFlight}
+          onBookFlight={onBookFlight}
+          bookFlightDisabled={true}
+          bookFlightDisabledReason="Waiting for customer reply to proposal"
+        />
+      );
+
+      const bookBtn = screen.getByRole('button', { name: /book flight/i });
+      expect(bookBtn).toBeDisabled();
+      fireEvent.click(bookBtn);
+      expect(onBookFlight).not.toHaveBeenCalled();
+    });
+
+    it('is not rendered for non-quoted flights', () => {
+      const onBookFlight = vi.fn();
+      render(
+        <RFQFlightCard
+          flight={minimalFlight}
+          onBookFlight={onBookFlight}
+          bookFlightDisabled={false}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /book flight/i })).not.toBeInTheDocument();
+    });
+  });
+
   describe('Aircraft Category', () => {
     it('displays aircraft category from prop', () => {
       render(<RFQFlightCard flight={mockFlight} aircraftCategory="Ultra long range" />);
