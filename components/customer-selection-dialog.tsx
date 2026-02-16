@@ -433,7 +433,7 @@ export function CustomerSelectionDialog({
 
   return (
     <ResponsiveModal open={open} onOpenChange={handleClose}>
-      <ResponsiveModalContent className="sm:max-w-[500px]">
+      <ResponsiveModalContent className="sm:max-w-[500px] overflow-visible">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
             {mode === 'select' ? 'Select Customer for Proposal' : 'Create New Customer'}
@@ -445,7 +445,7 @@ export function CustomerSelectionDialog({
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
-        <div className="space-y-3 md:space-y-4 py-2 md:py-4 overflow-y-auto max-h-[60vh] md:max-h-none">
+        <div className="space-y-3 md:space-y-4 py-2 md:py-4 overflow-visible min-h-[350px] max-h-[500px]">
           {/* Loading state */}
           {isLoading && (
             <div className="flex items-center justify-center py-8">
