@@ -11,6 +11,7 @@ import {
   withErrorHandling,
   parseJsonBody,
 } from '@/lib/utils/api';
+import { sendEmail } from '@/lib/services/email-service';
 
 // Force dynamic rendering - API routes should not be statically generated
 export const dynamic = 'force-dynamic';
@@ -50,7 +51,7 @@ export const GET = withErrorHandling(async (_request: NextRequest) => {
  * POST /api/email
  * Send an email via Gmail MCP server
  */
-export const POST = withErrorHandling(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   // Authenticate
   const isoAgentOrError = await getAuthenticatedAgent();
   if (isErrorResponse(isoAgentOrError)) return isoAgentOrError;
@@ -61,7 +62,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     return bodyResult;
   }
 
-  const { to, subject, body_html, body_text, cc, bcc, attachments } = bodyResult;
+  const { to, subject, body_html, cc, bcc, attachments } = bodyResult;
 
   // Validate required fields
   if (!to || !subject || !body_html) {
@@ -80,72 +81,26 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     );
   }
 
-  try {
-    // Call Gmail MCP server via internal Avinode API (which routes to MCP servers)
-    const url = new URL(request.url);
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : url.origin);
+  // Send via email-service (routes through Gmail MCP client)
+  const result = await sendEmail({
+    to,
+    subject,
+    body: body_html,
+    cc,
+    bcc,
+    attachments,
+  });
 
-    // Prepare Gmail MCP tool params
-    const gmailParams = {
-      to,
-      subject,
-      body_html,
-      body_text,
-      cc,
-      bcc,
-      attachments,
-    };
-
-    console.log('[POST /api/email] Sending email via Gmail MCP:', {
-      to,
-      subject,
-      attachmentCount: attachments?.length || 0,
-    });
-
-    // Call the MCP router endpoint
-    const response = await fetch(`${baseUrl}/api/mcp/gmail`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': request.headers.get('cookie') || '',
-      },
-      body: JSON.stringify({
-        tool: 'send_email',
-        params: gmailParams,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[POST /api/email] Gmail MCP error:', errorText);
-      return NextResponse.json(
-        { error: 'Failed to send email', details: errorText },
-        { status: response.status }
-      );
-    }
-
-    const result = await response.json();
-
-    console.log('[POST /api/email] Email sent successfully:', {
-      messageId: result.messageId,
-      threadId: result.threadId,
-    });
-
-    return NextResponse.json({
-      success: true,
-      messageId: result.messageId,
-      threadId: result.threadId,
-      sentAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('[POST /api/email] Error sending email:', error);
+  if (!result.success) {
     return NextResponse.json(
-      {
-        error: 'Failed to send email',
-        message: error instanceof Error ? error.message : String(error)
-      },
+      { success: false, error: result.error || 'Failed to send email' },
       { status: 500 }
     );
   }
-});
+
+  return NextResponse.json({
+    success: true,
+    messageId: result.messageId,
+    sentAt: new Date().toISOString(),
+  });
+}
