@@ -193,10 +193,17 @@ export function ChatInterface({
   // Restore email approval state when switching chats (ONEK-185)
   // Scans loaded messages for an email_approval_request so the EmailPreviewCard
   // and "Send Email" handler work after chat switch or page refresh.
+  // If a proposal-sent confirmation already exists, the email was already sent
+  // so we skip restoring the approval card.
   useEffect(() => {
-    const emailMsg = (activeChat.messages || []).find(
-      (msg) => msg.showEmailApprovalRequest && msg.emailApprovalData
+    const msgs = activeChat.messages || []
+    const alreadySent = msgs.some(
+      (msg) => msg.showProposalSentConfirmation || msg.showContractSentConfirmation
     )
+    const emailMsg = alreadySent
+      ? undefined
+      : msgs.find((msg) => msg.showEmailApprovalRequest && msg.emailApprovalData)
+
     if (emailMsg) {
       setEmailApprovalMessageId(emailMsg.id)
       setEmailApprovalData(emailMsg.emailApprovalData as EmailApprovalRequestContent)
@@ -207,6 +214,11 @@ export function ChatInterface({
       setEmailApprovalStatus('draft')
     }
   }, [activeChat.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Suppress email approval card when a proposal/contract confirmation already exists (ONEK-185)
+  const emailAlreadySent = (activeChat.messages || []).some(
+    (msg) => msg.showProposalSentConfirmation || msg.showContractSentConfirmation
+  )
 
   // Book flight modal state for contract generation
   const [isBookFlightModalOpen, setIsBookFlightModalOpen] = useState(false)
@@ -2000,6 +2012,10 @@ export function ChatInterface({
           messages: updatedMessages,
           status: 'proposal_sent' as const,
         })
+
+        // Clear email approval state so the card doesn't linger
+        setEmailApprovalMessageId(null)
+        setEmailApprovalData(null)
       }
     } catch (error) {
       console.error('[ChatInterface] Email approval send failed:', error)
@@ -2890,13 +2906,13 @@ export function ChatInterface({
                         paymentConfirmationData={message.paymentConfirmationData}
                         showClosedWon={message.showClosedWon}
                         closedWonData={message.closedWonData}
-                        showEmailApprovalRequest={message.showEmailApprovalRequest}
+                        showEmailApprovalRequest={!emailAlreadySent && message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}
                         onEmailSend={handleEmailSend}
                         onEmailCancel={handleEmailCancel}
-                        emailApprovalStatus={message.showEmailApprovalRequest ? emailApprovalStatus : undefined}
-                        emailApprovalError={message.showEmailApprovalRequest ? emailApprovalError : undefined}
+                        emailApprovalStatus={!emailAlreadySent && message.showEmailApprovalRequest ? emailApprovalStatus : undefined}
+                        emailApprovalError={!emailAlreadySent && message.showEmailApprovalRequest ? emailApprovalError : undefined}
                         onViewRequest={(requestId) => {
                           console.log('[Pipeline] View request:', requestId)
                         }}
@@ -3270,7 +3286,7 @@ export function ChatInterface({
 
       {/* Loading overlay when generating proposal */}
       {isGeneratingProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50">
           <div className="bg-card rounded-lg p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />

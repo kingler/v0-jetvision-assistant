@@ -32,7 +32,7 @@ export function QuoteRequestItem({ quote, onViewDetails }: QuoteRequestItemProps
     switch (quote.status) {
       case 'received':
         return (
-          <Badge className="bg-status-proposal-ready text-white text-xs">
+          <Badge className="bg-status-proposal-ready text-primary-foreground text-xs">
             <CheckCircle className="w-3 h-3 mr-1" />
             Received
           </Badge>

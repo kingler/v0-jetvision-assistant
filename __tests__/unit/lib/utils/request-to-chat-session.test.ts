@@ -63,7 +63,11 @@ function makeRequest(overrides: Partial<Request> = {}): Request {
 
 describe('requestToChatSession', () => {
   describe('status mapping: all DB statuses → correct UI status', () => {
-    const STATUS_MAP: Array<[Request['status'], string, number]> = [
+    // Some statuses (proposal_sent, contract_generated, etc.) are handled by
+    // the mapping function at runtime but not yet in the Supabase request_status
+    // enum. We use `string` for the first tuple element to cover both DB-enum
+    // and extended statuses.
+    const STATUS_MAP: Array<[string, string, number]> = [
       // [db status, expected UI status, expected step]
       ['draft', 'understanding_request', 1],
       ['pending', 'understanding_request', 1],
@@ -91,7 +95,7 @@ describe('requestToChatSession', () => {
     it.each(STATUS_MAP)(
       'request.status="%s" → status="%s", step=%d',
       (dbStatus, expectedStatus, expectedStep) => {
-        const request = makeRequest({ status: dbStatus });
+        const request = makeRequest({ status: dbStatus as Request['status'] });
         const result = requestToChatSession(request);
 
         expect(result.status).toBe(expectedStatus);

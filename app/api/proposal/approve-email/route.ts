@@ -322,6 +322,40 @@ export async function POST(
         })
 
         console.log('[ApproveEmail] Persisted confirmation message:', savedMessageId)
+
+        // Mark the old email_approval_request message as sent so it doesn't
+        // re-render the "Review Email Before Sending" card on reload.
+        // mapDbMessageToChatMessage checks richContent.emailApproval.status !== 'sent'
+        try {
+          const { data: approvalMsgs } = await supabaseAdmin
+            .from('messages')
+            .select('id, rich_content')
+            .eq('request_id', requestId as string)
+            .eq('content_type', 'email_approval_request')
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(5)
+
+          for (const msg of approvalMsgs || []) {
+            const rc = (msg.rich_content || {}) as Record<string, unknown>
+            const ea = (rc.emailApproval || {}) as Record<string, unknown>
+            await supabaseAdmin
+              .from('messages')
+              .update({
+                rich_content: {
+                  ...rc,
+                  emailApproval: { ...ea, status: 'sent' },
+                },
+              })
+              .eq('id', msg.id)
+          }
+
+          if (approvalMsgs && approvalMsgs.length > 0) {
+            console.log('[ApproveEmail] Marked', approvalMsgs.length, 'email_approval_request message(s) as sent')
+          }
+        } catch (markErr) {
+          console.warn('[ApproveEmail] Failed to mark email approval messages as sent:', markErr)
+        }
       } catch (persistErr) {
         console.warn('[ApproveEmail] Failed to persist confirmation:', persistErr)
       }
