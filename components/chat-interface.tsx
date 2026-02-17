@@ -1467,7 +1467,9 @@ export function ChatInterface({
    */
   const handleViewChat = (flightId: string, quoteId?: string, messageId?: string) => {
     setMessageThreadTripId(activeChat.tripId)
-    setMessageThreadRequestId(activeChat.requestId)
+    // In consolidated schema, activeChat.id IS the request UUID.
+    // activeChat.requestId may be undefined if not explicitly set.
+    setMessageThreadRequestId(activeChat.requestId || activeChat.id)
     setMessageThreadQuoteId(quoteId)
     setMessageThreadFlightId(flightId)
 
