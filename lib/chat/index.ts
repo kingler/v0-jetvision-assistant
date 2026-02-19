@@ -77,5 +77,16 @@ export {
 // API Services (client-side)
 export * from './api';
 
+// Agent notifications (quote events, operator messages)
+export {
+  formatQuoteReceivedMessage,
+  formatOperatorMessageNotification,
+  resolveRequestIdForPersistence,
+  type QuoteEventPayload,
+  type AgentNotificationMessage,
+  type SystemEventData,
+  type SystemEventType,
+} from './agent-notifications';
+
 // Book Flight customer derivation (selected proposal customer for contract modal)
 export { getBookFlightCustomer } from './book-flight-customer';

@@ -114,6 +114,11 @@ async function resetConnection(): Promise<void> {
 /**
  * Get or create the singleton MCP client connected to the Gmail MCP server.
  * Lazy-initializes on first call and reuses the connection afterwards.
+ *
+ * The child process inherits the parent's environment variables so that
+ * Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+ * GOOGLE_REFRESH_TOKEN) are available even if dotenv's file resolution
+ * fails inside the child.
  */
 async function getClient(): Promise<Client> {
   if (clientInstance) {
@@ -134,7 +139,23 @@ async function getClient(): Promise<Client> {
     const transport = new StdioClientTransport({
       command: 'npx',
       args: ['tsx', serverPath],
+      cwd: process.cwd(),
+      env: { ...process.env } as Record<string, string>,
+      stderr: 'pipe',
     });
+
+    // Capture stderr from the child process for diagnostics.
+    // The stderr getter returns a PassThrough stream immediately when
+    // stderr is set to 'pipe', so listeners can be attached before start().
+    const stderrStream = transport.stderr;
+    if (stderrStream) {
+      stderrStream.on('data', (data: Buffer) => {
+        const msg = data.toString().trim();
+        if (msg) {
+          console.error(`[Gmail MCP Server] ${msg}`);
+        }
+      });
+    }
 
     const client = new Client(
       { name: 'gmail-mcp-client', version: '1.0.0' },
@@ -177,7 +198,7 @@ async function callToolWithRetry(
       throw error;
     }
 
-    // Connection broke — reset and retry once
+    console.warn(`[Gmail MCP] Connection error, reconnecting: ${(error as Error).message}`);
     await resetConnection();
     const freshClient = await getClient();
     const res = await freshClient.callTool({ name: toolName, arguments: args });
