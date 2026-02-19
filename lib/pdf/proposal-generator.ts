@@ -374,6 +374,48 @@ function calculatePricing(
 }
 
 /**
+ * Create client-facing copies of flights with marked-up totalPrice.
+ *
+ * Each flight's displayed price includes its proportional share of the
+ * Jetvision service fee plus any taxes/fees from the price breakdown.
+ * This ensures the client never sees the operator base price.
+ *
+ * Formula per flight:
+ *   clientPrice = basePrice * (1 + feePercentage / 100) + taxes + fees
+ *
+ * For flights without a price breakdown, totalPrice is treated as basePrice
+ * and there are no taxes/fees to add.
+ */
+function applyClientFacingPrices(
+  flights: RFQFlight[],
+  jetvisionFeePercentage: number = 10
+): RFQFlight[] {
+  const multiplier = new Decimal(1).plus(
+    new Decimal(jetvisionFeePercentage).dividedBy(100)
+  );
+
+  return flights.map((flight) => {
+    const basePrice = flight.priceBreakdown
+      ? new Decimal(flight.priceBreakdown.basePrice)
+      : new Decimal(flight.totalPrice);
+
+    const taxes = flight.priceBreakdown
+      ? new Decimal(flight.priceBreakdown.taxes || 0).plus(
+          new Decimal(flight.priceBreakdown.fees || 0)
+        )
+      : new Decimal(0);
+
+    const clientPrice = basePrice
+      .times(multiplier)
+      .plus(taxes)
+      .toDecimalPlaces(2)
+      .toNumber();
+
+    return { ...flight, totalPrice: clientPrice };
+  });
+}
+
+/**
  * Calculate quote validity date (soonest expiry among all flights)
  */
 function calculateQuoteValidUntil(flights: RFQFlight[]): string {
@@ -464,13 +506,19 @@ export async function generateProposal(
       }
     : input.tripDetails;
 
+  // Mark up flight prices for client-facing PDF display
+  const clientFacingFlights = applyClientFacingPrices(
+    sortedFlights,
+    input.jetvisionFeePercentage
+  );
+
   // Prepare proposal data
   const proposalData: ProposalData = {
     proposalId,
     generatedAt,
     customer: input.customer,
     tripDetails,
-    selectedFlights: sortedFlights,
+    selectedFlights: clientFacingFlights,
     pricing,
     quoteValidUntil,
   };
@@ -552,7 +600,7 @@ export function prepareProposalData(
     generatedAt,
     customer: input.customer,
     tripDetails,
-    selectedFlights: sortedFlights,
+    selectedFlights: applyClientFacingPrices(sortedFlights, input.jetvisionFeePercentage),
     pricing,
     quoteValidUntil,
   };

@@ -235,7 +235,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
     const stage = session.status as FlightRequestStage
     const quoteLabel =
       session.status === "requesting_quotes"
-        ? `Quotes ${session.quotesReceived || 0}/${session.quotesTotal || 5}`
+        ? `Quotes ${session.quotesReceived || 0}/${session.quotesTotal || '?'}`
         : undefined
 
     return <FlightRequestStageBadge stage={stage} label={quoteLabel} />

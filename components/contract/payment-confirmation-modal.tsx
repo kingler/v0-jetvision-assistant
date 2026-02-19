@@ -141,7 +141,7 @@ export function PaymentConfirmationModal({
           </div>
 
           {error && (
-            <p className="text-xs md:text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-xs md:text-sm text-destructive">{error}</p>
           )}
         </div>
 
