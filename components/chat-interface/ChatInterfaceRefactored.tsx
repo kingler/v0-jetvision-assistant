@@ -273,7 +273,7 @@ export function ChatInterfaceRefactored({
   }, [activeChat]);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <DynamicChatHeader
         activeChat={activeChat}
@@ -421,9 +421,9 @@ export function ChatInterfaceRefactored({
       {/* Generating Proposal Overlay */}
       {isGeneratingProposal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg flex items-center gap-3">
-            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-gray-700 dark:text-gray-300">
+          <div className="bg-card rounded-lg p-6 shadow-lg flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">
               Generating proposal...
             </span>
           </div>

@@ -156,6 +156,12 @@ function mapRequestStatusToUIStatus(requestStatus: string): ChatSession['status'
     analyzing_proposals: 'analyzing_options',
     generating_email: 'analyzing_options',
     sending_proposal: 'proposal_ready',
+    proposal_sent: 'proposal_sent',
+    contract_generated: 'contract_generated',
+    contract_sent: 'contract_sent',
+    payment_pending: 'payment_pending',
+    completed: 'closed_won',
+    closed_won: 'closed_won',
   };
   return statusMap[requestStatus] || null;
 }
@@ -175,6 +181,12 @@ function getWorkflowStepFromRequestStatus(requestStatus: string): number | null 
     analyzing_proposals: 4,
     generating_email: 4,
     sending_proposal: 5,
+    proposal_sent: 6,
+    contract_generated: 7,
+    contract_sent: 8,
+    payment_pending: 9,
+    completed: 10,
+    closed_won: 10,
   };
   return stepMap[requestStatus] || null;
 }

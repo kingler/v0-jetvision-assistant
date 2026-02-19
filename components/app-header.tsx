@@ -53,7 +53,6 @@ export function AppHeader({ sidebarOpen, onSidebarToggle, isMobile = false }: Ap
                 size="sm"
                 onClick={onSidebarToggle}
                 className="cursor-pointer shrink-0 hover:bg-transparent!"
-                style={{ color: '#ffffff' }}
                 data-header-sidebar-toggle=""
                 aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
                 aria-expanded={sidebarOpen}

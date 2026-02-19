@@ -364,7 +364,7 @@ export default function LLMConfigPage() {
                 </Badge>
               </p>
               {defaultConfig.has_api_key && (
-                <p className="text-green-600 dark:text-green-400">
+                <p className="text-success">
                   <Key className="h-3 w-3 inline mr-1" />
                   API key configured
                 </p>

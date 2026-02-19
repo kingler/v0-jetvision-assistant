@@ -143,7 +143,7 @@ export function MarginEditModal({
 
         <div className="space-y-3 md:space-y-4 py-2">
           {/* Current margin display */}
-          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
             <Percent className="h-4 w-4" />
             <span>Current: {currentMargin}%</span>
           </div>
@@ -198,33 +198,33 @@ export function MarginEditModal({
                   disabled={isProcessing}
                   className="w-28 min-h-[44px] md:min-h-0"
                 />
-                <span className="text-sm text-gray-500">%</span>
+                <span className="text-sm text-muted-foreground">%</span>
               </div>
             </div>
           )}
 
           {/* Live price preview */}
-          <div className="rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 space-y-1.5">
+          <div className="rounded-lg bg-muted border border-border p-3 space-y-1.5">
             <div className="flex justify-between text-xs md:text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Base Amount</span>
-              <span className="text-gray-900 dark:text-gray-100">
+              <span className="text-muted-foreground">Base Amount</span>
+              <span className="text-foreground">
                 {currency} {baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
             <div className="flex justify-between text-xs md:text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Charge ({margin}%)</span>
+              <span className="text-muted-foreground">Charge ({margin}%)</span>
               <span className={cn(
                 "font-medium",
-                hasChanged ? "text-blue-600 dark:text-blue-400" : "text-gray-900 dark:text-gray-100"
+                hasChanged ? "text-primary" : "text-foreground"
               )}>
                 {currency} {previewPricing.fee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="flex justify-between text-xs md:text-sm border-t border-gray-200 dark:border-gray-600 pt-1.5">
-              <span className="font-medium text-gray-700 dark:text-gray-300">Total</span>
+            <div className="flex justify-between text-xs md:text-sm border-t border-border pt-1.5">
+              <span className="font-medium text-foreground">Total</span>
               <span className={cn(
                 "font-semibold",
-                hasChanged ? "text-blue-600 dark:text-blue-400" : "text-gray-900 dark:text-gray-100"
+                hasChanged ? "text-primary" : "text-foreground"
               )}>
                 {currency} {previewPricing.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
@@ -232,7 +232,7 @@ export function MarginEditModal({
           </div>
 
           {error && (
-            <p className="text-xs md:text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-xs md:text-sm text-destructive">{error}</p>
           )}
         </div>
 

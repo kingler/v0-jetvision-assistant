@@ -449,7 +449,7 @@ The Jetvision Team`;
       <ResponsiveModalContent className="sm:max-w-[550px]">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-orange-500" />
+            <FileText className="h-5 w-5 text-warning" />
             Book Flight
           </ResponsiveModalTitle>
           <ResponsiveModalDescription>
@@ -564,7 +564,7 @@ The Jetvision Team`;
               <div className="border-t border-border pt-2 mt-2">
                 <div className="flex justify-between font-semibold">
                   <span className="text-foreground">Total</span>
-                  <span className="text-orange-600 dark:text-orange-400">
+                  <span className="text-warning">
                     {formatCurrency(pricing.totalAmount, pricing.currency)}
                   </span>
                 </div>
@@ -578,8 +578,8 @@ The Jetvision Team`;
           {/* Email Review State */}
           {state === 'email_review' && (
             <div className="space-y-3">
-              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-info-bg p-3 md:p-4">
-                <h4 className="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-300 mb-3">
+              <div className="rounded-lg border border-info-border bg-info-bg p-3 md:p-4">
+                <h4 className="text-xs md:text-sm font-medium text-info mb-3">
                   Review Email Before Sending
                 </h4>
 
@@ -627,10 +627,10 @@ The Jetvision Team`;
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                  <p className="text-sm font-medium text-success">
                     Contract Sent Successfully!
                   </p>
-                  <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                  <p className="text-sm text-success mt-1">
                     Contract {contractNumber} has been sent to {customer.email}.
                   </p>
                   {pdfUrl && (
@@ -653,10 +653,10 @@ The Jetvision Team`;
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-red-800 dark:text-red-300">
+                  <p className="text-sm font-medium text-destructive">
                     Error
                   </p>
-                  <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                  <p className="text-sm text-destructive mt-1">
                     {error}
                   </p>
                 </div>

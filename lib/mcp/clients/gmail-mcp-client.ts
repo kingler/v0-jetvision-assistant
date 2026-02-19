@@ -92,7 +92,7 @@ function isConnectionError(error: unknown): boolean {
 }
 
 /**
- * Reset the singleton connection so the next getClient() call
+ * Reset the singleton connection state so the next getClient() call
  * spawns a fresh MCP server process.
  */
 async function resetConnection(): Promise<void> {
@@ -102,6 +102,7 @@ async function resetConnection(): Promise<void> {
   transportInstance = null;
   initPromise = null;
 
+  // Best-effort cleanup of old handles
   if (oldClient) {
     try { await oldClient.close(); } catch { /* ignore */ }
   }
@@ -223,6 +224,7 @@ export async function sendEmail(
       params as unknown as Record<string, unknown>
     );
   } catch (error) {
+    // If retry also failed with a connection error, ensure state is clean
     if (isConnectionError(error)) {
       await resetConnection();
     }

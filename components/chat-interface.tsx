@@ -16,7 +16,7 @@ import React from "react"
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Loader2, Plane } from "lucide-react"
+import { Send, Loader2, Plane, Bell, MessageSquare } from "lucide-react"
 import type { ChatSession } from "./chat-sidebar"
 import { createSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -27,6 +27,7 @@ import { AgentMessageV2 } from "./chat/agent-message-v2"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
+import { OperatorChatsInline, type FlightContext, type OperatorMessageInline } from "@/components/message-components/operator-chat-inline"
 import { FlightSearchProgress } from "./avinode/flight-search-progress"
 import { BookFlightModal } from "./avinode/book-flight-modal"
 import { PaymentConfirmationModal } from "./contract/payment-confirmation-modal"
@@ -64,11 +65,16 @@ import {
   extractRouteParts,
   // Book Flight customer derivation
   getBookFlightCustomer,
+  // Agent notification utilities (ONEK-173)
+  formatQuoteReceivedMessage,
+  formatOperatorMessageNotification,
+  resolveRequestIdForPersistence,
   // Types
   type Quote,
   type QuoteDetailsMap,
   type SSEParseResult,
   type PipelineData,
+  type QuoteEventPayload,
 } from "@/lib/chat"
 
 // Skeleton loading
@@ -143,6 +149,9 @@ export function ChatInterface({
   // Track when a trip was just created to suppress auto-load "not active trip" messages
   // Within 30s of trip creation, operators haven't responded yet so RFQ data is empty
   const tripCreatedAtRef = useRef<number>(0)
+  // ONEK-173: Buffer for batching rapid quote events into a single notification message
+  const quoteEventBufferRef = useRef<QuoteEventPayload[]>([])
+  const quoteNotificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -184,10 +193,17 @@ export function ChatInterface({
   // Restore email approval state when switching chats (ONEK-185)
   // Scans loaded messages for an email_approval_request so the EmailPreviewCard
   // and "Send Email" handler work after chat switch or page refresh.
+  // If a proposal-sent confirmation already exists, the email was already sent
+  // so we skip restoring the approval card.
   useEffect(() => {
-    const emailMsg = (activeChat.messages || []).find(
-      (msg) => msg.showEmailApprovalRequest && msg.emailApprovalData
+    const msgs = activeChat.messages || []
+    const alreadySent = msgs.some(
+      (msg) => msg.showProposalSentConfirmation || msg.showContractSentConfirmation
     )
+    const emailMsg = alreadySent
+      ? undefined
+      : msgs.find((msg) => msg.showEmailApprovalRequest && msg.emailApprovalData)
+
     if (emailMsg) {
       setEmailApprovalMessageId(emailMsg.id)
       setEmailApprovalData(emailMsg.emailApprovalData as EmailApprovalRequestContent)
@@ -199,6 +215,11 @@ export function ChatInterface({
     }
   }, [activeChat.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Suppress email approval card when a proposal/contract confirmation already exists (ONEK-185)
+  const emailAlreadySent = (activeChat.messages || []).some(
+    (msg) => msg.showProposalSentConfirmation || msg.showContractSentConfirmation
+  )
+
   // Book flight modal state for contract generation
   const [isBookFlightModalOpen, setIsBookFlightModalOpen] = useState(false)
   const [bookFlightData, setBookFlightData] = useState<RFQFlight | null>(null)
@@ -206,9 +227,6 @@ export function ChatInterface({
   const [pendingBookFlightQuoteId, setPendingBookFlightQuoteId] = useState<string | undefined>(undefined)
   const [selectedBookingCustomer, setSelectedBookingCustomer] = useState<{ name: string; email: string; company?: string; phone?: string } | null>(null)
   const [isBookingCustomerDialogOpen, setIsBookingCustomerDialogOpen] = useState(false)
-
-  // Customer reply detection for gating Book Flight button
-  const [customerReplied, setCustomerReplied] = useState(false)
 
   // Payment confirmation modal state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -226,34 +244,6 @@ export function ChatInterface({
 
   // Parse route to get airport info using extracted utility
   const routeParts = extractRouteParts(activeChat.route)
-
-  // Auto-detect customer reply from chat messages
-  useEffect(() => {
-    if (customerReplied) return; // Already detected
-
-    const messages = activeChat.messages || [];
-    for (const msg of messages) {
-      if (msg.type === 'user') {
-        const content = (msg.content || '').toLowerCase();
-        if (content.includes('customer replied') || content.includes('client replied') || content.includes('customer responded')) {
-          setCustomerReplied(true);
-          return;
-        }
-      }
-      // Also set if we're past contract stage
-      if (msg.showContractSentConfirmation || msg.showPaymentConfirmation || msg.showClosedWon) {
-        setCustomerReplied(true);
-        return;
-      }
-    }
-  }, [activeChat.messages, customerReplied])
-
-  // Determine if Book Flight should be gated (proposal sent but no customer reply yet)
-  const hasProposalSent = useMemo(() => {
-    return (activeChat.messages || []).some(m => m.showProposalSentConfirmation || m.proposalSentData);
-  }, [activeChat.messages]);
-
-  const isBookFlightGated = hasProposalSent && !customerReplied;
 
   /**
    * Show FlightSearchProgress ONLY when a trip has been successfully created.
@@ -437,6 +427,15 @@ export function ChatInterface({
       if (channel) {
         supabase.removeChannel(channel)
       }
+      // ONEK-173: Clear notification buffer timer to prevent memory leaks
+      if (quoteNotificationTimerRef.current) {
+        clearTimeout(quoteNotificationTimerRef.current)
+        quoteNotificationTimerRef.current = null
+      }
+      // Flush any remaining buffered events before cleanup
+      if (quoteEventBufferRef.current.length > 0) {
+        quoteEventBufferRef.current = []
+      }
     }
   }, [activeChat.tripId, activeChat.requestId, activeChat.id])
 
@@ -520,6 +519,41 @@ export function ChatInterface({
   }, [activeChat.tripId, activeChat.id, activeChat.tripIdSubmitted, activeChat.rfqsLastFetchedAt, rfqFlights?.length, isTripIdLoading, isLoading])
 
   /**
+   * Flush buffered quote events into a single batched notification message (ONEK-173)
+   */
+  const flushQuoteNotificationBuffer = useCallback(() => {
+    const events = quoteEventBufferRef.current
+    if (events.length === 0) return
+
+    // Clear the buffer
+    quoteEventBufferRef.current = []
+    quoteNotificationTimerRef.current = null
+
+    // Build a batched notification message
+    const notificationMessage = formatQuoteReceivedMessage(events, activeChat.route)
+
+    // Append to the chat thread
+    onUpdateChat(activeChat.id, {
+      messages: [...(activeChatRef.current.messages || []), notificationMessage],
+    })
+
+    // Persist to DB so it survives page reload
+    const requestId = resolveRequestIdForPersistence(activeChat)
+    if (requestId) {
+      fetch('/api/chat-sessions/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          content: notificationMessage.content,
+          contentType: 'system_notification',
+          richContent: { systemEvent: notificationMessage.systemEventData },
+        }),
+      }).catch((err) => console.warn('[ChatInterface] Failed to persist quote notification:', err))
+    }
+  }, [activeChat.id, activeChat.route, activeChat.requestId, activeChat.conversationId, onUpdateChat])
+
+  /**
    * Handle webhook events from Supabase realtime
    */
   const handleWebhookEvent = useCallback((event: RealtimeWebhookEvent) => {
@@ -551,29 +585,79 @@ export function ChatInterface({
             webhookRefreshTimerRef.current = null
           }, DEBOUNCE_MS - elapsed)
         }
+
+        // ONEK-173: Buffer quote events for batched notification message
+        quoteEventBufferRef.current.push({
+          quoteId,
+          operatorName: payload.senderName,
+          tripId: activeChat.tripId,
+        })
+
+        // Reset the notification flush timer (aligns with the RFQ refresh debounce)
+        if (quoteNotificationTimerRef.current) {
+          clearTimeout(quoteNotificationTimerRef.current)
+        }
+        quoteNotificationTimerRef.current = setTimeout(() => {
+          flushQuoteNotificationBuffer()
+        }, DEBOUNCE_MS)
       }
     } else if (eventType === 'TripChatSeller' || eventType === 'TripChatMine') {
       // New message - update operator messages
       const quoteId = payload.quoteId || payload.quote_id
       if (quoteId) {
         const currentMessages = activeChat.operatorMessages?.[quoteId] || []
+        const messageContent = payload.message || payload.content || ''
+        const senderName = eventType === 'TripChatMine' ? 'You' : payload.senderName || 'Operator'
         const newMessage: OperatorMessage = {
           id: payload.messageId || `msg-${Date.now()}`,
           type: eventType === 'TripChatMine' ? 'REQUEST' : 'RESPONSE',
-          content: payload.message || payload.content || '',
+          content: messageContent,
           timestamp: payload.timestamp || new Date().toISOString(),
-          sender: eventType === 'TripChatMine' ? 'You' : payload.senderName || 'Operator',
+          sender: senderName,
         }
 
-        onUpdateChat(activeChat.id, {
-          operatorMessages: {
-            ...activeChat.operatorMessages,
-            [quoteId]: [...currentMessages, newMessage],
-          },
-        })
+        // ONEK-173: For incoming operator messages (not our own), inject a notification into the chat thread
+        if (eventType === 'TripChatSeller') {
+          const notificationMessage = formatOperatorMessageNotification(
+            senderName,
+            quoteId,
+            messageContent,
+          )
+
+          onUpdateChat(activeChat.id, {
+            operatorMessages: {
+              ...activeChat.operatorMessages,
+              [quoteId]: [...currentMessages, newMessage],
+            },
+            messages: [...(activeChatRef.current.messages || []), notificationMessage],
+          })
+
+          // Persist operator message notification to DB
+          const requestId = resolveRequestIdForPersistence(activeChat)
+          if (requestId) {
+            fetch('/api/chat-sessions/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                requestId,
+                content: notificationMessage.content,
+                contentType: 'system_notification',
+                richContent: { systemEvent: notificationMessage.systemEventData },
+              }),
+            }).catch((err) => console.warn('[ChatInterface] Failed to persist operator message notification:', err))
+          }
+        } else {
+          // TripChatMine - just update operator messages (no notification needed for our own messages)
+          onUpdateChat(activeChat.id, {
+            operatorMessages: {
+              ...activeChat.operatorMessages,
+              [quoteId]: [...currentMessages, newMessage],
+            },
+          })
+        }
       }
     }
-  }, [activeChat.id, activeChat.tripId, activeChat.operatorMessages, onUpdateChat])
+  }, [activeChat.id, activeChat.tripId, activeChat.operatorMessages, activeChat.requestId, activeChat.conversationId, activeChat.route, onUpdateChat, flushQuoteNotificationBuffer])
 
   /**
    * Send message with streaming using extracted SSE parser
@@ -1383,7 +1467,9 @@ export function ChatInterface({
    */
   const handleViewChat = (flightId: string, quoteId?: string, messageId?: string) => {
     setMessageThreadTripId(activeChat.tripId)
-    setMessageThreadRequestId(activeChat.requestId)
+    // In consolidated schema, activeChat.id IS the request UUID.
+    // activeChat.requestId may be undefined if not explicitly set.
+    setMessageThreadRequestId(activeChat.requestId || activeChat.id)
     setMessageThreadQuoteId(quoteId)
     setMessageThreadFlightId(flightId)
 
@@ -1928,6 +2014,10 @@ export function ChatInterface({
           messages: updatedMessages,
           status: 'proposal_sent' as const,
         })
+
+        // Clear email approval state so the card doesn't linger
+        setEmailApprovalMessageId(null)
+        setEmailApprovalData(null)
       }
     } catch (error) {
       console.error('[ChatInterface] Email approval send failed:', error)
@@ -2406,12 +2496,12 @@ export function ChatInterface({
           <div className="space-y-4">
 
             {(() => {
-              // CRITICAL: Create unified message array combining agent messages and operator messages
-              // This enables a chronological timeline view where all messages appear in order
+              // CRITICAL: Create unified message array for user/agent messages
+              // Operator messages are rendered separately via OperatorChatsInline (grouped by quote)
 
               type UnifiedMessage = {
                 id: string
-                type: 'user' | 'agent' | 'operator'
+                type: 'user' | 'agent'
                 content: string
                 timestamp: Date
                 // Agent message properties
@@ -2455,26 +2545,17 @@ export function ChatInterface({
                 emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
                 // MCP UI tool results (feature-flagged)
                 toolResults?: Array<{ name: string; input: Record<string, unknown>; result: Record<string, unknown> }>
-                // Operator message properties
-                operatorName?: string
-                operatorQuoteId?: string
-                operatorMessageType?: 'REQUEST' | 'RESPONSE' | 'INFO' | 'CONFIRMATION'
+                // System event notification properties (ONEK-173)
+                isSystemEvent?: boolean
+                systemEventData?: {
+                  eventType: 'quote_received' | 'operator_message' | 'quote_declined' | 'proposal_ready' | 'contract_sent'
+                  operatorName?: string
+                  quoteId?: string
+                  batchCount?: number
+                  tripId?: string
+                  messagePreview?: string
+                }
               }
-
-              // Flatten operator messages from Record<quoteId, messages[]> to array with context
-              const flatOperatorMessages: UnifiedMessage[] = Object.entries(activeChat.operatorMessages || {})
-                .flatMap(([quoteId, messages], quoteIndex) => {
-                  const flight = rfqFlights.find(f => f.quoteId === quoteId)
-                  return (messages || []).map((msg, msgIndex) => ({
-                    id: msg.id || `op-${quoteId}-${msg.timestamp}`,
-                    type: 'operator' as const,
-                    content: msg.content,
-                    timestamp: safeParseTimestamp(msg.timestamp),
-                    operatorName: msg.sender || flight?.operatorName || 'Operator',
-                    operatorQuoteId: quoteId,
-                    operatorMessageType: msg.type,
-                  }))
-                })
 
               // Convert agent/user messages to unified format
               const chatMessages: UnifiedMessage[] = (activeChat.messages || []).map((msg, index) => ({
@@ -2502,8 +2583,8 @@ export function ChatInterface({
                 toolResults: msg.toolResults,
               }))
 
-              // Merge and sort by timestamp (chronological order)
-              const allMessages = [...chatMessages, ...flatOperatorMessages]
+              // Sort by timestamp (chronological order)
+              const allMessages = [...chatMessages]
                 .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 
               // CRITICAL: Deduplicate messages before rendering
@@ -2512,8 +2593,8 @@ export function ChatInterface({
               // 2. Messages with exact matching content from the same agent (copied messages)
               // Preserve all unique messages regardless of keyword overlap
               const deduplicatedMessages = allMessages.reduce((acc, message, index) => {
-                // Always keep user messages and operator messages
-                if (message.type === 'user' || message.type === 'operator') {
+                // Always keep user messages
+                if (message.type === 'user') {
                   acc.push({ message, index })
                   return acc
                 }
@@ -2708,44 +2789,23 @@ export function ChatInterface({
                           </span>
                         </div>
                       </div>
-                    ) : message.type === 'operator' ? (
-                      // Operator message - distinct styling with operator name badge
-                      <div className="flex justify-start">
-                        <div className="max-w-[85%] bg-warning-bg text-foreground rounded-2xl px-4 py-3 border border-warning-border shadow-sm">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <div className="w-6 h-6 rounded-full bg-warning flex items-center justify-center">
-                              <span className="text-xs font-bold text-white">
-                                {(message.operatorName || 'O')[0].toUpperCase()}
-                              </span>
-                            </div>
-                            <span className="text-xs font-semibold text-warning">
-                              {message.operatorName || 'Operator'}
-                            </span>
-                            {message.operatorMessageType === 'RESPONSE' && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-warning-bg text-warning rounded-full">
-                                Quote Response
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm leading-relaxed">{message.content}</p>
-                          <div className="mt-1 flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground">
-                              {formatMessageTimestamp(message.timestamp)}
-                            </span>
-                            {message.operatorQuoteId && (
-                              <button
-                                onClick={() => {
-                                  const flight = rfqFlights.find(f => f.quoteId === message.operatorQuoteId)
-                                  if (flight) {
-                                    handleViewChat(flight.id, message.operatorQuoteId)
-                                  }
-                                }}
-                                className="text-[10px] text-warning hover:text-warning/80 underline"
-                              >
-                                View Thread
-                              </button>
-                            )}
-                          </div>
+                    ) : message.isSystemEvent ? (
+                      // ONEK-173: System event notification - compact row with muted styling
+                      <div className="flex items-start gap-2 py-2 px-3 rounded-lg bg-muted/50 border border-border/50">
+                        <div className="mt-0.5 shrink-0">
+                          {message.systemEventData?.eventType === 'operator_message' ? (
+                            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                          ) : (
+                            <Bell className="w-3.5 h-3.5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {message.content}
+                          </p>
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {formatMessageTimestamp(message.timestamp)}
+                          </span>
                         </div>
                       </div>
                     ) : process.env.NEXT_PUBLIC_ENABLE_MCP_UI === 'true' && message.toolResults?.length ? (
@@ -2848,13 +2908,13 @@ export function ChatInterface({
                         paymentConfirmationData={message.paymentConfirmationData}
                         showClosedWon={message.showClosedWon}
                         closedWonData={message.closedWonData}
-                        showEmailApprovalRequest={message.showEmailApprovalRequest}
+                        showEmailApprovalRequest={!emailAlreadySent && message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}
                         onEmailSend={handleEmailSend}
                         onEmailCancel={handleEmailCancel}
-                        emailApprovalStatus={message.showEmailApprovalRequest ? emailApprovalStatus : undefined}
-                        emailApprovalError={message.showEmailApprovalRequest ? emailApprovalError : undefined}
+                        emailApprovalStatus={!emailAlreadySent && message.showEmailApprovalRequest ? emailApprovalStatus : undefined}
+                        emailApprovalError={!emailAlreadySent && message.showEmailApprovalRequest ? emailApprovalError : undefined}
                         onViewRequest={(requestId) => {
                           console.log('[Pipeline] View request:', requestId)
                         }}
@@ -2917,8 +2977,7 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
-                        bookFlightDisabled={isBookFlightGated}
-                        bookFlightDisabledReason="Waiting for customer reply to proposal"
+                        bookFlightDisabled={false}
                         // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
                         // This prevents cards from appearing during clarification dialogue before trip creation
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -2965,8 +3024,7 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
-                        bookFlightDisabled={isBookFlightGated}
-                        bookFlightDisabledReason="Waiting for customer reply to proposal"
+                        bookFlightDisabled={false}
                         marginPercentage={selectedMarginPercentage}
                         onGoBackFromProposal={() => setSelectedRfqFlightIds([])}
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -3012,6 +3070,49 @@ export function ChatInterface({
 
                   {/* Messages AFTER FlightSearchProgress (all subsequent conversation) */}
                   {messagesAfterProgress.map(renderMessage)}
+
+                  {/* Operator message threads - grouped by quote */}
+                  {Object.keys(activeChat.operatorMessages || {}).length > 0 && (() => {
+                    const chatsByQuote = new Map<string, { flightContext: FlightContext; messages: OperatorMessageInline[]; hasNewMessages?: boolean }>();
+                    Object.entries(activeChat.operatorMessages || {}).forEach(([quoteId, msgs]) => {
+                      const flight = rfqFlights.find(f => f.quoteId === quoteId);
+                      const lastRead = activeChat.lastMessagesReadAt?.[quoteId];
+                      chatsByQuote.set(quoteId, {
+                        flightContext: {
+                          quoteId,
+                          operatorName: flight?.operatorName || msgs[0]?.sender || 'Operator',
+                          aircraftType: flight?.aircraftType,
+                          departureAirport: flight?.departureAirport?.icao,
+                          arrivalAirport: flight?.arrivalAirport?.icao,
+                          price: flight?.totalPrice,
+                          currency: flight?.currency,
+                        },
+                        messages: msgs.map(msg => ({
+                          id: msg.id,
+                          content: msg.content,
+                          timestamp: msg.timestamp,
+                          type: msg.type,
+                          sender: msg.sender,
+                        })),
+                        hasNewMessages: msgs.some(msg =>
+                          !lastRead || new Date(msg.timestamp) > new Date(lastRead)
+                        ),
+                      });
+                    });
+                    return (
+                      <OperatorChatsInline
+                        chatsByQuote={chatsByQuote}
+                        onViewFullThread={(quoteId) => {
+                          const flight = rfqFlights.find(f => f.quoteId === quoteId);
+                          if (flight) handleViewChat(flight.id, quoteId);
+                        }}
+                        onReply={(quoteId) => {
+                          const flight = rfqFlights.find(f => f.quoteId === quoteId);
+                          if (flight) handleViewChat(flight.id, quoteId);
+                        }}
+                      />
+                    );
+                  })()}
 
                   {/* Proposal confirmations are now rendered inline via renderMessage */}
                   {/* in their chronological position within messagesAfterProgress */}
@@ -3187,7 +3288,7 @@ export function ChatInterface({
 
       {/* Loading overlay when generating proposal */}
       {isGeneratingProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50">
           <div className="bg-card rounded-lg p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />

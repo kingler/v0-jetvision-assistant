@@ -104,7 +104,7 @@ export function DynamicChatHeader({
           {activeChat.tripId && (
             <Badge
               variant="secondary"
-              className="font-mono text-[clamp(0.6875rem,1.5vw,0.75rem)] font-semibold text-black dark:text-black cursor-pointer hover:bg-secondary/80 transition-colors shrink-0"
+              className="font-mono text-[clamp(0.6875rem,1.5vw,0.75rem)] font-semibold text-foreground cursor-pointer hover:bg-secondary/80 transition-colors shrink-0"
               onClick={handleCopyTripId}
               role="button"
               tabIndex={0}
@@ -118,7 +118,7 @@ export function DynamicChatHeader({
             >
               {activeChat.tripId}
               {copied ? (
-                <Check className="w-3 h-3 text-green-500" />
+                <Check className="w-3 h-3 text-success" />
               ) : (
                 <Copy className="w-3 h-3" />
               )}

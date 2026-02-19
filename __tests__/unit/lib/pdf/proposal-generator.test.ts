@@ -254,6 +254,64 @@ describe('prepareProposalData', () => {
 
       expect(data.pricing.currency).toBe('USD');
     });
+
+    it('should mark up flight totalPrice for client-facing display (single flight)', () => {
+      // mockFlight1: basePrice=$40,000, taxes=$3,000, fees=$2,000
+      // subtotal = $40,000, fee 10% = $4,000, taxes = $5,000, total = $49,000
+      // Client price per flight = basePrice * (1 + fee%) + taxes + fees
+      // = 40000 * 1.10 + 5000 = $49,000
+      const data = prepareProposalData(validInput);
+
+      expect(data.selectedFlights[0].totalPrice).toBe(49000);
+    });
+
+    it('should mark up flight totalPrice proportionally for multiple flights', () => {
+      const input: GenerateProposalInput = {
+        ...validInput,
+        selectedFlights: [mockFlight1, mockFlight2],
+      };
+      const data = prepareProposalData(input);
+
+      // mockFlight1: 40000 * 1.10 + 3000 + 2000 = $49,000
+      expect(data.selectedFlights[0].totalPrice).toBe(49000);
+
+      // mockFlight2: 30000 * 1.10 + 2500 + 2500 = $38,000
+      expect(data.selectedFlights[1].totalPrice).toBe(38000);
+
+      // Sum of display prices should equal total
+      const displaySum = data.selectedFlights.reduce((s, f) => s + f.totalPrice, 0);
+      expect(displaySum).toBe(data.pricing.total);
+    });
+
+    it('should mark up flight totalPrice for flights without breakdown', () => {
+      const flightNoBreakdown: RFQFlight = {
+        ...mockFlight1,
+        totalPrice: 45000,
+        priceBreakdown: undefined,
+      };
+      const input: GenerateProposalInput = {
+        ...validInput,
+        selectedFlights: [flightNoBreakdown],
+      };
+      const data = prepareProposalData(input);
+
+      // No breakdown: subtotal = totalPrice = $45,000
+      // fee 10% = $4,500, taxes = $0, total = $49,500
+      // Client price = 45000 * 1.10 = $49,500
+      expect(data.selectedFlights[0].totalPrice).toBe(49500);
+    });
+
+    it('should mark up flight totalPrice with custom fee percentage', () => {
+      const input: GenerateProposalInput = {
+        ...validInput,
+        jetvisionFeePercentage: 15,
+      };
+      const data = prepareProposalData(input);
+
+      // mockFlight1: basePrice=$40,000, fee 15% = $6,000, taxes = $5,000
+      // Client price = 40000 * 1.15 + 5000 = $51,000
+      expect(data.selectedFlights[0].totalPrice).toBe(51000);
+    });
   });
 
   describe('Quote Validity', () => {
@@ -417,5 +475,29 @@ describe('generateProposal', () => {
 
     // Should use total price as subtotal when no breakdown
     expect(result.pricing.subtotal).toBe(45000);
+  });
+});
+
+describe('Aircraft Image Resolution', () => {
+  it('should preserve tailPhotoUrl through proposal data preparation', () => {
+    const input: GenerateProposalInput = {
+      ...validInput,
+      selectedFlights: [mockFlight1],
+    };
+    const data = prepareProposalData(input);
+    expect(data.selectedFlights[0].tailPhotoUrl).toBe('https://example.com/g650.jpg');
+  });
+
+  it('should preserve tailPhotoUrl for flights without one', () => {
+    const flightNoPhoto: RFQFlight = {
+      ...mockFlight1,
+      tailPhotoUrl: undefined,
+    };
+    const input: GenerateProposalInput = {
+      ...validInput,
+      selectedFlights: [flightNoPhoto],
+    };
+    const data = prepareProposalData(input);
+    expect(data.selectedFlights[0].tailPhotoUrl).toBeUndefined();
   });
 });

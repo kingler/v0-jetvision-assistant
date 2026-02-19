@@ -112,9 +112,9 @@ function formatDuration(minutes: number): string {
 function getStatusBadge(status: QuoteDetails['status']) {
   switch (status) {
     case 'quoted':
-      return <Badge className="bg-green-500 text-white">Quoted</Badge>
+      return <Badge className="bg-success text-white">Quoted</Badge>
     case 'accepted':
-      return <Badge className="bg-blue-500 text-white">Accepted</Badge>
+      return <Badge className="bg-primary text-primary-foreground">Accepted</Badge>
     case 'declined':
       return <Badge variant="destructive">Declined</Badge>
     case 'expired':
@@ -133,9 +133,9 @@ function getMessageTypeBadge(type: OperatorMessage['type']) {
     case 'REQUEST':
       return <Badge variant="outline" className="text-xs">Request</Badge>
     case 'RESPONSE':
-      return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs">Response</Badge>
+      return <Badge className="bg-success-bg text-success text-xs">Response</Badge>
     case 'CONFIRMATION':
-      return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs">Confirmation</Badge>
+      return <Badge className="bg-info-bg text-info text-xs">Confirmation</Badge>
     case 'INFO':
     default:
       return <Badge variant="secondary" className="text-xs">Info</Badge>
@@ -187,7 +187,7 @@ export function QuoteDetailsDrawer({
               <div className="flex items-center gap-2">
                 {quote.operator.rating && (
                   <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <Star className="w-4 h-4 fill-warning text-warning" />
                     <span className="text-sm font-medium">{quote.operator.rating}</span>
                   </div>
                 )}
@@ -233,7 +233,7 @@ export function QuoteDetailsDrawer({
             <h3 className="text-xs md:text-sm font-medium text-muted-foreground mb-2">
               Price
             </h3>
-            <div className="p-4 md:p-6 rounded-lg border border-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-center">
+            <div className="p-4 md:p-6 rounded-lg border border-border bg-gradient-to-r from-sky-blue-50 to-sky-blue-100 dark:from-sky-blue-900/20 dark:to-sky-blue-800/20 text-center">
               <div className="flex items-center justify-center gap-2">
                 <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-primary" />
                 <span className="text-2xl md:text-3xl font-bold text-primary">
@@ -295,7 +295,7 @@ export function QuoteDetailsDrawer({
           {quote.status === 'quoted' && onAcceptQuote && (
             <Button
               onClick={() => onAcceptQuote(quote.id)}
-              className="w-full bg-green-600 hover:bg-green-700 min-h-[44px]"
+              className="w-full bg-success hover:bg-success/90 min-h-[44px]"
             >
               Accept Quote
             </Button>
