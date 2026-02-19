@@ -655,33 +655,17 @@ function FlightOptionsSection({
 }
 
 /**
- * Pricing Section - displays pricing breakdown with optional per-leg costs
- * For round-trip, shows outbound and return costs separately
+ * Pricing Section — intentionally renders nothing on client-facing PDFs.
+ *
+ * Flights are presented as options (alternatives), so a summed "Total"
+ * across all options would be misleading.  Each FlightCard already
+ * displays the client-facing price inclusive of the service fee.
  */
-function PricingSection({
-  pricing,
-  tripType,
-}: {
+function PricingSection(_props: {
   pricing: ProposalData['pricing'];
   tripType?: TripType;
 }) {
-  const isRoundTrip = tripType === 'round_trip';
-  const showLegBreakdown = isRoundTrip && pricing.outboundCost !== undefined && pricing.returnCost !== undefined;
-
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Pricing Summary</Text>
-      <View style={styles.pricingTable}>
-        {/* Client-facing PDF: show only total cost (no operator/service fee breakdown) */}
-        <View style={styles.pricingTotal}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>
-            {formatPrice(pricing.total, pricing.currency)}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
+  return null;
 }
 
 // =============================================================================
