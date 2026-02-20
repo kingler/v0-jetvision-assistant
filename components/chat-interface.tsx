@@ -2497,7 +2497,7 @@ export function ChatInterface({
 
             {(() => {
               // CRITICAL: Create unified message array for user/agent messages
-              // Operator messages are rendered separately via OperatorChatsInline (grouped by quote)
+              // Operator messages are handled via webhook notifications injected as system events (ONEK-173)
 
               type UnifiedMessage = {
                 id: string
@@ -2581,6 +2581,8 @@ export function ChatInterface({
                 showEmailApprovalRequest: msg.showEmailApprovalRequest,
                 emailApprovalData: msg.emailApprovalData,
                 toolResults: msg.toolResults,
+                isSystemEvent: msg.isSystemEvent,
+                systemEventData: msg.systemEventData,
               }))
 
               // Sort by timestamp (chronological order)

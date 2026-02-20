@@ -243,6 +243,17 @@ export interface ChatSession {
     }
     /** Tool results with input for MCP UI registry rendering (feature-flagged) */
     toolResults?: Array<{ name: string; input: Record<string, unknown>; result: Record<string, unknown> }>
+    /** Whether this message is a system event notification (ONEK-173) */
+    isSystemEvent?: boolean
+    /** System event metadata for notification rendering */
+    systemEventData?: {
+      eventType: 'quote_received' | 'operator_message' | 'quote_declined' | 'proposal_ready' | 'contract_sent'
+      operatorName?: string
+      quoteId?: string
+      batchCount?: number
+      tripId?: string
+      messagePreview?: string
+    }
   }>
   /** Flag to indicate this chat needs an initial API call (set when created from landing page) */
   needsInitialApiCall?: boolean
