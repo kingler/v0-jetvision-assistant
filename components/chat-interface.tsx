@@ -27,6 +27,7 @@ import { AgentMessageV2 } from "./chat/agent-message-v2"
 import { DynamicChatHeader } from "./chat/dynamic-chat-header"
 import { QuoteDetailsDrawer, type QuoteDetails, type OperatorMessage } from "./quote-details-drawer"
 import { OperatorMessageThread } from "./avinode/operator-message-thread"
+import { OperatorChatsInline, type FlightContext, type OperatorMessageInline } from "@/components/message-components/operator-chat-inline"
 import { FlightSearchProgress } from "./avinode/flight-search-progress"
 import { BookFlightModal } from "./avinode/book-flight-modal"
 import { PaymentConfirmationModal } from "./contract/payment-confirmation-modal"
@@ -192,10 +193,17 @@ export function ChatInterface({
   // Restore email approval state when switching chats (ONEK-185)
   // Scans loaded messages for an email_approval_request so the EmailPreviewCard
   // and "Send Email" handler work after chat switch or page refresh.
+  // If a proposal-sent confirmation already exists, the email was already sent
+  // so we skip restoring the approval card.
   useEffect(() => {
-    const emailMsg = (activeChat.messages || []).find(
-      (msg) => msg.showEmailApprovalRequest && msg.emailApprovalData
+    const msgs = activeChat.messages || []
+    const alreadySent = msgs.some(
+      (msg) => msg.showProposalSentConfirmation || msg.showContractSentConfirmation
     )
+    const emailMsg = alreadySent
+      ? undefined
+      : msgs.find((msg) => msg.showEmailApprovalRequest && msg.emailApprovalData)
+
     if (emailMsg) {
       setEmailApprovalMessageId(emailMsg.id)
       setEmailApprovalData(emailMsg.emailApprovalData as EmailApprovalRequestContent)
@@ -207,6 +215,11 @@ export function ChatInterface({
     }
   }, [activeChat.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Suppress email approval card when a proposal/contract confirmation already exists (ONEK-185)
+  const emailAlreadySent = (activeChat.messages || []).some(
+    (msg) => msg.showProposalSentConfirmation || msg.showContractSentConfirmation
+  )
+
   // Book flight modal state for contract generation
   const [isBookFlightModalOpen, setIsBookFlightModalOpen] = useState(false)
   const [bookFlightData, setBookFlightData] = useState<RFQFlight | null>(null)
@@ -214,9 +227,6 @@ export function ChatInterface({
   const [pendingBookFlightQuoteId, setPendingBookFlightQuoteId] = useState<string | undefined>(undefined)
   const [selectedBookingCustomer, setSelectedBookingCustomer] = useState<{ name: string; email: string; company?: string; phone?: string } | null>(null)
   const [isBookingCustomerDialogOpen, setIsBookingCustomerDialogOpen] = useState(false)
-
-  // Customer reply detection for gating Book Flight button
-  const [customerReplied, setCustomerReplied] = useState(false)
 
   // Payment confirmation modal state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -234,34 +244,6 @@ export function ChatInterface({
 
   // Parse route to get airport info using extracted utility
   const routeParts = extractRouteParts(activeChat.route)
-
-  // Auto-detect customer reply from chat messages
-  useEffect(() => {
-    if (customerReplied) return; // Already detected
-
-    const messages = activeChat.messages || [];
-    for (const msg of messages) {
-      if (msg.type === 'user') {
-        const content = (msg.content || '').toLowerCase();
-        if (content.includes('customer replied') || content.includes('client replied') || content.includes('customer responded')) {
-          setCustomerReplied(true);
-          return;
-        }
-      }
-      // Also set if we're past contract stage
-      if (msg.showContractSentConfirmation || msg.showPaymentConfirmation || msg.showClosedWon) {
-        setCustomerReplied(true);
-        return;
-      }
-    }
-  }, [activeChat.messages, customerReplied])
-
-  // Determine if Book Flight should be gated (proposal sent but no customer reply yet)
-  const hasProposalSent = useMemo(() => {
-    return (activeChat.messages || []).some(m => m.showProposalSentConfirmation || m.proposalSentData);
-  }, [activeChat.messages]);
-
-  const isBookFlightGated = hasProposalSent && !customerReplied;
 
   /**
    * Show FlightSearchProgress ONLY when a trip has been successfully created.
@@ -1485,7 +1467,9 @@ export function ChatInterface({
    */
   const handleViewChat = (flightId: string, quoteId?: string, messageId?: string) => {
     setMessageThreadTripId(activeChat.tripId)
-    setMessageThreadRequestId(activeChat.requestId)
+    // In consolidated schema, activeChat.id IS the request UUID.
+    // activeChat.requestId may be undefined if not explicitly set.
+    setMessageThreadRequestId(activeChat.requestId || activeChat.id)
     setMessageThreadQuoteId(quoteId)
     setMessageThreadFlightId(flightId)
 
@@ -2030,6 +2014,10 @@ export function ChatInterface({
           messages: updatedMessages,
           status: 'proposal_sent' as const,
         })
+
+        // Clear email approval state so the card doesn't linger
+        setEmailApprovalMessageId(null)
+        setEmailApprovalData(null)
       }
     } catch (error) {
       console.error('[ChatInterface] Email approval send failed:', error)
@@ -2509,7 +2497,7 @@ export function ChatInterface({
 
             {(() => {
               // CRITICAL: Create unified message array for user/agent messages
-              // Operator messages are handled via webhook notifications injected as system events
+              // Operator messages are handled via webhook notifications injected as system events (ONEK-173)
 
               type UnifiedMessage = {
                 id: string
@@ -2922,13 +2910,13 @@ export function ChatInterface({
                         paymentConfirmationData={message.paymentConfirmationData}
                         showClosedWon={message.showClosedWon}
                         closedWonData={message.closedWonData}
-                        showEmailApprovalRequest={message.showEmailApprovalRequest}
+                        showEmailApprovalRequest={!emailAlreadySent && message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}
                         onEmailSend={handleEmailSend}
                         onEmailCancel={handleEmailCancel}
-                        emailApprovalStatus={message.showEmailApprovalRequest ? emailApprovalStatus : undefined}
-                        emailApprovalError={message.showEmailApprovalRequest ? emailApprovalError : undefined}
+                        emailApprovalStatus={!emailAlreadySent && message.showEmailApprovalRequest ? emailApprovalStatus : undefined}
+                        emailApprovalError={!emailAlreadySent && message.showEmailApprovalRequest ? emailApprovalError : undefined}
                         onViewRequest={(requestId) => {
                           console.log('[Pipeline] View request:', requestId)
                         }}
@@ -2991,8 +2979,7 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
-                        bookFlightDisabled={isBookFlightGated}
-                        bookFlightDisabledReason="Waiting for customer reply to proposal"
+                        bookFlightDisabled={false}
                         // CRITICAL: Only show step cards when trip is actually created (has avinode_trip_id)
                         // This prevents cards from appearing during clarification dialogue before trip creation
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -3039,8 +3026,7 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
-                        bookFlightDisabled={isBookFlightGated}
-                        bookFlightDisabledReason="Waiting for customer reply to proposal"
+                        bookFlightDisabled={false}
                         marginPercentage={selectedMarginPercentage}
                         onGoBackFromProposal={() => setSelectedRfqFlightIds([])}
                         isTripCreated={!!(activeChat.tripId || activeChat.deepLink)}
@@ -3086,6 +3072,49 @@ export function ChatInterface({
 
                   {/* Messages AFTER FlightSearchProgress (all subsequent conversation) */}
                   {messagesAfterProgress.map(renderMessage)}
+
+                  {/* Operator message threads - grouped by quote */}
+                  {Object.keys(activeChat.operatorMessages || {}).length > 0 && (() => {
+                    const chatsByQuote = new Map<string, { flightContext: FlightContext; messages: OperatorMessageInline[]; hasNewMessages?: boolean }>();
+                    Object.entries(activeChat.operatorMessages || {}).forEach(([quoteId, msgs]) => {
+                      const flight = rfqFlights.find(f => f.quoteId === quoteId);
+                      const lastRead = activeChat.lastMessagesReadAt?.[quoteId];
+                      chatsByQuote.set(quoteId, {
+                        flightContext: {
+                          quoteId,
+                          operatorName: flight?.operatorName || msgs[0]?.sender || 'Operator',
+                          aircraftType: flight?.aircraftType,
+                          departureAirport: flight?.departureAirport?.icao,
+                          arrivalAirport: flight?.arrivalAirport?.icao,
+                          price: flight?.totalPrice,
+                          currency: flight?.currency,
+                        },
+                        messages: msgs.map(msg => ({
+                          id: msg.id,
+                          content: msg.content,
+                          timestamp: msg.timestamp,
+                          type: msg.type,
+                          sender: msg.sender,
+                        })),
+                        hasNewMessages: msgs.some(msg =>
+                          !lastRead || new Date(msg.timestamp) > new Date(lastRead)
+                        ),
+                      });
+                    });
+                    return (
+                      <OperatorChatsInline
+                        chatsByQuote={chatsByQuote}
+                        onViewFullThread={(quoteId) => {
+                          const flight = rfqFlights.find(f => f.quoteId === quoteId);
+                          if (flight) handleViewChat(flight.id, quoteId);
+                        }}
+                        onReply={(quoteId) => {
+                          const flight = rfqFlights.find(f => f.quoteId === quoteId);
+                          if (flight) handleViewChat(flight.id, quoteId);
+                        }}
+                      />
+                    );
+                  })()}
 
                   {/* Proposal confirmations are now rendered inline via renderMessage */}
                   {/* in their chronological position within messagesAfterProgress */}
@@ -3261,7 +3290,7 @@ export function ChatInterface({
 
       {/* Loading overlay when generating proposal */}
       {isGeneratingProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50">
           <div className="bg-card rounded-lg p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />

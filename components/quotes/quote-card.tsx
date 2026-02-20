@@ -164,8 +164,8 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
                       aria-hidden="true"
                       className={`h-3 w-3 ${
                         i < Math.floor(quote.operator.rating)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'fill-gray-200 text-gray-200'
+                          ? 'fill-warning text-warning'
+                          : 'fill-muted text-muted'
                       }`}
                     />
                   ))}
@@ -250,7 +250,7 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Overall Score</span>
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-500" />
+                <TrendingUp className="h-4 w-4 text-success" />
                 <span className="font-semibold">{quote.scores.overall}/100</span>
               </div>
             </div>
@@ -299,7 +299,7 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
             <div className="space-y-2">
               {quote.prosCons.pros.length > 0 && (
                 <div className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
                   <span className="text-sm text-muted-foreground line-clamp-1">
                     {quote.prosCons.pros[0]}
                   </span>
@@ -397,7 +397,7 @@ export const SimpleQuoteCard: React.FC<SimpleQuoteCardProps> = ({
   return (
     <Card className={`relative ${isSelected ? 'ring-2 ring-primary' : ''} ${className || ''}`}>
       {isRecommended && (
-        <Badge className="absolute -top-2 -right-2 bg-green-500">
+        <Badge className="absolute -top-2 -right-2 bg-success">
           Recommended
         </Badge>
       )}
@@ -416,7 +416,7 @@ export const SimpleQuoteCard: React.FC<SimpleQuoteCardProps> = ({
           </div>
           {operatorRating && (
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <Star className="h-4 w-4 fill-warning text-warning" />
               <span>{operatorRating.toFixed(1)}</span>
             </div>
           )}
@@ -541,7 +541,7 @@ export const FlatQuoteCard: React.FC<FlatQuoteCardProps> = ({
             </div>
             {operatorRating && (
               <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                <Star className="h-3 w-3 fill-warning text-warning" />
                 {operatorRating.toFixed(1)}
               </div>
             )}

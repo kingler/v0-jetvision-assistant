@@ -77,8 +77,48 @@ let transportInstance: StdioClientTransport | null = null;
 let initPromise: Promise<Client> | null = null;
 
 /**
+ * Check whether an error indicates a broken MCP transport connection.
+ * These errors warrant a reconnect + retry.
+ */
+function isConnectionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes('connection closed') ||
+    msg.includes('connection reset') ||
+    msg.includes('connection refused') ||
+    msg.includes('-32000')
+  );
+}
+
+/**
+ * Reset the singleton connection state so the next getClient() call
+ * spawns a fresh MCP server process.
+ */
+async function resetConnection(): Promise<void> {
+  const oldClient = clientInstance;
+  const oldTransport = transportInstance;
+  clientInstance = null;
+  transportInstance = null;
+  initPromise = null;
+
+  // Best-effort cleanup of old handles
+  if (oldClient) {
+    try { await oldClient.close(); } catch { /* ignore */ }
+  }
+  if (oldTransport) {
+    try { await oldTransport.close(); } catch { /* ignore */ }
+  }
+}
+
+/**
  * Get or create the singleton MCP client connected to the Gmail MCP server.
  * Lazy-initializes on first call and reuses the connection afterwards.
+ *
+ * The child process inherits the parent's environment variables so that
+ * Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+ * GOOGLE_REFRESH_TOKEN) are available even if dotenv's file resolution
+ * fails inside the child.
  */
 async function getClient(): Promise<Client> {
   if (clientInstance) {
@@ -99,7 +139,23 @@ async function getClient(): Promise<Client> {
     const transport = new StdioClientTransport({
       command: 'npx',
       args: ['tsx', serverPath],
+      cwd: process.cwd(),
+      env: { ...process.env } as Record<string, string>,
+      stderr: 'pipe',
     });
+
+    // Capture stderr from the child process for diagnostics.
+    // The stderr getter returns a PassThrough stream immediately when
+    // stderr is set to 'pipe', so listeners can be attached before start().
+    const stderrStream = transport.stderr;
+    if (stderrStream) {
+      stderrStream.on('data', (data: Buffer) => {
+        const msg = data.toString().trim();
+        if (msg) {
+          console.error(`[Gmail MCP Server] ${msg}`);
+        }
+      });
+    }
 
     const client = new Client(
       { name: 'gmail-mcp-client', version: '1.0.0' },
@@ -124,19 +180,56 @@ async function getClient(): Promise<Client> {
 }
 
 /**
+ * Execute a callTool request with automatic reconnect on connection errors.
+ * On a connection error the singleton is reset, a fresh server is spawned,
+ * and the call is retried exactly once.
+ */
+async function callToolWithRetry(
+  toolName: string,
+  args: Record<string, unknown>
+): Promise<{ content: unknown[]; isError?: boolean }> {
+  const client = await getClient();
+
+  try {
+    const res = await client.callTool({ name: toolName, arguments: args });
+    return res as { content: unknown[]; isError?: boolean };
+  } catch (error) {
+    if (!isConnectionError(error)) {
+      throw error;
+    }
+
+    console.warn(`[Gmail MCP] Connection error, reconnecting: ${(error as Error).message}`);
+    await resetConnection();
+    const freshClient = await getClient();
+    const res = await freshClient.callTool({ name: toolName, arguments: args });
+    return res as { content: unknown[]; isError?: boolean };
+  }
+}
+
+/**
  * Send an email via the Gmail MCP server.
+ *
+ * If the MCP connection has dropped (e.g. stdio pipe closed), the client
+ * automatically reconnects and retries once before throwing.
  *
  * @throws Error if the MCP server is unreachable or returns an error
  */
 export async function sendEmail(
   params: GmailSendEmailParams
 ): Promise<GmailSendEmailResult> {
-  const client = await getClient();
-
-  const result = await client.callTool({
-    name: 'send_email',
-    arguments: params as unknown as Record<string, unknown>,
-  });
+  let result;
+  try {
+    result = await callToolWithRetry(
+      'send_email',
+      params as unknown as Record<string, unknown>
+    );
+  } catch (error) {
+    // If retry also failed with a connection error, ensure state is clean
+    if (isConnectionError(error)) {
+      await resetConnection();
+    }
+    throw error;
+  }
 
   // The MCP server returns JSON text in content[0].text
   const content = result.content;
@@ -144,7 +237,7 @@ export async function sendEmail(
     throw new Error('Gmail MCP: empty response from send_email tool');
   }
 
-  const firstContent = content[0];
+  const firstContent = content[0] as { type: string; text: string };
   if (firstContent.type !== 'text' || typeof firstContent.text !== 'string') {
     throw new Error('Gmail MCP: unexpected response format from send_email tool');
   }
@@ -160,17 +253,26 @@ export async function sendEmail(
 /**
  * Search emails via the Gmail MCP server.
  *
+ * If the MCP connection has dropped, the client automatically reconnects
+ * and retries once before throwing.
+ *
  * @throws Error if the MCP server is unreachable or returns an error
  */
 export async function searchEmails(
   params: GmailSearchEmailsParams
 ): Promise<GmailSearchResult[]> {
-  const client = await getClient();
-
-  const result = await client.callTool({
-    name: 'search_emails',
-    arguments: params as unknown as Record<string, unknown>,
-  });
+  let result;
+  try {
+    result = await callToolWithRetry(
+      'search_emails',
+      params as unknown as Record<string, unknown>
+    );
+  } catch (error) {
+    if (isConnectionError(error)) {
+      await resetConnection();
+    }
+    throw error;
+  }
 
   // The MCP server returns JSON text in content[0].text
   const content = result.content;
@@ -178,7 +280,7 @@ export async function searchEmails(
     return [];
   }
 
-  const firstContent = content[0];
+  const firstContent = content[0] as { type: string; text: string };
   if (firstContent.type !== 'text' || typeof firstContent.text !== 'string') {
     return [];
   }

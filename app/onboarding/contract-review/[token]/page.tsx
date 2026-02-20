@@ -129,10 +129,10 @@ export default function ContractReviewPage() {
 
   if (phase === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90">
         <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
-          <p className="mt-4 text-sm text-slate-500">Validating your contract link...</p>
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">Validating your contract link...</p>
         </div>
       </div>
     );
@@ -140,11 +140,11 @@ export default function ContractReviewPage() {
 
   if (phase === 'success') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-              <svg className="h-8 w-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-bg">
+              <svg className="h-8 w-8 text-success" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             </div>
@@ -160,10 +160,10 @@ export default function ContractReviewPage() {
 
   if (phase === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-red-600">
+            <CardTitle className="text-destructive">
               {errorCode === 'EXPIRED'
                 ? 'Link Expired'
                 : errorCode === 'USED'
@@ -176,17 +176,17 @@ export default function ContractReviewPage() {
           </CardHeader>
           <CardContent className="text-center space-y-4">
             {errorCode === 'EXPIRED' && (
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 Please return to the onboarding page to request a new contract link.
               </p>
             )}
             {errorCode === 'USED' && (
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 Your contract has already been signed. You can proceed to the dashboard.
               </p>
             )}
             {errorCode === 'EMAIL_MISMATCH' && (
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 Please sign in with the email address associated with this contract.
               </p>
             )}
@@ -209,10 +209,10 @@ export default function ContractReviewPage() {
 
   if (phase === 'signing') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90">
         <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
-          <p className="mt-4 text-sm text-slate-500">Processing your signature...</p>
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">Processing your signature...</p>
         </div>
       </div>
     );
@@ -220,13 +220,13 @@ export default function ContractReviewPage() {
 
   // phase === 'review'
   return (
-    <div className="flex min-h-screen flex-col items-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4">
+    <div className="flex min-h-screen flex-col items-center bg-gradient-to-br from-muted to-muted/80 dark:from-background dark:to-background/90 p-4">
       <div className="w-full max-w-4xl">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
+          <h1 className="text-2xl font-bold text-foreground">
             Review & Sign Your Contract
           </h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-1 text-sm text-muted-foreground">
             Contract for: {validation?.agentEmail}
           </p>
         </div>
@@ -245,15 +245,15 @@ export default function ContractReviewPage() {
         )}
 
         {!validation?.pdfUrl && (
-          <Card className="mb-6 border-amber-200 dark:border-amber-800">
+          <Card className="mb-6 border-warning-border">
             <CardContent className="p-8 text-center">
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-warning-bg">
                 <svg className="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
               </div>
               <p className="font-medium text-amber-700 dark:text-amber-300">Contract PDF unavailable for preview</p>
-              <p className="mt-1 text-sm text-slate-500">The PDF was attached to the email sent to your inbox. You can still sign the contract below after reviewing the emailed copy.</p>
+              <p className="mt-1 text-sm text-muted-foreground">The PDF was attached to the email sent to your inbox. You can still sign the contract below after reviewing the emailed copy.</p>
             </CardContent>
           </Card>
         )}

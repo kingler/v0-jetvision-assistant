@@ -296,9 +296,9 @@ describe('HotOpportunitiesStarter', () => {
       const hotDeals = createHotDeals().filter(d => d.priorityScore > 0)
       render(<HotOpportunitiesStarter {...defaultProps} deals={hotDeals} />)
       
-      // High urgency = orange/red flame
+      // High urgency = warning color flame (migrated from text-orange-500)
       const expiringSoon = screen.getByTestId('deal-flame-expiring-deal')
-      expect(expiringSoon).toHaveClass('text-orange-500')
+      expect(expiringSoon).toHaveClass('text-warning')
     })
   })
 

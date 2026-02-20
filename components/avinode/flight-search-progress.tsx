@@ -908,6 +908,7 @@ export function FlightSearchProgress({
                           onSelectionChange={onRfqFlightSelectionChange}
                           onContinue={onContinueToProposal}
                           onReviewAndBook={onReviewAndBook}
+                          onViewChat={onViewChat}
                           onGenerateProposal={onGenerateProposal}
                           onBookFlight={onBookFlight}
                           bookFlightDisabled={bookFlightDisabled}

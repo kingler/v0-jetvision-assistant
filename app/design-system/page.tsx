@@ -37,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { FlightRequestStageBadge, FLIGHT_REQUEST_STAGES } from '@/components/flight-request-stage-badge';
 import {
   Card,
   CardHeader,
@@ -429,11 +430,11 @@ export default function DesignSystemPage() {
                   <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
                     {[
                       { n: 'background', cls: 'bg-background border', hex: '#ffffff' },
-                      { n: 'foreground', cls: 'bg-foreground', hex: '#333333' },
+                      { n: 'foreground', cls: 'bg-foreground', hex: 'oklch(0.25 0 0)' },
                       { n: 'primary', cls: 'bg-primary', hex: '#00a8e8' },
                       { n: 'secondary', cls: 'bg-secondary border', hex: 'transparent' },
                       { n: 'muted', cls: 'bg-muted border', hex: '#f9fafb' },
-                      { n: 'destructive', cls: 'bg-destructive', hex: '#dc2626' },
+                      { n: 'destructive', cls: 'bg-destructive', hex: 'oklch(0.55 0.22 25)' },
                       { n: 'card', cls: 'bg-card border', hex: '#ffffff' },
                     ].map((v) => (
                       <div key={v.n} className="flex flex-col gap-1">
@@ -832,11 +833,30 @@ export default function DesignSystemPage() {
                     In Review
                   </Badge>
                 </div>
+                {/* Flight Request Stage Badges */}
+                <div className="space-y-3 mt-4">
+                  <h3 className="text-sm font-semibold">Flight Request Stages</h3>
+                  <p className="text-xs text-muted-foreground">
+                    10 lifecycle stages with tinted backgrounds and matching dark text. Uses oklch color space for perceptual uniformity.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {FLIGHT_REQUEST_STAGES.map((stage) => (
+                      <FlightRequestStageBadge key={stage} stage={stage} />
+                    ))}
+                  </div>
+                </div>
+
                 <CodeBlock
-                  code={`<Badge variant="success">
+                  code={`{/* Standard variants */}
+<Badge variant="success">
   <CheckCircle2 className="size-3" />
   Confirmed
-</Badge>`}
+</Badge>
+
+{/* Flight request stage badge */}
+import { FlightRequestStageBadge } from '@/components/flight-request-stage-badge';
+<FlightRequestStageBadge stage="proposal_ready" />
+<FlightRequestStageBadge stage="requesting_quotes" label="Quotes 3/5" />`}
                 />
               </SectionCard>
 

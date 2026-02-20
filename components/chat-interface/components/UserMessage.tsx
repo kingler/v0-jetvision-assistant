@@ -2,7 +2,7 @@
  * UserMessage Component
  *
  * Renders a user message bubble in the chat interface.
- * Displays as a blue bubble aligned to the right.
+ * Displays as a primary-colored bubble aligned to the right.
  *
  * Extracted from: components/chat-interface.tsx (lines 2052-2058)
  */
@@ -36,11 +36,11 @@ export const UserMessage = memo(function UserMessage({
 }: UserMessageProps) {
   return (
     <div className={`flex justify-end ${className}`}>
-      <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-sm">
+      <div className="max-w-[85%] bg-primary text-primary-foreground rounded-2xl px-4 py-3 shadow-sm">
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
         {timestamp && (
           <div className="mt-1 text-right">
-            <span className="text-[10px] text-blue-200">
+            <span className="text-[10px] text-primary-foreground/60">
               {formatMessageTimestamp(timestamp)}
             </span>
           </div>

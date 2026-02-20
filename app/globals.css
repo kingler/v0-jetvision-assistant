@@ -83,11 +83,14 @@
   /* Surface hierarchy */
   --surface-secondary: oklch(0.98 0 0);  /* gray-50 equivalent */
   --surface-tertiary: oklch(0.96 0 0);   /* gray-100 equivalent */
+  --surface-elevated: oklch(1 0 0);      /* white */
 
   /* Extended border */
   --border-strong: oklch(0.85 0 0); /* gray-300 equivalent */
 
   /* Extended text */
+  --text-secondary: oklch(0.42 0 0);  /* gray-600 equivalent */
+  --text-tertiary: oklch(0.55 0 0);   /* gray-500 equivalent */
   --text-placeholder: oklch(0.65 0 0); /* gray-400 equivalent */
 
   /* Semantic: success */
@@ -125,6 +128,9 @@
   --status-contract-ready: oklch(0.55 0.18 240); /* blue-600 */
   --status-searching: oklch(0.55 0.15 300); /* purple-500 */
   --status-analyzing: oklch(0.65 0.18 55); /* orange-500 */
+  --status-rfq-quoted: oklch(0.55 0.18 155); /* green-600 */
+  --status-rfq-declined: oklch(0.55 0.22 25); /* red-600 */
+  --status-rfq-unanswered: oklch(0.65 0.18 75); /* amber-600 */
 
   /* Semantic: error text (mirrors destructive) */
   --error: oklch(0.50 0.15 25); /* red-600 */
@@ -201,11 +207,14 @@
   /* Surface hierarchy */
   --surface-secondary: oklch(0.21 0 0);  /* dark: gray-800 equivalent */
   --surface-tertiary: oklch(0.27 0 0);   /* dark: gray-700 equivalent */
+  --surface-elevated: oklch(0.21 0 0);   /* dark: gray-800 */
 
   /* Extended border */
   --border-strong: oklch(0.40 0 0); /* dark: gray-600 equivalent */
 
   /* Extended text */
+  --text-secondary: oklch(0.65 0 0);  /* dark: gray-400 equivalent */
+  --text-tertiary: oklch(0.55 0 0);   /* dark: gray-400 equivalent */
   --text-placeholder: oklch(0.55 0 0); /* dark: gray-500 equivalent */
 
   /* Semantic: success */
@@ -243,6 +252,9 @@
   --status-contract-ready: oklch(0.65 0.15 240); /* blue-400 */
   --status-searching: oklch(0.65 0.13 300); /* purple-400 */
   --status-analyzing: oklch(0.75 0.16 55); /* orange-400 */
+  --status-rfq-quoted: oklch(0.72 0.18 155); /* green-400 */
+  --status-rfq-declined: oklch(0.65 0.15 25); /* red-400 */
+  --status-rfq-unanswered: oklch(0.75 0.16 75); /* amber-400 */
 
   /* Semantic: error text (mirrors destructive) */
   --error: oklch(0.65 0.15 25); /* red-400 */
@@ -315,11 +327,14 @@
   /* Surface hierarchy */
   --color-surface-secondary: var(--surface-secondary);
   --color-surface-tertiary: var(--surface-tertiary);
+  --color-surface-elevated: var(--surface-elevated);
 
   /* Extended border */
   --color-border-strong: var(--border-strong);
 
   /* Extended text */
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
   --color-text-placeholder: var(--text-placeholder);
 
   /* Semantic colors */
@@ -352,6 +367,9 @@
   --color-status-contract-ready: var(--status-contract-ready);
   --color-status-searching: var(--status-searching);
   --color-status-analyzing: var(--status-analyzing);
+  --color-status-rfq-quoted: var(--status-rfq-quoted);
+  --color-status-rfq-declined: var(--status-rfq-declined);
+  --color-status-rfq-unanswered: var(--status-rfq-unanswered);
 
   /* Active state */
   --color-active-bg: var(--active-bg);

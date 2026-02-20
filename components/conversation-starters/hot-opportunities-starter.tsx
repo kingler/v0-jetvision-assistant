@@ -268,11 +268,11 @@ function HotSummary({ deals, compact }: { deals: HotDeal[]; compact?: boolean })
   }
 
   return (
-    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg mb-4">
+    <div className="p-3 bg-warning-bg rounded-lg mb-4">
       {stats.hasMixedCurrencies && (
         <div
           data-testid="mixed-currency-warning"
-          className="text-xs text-orange-600 dark:text-orange-400 mb-2 text-center"
+          className="text-xs text-warning mb-2 text-center"
         >
           ⚠️ Values shown in {stats.primaryCurrency} (mixed currencies detected)
         </div>
@@ -280,7 +280,7 @@ function HotSummary({ deals, compact }: { deals: HotDeal[]; compact?: boolean })
       <div className="grid grid-cols-3 gap-3">
         <div className="text-center">
           <div className="text-xs text-muted-foreground">Hot Value</div>
-          <div data-testid="hot-value-summary" className="text-lg font-bold text-orange-600 dark:text-orange-400">
+          <div data-testid="hot-value-summary" className="text-lg font-bold text-warning">
             {formatCurrency(stats.totalValue, stats.primaryCurrency)}
           </div>
         </div>
@@ -292,7 +292,7 @@ function HotSummary({ deals, compact }: { deals: HotDeal[]; compact?: boolean })
         </div>
         <div className="text-center">
           <div className="text-xs text-muted-foreground">Avg Value</div>
-          <div data-testid="avg-value" className="text-lg font-bold text-orange-600 dark:text-orange-400">
+          <div data-testid="avg-value" className="text-lg font-bold text-warning">
             {formatCurrency(stats.avgValue, stats.primaryCurrency)}
           </div>
         </div>
@@ -334,8 +334,8 @@ function HotDealCard({
       tabIndex={0}
       aria-label={`Hot deal ${deal.clientName} ${deal.route.from} to ${deal.route.to}, priority score ${deal.priorityScore}`}
       className={cn(
-        'p-4 border rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/10 cursor-pointer transition-colors',
-        'border-orange-200 dark:border-orange-800',
+        'p-4 border rounded-lg hover:bg-warning-bg cursor-pointer transition-colors',
+        'border-warning-border',
         compact && 'p-3'
       )}
       onClick={handleClick}
@@ -349,12 +349,12 @@ function HotDealCard({
             className={cn(
               'w-4 h-4',
               deal.expiresWithin24Hours && 'animate-pulse',
-              urgencyLevel === 'high' && 'text-orange-500',
+              urgencyLevel === 'high' && 'text-warning',
               urgencyLevel === 'medium' && 'text-warning',
               urgencyLevel === 'low' && 'text-text-placeholder'
             )}
           />
-          <Building2 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+          <Building2 className="w-4 h-4 text-warning" />
           <span className="font-medium">{deal.clientName}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -363,7 +363,7 @@ function HotDealCard({
             variant="outline"
             className={cn(
               urgencyLevel === 'high' && 'bg-error-bg text-destructive border-error-border',
-              urgencyLevel === 'medium' && 'bg-orange-100 text-orange-700 border-orange-300',
+              urgencyLevel === 'medium' && 'bg-warning-bg text-warning border-warning-border',
               urgencyLevel === 'low' && 'bg-warning-bg text-warning border-warning-border'
             )}
           >
@@ -375,7 +375,7 @@ function HotDealCard({
               'w-2 h-2 rounded-full',
               `urgency-${urgencyLevel}`,
               urgencyLevel === 'high' && 'bg-destructive',
-              urgencyLevel === 'medium' && 'bg-orange-500',
+              urgencyLevel === 'medium' && 'bg-warning',
               urgencyLevel === 'low' && 'bg-warning'
             )}
           />
@@ -404,7 +404,7 @@ function HotDealCard({
 
       {/* Value and expiration */}
       <div className="mt-2 flex items-center justify-between">
-        <div className="flex items-center gap-1 font-bold text-orange-600 dark:text-orange-400">
+        <div className="flex items-center gap-1 font-bold text-warning">
           <DollarSign className="w-4 h-4" />
           <span>{formatCurrency(deal.value, deal.currency)}</span>
         </div>
@@ -413,7 +413,7 @@ function HotDealCard({
             data-testid={`countdown-${deal.id}`}
             className={cn(
               'flex items-center gap-1 text-xs',
-              isExpiringSoon ? 'text-destructive font-medium' : 'text-orange-500'
+              isExpiringSoon ? 'text-destructive font-medium' : 'text-warning'
             )}
           >
             <Clock className="w-3 h-3" />
@@ -622,7 +622,7 @@ export function HotOpportunitiesStarter({
           <div className="mt-4 text-center">
             <Button
               variant="link"
-              className="text-orange-600 dark:text-orange-400"
+              className="text-warning"
               onClick={onViewAllDeals}
               aria-label={`View all ${processedDeals.length} hot deals`}
             >
@@ -640,19 +640,19 @@ export function HotOpportunitiesStarter({
       role={modal ? 'dialog' : undefined}
       aria-modal={modal || undefined}
       className={cn(
-        'w-full max-w-lg border-2 border-orange-200 dark:border-orange-800',
+        'w-full max-w-lg border-2 border-warning-border',
         compact && 'compact'
       )}
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
-              <Flame data-testid="flame-icon" className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+            <div className="w-8 h-8 bg-warning-bg rounded-lg flex items-center justify-center">
+              <Flame data-testid="flame-icon" className="w-4 h-4 text-warning" />
             </div>
             Hot Opportunities
             {hotDealsCount > 0 && (
-              <Badge variant="outline" className="ml-2 bg-orange-100 text-orange-700 border-orange-300">
+              <Badge variant="outline" className="ml-2 bg-warning-bg text-warning border-warning-border">
                 {hotDealsCount} hot
               </Badge>
             )}
@@ -690,7 +690,7 @@ export function HotOpportunitiesStarter({
           <div className="flex items-center justify-between mt-3 p-2 bg-surface-secondary rounded-lg">
             <div className="flex items-center gap-2">
               {notificationsEnabled ? (
-                <Bell className="w-4 h-4 text-orange-500" />
+                <Bell className="w-4 h-4 text-warning" />
               ) : (
                 <BellOff className="w-4 h-4 text-text-placeholder" />
               )}
