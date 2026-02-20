@@ -13,21 +13,17 @@ import type { ComponentType } from 'react';
 import type { UIActionResult } from '@mcp-ui/server';
 
 // Composite wrappers
-import { TripCreatedUI } from '@/components/mcp-ui/composites/TripCreatedUI';
 import { RfqResultsUI } from '@/components/mcp-ui/composites/RfqResultsUI';
 import { QuoteComparisonUI } from '@/components/mcp-ui/composites/QuoteComparisonUI';
 import { EmailApprovalUI } from '@/components/mcp-ui/composites/EmailApprovalUI';
 
 // Existing components used directly
-import { RfqQuoteDetailsCard } from '@/components/avinode';
+import { FlightSearchProgress, RfqQuoteDetailsCard } from '@/components/avinode';
 import { ProposalPreview } from '@/components/message-components/proposal-preview';
 import { PipelineDashboard } from '@/components/message-components/pipeline-dashboard';
 import { OperatorChatInline } from '@/components/message-components/operator-chat-inline';
 import { ProposalSentConfirmation } from '@/components/proposal/proposal-sent-confirmation';
 import { ContractSentConfirmation } from '@/components/contract/contract-sent-confirmation';
-
-// Airport lookup for enriching ICAO-only data with city/name
-import { getAirportByIcao } from '@/lib/airports/airport-database';
 
 // Types
 import type { RFQFlight } from '@/lib/chat/types';
@@ -57,50 +53,33 @@ export interface ToolUIEntry {
 function extractCreateTripProps(
   input: Record<string, unknown>,
   result: Record<string, unknown>,
-  onAction: (action: UIActionResult) => void
 ): Record<string, unknown> {
-  // Use trip_type from the MCP response (authoritative), fall back to legacy derivation
+  // Determine trip type from MCP response or input
   const tripType =
     (result.trip_type as string) ||
-    (input.return_date ? 'round_trip' : 'single_leg');
+    (input.return_date ? 'round_trip' : 'one_way');
 
-  // Normalize segments from the MCP response
-  const rawSegments = result.segments as Array<Record<string, unknown>> | undefined;
-  const segments = rawSegments?.map((seg) => ({
-    departureAirport: normalizeAirport(seg.departure_airport),
-    arrivalAirport: normalizeAirport(seg.arrival_airport),
-    departureDate: (seg.departure_date || '') as string,
-    passengers: (seg.passengers || input.passengers || 1) as number,
-  }));
-
-  // For departure/arrival, prefer first/last segment from response, fall back to legacy flat fields
-  const firstSeg = segments?.[0];
-  const lastSeg = segments && segments.length > 1 ? segments[segments.length - 1] : undefined;
-
-  const departureAirport = firstSeg?.departureAirport ||
-    normalizeAirport(input.departure_airport || result.departure_airport);
-  const arrivalAirport = (tripType === 'multi_city' && lastSeg)
-    ? lastSeg.arrivalAirport
-    : (firstSeg?.arrivalAirport ||
-       normalizeAirport(input.arrival_airport || result.arrival_airport));
-
-  // Return date: from second segment (round-trip) or legacy input
-  const returnDate =
-    (rawSegments && rawSegments.length === 2 ? rawSegments[1].departure_date as string : undefined) ||
-    (input.return_date as string | undefined);
+  const departureAirport = {
+    icao: ((input.departure_airport || result.departure_airport || '') as string),
+  };
+  const arrivalAirport = {
+    icao: ((input.arrival_airport || result.arrival_airport || '') as string),
+  };
 
   return {
-    tripId: result.trip_id || '',
-    deepLink: result.deep_link || '',
-    departureAirport,
-    arrivalAirport,
-    departureDate: firstSeg?.departureDate ||
-      (input.departure_date || result.departure_date || '') as string,
-    passengers: (input.passengers || result.passengers || 1) as number,
-    tripType,
-    returnDate,
-    segments,
-    onAction,
+    currentStep: 2,
+    isTripCreated: true,
+    flightRequest: {
+      departureAirport,
+      arrivalAirport,
+      departureDate: (input.departure_date || result.departure_date || '') as string,
+      passengers: (input.passengers || result.passengers || 1) as number,
+      tripType: tripType === 'round_trip' ? 'round_trip' : 'one_way',
+      returnDate: (input.return_date as string | undefined),
+    },
+    deepLink: (result.deep_link || '') as string,
+    tripId: (result.trip_id || '') as string,
+    renderMode: 'steps-1-2',
   };
 }
 
@@ -388,33 +367,6 @@ function extractSendProposalEmailProps(
 }
 
 // =============================================================================
-// HELPERS
-// =============================================================================
-
-function normalizeAirport(
-  airport: unknown
-): { icao: string; name: string; city: string } {
-  if (typeof airport === 'string') {
-    const lookup = getAirportByIcao(airport);
-    if (lookup) {
-      return { icao: airport, name: lookup.name, city: lookup.city };
-    }
-    return { icao: airport, name: airport, city: '' };
-  }
-  if (airport && typeof airport === 'object') {
-    const a = airport as Record<string, unknown>;
-    const icao = (a.icao as string) || '';
-    const lookup = icao ? getAirportByIcao(icao) : undefined;
-    return {
-      icao,
-      name: (a.name as string) || lookup?.name || icao,
-      city: (a.city as string) || lookup?.city || '',
-    };
-  }
-  return { icao: '', name: 'Unknown', city: '' };
-}
-
-// =============================================================================
 // REGISTRY
 // =============================================================================
 
@@ -426,7 +378,7 @@ function normalizeAirport(
  */
 export const TOOL_UI_REGISTRY: Record<string, ToolUIEntry> = {
   create_trip: {
-    component: TripCreatedUI,
+    component: FlightSearchProgress,
     extractProps: extractCreateTripProps,
   },
   get_rfq: {

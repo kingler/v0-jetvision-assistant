@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import type { UIActionResult } from '@mcp-ui/server';
 
 // ── Registry Components ──────────────────────────────────────────────
-import { TripCreatedUI } from '@/components/mcp-ui/composites/TripCreatedUI';
 import { RfqResultsUI } from '@/components/mcp-ui/composites/RfqResultsUI';
 import { QuoteComparisonUI } from '@/components/mcp-ui/composites/QuoteComparisonUI';
 import { EmailApprovalUI } from '@/components/mcp-ui/composites/EmailApprovalUI';
@@ -17,7 +16,8 @@ import {
   AvinodeAuthStatus,
   TripDetailsCard,
   AvinodeMessageCard,
-  FlightSearchProgress,
+  TripRequestCard,
+  AvinodeSearchCard,
 } from '@/components/avinode';
 import {
   WorkflowStatus,
@@ -86,9 +86,9 @@ const COMPONENT_GROUPS: ComponentGroup[] = [
   {
     label: 'Trip Creation',
     items: [
-      { id: 'create-trip', label: 'TripCreatedUI', number: 5 },
-      { id: 'trip-details', label: 'TripDetailsCard', number: 6 },
-      { id: 'flight-search-progress', label: 'FlightSearchProgress', number: 7 },
+      { id: 'trip-request-card', label: 'TripRequestCard', number: 5 },
+      { id: 'avinode-search-card', label: 'AvinodeSearchCard', number: 6 },
+      { id: 'trip-details', label: 'TripDetailsCard', number: 7 },
     ],
   },
   {
@@ -661,78 +661,131 @@ export default function AllToolUIDemoPage() {
             </DemoSection>
 
             {/* ================================================================
-                5. TripCreatedUI — create_trip
+                5. TripRequestCard — create_trip (Step 1)
                ================================================================ */}
             <DemoSection
-              id="create-trip"
+              id="trip-request-card"
               toolName="create_trip"
-              component="TripCreatedUI"
-              description="Displayed after a trip is created in Avinode. Shows trip summary card with route visualization and deep link buttons."
+              component="TripRequestCard"
+              description="Step 1 card: displays trip request details — route, dates, passengers, trip type badge. Three variants: one-way, round-trip, multi-city."
               dataDependencies={[
-                'result.trip_id',
-                'result.deep_link',
-                'result.trip_type',
-                'result.segments[]',
-                'input.departure_airport',
-                'input.arrival_airport',
-                'input.departure_date',
-                'input.passengers',
-                'input.return_date (round-trip)',
+                'flightRequest.departureAirport',
+                'flightRequest.arrivalAirport',
+                'flightRequest.departureDate',
+                'flightRequest.passengers',
+                'flightRequest.tripType',
+                'flightRequest.returnDate (round-trip)',
               ]}
-              category={getCategoryForId('create-trip')}
-              componentNumber={getNumberForId('create-trip')}
+              category={getCategoryForId('trip-request-card')}
+              componentNumber={getNumberForId('trip-request-card')}
             >
               {show('one-way') && (
-                <div data-testid="create-trip-one-way">
+                <div data-testid="trip-request-one-way">
                   <TripTypeLabel type="One-Way" />
-                  <TripCreatedUI
-                    tripId="atrip-OW-001"
-                    deepLink="https://sandbox.avinode.com/marketplace/mvc/search#preSearch"
-                    departureAirport={AIRPORTS.KTEB}
-                    arrivalAirport={AIRPORTS.KMIA}
-                    departureDate="2026-03-15"
-                    passengers={3}
-                    tripType="single_leg"
-                    onAction={onAction('create_trip/one-way')}
+                  <TripRequestCard
+                    flightRequest={{
+                      departureAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro', state: 'NJ' },
+                      arrivalAirport: { icao: 'KMIA', name: 'Miami International', city: 'Miami', state: 'FL' },
+                      departureDate: '2026-03-15',
+                      passengers: 3,
+                      tripType: 'one_way',
+                    }}
+                    isCompleted={false}
                   />
                 </div>
               )}
               {show('round-trip') && (
-                <div data-testid="create-trip-round-trip">
+                <div data-testid="trip-request-round-trip">
                   <TripTypeLabel type="Round-Trip" />
-                  <TripCreatedUI
-                    tripId="atrip-RT-002"
-                    deepLink="https://sandbox.avinode.com/marketplace/mvc/search#preSearch"
-                    departureAirport={AIRPORTS.KTEB}
-                    arrivalAirport={AIRPORTS.KVNY}
-                    departureDate="2026-04-05"
-                    passengers={6}
-                    tripType="round_trip"
-                    returnDate="2026-04-08"
-                    onAction={onAction('create_trip/round-trip')}
+                  <TripRequestCard
+                    flightRequest={{
+                      departureAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro', state: 'NJ' },
+                      arrivalAirport: { icao: 'KVNY', name: 'Van Nuys Airport', city: 'Van Nuys', state: 'CA' },
+                      departureDate: '2026-04-05',
+                      passengers: 6,
+                      tripType: 'round_trip',
+                      returnDate: '2026-04-08',
+                    }}
+                    isCompleted={false}
                   />
                 </div>
               )}
               {show('multi-city') && (
-                <div data-testid="create-trip-multi-city">
+                <div data-testid="trip-request-multi-city">
                   <TripTypeLabel type="Multi-City" />
-                  <TripCreatedUI
-                    tripId="atrip-MC-003"
-                    deepLink="https://sandbox.avinode.com/marketplace/mvc/search#preSearch"
-                    departureAirport={AIRPORTS.KTEB}
-                    arrivalAirport={AIRPORTS.KTEB}
-                    departureDate="2026-03-20"
-                    passengers={5}
-                    tripType="multi_city"
-                    segments={MULTI_SEGMENTS_3}
-                    onAction={onAction('create_trip/multi-city')}
+                  <TripRequestCard
+                    flightRequest={{
+                      departureAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro', state: 'NJ' },
+                      arrivalAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro', state: 'NJ' },
+                      departureDate: '2026-03-20',
+                      passengers: 5,
+                      tripType: 'one_way',
+                    }}
+                    isCompleted={false}
                   />
                 </div>
               )}
             </DemoSection>
 
             {/* ================================================================
-                6. TripDetailsCard — trip details
+                6. AvinodeSearchCard — create_trip (Step 2)
+               ================================================================ */}
+            <DemoSection
+              id="avinode-search-card"
+              toolName="create_trip"
+              component="AvinodeSearchCard"
+              description="Step 2 card: displays Avinode deep link with 'Open in Avinode Marketplace' and 'Copy URL' buttons."
+              dataDependencies={[
+                'deepLink',
+                'departureIcao',
+                'arrivalIcao',
+              ]}
+              category={getCategoryForId('avinode-search-card')}
+              componentNumber={getNumberForId('avinode-search-card')}
+            >
+              {show('one-way') && (
+                <div data-testid="avinode-search-one-way">
+                  <TripTypeLabel type="One-Way" />
+                  <AvinodeSearchCard
+                    deepLink="https://sandbox.avinode.com/marketplace/mvc/search#preSearch"
+                    departureIcao="KTEB"
+                    arrivalIcao="KMIA"
+                    isCompleted={false}
+                    onDeepLinkClick={() => setLastAction('[AvinodeSearchCard] Deep link clicked (one-way)')}
+                    onCopyDeepLink={() => setLastAction('[AvinodeSearchCard] Deep link copied (one-way)')}
+                  />
+                </div>
+              )}
+              {show('round-trip') && (
+                <div data-testid="avinode-search-round-trip">
+                  <TripTypeLabel type="Round-Trip" />
+                  <AvinodeSearchCard
+                    deepLink="https://sandbox.avinode.com/marketplace/mvc/search#preSearch"
+                    departureIcao="KTEB"
+                    arrivalIcao="KVNY"
+                    isCompleted={false}
+                    onDeepLinkClick={() => setLastAction('[AvinodeSearchCard] Deep link clicked (round-trip)')}
+                    onCopyDeepLink={() => setLastAction('[AvinodeSearchCard] Deep link copied (round-trip)')}
+                  />
+                </div>
+              )}
+              {show('multi-city') && (
+                <div data-testid="avinode-search-multi-city">
+                  <TripTypeLabel type="Multi-City" />
+                  <AvinodeSearchCard
+                    deepLink="https://sandbox.avinode.com/marketplace/mvc/search#preSearch"
+                    departureIcao="KTEB"
+                    arrivalIcao="KTEB"
+                    isCompleted={false}
+                    onDeepLinkClick={() => setLastAction('[AvinodeSearchCard] Deep link clicked (multi-city)')}
+                    onCopyDeepLink={() => setLastAction('[AvinodeSearchCard] Deep link copied (multi-city)')}
+                  />
+                </div>
+              )}
+            </DemoSection>
+
+            {/* ================================================================
+                7. TripDetailsCard — trip details
                ================================================================ */}
             <DemoSection
               id="trip-details"
@@ -789,58 +842,6 @@ export default function AllToolUIDemoPage() {
                     status="active"
                     buyer={{ company: 'InvestCo', contact: 'Michael Chen' }}
                     onCopyTripId={() => setLastAction('[TripDetailsCard] Copy trip ID: atrip-MC-003')}
-                  />
-                </div>
-              )}
-            </DemoSection>
-
-            {/* ================================================================
-                7. FlightSearchProgress — flight search workflow
-               ================================================================ */}
-            <DemoSection
-              id="flight-search-progress"
-              toolName="search_flights"
-              component="FlightSearchProgress"
-              description="4-step workflow: create trip → search Avinode → enter trip ID → send proposal. Uses renderMode='steps-1-2' to show steps 1-2 only."
-              dataDependencies={['currentStep', 'flightRequest', 'deepLink', 'tripId', 'renderMode']}
-              category={getCategoryForId('flight-search-progress')}
-              componentNumber={getNumberForId('flight-search-progress')}
-            >
-              {show('one-way') && (
-                <div data-testid="flight-search-one-way">
-                  <TripTypeLabel type="One-Way" />
-                  <FlightSearchProgress
-                    currentStep={2}
-                    isTripCreated={true}
-                    flightRequest={{
-                      departureAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro', state: 'NJ' },
-                      arrivalAirport: { icao: 'KMIA', name: 'Miami International', city: 'Miami', state: 'FL' },
-                      departureDate: '2026-03-15',
-                      passengers: 3,
-                      tripType: 'one_way',
-                    }}
-                    deepLink="https://sandbox.avinode.com/marketplace/mvc/search#preSearch"
-                    renderMode="steps-1-2"
-                    onDeepLinkClick={() => setLastAction('[FlightSearchProgress] Deep link clicked')}
-                    onCopyDeepLink={() => setLastAction('[FlightSearchProgress] Deep link copied')}
-                  />
-                </div>
-              )}
-              {show('round-trip') && (
-                <div data-testid="flight-search-round-trip">
-                  <TripTypeLabel type="Round-Trip" />
-                  <FlightSearchProgress
-                    currentStep={1}
-                    isTripCreated={true}
-                    flightRequest={{
-                      departureAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro', state: 'NJ' },
-                      arrivalAirport: { icao: 'KVNY', name: 'Van Nuys Airport', city: 'Van Nuys', state: 'CA' },
-                      departureDate: '2026-04-05',
-                      passengers: 6,
-                      tripType: 'round_trip',
-                      returnDate: '2026-04-08',
-                    }}
-                    renderMode="steps-1-2"
                   />
                 </div>
               )}
@@ -1731,13 +1732,15 @@ export default function AllToolUIDemoPage() {
               category={getCategoryForId('stage-badge')}
               componentNumber={getNumberForId('stage-badge')}
             >
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 overflow-x-hidden">
                 {FLIGHT_REQUEST_STAGES.map((stage) => (
                   <FlightRequestStageBadge key={stage} stage={stage} />
                 ))}
               </div>
             </DemoSection>
 
+            {/* Bottom spacer to ensure last section scrolls fully into view */}
+            <div className="h-16" aria-hidden="true" />
           </div>
         </div>
       </div>

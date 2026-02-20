@@ -32,6 +32,10 @@ export { SendProposalStep } from './send-proposal-step';
 export type { SendProposalStepProps } from './send-proposal-step';
 export { BookFlightModal } from './book-flight-modal';
 export type { BookFlightModalProps } from './book-flight-modal';
+export { TripRequestCard } from './trip-request-card';
+export type { TripRequestCardProps } from './trip-request-card';
+export { AvinodeSearchCard } from './avinode-search-card';
+export type { AvinodeSearchCardProps } from './avinode-search-card';
 
 // Shared types
 export type {

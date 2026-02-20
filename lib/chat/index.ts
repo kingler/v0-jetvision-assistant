@@ -90,14 +90,3 @@ export {
 
 // Book Flight customer derivation (selected proposal customer for contract modal)
 export { getBookFlightCustomer } from './book-flight-customer';
-
-// Agent notification utilities (webhook → chat message formatting)
-export {
-  formatQuoteReceivedMessage,
-  formatOperatorMessageNotification,
-  resolveRequestIdForPersistence,
-  type SystemEventType,
-  type SystemEventData,
-  type AgentNotificationMessage,
-  type QuoteEventPayload,
-} from './agent-notifications';

@@ -14,33 +14,24 @@
  * 4. Send Proposal (Automatic) - Display retrieved quote/flight info
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   CheckCircle2,
   Clock,
   Loader2,
-  ExternalLink,
-  Copy,
-  Check,
   Plane,
-  Calendar,
-  Users,
-  MapPin,
-  ArrowRight,
-  ArrowLeftRight,
-  ClipboardCheck,
   MessageSquare,
   Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RFQFlightsList } from './rfq-flights-list';
 import { SendProposalStep } from './send-proposal-step';
+import { TripRequestCard } from './trip-request-card';
+import { AvinodeSearchCard } from './avinode-search-card';
 import { convertToAvinodeRFQFlight } from './utils';
 import type { RFQFlight } from './rfq-flight-card';
 import type { RFQFlight as AvinodeRFQFlight } from '@/lib/mcp/clients/avinode-client';
-import { getAirportByIcao } from '@/lib/airports/airport-database';
-import { validateAndFixAvinodeUrl } from '@/lib/utils/avinode-url';
 
 // =============================================================================
 // TYPES
@@ -308,8 +299,6 @@ export function FlightSearchProgress({
   className,
   isTripCreated = false,
 }: FlightSearchProgressProps) {
-  const [copied, setCopied] = useState(false);
-
   // renderMode guards: which step groups to render
   const showSteps12 = renderMode === 'all' || renderMode === 'steps-1-2';
   const showSteps34 = renderMode === 'all' || renderMode === 'steps-3-4';
@@ -367,113 +356,6 @@ export function FlightSearchProgress({
     return fetchedAt.toLocaleString();
   };
 
-  /**
-   * Format date string to human-readable format (full: "Wed, Mar 25, 2026")
-   */
-  const formatDate = (dateString: string): string => {
-    if (!dateString || dateString === 'Invalid Date' || dateString === 'N/A') {
-      return 'Date TBD';
-    }
-    try {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        const [year, month, day] = dateString.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          });
-        }
-      }
-      const date = new Date(dateString);
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
-      }
-      return 'Date TBD';
-    } catch {
-      return 'Date TBD';
-    }
-  };
-
-  /**
-   * Shorter date format for compact UI (no weekday): "Mar 25, 2026"
-   * Prevents truncation and overlap on small screens
-   */
-  const formatDateShort = (dateString: string): string => {
-    if (!dateString || dateString === 'Invalid Date' || dateString === 'N/A') {
-      return 'Date TBD';
-    }
-    try {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        const [year, month, day] = dateString.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          });
-        }
-      }
-      const date = new Date(dateString);
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
-      }
-      return 'Date TBD';
-    } catch {
-      return 'Date TBD';
-    }
-  };
-
-  /**
-   * Handle copy deep link to clipboard
-   */
-  /**
-   * Validate and fix the deep link URL to ensure it points to web UI, not API
-   */
-  const validatedDeepLink = useMemo(() => {
-    if (!deepLink) return null;
-    return validateAndFixAvinodeUrl(deepLink);
-  }, [deepLink]);
-
-  const handleCopyLink = useCallback(async () => {
-    if (!validatedDeepLink) {
-      console.error('[FlightSearchProgress] Cannot copy link - invalid URL');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(validatedDeepLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      onCopyDeepLink?.();
-    } catch {
-      // Clipboard API may fail - fail silently
-    }
-  }, [validatedDeepLink, onCopyDeepLink]);
-
-  /**
-   * Handle deep link button click
-   */
-  const handleDeepLinkClick = useCallback(() => {
-    if (validatedDeepLink) {
-      window.open(validatedDeepLink, '_blank', 'noopener,noreferrer');
-      onDeepLinkClick?.();
-    } else {
-      console.error('[FlightSearchProgress] Cannot open deep link - invalid URL:', deepLink);
-    }
-  }, [validatedDeepLink, onDeepLinkClick, deepLink]);
-
   return (
     <div data-testid="flight-search-progress" className={cn('w-full', className)}>
       <div className="py-6">
@@ -483,226 +365,24 @@ export function FlightSearchProgress({
           {/* CRITICAL: Only render step cards when trip is actually created (has avinode_trip_id) */}
           {/* This prevents cards from appearing during clarification dialogue before trip creation */}
           {showSteps12 && currentStep >= 1 && isTripCreated && (
-            <div
-              data-testid="step-1-content"
-              className="text-card-foreground flex flex-col gap-4 rounded-xl py-4 sm:py-6 px-3 sm:px-4 shadow-sm w-full min-w-0 bg-card border border-border"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                {currentStep > 1 ? (
-                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
-                ) : (
-                  <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-                )}
-                <h4 className="font-semibold text-[clamp(0.8125rem,2vw,0.875rem)] text-foreground">
-                  Step 1: Trip Request {currentStep > 1 ? 'Created' : 'Creating'}
-                </h4>
-              </div>
-
-              {/* Flight Request Details */}
-              <div className="space-y-3">
-                {/* Route Visualization */}
-                <div className="rounded-md bg-surface-secondary p-3 space-y-2">
-                  {/* Trip Type Badge */}
-                  <span className={cn(
-                    "inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap",
-                    flightRequest.tripType === 'round_trip'
-                      ? "bg-primary/10 text-primary"
-                      : "bg-surface-tertiary text-muted-foreground"
-                  )}>
-                    {flightRequest.tripType === 'round_trip' ? 'Round-Trip' : 'One-Way'}
-                  </span>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 whitespace-nowrap">
-                        <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-bold text-primary">
-                          {flightRequest.departureAirport?.icao?.toUpperCase() || 'N/A'}
-                        </span>
-                      </div>
-                      {(() => {
-                        // Get city and state from airport data or lookup from database
-                        const departureIcao = flightRequest.departureAirport?.icao?.toUpperCase();
-                        const airportData = departureIcao ? getAirportByIcao(departureIcao) : null;
-                        const city = flightRequest.departureAirport?.city || airportData?.city || '';
-                        const state = flightRequest.departureAirport?.state || airportData?.state || '';
-
-                        if (city || state) {
-                          return (
-                            <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">
-                              {city}{state ? `, ${state}` : ''}
-                            </p>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 px-2 shrink-0">
-                      <div className="h-px w-4 bg-border-strong" />
-                      <Plane className="size-6 text-primary rotate-90" />
-                      {flightRequest.tripType === 'round_trip' ? (
-                        <ArrowLeftRight className="size-6 text-primary" />
-                      ) : (
-                        <ArrowRight className="size-6 text-muted-foreground" />
-                      )}
-                      <div className="h-px w-4 bg-border-strong" />
-                    </div>
-
-                    <div className="flex-1 text-right min-w-0">
-                      <div className="flex items-center justify-end gap-1 whitespace-nowrap">
-                        <span className="text-sm font-bold text-primary">
-                          {flightRequest.arrivalAirport?.icao?.toUpperCase() || 'N/A'}
-                        </span>
-                        <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                      </div>
-                      {(() => {
-                        // Get city and state from airport data or lookup from database
-                        const arrivalIcao = flightRequest.arrivalAirport?.icao?.toUpperCase();
-                        const airportData = arrivalIcao ? getAirportByIcao(arrivalIcao) : null;
-                        const city = flightRequest.arrivalAirport?.city || airportData?.city || '';
-                        const state = flightRequest.arrivalAirport?.state || airportData?.state || '';
-
-                        if (city || state) {
-                          return (
-                            <p className="text-xs text-muted-foreground mt-0.5 text-right whitespace-nowrap">
-                              {city}{state ? `, ${state}` : ''}
-                            </p>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Flight Details Grid - stack on small screens to prevent overlap, scale text down */}
-                <div
-                  className={`grid gap-1.5 text-sm min-w-0 ${
-                    flightRequest.tripType === 'round_trip' && flightRequest.returnDate
-                      ? 'grid-cols-1 sm:grid-cols-3'
-                      : 'grid-cols-1 sm:grid-cols-2'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
-                    <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="text-sm text-muted-foreground whitespace-nowrap">
-                        {flightRequest.tripType === 'round_trip' ? 'Depart' : 'Date'}
-                      </p>
-                      <p className="font-medium text-sm text-foreground whitespace-nowrap">
-                        {formatDateShort(flightRequest.departureDate)}
-                      </p>
-                    </div>
-                  </div>
-                  {flightRequest.tripType === 'round_trip' && flightRequest.returnDate && (
-                    <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
-                      <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <p className="text-sm text-muted-foreground whitespace-nowrap">
-                          Return
-                        </p>
-                        <p className="font-medium text-sm text-foreground whitespace-nowrap">
-                          {formatDateShort(flightRequest.returnDate)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
-                    <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    <p className="text-sm text-foreground whitespace-nowrap">
-                      <span className="text-muted-foreground">Passengers: </span>
-                      <span className="font-medium">{flightRequest.passengers}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Optional Details */}
-                {(flightRequest.aircraftPreferences || flightRequest.specialRequirements) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                    {flightRequest.aircraftPreferences && (
-                      <div className="rounded-md bg-surface-secondary p-2">
-                        <p className="text-xs text-muted-foreground">Aircraft Preferences</p>
-                        <p className="font-medium text-xs">{flightRequest.aircraftPreferences}</p>
-                      </div>
-                    )}
-                    {flightRequest.specialRequirements && (
-                      <div className="rounded-md bg-surface-secondary p-2">
-                        <p className="text-xs text-muted-foreground">Special Requirements</p>
-                        <p className="font-medium text-xs">{flightRequest.specialRequirements}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+            <TripRequestCard
+              flightRequest={flightRequest}
+              isCompleted={currentStep > 1}
+            />
           )}
 
           {/* Step 2: Select Flight & RFQ */}
           {/* Show Step 2 if we're at step 2 or beyond, and we have either a deepLink or tripId (indicates deep link was created) */}
           {/* CRITICAL: Only render when trip is actually created (has avinode_trip_id) */}
           {showSteps12 && currentStep >= 2 && isTripCreated && (deepLink || tripId) && (
-            <div
-              data-testid="step-2-content"
-              className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 px-4 shadow-sm w-full bg-card border border-border"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                {currentStep > 2 ? (
-                  <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
-                ) : (
-                  <ExternalLink className="h-5 w-5 text-primary" />
-                )}
-                <h4 className="font-semibold text-sm text-foreground">
-                  Step 2: {currentStep > 2 ? 'Flight & RFQ Selected' : 'Select Flight & RFQ'}
-                </h4>
-              </div>
-
-              {/* Instructions for searching flights */}
-              <div className="mb-4 p-3 rounded-md bg-surface-secondary text-sm">
-                <p className="font-medium mb-2 text-foreground">How to search and select flights:</p>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                  <li>Click the button below to open Avinode Marketplace</li>
-                  <li>Enter the airport codes: <span className="font-semibold text-foreground">{flightRequest.departureAirport?.icao?.toUpperCase() || ''}</span> (departure) and <span className="font-semibold text-foreground">{flightRequest.arrivalAirport?.icao?.toUpperCase() || ''}</span> (arrival)</li>
-                  <li>Browse available aircraft and operators</li>
-                  <li>Select your preferred options and submit your RFQ</li>
-                </ol>
-              </div>
-
-              {/* Deep Link Actions - Reduced button width */}
-              {/* Always show buttons when Step 2 is displayed - deepLink should be available from create trip API */}
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  onClick={handleDeepLinkClick}
-                  disabled={!deepLink}
-                  className="sm:w-auto"
-                  style={{
-                    backgroundClip: 'unset',
-                    WebkitBackgroundClip: 'unset',
-                  }}
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open in Avinode Marketplace
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleCopyLink}
-                  disabled={!deepLink}
-                  className="sm:w-auto text-foreground"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy URL
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+            <AvinodeSearchCard
+              deepLink={deepLink || ''}
+              departureIcao={flightRequest.departureAirport?.icao}
+              arrivalIcao={flightRequest.arrivalAirport?.icao}
+              isCompleted={currentStep > 2}
+              onDeepLinkClick={onDeepLinkClick}
+              onCopyDeepLink={onCopyDeepLink}
+            />
           )}
 
           {/* Step 3: Enter Trip ID & View RFQ Flights */}

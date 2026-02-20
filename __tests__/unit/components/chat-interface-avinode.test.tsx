@@ -23,6 +23,15 @@ Element.prototype.scrollIntoView = vi.fn();
 
 // Mock the Avinode components
 vi.mock('@/components/avinode', () => ({
+  FlightSearchProgress: vi.fn(() => (
+    <div data-testid="flight-search-progress">Flight Search Progress</div>
+  )),
+  TripRequestCard: vi.fn(() => (
+    <div data-testid="trip-request-card">Trip Request</div>
+  )),
+  AvinodeSearchCard: vi.fn(() => (
+    <div data-testid="avinode-search-card">Avinode Search</div>
+  )),
   TripIDInput: vi.fn(({ onSubmit, isLoading }) => (
     <div data-testid="trip-id-input">
       <input
