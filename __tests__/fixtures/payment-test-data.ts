@@ -149,3 +149,61 @@ export const mockDealClosedRichContent = {
     paymentReceivedAt: '2026-02-10T12:00:00Z',
   },
 };
+
+// =============================================================================
+// FULL TIMELINE RICH CONTENT (with all 3 timestamps)
+// =============================================================================
+
+/**
+ * richContent for deal_closed messages with full timeline
+ */
+export const mockDealClosedFullTimelineRichContent = {
+  dealClosed: {
+    contractNumber: 'CONTRACT-2026-001',
+    customerName: 'John Smith',
+    flightRoute: 'KTEB to KVNY',
+    dealValue: 45182.76,
+    currency: 'USD',
+    proposalSentAt: '2026-02-08T14:30:00Z',
+    contractSentAt: '2026-02-09T10:00:00Z',
+    paymentReceivedAt: '2026-02-10T12:00:00Z',
+  },
+};
+
+// =============================================================================
+// CREDIT CARD PAYMENT VARIANT
+// =============================================================================
+
+/**
+ * richContent for payment_confirmed via credit card
+ */
+export const mockCreditCardPaymentRichContent = {
+  paymentConfirmed: {
+    contractId: MOCK_CONTRACT_ID,
+    contractNumber: 'CONTRACT-2026-002',
+    paymentAmount: 92500,
+    paymentMethod: 'credit_card',
+    paymentReference: 'CC-4242-2026-001',
+    paidAt: '2026-02-14T16:30:00Z',
+    currency: 'USD',
+  },
+};
+
+// =============================================================================
+// EUR CURRENCY VARIANT
+// =============================================================================
+
+/**
+ * richContent for payment in EUR
+ */
+export const mockEurPaymentRichContent = {
+  paymentConfirmed: {
+    contractId: MOCK_CONTRACT_ID,
+    contractNumber: 'CONTRACT-2026-003',
+    paymentAmount: 185000,
+    paymentMethod: 'wire',
+    paymentReference: 'WT-EUR-2026-001',
+    paidAt: '2026-02-15T09:00:00Z',
+    currency: 'EUR',
+  },
+};

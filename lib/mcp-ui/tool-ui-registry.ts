@@ -18,7 +18,13 @@ import { QuoteComparisonUI } from '@/components/mcp-ui/composites/QuoteCompariso
 import { EmailApprovalUI } from '@/components/mcp-ui/composites/EmailApprovalUI';
 
 // Existing components used directly
-import { FlightSearchProgress, RfqQuoteDetailsCard } from '@/components/avinode';
+import {
+  FlightSearchProgress,
+  RfqQuoteDetailsCard,
+  EmptyLegWatchCreated,
+  EmptyLegWatchList,
+  EmptyLegMatchViewer,
+} from '@/components/avinode';
 import { ProposalPreview } from '@/components/message-components/proposal-preview';
 import { PipelineDashboard } from '@/components/message-components/pipeline-dashboard';
 import { OperatorChatInline } from '@/components/message-components/operator-chat-inline';
@@ -366,6 +372,85 @@ function extractSendProposalEmailProps(
   };
 }
 
+// Empty Leg Watch prop extractors (ONEK-202)
+
+function extractCreateEmptyLegWatchProps(
+  input: Record<string, unknown>,
+  result: Record<string, unknown>,
+  onAction: (action: UIActionResult) => void
+): Record<string, unknown> {
+  const dateRange = result.date_range as Record<string, string> | undefined;
+  return {
+    watchId: result.watch_id || '',
+    status: result.status || 'active',
+    departureAirport: result.departure_airport || input.departure_airport || '',
+    arrivalAirport: result.arrival_airport || input.arrival_airport || '',
+    dateRangeStart: dateRange?.start || input.date_range_start || '',
+    dateRangeEnd: dateRange?.end || input.date_range_end || '',
+    passengers: result.passengers || input.passengers || 1,
+    maxPrice: result.max_price || input.max_price,
+    aircraftCategories: result.aircraft_categories || input.aircraft_categories,
+    matchesCount: result.matches_count || 0,
+    onAction,
+  };
+}
+
+function extractGetEmptyLegWatchesProps(
+  _input: Record<string, unknown>,
+  result: Record<string, unknown>,
+  onAction: (action: UIActionResult) => void
+): Record<string, unknown> {
+  const watches = (result.watches as Array<Record<string, unknown>>) || [];
+  return {
+    watches: watches.map((w) => ({
+      watch_id: w.watch_id || w.id || '',
+      status: w.status || 'active',
+      departure_airport: w.departure_airport || '',
+      arrival_airport: w.arrival_airport || '',
+      date_range: w.date_range || { start: '', end: '' },
+      passengers: w.passengers || 1,
+      max_price: w.max_price,
+      aircraft_categories: w.aircraft_categories,
+      created_at: w.created_at || '',
+      expires_at: w.expires_at || '',
+      matches_count: w.matches_count || 0,
+    })),
+    onAction,
+  };
+}
+
+function extractGetWatchMatchesProps(
+  _input: Record<string, unknown>,
+  result: Record<string, unknown>,
+  onAction: (action: UIActionResult) => void
+): Record<string, unknown> {
+  const matches = (result.matches as Array<Record<string, unknown>>) || [];
+  return {
+    watchId: result.watch_id || '',
+    matches: matches.map((m) => ({
+      match_id: m.match_id || m.id || '',
+      watch_id: m.watch_id || '',
+      empty_leg_id: m.empty_leg_id || '',
+      departure: m.departure || { airport: '', date: '' },
+      arrival: m.arrival || { airport: '' },
+      price: m.price || 0,
+      currency: m.currency || 'USD',
+      discount_percentage: m.discount_percentage,
+      regular_price: m.regular_price,
+      aircraft: m.aircraft || { type: '', model: '', category: '', capacity: 0 },
+      operator: m.operator || { id: '', name: 'Unknown' },
+      viewed: m.viewed || false,
+      interested: m.interested || false,
+      matched_at: m.matched_at || '',
+      valid_until: m.valid_until,
+      deep_link: m.deep_link,
+    })),
+    totalCount: result.total_count || matches.length,
+    unviewedCount: result.unviewed_count || 0,
+    onAction,
+  };
+}
+
 // =============================================================================
 // REGISTRY
 // =============================================================================
@@ -373,7 +458,7 @@ function extractSendProposalEmailProps(
 /**
  * Tool UI Registry - maps tool names to React components.
  *
- * 11 of 26 tools have visual output. The rest are text-only
+ * 14 of 26 tools have visual output. The rest are text-only
  * and don't need registry entries.
  */
 export const TOOL_UI_REGISTRY: Record<string, ToolUIEntry> = {
@@ -420,6 +505,19 @@ export const TOOL_UI_REGISTRY: Record<string, ToolUIEntry> = {
   send_proposal_email: {
     component: ProposalSentConfirmation,
     extractProps: extractSendProposalEmailProps,
+  },
+  // Empty Leg Watch tools (ONEK-202)
+  create_empty_leg_watch: {
+    component: EmptyLegWatchCreated,
+    extractProps: extractCreateEmptyLegWatchProps,
+  },
+  get_empty_leg_watches: {
+    component: EmptyLegWatchList,
+    extractProps: extractGetEmptyLegWatchesProps,
+  },
+  get_watch_matches: {
+    component: EmptyLegMatchViewer,
+    extractProps: extractGetWatchMatchesProps,
   },
 };
 

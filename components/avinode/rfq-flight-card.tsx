@@ -42,133 +42,14 @@ import {
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { resolveAircraftImageUrlWeb } from '@/lib/aircraft/image-resolver';
 
 // =============================================================================
-// TYPES
+// TYPES — re-exported from canonical source (lib/chat/types)
 // =============================================================================
 
-export interface RFQFlight {
-  id: string;
-  quoteId: string;
-  departureAirport: {
-    icao: string;
-    name?: string;
-    city?: string;
-  };
-  arrivalAirport: {
-    icao: string;
-    name?: string;
-    city?: string;
-  };
-  departureDate: string;
-  departureTime?: string;
-  flightDuration: string;
-  aircraftType: string;
-  aircraftModel: string;
-  /** Aircraft tail number (registration) - maps to aircraft.registration in API */
-  tailNumber?: string;
-  /** Year aircraft was manufactured - maps to aircraft.year_built in API */
-  yearOfManufacture?: number;
-  /** Maximum passenger capacity - maps to aircraft.capacity in API */
-  passengerCapacity: number;
-  /** Aircraft photo URL - retrieved via tailphotos=true query param */
-  tailPhotoUrl?: string;
-  operatorName: string;
-  operatorRating?: number;
-  operatorEmail?: string;
-  /** 
-   * Total price - PRIMARY source: sellerPrice.price from Avinode API
-   * FALLBACK: pricing.total from pricing object
-   * Per Avinode API: GET /quotes/{quoteId} returns sellerPrice { price, currency }
-   * 
-   * IMPORTANT: Prices are ALWAYS visible before the operator responds to the RFQ (never $0).
-   * The initial price shown is the price that the operator must accept and acknowledge.
-   * This price is set when the RFQ is created and remains visible throughout the workflow.
-   * 
-   * @see https://developer.avinodegroup.com/reference/readmessage
-   */
-  totalPrice: number;
-  /** 
-   * Currency code (ISO 4217) - PRIMARY source: sellerPrice.currency from Avinode API
-   * FALLBACK: pricing.currency from pricing object
-   */
-  currency: string;
-  /** 
-   * Price breakdown - maps to pricing object in Avinode API
-   * Note: sellerPrice doesn't include breakdown, so this comes from pricing object
-   */
-  priceBreakdown?: {
-    /** Base charter price - maps to pricing.base_price */
-    basePrice: number;
-    /** Fuel surcharge - maps to pricing.fuel_surcharge */
-    fuelSurcharge?: number;
-    /** Tax amount - maps to pricing.taxes */
-    taxes: number;
-    /** Additional fees - maps to pricing.fees */
-    fees: number;
-  };
-  validUntil?: string;
-  amenities: {
-    wifi: boolean;
-    pets: boolean;
-    smoking: boolean;
-    galley: boolean;
-    lavatory: boolean;
-    medical: boolean;
-  };
-  /**
-   * RFQ Status - indicates the current state of the operator's response
-   * - 'sent': RFQ was sent to operator but no response yet
-   * - 'unanswered': RFQ sent, awaiting operator response
-   * - 'quoted': Operator responded with a quote (status changes from 'unanswered'/'sent' to 'quoted' when operator responds)
-   * - 'declined': Operator declined to provide a quote
-   * - 'expired': Quote or RFQ has expired
-   * 
-   * Status automatically updates when:
-   * - Operator responds with quote → changes to 'quoted'
-   * - Operator declines → changes to 'declined'
-   * - Quote expires → changes to 'expired'
-   * 
-   * Status is retrieved from Avinode API via get_rfq tool which calls GET /rfqs/{id}
-   * @see https://sandbox.avinode.com/api/rfqs/{id}
-   */
-  rfqStatus: 'sent' | 'unanswered' | 'quoted' | 'declined' | 'expired';
-  lastUpdated: string;
-  responseTimeMinutes?: number;
-  isSelected?: boolean;
-  /** Aircraft category (e.g., "Heavy jet", "Light jet") - maps to aircraftCategory.name in API */
-  aircraftCategory?: string;
-  /** Whether medical equipment is available */
-  hasMedical?: boolean;
-  /** Whether package/cargo transport is available */
-  hasPackage?: boolean;
-  /** Deep link to view this flight in Avinode marketplace - maps to actions.viewInAvinode.href */
-  avinodeDeepLink?: string;
-  /** Message ID for retrieving specific operator messages (from webhook events) */
-  messageId?: string;
-  /**
-   * Operator message text - PRIMARY source: sellerMessage field from Avinode API
-   * Per Avinode API: GET /quotes/{quoteId} returns sellerMessage (string) containing operator's message
-   * FALLBACK: notes field or trip messages
-   * @see https://developer.avinodegroup.com/reference/readmessage
-   */
-  sellerMessage?: string;
-  /**
-   * Leg type for round-trip flights
-   * - 'outbound': First leg of a round-trip (departure to destination)
-   * - 'return': Second leg of a round-trip (destination back to origin)
-   * - undefined: One-way flight or leg type not specified
-   */
-  legType?: 'outbound' | 'return';
-  /**
-   * Leg sequence number for multi-leg trips
-   * - 1: First leg (outbound)
-   * - 2: Second leg (return)
-   * - 3+: Additional legs for multi-city
-   * - undefined: One-way flight or sequence not specified
-   */
-  legSequence?: number;
-}
+export type { RFQFlight } from '@/lib/chat/types';
+import type { RFQFlight } from '@/lib/chat/types';
 
 export interface RFQFlightCardProps {
   flight: RFQFlight;
@@ -453,6 +334,17 @@ export function RFQFlightCard({
   // Track expanded/collapsed state for compact view with "show more" functionality
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Resolve category-based stock image for fallback when no tail photo is available
+  const stockImageUrl = resolveAircraftImageUrlWeb({
+    tailPhotoUrl: flight.tailPhotoUrl,
+    aircraftType: flight.aircraftType,
+    aircraftModel: flight.aircraftModel,
+  });
+  // Use tail photo if available, otherwise use stock category image
+  const displayImageUrl = (flight.tailPhotoUrl && !imageError)
+    ? flight.tailPhotoUrl
+    : stockImageUrl;
+
     // Log flight data when component renders for debugging
     useEffect(() => {
       // Extract price and status fields for debugging
@@ -659,22 +551,14 @@ export function RFQFlightCard({
           <div
             className="bg-muted flex flex-col items-center justify-center shrink-0 w-20 h-20 sm:w-[120px] sm:h-[120px]"
           >
-            {flight.tailPhotoUrl && !imageError ? (
-              <img
-                src={flight.tailPhotoUrl}
-                alt={flight.aircraftModel}
-                className="w-full h-full object-cover"
-                style={{ objectFit: 'cover' }}
-                onError={handleImageError}
-              />
-            ) : (
-              <div
-                data-testid="aircraft-placeholder"
-                className="flex items-center justify-center w-full h-full bg-muted"
-              >
-                <Plane className="h-8 w-8 text-muted-foreground" />
-              </div>
-            )}
+            <img
+              src={displayImageUrl}
+              alt={flight.aircraftModel || flight.aircraftType || 'Aircraft'}
+              className="w-full h-full object-cover"
+              style={{ objectFit: 'cover' }}
+              onError={handleImageError}
+              data-testid={flight.tailPhotoUrl && !imageError ? undefined : 'aircraft-placeholder'}
+            />
           </div>
 
           {/* Compact Content: Aircraft details, messages */}
@@ -803,22 +687,14 @@ export function RFQFlightCard({
                 compact && isExpanded ? 'w-full aspect-5/6 max-h-[180px]' : 'w-full sm:w-[150px] h-[150px] sm:h-[180px] shrink-0'
               )}
             >
-              {flight.tailPhotoUrl && !imageError ? (
-                <img
-                  src={flight.tailPhotoUrl}
-                  alt={flight.aircraftModel}
-                  className="w-full h-full object-cover"
-                  style={{ objectFit: 'cover' }}
-                  onError={handleImageError}
-                />
-              ) : (
-                <div
-                  data-testid="aircraft-placeholder"
-                  className="flex items-center justify-center w-full h-full bg-muted"
-                >
-                  <Plane className="h-12 w-12 text-muted-foreground" />
-                </div>
-              )}
+              <img
+                src={displayImageUrl}
+                alt={flight.aircraftModel || flight.aircraftType || 'Aircraft'}
+                className="w-full h-full object-cover"
+                style={{ objectFit: 'cover' }}
+                onError={handleImageError}
+                data-testid={flight.tailPhotoUrl && !imageError ? undefined : 'aircraft-placeholder'}
+              />
             </div>
 
             {/* Column 2: Aircraft + Operator - Middle column (33.3%) */}

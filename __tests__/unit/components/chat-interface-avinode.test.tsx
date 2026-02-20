@@ -65,6 +65,15 @@ vi.mock('@/components/avinode', () => ({
   TripDetailsCard: vi.fn(() => (
     <div data-testid="trip-details-card">Trip Details</div>
   )),
+  EmptyLegWatchCreated: vi.fn(() => (
+    <div data-testid="empty-leg-watch-created">Watch Created</div>
+  )),
+  EmptyLegWatchList: vi.fn(() => (
+    <div data-testid="empty-leg-watch-list">Watch List</div>
+  )),
+  EmptyLegMatchViewer: vi.fn(() => (
+    <div data-testid="empty-leg-match-viewer">Match Viewer</div>
+  )),
 }));
 
 // Mock useAvinodeQuotes hook

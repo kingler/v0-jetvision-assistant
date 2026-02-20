@@ -165,6 +165,13 @@ export interface FlightSearchProgressProps {
   onGoBackFromProposal?: () => void;
   /** Which steps to render: 'steps-1-2', 'steps-3-4', or 'all' (default) */
   renderMode?: 'steps-1-2' | 'steps-3-4' | 'all';
+  /**
+   * Display mode:
+   * - 'full': Full 4-step workflow (default)
+   * - 'compact': Compact summary showing trip details + deep link only
+   *   (replaces the former TripCreatedUI composite)
+   */
+  displayMode?: 'full' | 'compact';
   /** Additional CSS class */
   className?: string;
 }
@@ -296,6 +303,7 @@ export function FlightSearchProgress({
   marginPercentage,
   onGoBackFromProposal,
   renderMode = 'all',
+  displayMode = 'full',
   className,
   isTripCreated = false,
 }: FlightSearchProgressProps) {
@@ -355,6 +363,28 @@ export function FlightSearchProgress({
 
     return fetchedAt.toLocaleString();
   };
+
+  // ── Compact display mode: trip summary + deep link only ──
+  if (displayMode === 'compact') {
+    return (
+      <div data-testid="flight-search-progress" className={cn('w-full space-y-3', className)}>
+        <TripRequestCard
+          flightRequest={flightRequest}
+          isCompleted={false}
+        />
+        {deepLink && (
+          <AvinodeSearchCard
+            deepLink={deepLink}
+            departureIcao={flightRequest.departureAirport?.icao}
+            arrivalIcao={flightRequest.arrivalAirport?.icao}
+            isCompleted={false}
+            onDeepLinkClick={onDeepLinkClick}
+            onCopyDeepLink={onCopyDeepLink}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div data-testid="flight-search-progress" className={cn('w-full', className)}>

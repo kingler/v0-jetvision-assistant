@@ -58,6 +58,9 @@ interface ResolveInput {
  * 2. If `aircraftType` matches a known category keyword, return the stock image path
  * 3. Otherwise, return the generic silhouette fallback
  *
+ * Returns **absolute filesystem paths** suitable for server-side React PDF rendering.
+ * For client-side (browser) rendering, use {@link resolveAircraftImageUrlWeb} instead.
+ *
  * @param input - Object containing optional tailPhotoUrl, aircraftType, and aircraftModel
  * @returns The resolved image URL or absolute file path
  */
@@ -78,4 +81,47 @@ export function resolveAircraftImageUrl(input: ResolveInput): string {
 
   // Tier 3: Generic silhouette fallback
   return FALLBACK_SILHOUETTE;
+}
+
+/**
+ * Web-relative category image paths for browser rendering.
+ * Maps category keys to `/images/aircraft/*.png` paths served by Next.js.
+ */
+const WEB_CATEGORY_IMAGES: Record<string, string> = {
+  heavy: '/images/aircraft/heavy-jet.png',
+  large: '/images/aircraft/large-jet.png',
+  midsize: '/images/aircraft/midsize-jet.png',
+  light: '/images/aircraft/light-jet.png',
+  turboprop: '/images/aircraft/turboprop.png',
+  helicopter: '/images/aircraft/helicopter.png',
+};
+
+const WEB_FALLBACK = '/images/aircraft/aircraft-silhouette.png';
+
+/**
+ * Resolves the best aircraft image URL for **client-side** rendering.
+ *
+ * Same 3-tier strategy as {@link resolveAircraftImageUrl} but returns
+ * web-relative paths (`/images/aircraft/...`) instead of absolute filesystem paths.
+ *
+ * @param input - Object containing optional tailPhotoUrl, aircraftType, and aircraftModel
+ * @returns Web-relative image path or external URL
+ */
+export function resolveAircraftImageUrlWeb(input: ResolveInput): string {
+  // Tier 1: Direct tail photo URL
+  if (input.tailPhotoUrl && input.tailPhotoUrl.trim().length > 0) {
+    return input.tailPhotoUrl;
+  }
+
+  // Tier 2: Category-based stock image (web path)
+  if (input.aircraftType) {
+    for (const [pattern, category] of CATEGORY_KEYWORDS) {
+      if (pattern.test(input.aircraftType)) {
+        return WEB_CATEGORY_IMAGES[category];
+      }
+    }
+  }
+
+  // Tier 3: Generic silhouette fallback
+  return WEB_FALLBACK;
 }

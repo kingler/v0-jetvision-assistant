@@ -2239,6 +2239,9 @@ export function ChatInterface({
     const contractMsg = activeChat.messages?.find(m => m.contractSentData?.contractId === paymentContractData.contractId)
     const contractData = contractMsg?.contractSentData
 
+    // Find proposal sent message for timeline
+    const proposalMsg = activeChat.messages?.find(m => m.showProposalSentConfirmation && m.proposalSentData)
+
     const response = await fetch(`/api/contract/${paymentContractData.contractId}/payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2292,10 +2295,13 @@ export function ChatInterface({
         flightRoute: paymentContractData.flightRoute || contractData?.flightRoute || '',
         dealValue: paymentData.paymentAmount,
         currency: paymentContractData.currency,
-        paymentReceivedAt: paidAt,
+        proposalSentAt: proposalMsg?.timestamp instanceof Date
+          ? proposalMsg.timestamp.toISOString()
+          : typeof proposalMsg?.timestamp === 'string' ? proposalMsg.timestamp : undefined,
         contractSentAt: contractMsg?.timestamp instanceof Date
           ? contractMsg.timestamp.toISOString()
           : typeof contractMsg?.timestamp === 'string' ? contractMsg.timestamp : undefined,
+        paymentReceivedAt: paidAt,
       },
     }
 

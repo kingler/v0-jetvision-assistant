@@ -56,3 +56,11 @@ export {
   type ProposalSentData,
   type CustomerData,
 } from './use-proposal-generation';
+
+export {
+  useReplyPolling,
+  type UseReplyPollingOptions,
+  type UseReplyPollingReturn,
+  type ReplyDetection,
+  type ReplyPollingState,
+} from './use-reply-polling';

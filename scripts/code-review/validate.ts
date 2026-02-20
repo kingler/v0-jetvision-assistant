@@ -82,8 +82,14 @@ class CodeReviewValidator {
         }
       }
 
-      // Check test file naming
-      if (file.includes('__tests__/') && !file.endsWith('.test.ts') && !file.endsWith('.test.tsx')) {
+      // Check test file naming (exclude fixtures and mocks directories)
+      if (
+        file.includes('__tests__/') &&
+        !file.includes('__tests__/fixtures/') &&
+        !file.includes('__tests__/mocks/') &&
+        !file.endsWith('.test.ts') &&
+        !file.endsWith('.test.tsx')
+      ) {
         this.errors.push(`Test file must end with .test.ts or .test.tsx: ${file}`);
       }
     }

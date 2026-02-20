@@ -381,6 +381,28 @@ export interface GenerateContractOutput {
 }
 
 // =============================================================================
+// WIRE TRANSFER INSTRUCTIONS
+// =============================================================================
+
+/**
+ * Wire transfer bank details for contract payment instructions page
+ */
+export interface WireTransferInstructions {
+  /** Bank name (e.g., "Chase Bank") */
+  bankName: string;
+  /** ABA routing number */
+  routingNumber: string;
+  /** Bank account number */
+  accountNumber: string;
+  /** Account holder name */
+  accountName: string;
+  /** SWIFT/BIC code for international wires */
+  swiftCode?: string;
+  /** Company mailing address (for check payments) */
+  mailingAddress?: string;
+}
+
+// =============================================================================
 // CONTRACT DATA FOR PDF TEMPLATE
 // =============================================================================
 
@@ -406,6 +428,8 @@ export interface ContractData {
   paymentMethod?: 'wire' | 'credit_card';
   /** Quote validity date */
   quoteValidUntil?: string;
+  /** Wire transfer bank details for payment instructions page */
+  wireTransferInstructions?: WireTransferInstructions;
 }
 
 // =============================================================================

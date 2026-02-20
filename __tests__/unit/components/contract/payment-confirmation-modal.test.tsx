@@ -215,5 +215,86 @@ describe('PaymentConfirmationModal', () => {
 
       expect(screen.queryByText(/Confirm Payment/i)).not.toBeInTheDocument();
     });
+
+    it('disables confirm button while submission is in progress', async () => {
+      // onConfirm that never resolves (simulates loading)
+      const onConfirm = vi.fn().mockReturnValue(new Promise(() => {}));
+      renderModal({ onConfirm });
+
+      const refInput = screen.getByPlaceholderText(/Wire transfer/i);
+      await userEvent.type(refInput, 'WT-001');
+
+      const confirmButton = screen.getByRole('button', { name: /Confirm Payment/i });
+      fireEvent.click(confirmButton);
+
+      // Button should be disabled during submission
+      await waitFor(() => {
+        expect(confirmButton).toBeDisabled();
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Edge cases (ONEK-247)
+  // ---------------------------------------------------------------------------
+
+  describe('Edge Cases', () => {
+    it('shows error when amount is negative', async () => {
+      renderModal();
+
+      const amountInput = screen.getByLabelText(/Payment Amount/i);
+      // Use fireEvent.change for negative values — jsdom number inputs with min="0" may reject typed "-"
+      fireEvent.change(amountInput, { target: { value: '-100' } });
+
+      const refInput = screen.getByPlaceholderText(/Wire transfer/i);
+      await userEvent.type(refInput, 'WT-001');
+
+      const confirmButton = screen.getByRole('button', { name: /Confirm Payment/i });
+      fireEvent.click(confirmButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/greater than 0/i)).toBeInTheDocument();
+      });
+    });
+
+    it('handles custom amount different from totalAmount', async () => {
+      const onConfirm = vi.fn().mockResolvedValue(undefined);
+      renderModal({ onConfirm });
+
+      const amountInput = screen.getByLabelText(/Payment Amount/i);
+      // Use fireEvent.change for reliable number input value setting in jsdom
+      fireEvent.change(amountInput, { target: { value: '25000' } });
+
+      const refInput = screen.getByPlaceholderText(/Wire transfer/i);
+      await userEvent.type(refInput, 'WT-PARTIAL');
+
+      const confirmButton = screen.getByRole('button', { name: /Confirm Payment/i });
+      fireEvent.click(confirmButton);
+
+      await waitFor(() => {
+        expect(onConfirm).toHaveBeenCalledWith(
+          expect.objectContaining({
+            paymentAmount: 25000,
+            paymentReference: 'WT-PARTIAL',
+          })
+        );
+      });
+    });
+
+    it('displays correct currency in the UI', () => {
+      renderModal({ currency: 'EUR' });
+
+      expect(screen.getByText(/EUR/)).toBeInTheDocument();
+    });
+
+    it('renders cancel button that calls onClose', async () => {
+      const onClose = vi.fn();
+      renderModal({ onClose });
+
+      const cancelButton = screen.getByRole('button', { name: /Cancel/i });
+      fireEvent.click(cancelButton);
+
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 });

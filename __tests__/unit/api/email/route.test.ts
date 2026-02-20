@@ -18,7 +18,13 @@ vi.mock('@/lib/utils/api', () => ({
   parseJsonBody: vi.fn(async (req) => req.json()),
 }));
 
+// Mock email service to prevent Gmail MCP connection attempts
+vi.mock('@/lib/services/email-service', () => ({
+  sendEmail: vi.fn(),
+}));
+
 import { getAuthenticatedAgent, isErrorResponse } from '@/lib/utils/api';
+import { sendEmail } from '@/lib/services/email-service';
 
 describe('GET /api/email - Email History', () => {
   const mockISOAgent = { id: 'iso-agent-123' };
@@ -109,12 +115,10 @@ describe('POST /api/email - Send Email', () => {
     vi.mocked(getAuthenticatedAgent).mockResolvedValue(mockISOAgent);
     vi.mocked(isErrorResponse).mockReturnValue(false);
 
-    vi.mocked(global.fetch).mockResolvedValue(
-      new Response(JSON.stringify({ messageId: 'msg-123', threadId: 'thr-456' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    );
+    vi.mocked(sendEmail).mockResolvedValue({
+      success: true,
+      messageId: 'msg-123',
+    });
 
     const request = new NextRequest('http://localhost:3000/api/email', {
       method: 'POST',

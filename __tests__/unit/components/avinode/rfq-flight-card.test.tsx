@@ -156,11 +156,14 @@ describe('RFQFlightCard', () => {
       expect(image).toHaveAttribute('src', 'https://example.com/g200.jpg');
     });
 
-    it('renders placeholder when no aircraft image', () => {
+    it('renders stock category image when no tail photo', () => {
       render(<RFQFlightCard flight={minimalFlight} />);
 
-      expect(screen.queryByRole('img')).not.toBeInTheDocument();
-      expect(screen.getByTestId('aircraft-placeholder')).toBeInTheDocument();
+      // With no tailPhotoUrl, the card should render a stock category image
+      const img = screen.getByTestId('aircraft-placeholder');
+      expect(img).toBeInTheDocument();
+      expect(img.tagName).toBe('IMG');
+      expect(img).toHaveAttribute('src', expect.stringContaining('/images/aircraft/'));
     });
   });
 

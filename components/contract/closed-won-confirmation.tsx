@@ -28,7 +28,9 @@ export function ClosedWonConfirmation({
   const formatTimestamp = (iso?: string): string => {
     if (!iso) return ''
     try {
-      return new Date(iso).toLocaleDateString('en-US', {
+      const d = new Date(iso)
+      if (isNaN(d.getTime())) return ''
+      return d.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',

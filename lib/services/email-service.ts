@@ -90,6 +90,62 @@ export interface SendContractEmailOptions {
 }
 
 // =============================================================================
+// BRANDED HTML EMAIL TEMPLATE
+// =============================================================================
+
+/**
+ * Wraps plain-text email content in a dark-branded HTML template
+ * matching the Jetvision PDF branding (#0a1628 header/footer, #00a8e8 accent).
+ *
+ * @param bodyContent - Inner HTML content (paragraphs, lists, etc.)
+ * @param preheader - Optional preheader text for email clients
+ * @returns Complete HTML email string
+ */
+export function wrapInBrandedTemplate(bodyContent: string, preheader?: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jetvision</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+  ${preheader ? `<div style="display:none;font-size:1px;color:#f4f4f7;line-height:1px;max-height:0;overflow:hidden;">${preheader}</div>` : ''}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;">
+    <tr>
+      <td align="center" style="padding:24px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#0a1628;padding:24px 32px;border-radius:8px 8px 0 0;text-align:center;">
+              <span style="font-size:24px;font-weight:bold;color:#ffffff;letter-spacing:1px;">JETVISION</span>
+              <br />
+              <span style="font-size:11px;color:#d4af37;letter-spacing:2px;">PRIVATE AVIATION</span>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="background-color:#ffffff;padding:32px;font-size:14px;line-height:1.6;color:#1a1a1a;">
+              ${bodyContent}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#0a1628;padding:20px 32px;border-radius:0 0 8px 8px;text-align:center;">
+              <span style="font-size:12px;color:#94a3b8;">Jetvision LLC &middot; Private Charter Made Simple</span>
+              <br />
+              <span style="font-size:11px;color:#64748b;">www.jetvision.com &middot; support@jetvision.com</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+// =============================================================================
 // EMAIL TEMPLATES
 // =============================================================================
 
@@ -126,29 +182,25 @@ function generateDefaultEmailBody(options: Required<Pick<SendProposalEmailOption
     }
   );
 
-  return `Dear ${customerName},
+  const bodyContent = `
+    <p>Dear ${customerName},</p>
+    <p>Thank you for considering Jetvision for your private charter needs.</p>
+    <p>Please find attached your customized proposal for your upcoming trip:</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;border-left:3px solid #00a8e8;padding-left:16px;">
+      <tr><td style="padding:4px 0;"><strong>Route:</strong> ${tripDetails.departureAirport} &rarr; ${tripDetails.arrivalAirport}</td></tr>
+      <tr><td style="padding:4px 0;"><strong>Date:</strong> ${formattedDate}</td></tr>
+      <tr><td style="padding:4px 0;"><strong>Total:</strong> ${formattedPrice}</td></tr>
+      <tr><td style="padding:4px 0;font-size:12px;color:#64748b;">Proposal ID: ${proposalId}</td></tr>
+    </table>
+    <p>The attached PDF contains detailed information about your selected aircraft options, pricing breakdown, and terms of service.</p>
+    <p>This quote is valid for <strong>48 hours</strong>. To book or if you have any questions, please reply to this email or contact our team directly.</p>
+    <p style="margin-top:24px;">Best regards,<br /><strong>The Jetvision Team</strong></p>
+  `;
 
-Thank you for considering Jetvision for your private charter needs.
-
-Please find attached your customized proposal for your upcoming trip:
-
-**Trip Details:**
-• Route: ${tripDetails.departureAirport} → ${tripDetails.arrivalAirport}
-• Date: ${formattedDate}
-• Total: ${formattedPrice}
-
-**Proposal ID:** ${proposalId}
-
-The attached PDF contains detailed information about your selected aircraft options, pricing breakdown, and terms of service.
-
-This quote is valid for 48 hours. To book or if you have any questions, please reply to this email or contact our team directly.
-
-Best regards,
-The Jetvision Team
-
----
-This email was sent by Jetvision - Private Charter Made Simple
-www.jetvision.com | support@jetvision.com`;
+  return wrapInBrandedTemplate(
+    bodyContent,
+    `Your charter proposal for ${tripDetails.departureAirport} → ${tripDetails.arrivalAirport}`,
+  );
 }
 
 // =============================================================================
@@ -465,39 +517,32 @@ function generateContractDefaultEmailBody(options: SendContractEmailOptions): st
     }
   );
 
-  return `Dear ${customerName},
+  const bodyContent = `
+    <p>Dear ${customerName},</p>
+    <p>Thank you for choosing Jetvision for your private charter flight.</p>
+    <p>Please find attached your Flight Charter Service Agreement for your upcoming trip:</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;border-left:3px solid #00a8e8;padding-left:16px;">
+      <tr><td style="padding:4px 0;"><strong>Route:</strong> ${flightDetails.departureAirport} &rarr; ${flightDetails.arrivalAirport}</td></tr>
+      <tr><td style="padding:4px 0;"><strong>Date:</strong> ${formattedDate}</td></tr>
+      <tr><td style="padding:4px 0;"><strong>Aircraft:</strong> ${flightDetails.aircraftType}</td></tr>
+      <tr><td style="padding:4px 0;"><strong>Total:</strong> ${formattedPrice}</td></tr>
+      <tr><td style="padding:4px 0;font-size:12px;color:#64748b;">Contract: ${contractNumber}</td></tr>
+    </table>
+    <p>The attached PDF contains your complete contract including flight summary, pricing, terms &amp; conditions, and signature page.</p>
+    <p><strong>To proceed with booking:</strong></p>
+    <ol style="margin:8px 0;padding-left:20px;">
+      <li>Sign the agreement on the signature page</li>
+      <li>Complete the payment information</li>
+      <li>Return the signed contract via email</li>
+    </ol>
+    <p>If you have any questions or need any modifications, please reply to this email or contact our team directly.</p>
+    <p style="margin-top:24px;">Best regards,<br /><strong>The Jetvision Team</strong></p>
+  `;
 
-Thank you for choosing Jetvision for your private charter flight.
-
-Please find attached your Flight Charter Service Agreement for your upcoming trip:
-
-**Flight Details:**
-• Route: ${flightDetails.departureAirport} → ${flightDetails.arrivalAirport}
-• Date: ${formattedDate}
-• Aircraft: ${flightDetails.aircraftType}
-• Total: ${formattedPrice}
-
-**Contract Number:** ${contractNumber}
-
-The attached PDF contains your complete contract including:
-• Flight summary and pricing breakdown
-• Terms and conditions
-• Signature page
-• Credit card authorization form (if paying by card)
-
-Please review the contract carefully. To proceed with booking:
-1. Sign the agreement on the signature page
-2. Complete the payment information
-3. Return the signed contract via email
-
-If you have any questions or need any modifications, please reply to this email or contact our team directly.
-
-Best regards,
-The Jetvision Team
-
----
-This email was sent by Jetvision - Private Charter Made Simple
-www.jetvision.com | support@jetvision.com`;
+  return wrapInBrandedTemplate(
+    bodyContent,
+    `Your flight contract for ${flightDetails.departureAirport} → ${flightDetails.arrivalAirport}`,
+  );
 }
 
 /**

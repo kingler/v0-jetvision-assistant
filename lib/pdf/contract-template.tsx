@@ -418,19 +418,19 @@ const styles = StyleSheet.create({
     fontStyle: 'italic' as const,
   },
 
-  // Footer styles
+  // Footer styles — dark branded bar matching proposal template
   footer: {
     position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     fontSize: 8,
-    color: '#666666',
-    borderTopWidth: 1,
-    borderTopColor: '#eeeeee',
-    paddingTop: 8,
+    color: '#94a3b8',
+    backgroundColor: '#0a1628',
+    paddingVertical: 10,
+    paddingHorizontal: 40,
   },
 });
 
@@ -1814,6 +1814,7 @@ function PaymentInstructionsPage({ data }: { data: ContractData }) {
   const logoPath = path.join(process.cwd(), 'public', 'images', 'jetvision-logo.png');
   const totalAmount = data.pricing.totalAmount || 0;
   const currency = data.pricing.currency || 'USD';
+  const wire = data.wireTransferInstructions;
 
   return (
     <Page size="LETTER" style={[styles.page, styles.pageWithFooter]}>
@@ -1833,24 +1834,26 @@ function PaymentInstructionsPage({ data }: { data: ContractData }) {
       <Text style={styles.paymentSectionTitle}>Wire Transfer</Text>
       <View style={styles.paymentInfoRow}>
         <Text style={styles.paymentInfoLabel}>Bank Name:</Text>
-        <Text style={styles.paymentInfoValue}>[Bank Name]</Text>
+        <Text style={styles.paymentInfoValue}>{wire?.bankName || '[Bank Name]'}</Text>
       </View>
       <View style={styles.paymentInfoRow}>
         <Text style={styles.paymentInfoLabel}>Routing Number (ABA):</Text>
-        <Text style={styles.paymentInfoValue}>[Routing Number]</Text>
+        <Text style={styles.paymentInfoValue}>{wire?.routingNumber || '[Routing Number]'}</Text>
       </View>
       <View style={styles.paymentInfoRow}>
         <Text style={styles.paymentInfoLabel}>Account Number:</Text>
-        <Text style={styles.paymentInfoValue}>[Account Number]</Text>
+        <Text style={styles.paymentInfoValue}>{wire?.accountNumber || '[Account Number]'}</Text>
       </View>
       <View style={styles.paymentInfoRow}>
         <Text style={styles.paymentInfoLabel}>Account Name:</Text>
-        <Text style={styles.paymentInfoValue}>Jetvision LLC</Text>
+        <Text style={styles.paymentInfoValue}>{wire?.accountName || 'Jetvision LLC'}</Text>
       </View>
-      <View style={styles.paymentInfoRow}>
-        <Text style={styles.paymentInfoLabel}>SWIFT Code (Intl):</Text>
-        <Text style={styles.paymentInfoValue}>[SWIFT Code]</Text>
-      </View>
+      {(wire?.swiftCode || !wire) && (
+        <View style={styles.paymentInfoRow}>
+          <Text style={styles.paymentInfoLabel}>SWIFT Code (Intl):</Text>
+          <Text style={styles.paymentInfoValue}>{wire?.swiftCode || '[SWIFT Code]'}</Text>
+        </View>
+      )}
       <View style={styles.paymentInfoRow}>
         <Text style={styles.paymentInfoLabel}>Reference:</Text>
         <Text style={styles.paymentInfoValue}>Contract #{data.contractNumber}</Text>
@@ -1862,11 +1865,11 @@ function PaymentInstructionsPage({ data }: { data: ContractData }) {
       <Text style={styles.paymentSectionTitle}>Check Payment</Text>
       <View style={styles.paymentInfoRow}>
         <Text style={styles.paymentInfoLabel}>Payable To:</Text>
-        <Text style={styles.paymentInfoValue}>Jetvision LLC</Text>
+        <Text style={styles.paymentInfoValue}>{wire?.accountName || 'Jetvision LLC'}</Text>
       </View>
       <View style={styles.paymentInfoRow}>
         <Text style={styles.paymentInfoLabel}>Mailing Address:</Text>
-        <Text style={styles.paymentInfoValue}>[Company Address]</Text>
+        <Text style={styles.paymentInfoValue}>{wire?.mailingAddress || '[Company Address]'}</Text>
       </View>
       <View style={styles.paymentInfoRow}>
         <Text style={styles.paymentInfoLabel}>Memo / Reference:</Text>

@@ -165,4 +165,128 @@ describe('ClosedWonConfirmation', () => {
 
     expect(screen.getByText(/CONTRACT-2026-001/)).toBeInTheDocument();
   });
+
+  // ---------------------------------------------------------------------------
+  // Edge cases (ONEK-248)
+  // ---------------------------------------------------------------------------
+
+  it('handles EUR currency formatting', () => {
+    render(
+      <ClosedWonConfirmation
+        {...defaultProps}
+        currency="EUR"
+        dealValue={185000}
+      />
+    );
+
+    expect(screen.getByText(/EUR/)).toBeInTheDocument();
+    expect(screen.getByText(/185,000\.00/)).toBeInTheDocument();
+  });
+
+  it('handles zero deal value', () => {
+    render(
+      <ClosedWonConfirmation
+        {...defaultProps}
+        dealValue={0}
+      />
+    );
+
+    expect(screen.getByText(/0\.00/)).toBeInTheDocument();
+  });
+
+  it('renders full timeline with all 3 dates', () => {
+    render(
+      <ClosedWonConfirmation
+        {...defaultProps}
+        proposalSentAt="2026-01-15T10:00:00Z"
+        contractSentAt="2026-01-20T14:00:00Z"
+        paymentReceivedAt="2026-02-01T09:00:00Z"
+      />
+    );
+
+    // All 3 timeline entries should be present
+    const labels = screen.getAllByText(/:$/);
+    expect(labels.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('handles long route string without overflow', () => {
+    render(
+      <ClosedWonConfirmation
+        {...defaultProps}
+        flightRoute="KTEB → EGLL → LFPB → LSZH → KTEB"
+      />
+    );
+
+    expect(screen.getByText('KTEB → EGLL → LFPB → LSZH → KTEB')).toBeInTheDocument();
+  });
+
+  it('handles invalid date strings gracefully', () => {
+    render(
+      <ClosedWonConfirmation
+        {...defaultProps}
+        proposalSentAt="not-a-date"
+      />
+    );
+
+    // Invalid date should be filtered out (formatTimestamp returns '')
+    expect(screen.queryByText('Proposal Sent:')).not.toBeInTheDocument();
+  });
+});
+
+// =============================================================================
+// PaymentConfirmedCard - Additional render variants (ONEK-248)
+// =============================================================================
+
+describe('PaymentConfirmedCard - Variants', () => {
+  const defaultProps = {
+    contractId: 'contract-uuid-456',
+    contractNumber: 'CONTRACT-2026-001',
+    paymentAmount: 45182.76,
+    paymentMethod: 'wire',
+    paymentReference: 'WT-2026-001',
+    paidAt: '2026-02-10T12:00:00Z',
+    currency: 'USD',
+  };
+
+  it('handles EUR currency', () => {
+    render(<PaymentConfirmedCard {...defaultProps} currency="EUR" />);
+
+    expect(screen.getByText(/EUR/)).toBeInTheDocument();
+  });
+
+  it('handles large payment amounts', () => {
+    render(
+      <PaymentConfirmedCard
+        {...defaultProps}
+        paymentAmount={1250000.50}
+      />
+    );
+
+    expect(screen.getByText(/1,250,000\.50/)).toBeInTheDocument();
+  });
+
+  it('handles unknown payment method gracefully', () => {
+    render(
+      <PaymentConfirmedCard
+        {...defaultProps}
+        paymentMethod="crypto"
+      />
+    );
+
+    // Should display the raw method or a fallback
+    expect(screen.getByText('Payment Received')).toBeInTheDocument();
+  });
+
+  it('renders long payment reference without breaking', () => {
+    render(
+      <PaymentConfirmedCard
+        {...defaultProps}
+        paymentReference="WT-2026-03-14-JOHN-SMITH-ACME-CORP-001"
+      />
+    );
+
+    expect(
+      screen.getByText('WT-2026-03-14-JOHN-SMITH-ACME-CORP-001')
+    ).toBeInTheDocument();
+  });
 });

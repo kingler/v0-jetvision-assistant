@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   MOCK_REQUEST_ID,
+  MOCK_CONTRACT_ID,
   mockPaymentConfirmedRichContent,
   mockDealClosedRichContent,
 } from '../../fixtures/payment-test-data';
@@ -211,6 +212,157 @@ describe('saveMessage - Payment Content Types', () => {
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({
         content_type: 'text',
+      })
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Edge cases (ONEK-246)
+  // ---------------------------------------------------------------------------
+
+  it('persists payment_confirmed with null richContent fields gracefully', async () => {
+    const { saveMessage } = await import('@/lib/conversation/message-persistence');
+
+    await saveMessage({
+      requestId: MOCK_REQUEST_ID,
+      senderType: 'ai_assistant',
+      content: 'Payment confirmed',
+      contentType: 'payment_confirmed',
+      richContent: {
+        paymentConfirmed: {
+          contractId: MOCK_CONTRACT_ID,
+          contractNumber: 'CONTRACT-2026-001',
+          paymentAmount: 0,
+          paymentMethod: 'wire',
+          paymentReference: '',
+          paidAt: '',
+          currency: 'USD',
+        },
+      },
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content_type: 'payment_confirmed',
+        rich_content: expect.objectContaining({
+          paymentConfirmed: expect.objectContaining({
+            paymentAmount: 0,
+            paymentReference: '',
+          }),
+        }),
+      })
+    );
+  });
+
+  it('persists deal_closed with proposalSentAt timestamp', async () => {
+    const { saveMessage } = await import('@/lib/conversation/message-persistence');
+
+    const richContent = {
+      dealClosed: {
+        ...mockDealClosedRichContent.dealClosed,
+        proposalSentAt: '2026-02-08T10:00:00Z',
+        contractSentAt: '2026-02-09T14:00:00Z',
+      },
+    };
+
+    await saveMessage({
+      requestId: MOCK_REQUEST_ID,
+      senderType: 'ai_assistant',
+      content: 'Deal closed',
+      contentType: 'deal_closed',
+      richContent,
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rich_content: expect.objectContaining({
+          dealClosed: expect.objectContaining({
+            proposalSentAt: '2026-02-08T10:00:00Z',
+            contractSentAt: '2026-02-09T14:00:00Z',
+          }),
+        }),
+      })
+    );
+  });
+
+  it('persists payment with credit_card method', async () => {
+    const { saveMessage } = await import('@/lib/conversation/message-persistence');
+
+    await saveMessage({
+      requestId: MOCK_REQUEST_ID,
+      senderType: 'ai_assistant',
+      content: 'Payment confirmed via credit card',
+      contentType: 'payment_confirmed',
+      richContent: {
+        paymentConfirmed: {
+          contractId: MOCK_CONTRACT_ID,
+          contractNumber: 'CONTRACT-2026-002',
+          paymentAmount: 92500,
+          paymentMethod: 'credit_card',
+          paymentReference: 'CC-4242-2026-001',
+          paidAt: '2026-02-14T16:30:00Z',
+          currency: 'USD',
+        },
+      },
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rich_content: expect.objectContaining({
+          paymentConfirmed: expect.objectContaining({
+            paymentMethod: 'credit_card',
+          }),
+        }),
+      })
+    );
+  });
+
+  it('persists payment with large amount (6+ digits)', async () => {
+    const { saveMessage } = await import('@/lib/conversation/message-persistence');
+
+    await saveMessage({
+      requestId: MOCK_REQUEST_ID,
+      senderType: 'ai_assistant',
+      content: 'Payment confirmed',
+      contentType: 'payment_confirmed',
+      richContent: {
+        paymentConfirmed: {
+          contractId: MOCK_CONTRACT_ID,
+          contractNumber: 'CONTRACT-2026-003',
+          paymentAmount: 1250000.50,
+          paymentMethod: 'wire',
+          paymentReference: 'WT-2026-003',
+          paidAt: '2026-02-14T16:30:00Z',
+          currency: 'EUR',
+        },
+      },
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rich_content: expect.objectContaining({
+          paymentConfirmed: expect.objectContaining({
+            paymentAmount: 1250000.50,
+            currency: 'EUR',
+          }),
+        }),
+      })
+    );
+  });
+
+  it('handles undefined richContent without crashing', async () => {
+    const { saveMessage } = await import('@/lib/conversation/message-persistence');
+
+    await saveMessage({
+      requestId: MOCK_REQUEST_ID,
+      senderType: 'ai_assistant',
+      content: 'Payment confirmed',
+      contentType: 'payment_confirmed',
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content_type: 'payment_confirmed',
       })
     );
   });

@@ -1,6 +1,14 @@
 'use client';
 
-import { TripSummaryCard, AvinodeDeepLinks } from '@/components/avinode';
+/**
+ * TripCreatedUI — Compact trip summary composite.
+ *
+ * Delegates to FlightSearchProgress with displayMode='compact'.
+ * Kept as a named export for backward compatibility and
+ * to provide a simpler API surface for the MCP UI layer.
+ */
+
+import { FlightSearchProgress } from '@/components/avinode';
 import type { UIActionResult } from '@mcp-ui/server';
 import { uiActionResultLink, uiActionResultNotification } from '@mcp-ui/server';
 
@@ -20,7 +28,6 @@ export interface TripCreatedUIProps {
   passengers: number;
   tripType?: 'single_leg' | 'round_trip' | 'multi_city';
   returnDate?: string;
-  /** All trip segments for multi-city/round-trip display */
   segments?: TripSegmentUI[];
   onAction: (action: UIActionResult) => void;
 }
@@ -34,45 +41,28 @@ export function TripCreatedUI({
   passengers,
   tripType,
   returnDate,
-  segments,
   onAction,
 }: TripCreatedUIProps) {
   return (
-    <div className="space-y-3">
-      <TripSummaryCard
-        tripId={tripId}
-        departureAirport={departureAirport}
-        arrivalAirport={arrivalAirport}
-        departureDate={departureDate}
-        passengers={passengers}
-        status="active"
-        tripType={tripType}
-        returnDate={returnDate}
-        segments={segments}
-        onCopyTripId={() => {
-          navigator.clipboard.writeText(tripId);
-          onAction(uiActionResultNotification('Trip ID copied'));
-        }}
-      />
-      <AvinodeDeepLinks
-        links={{
-          searchInAvinode: {
-            href: deepLink,
-            description: 'Search and send RFQs to operators',
-          },
-          viewInAvinode: {
-            href: deepLink,
-            description: 'View trip details in Avinode',
-          },
-          cancel: {
-            href: deepLink,
-            description: 'Cancel this trip',
-          },
-        }}
-        onLinkClick={(linkType) => {
-          onAction(uiActionResultLink(deepLink));
-        }}
-      />
-    </div>
+    <FlightSearchProgress
+      currentStep={2}
+      isTripCreated={true}
+      displayMode="compact"
+      flightRequest={{
+        departureAirport,
+        arrivalAirport,
+        departureDate,
+        passengers,
+        tripType: tripType === 'round_trip' ? 'round_trip' : 'one_way',
+        returnDate,
+      }}
+      deepLink={deepLink}
+      tripId={tripId}
+      onDeepLinkClick={() => onAction(uiActionResultLink(deepLink))}
+      onCopyDeepLink={() => {
+        navigator.clipboard.writeText(deepLink);
+        onAction(uiActionResultNotification('Deep link copied'));
+      }}
+    />
   );
 }

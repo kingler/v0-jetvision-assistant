@@ -21,6 +21,7 @@ import type {
   ContractFlightDetails,
   ContractCustomer,
   ContractAmenities,
+  WireTransferInstructions,
 } from '@/lib/types/contract';
 
 // =============================================================================
@@ -227,6 +228,29 @@ export function generateFileName(
 }
 
 /**
+ * Read wire transfer instructions from environment variables.
+ * Returns undefined if no bank details are configured.
+ */
+function getWireTransferInstructions(): WireTransferInstructions | undefined {
+  const bankName = process.env.WIRE_BANK_NAME;
+  const routingNumber = process.env.WIRE_ROUTING_NUMBER;
+  const accountNumber = process.env.WIRE_ACCOUNT_NUMBER;
+
+  if (!bankName && !routingNumber && !accountNumber) {
+    return undefined;
+  }
+
+  return {
+    bankName: bankName || '[Bank Name]',
+    routingNumber: routingNumber || '[Routing Number]',
+    accountNumber: accountNumber || '[Account Number]',
+    accountName: process.env.WIRE_ACCOUNT_NAME || 'Jetvision LLC',
+    swiftCode: process.env.WIRE_SWIFT_CODE,
+    mailingAddress: process.env.WIRE_MAILING_ADDRESS,
+  };
+}
+
+/**
  * Normalize amenities to ensure all fields have boolean values
  */
 function normalizeAmenities(amenities?: Partial<ContractAmenities>): ContractAmenities {
@@ -281,6 +305,7 @@ export async function generateContract(
     amenities,
     paymentMethod: input.paymentMethod,
     quoteValidUntil,
+    wireTransferInstructions: getWireTransferInstructions(),
   };
 
   // Generate contract PDF
@@ -373,6 +398,7 @@ export function prepareContractData(
     amenities,
     paymentMethod: input.paymentMethod,
     quoteValidUntil,
+    wireTransferInstructions: getWireTransferInstructions(),
   };
 }
 
