@@ -31,12 +31,12 @@ const buttonVariants = cva(
         // Destructive - Error red
         destructive:
           'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
-        // Outline - Primary hover (sky-blue-50 bg, sky-blue-500 text)
+        // Outline - Interactive hover (uses interactive-bg/text tokens)
         outline:
-          'border bg-background shadow-xs hover:bg-sky-blue-50 hover:border-primary hover:text-primary dark:bg-input/30 dark:border-input dark:hover:bg-sky-blue-900/20',
-        // Ghost - Primary hover (sky-blue-50 bg, sky-blue-500 text)
+          'border bg-background shadow-xs hover:bg-interactive-bg hover:border-primary hover:text-primary dark:bg-input/30 dark:border-input',
+        // Ghost - Interactive hover (uses interactive-bg/text tokens)
         ghost:
-          'hover:bg-sky-blue-50 hover:text-primary dark:hover:bg-sky-blue-900/20',
+          'hover:bg-interactive-bg hover:text-primary',
         // Header - for dark header; white text only; hover bg applied via globals.css
         header:
           'bg-transparent !text-white hover:!text-white',

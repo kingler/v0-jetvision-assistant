@@ -17,6 +17,11 @@
 import {
   brandColors,
   semanticColors,
+  statusColors,
+  interactiveColors,
+  surfaceColors,
+  extendedTextColors,
+  activeColors,
   spacing,
   radii,
   shadows,
@@ -113,6 +118,50 @@ export function getTailwindTheme(): TailwindTheme {
         'bg-dark': semanticColors.info.bg.dark,
         border: semanticColors.info.border.light,
         'border-dark': semanticColors.info.border.dark,
+      },
+
+      // Status colors (workflow badges, pipeline stages)
+      status: {
+        processing: statusColors.processing,
+        'closed-won': statusColors.closedWon,
+        'proposal-ready': statusColors.proposalReady,
+        'proposal-sent': statusColors.proposalSent,
+        'payment-pending': statusColors.paymentPending,
+        pending: statusColors.pending,
+        'contract-sent': statusColors.contractSent,
+        'contract-ready': statusColors.contractReady,
+        searching: statusColors.searching,
+        analyzing: statusColors.analyzing,
+        'rfq-quoted': statusColors.rfqQuoted,
+        'rfq-declined': statusColors.rfqDeclined,
+        'rfq-unanswered': statusColors.rfqUnanswered,
+      },
+
+      // Interactive colors (hover/active states)
+      interactive: {
+        bg: interactiveColors.bg,
+        text: interactiveColors.text,
+        border: interactiveColors.border,
+      },
+
+      // Surface hierarchy
+      surface: {
+        secondary: surfaceColors.secondary,
+        tertiary: surfaceColors.tertiary,
+        elevated: surfaceColors.elevated,
+      },
+
+      // Extended text colors
+      'text-ext': {
+        secondary: extendedTextColors.secondary,
+        tertiary: extendedTextColors.tertiary,
+        placeholder: extendedTextColors.placeholder,
+      },
+
+      // Active state colors
+      active: {
+        bg: activeColors.bg,
+        ring: activeColors.ring,
       },
     },
 

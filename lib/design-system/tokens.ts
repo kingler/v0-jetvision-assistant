@@ -109,6 +109,68 @@ export const semanticColors = {
 } as const;
 
 /**
+ * Status Colors - Workflow & RFQ Badge Colors
+ * Maps to CSS variables: --status-{name}
+ * Used for workflow badges, RFQ status indicators, and pipeline stages
+ */
+export const statusColors = {
+  processing: 'var(--status-processing)',
+  closedWon: 'var(--status-closed-won)',
+  proposalReady: 'var(--status-proposal-ready)',
+  proposalSent: 'var(--status-proposal-sent)',
+  paymentPending: 'var(--status-payment-pending)',
+  pending: 'var(--status-pending)',
+  contractSent: 'var(--status-contract-sent)',
+  contractReady: 'var(--status-contract-ready)',
+  searching: 'var(--status-searching)',
+  analyzing: 'var(--status-analyzing)',
+  rfqQuoted: 'var(--status-rfq-quoted)',
+  rfqDeclined: 'var(--status-rfq-declined)',
+  rfqUnanswered: 'var(--status-rfq-unanswered)',
+} as const;
+
+/**
+ * Interactive Colors - Hover/Active States for Clickable Elements
+ * Maps to CSS variables: --interactive-{property}
+ * Used for buttons, links, and interactive surfaces
+ */
+export const interactiveColors = {
+  bg: 'var(--interactive-bg)',
+  text: 'var(--interactive-text)',
+  border: 'var(--interactive-border)',
+} as const;
+
+/**
+ * Surface Colors - Background Hierarchy
+ * Maps to CSS variables: --surface-{level}
+ * Used for layered backgrounds (primary < secondary < tertiary < elevated)
+ */
+export const surfaceColors = {
+  secondary: 'var(--surface-secondary)',
+  tertiary: 'var(--surface-tertiary)',
+  elevated: 'var(--surface-elevated)',
+} as const;
+
+/**
+ * Extended Text Colors - Beyond foreground/muted
+ * Maps to CSS variables: --text-{level}
+ */
+export const extendedTextColors = {
+  secondary: 'var(--text-secondary)',
+  tertiary: 'var(--text-tertiary)',
+  placeholder: 'var(--text-placeholder)',
+} as const;
+
+/**
+ * Active State Colors - Selected/focused elements
+ * Maps to CSS variables: --active-{property}
+ */
+export const activeColors = {
+  bg: 'var(--active-bg)',
+  ring: 'var(--active-ring)',
+} as const;
+
+/**
  * CSS Variable Mappings
  * References to CSS variables defined in globals.css
  */
@@ -504,6 +566,11 @@ export const tokens = {
   colors: {
     brand: brandColors,
     semantic: semanticColors,
+    status: statusColors,
+    interactive: interactiveColors,
+    surface: surfaceColors,
+    extendedText: extendedTextColors,
+    active: activeColors,
     cssVars: cssVarColors,
   },
   typography: {
@@ -538,6 +605,9 @@ export const tokens = {
 // Type exports for TypeScript usage
 export type BrandColor = keyof typeof brandColors;
 export type SemanticColor = keyof typeof semanticColors;
+export type StatusColor = keyof typeof statusColors;
+export type InteractiveColor = keyof typeof interactiveColors;
+export type SurfaceColor = keyof typeof surfaceColors;
 export type FontSize = keyof typeof fontSizes;
 export type Spacing = keyof typeof spacing;
 export type Radius = keyof typeof radii;
