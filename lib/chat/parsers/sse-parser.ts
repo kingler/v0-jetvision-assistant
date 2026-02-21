@@ -430,30 +430,40 @@ export function extractDeepLinkData(data: SSEStreamData): {
 
       if (toolCall.name === 'create_trip' || toolCall.name === 'get_rfq') {
         showDeepLink = true;
-        tripData = {
-          trip_id: result.trip_id as string,
-          deep_link: (result.deep_link as string) ||
-            'https://sandbox.avinode.com/marketplace/mvc/search#preSearch',
-          departure_airport: result.departure_airport as any,
-          arrival_airport: result.arrival_airport as any,
-          departure_date: (result.route as any)?.departure?.date || result.departure_date as string,
-          passengers: result.passengers as number,
-        };
+        // Only build tripData from tool_calls if trip_data chunk didn't already provide it
+        // The trip_data SSE chunk is more complete (includes trip_type, return_date)
+        if (!tripData?.trip_id) {
+          tripData = {
+            trip_id: result.trip_id as string,
+            deep_link: (result.deep_link as string) ||
+              'https://sandbox.avinode.com/marketplace/mvc/search#preSearch',
+            departure_airport: result.departure_airport as any,
+            arrival_airport: result.arrival_airport as any,
+            departure_date: (result.route as any)?.departure?.date || result.departure_date as string,
+            passengers: result.passengers as number,
+            trip_type: result.trip_type as string,
+            return_date: result.return_date as string,
+          };
+        }
       }
 
       if (toolCall.name === 'create_rfp') {
         showDeepLink = true;
-        rfpData = {
-          trip_id: result.trip_id as string,
-          // Map API's rfp_id to internal rfq_id for naming consistency
-          rfq_id: (result.rfq_id || result.rfp_id) as string,
-          deep_link: (result.deep_link as string) ||
-            'https://sandbox.avinode.com/marketplace/mvc/search#preSearch',
-          departure_airport: result.departure_airport as any,
-          arrival_airport: result.arrival_airport as any,
-          departure_date: (result.route as any)?.departure?.date || result.departure_date as string,
-          passengers: result.passengers as number,
-        };
+        if (!rfpData?.trip_id) {
+          rfpData = {
+            trip_id: result.trip_id as string,
+            // Map API's rfp_id to internal rfq_id for naming consistency
+            rfq_id: (result.rfq_id || result.rfp_id) as string,
+            deep_link: (result.deep_link as string) ||
+              'https://sandbox.avinode.com/marketplace/mvc/search#preSearch',
+            departure_airport: result.departure_airport as any,
+            arrival_airport: result.arrival_airport as any,
+            departure_date: (result.route as any)?.departure?.date || result.departure_date as string,
+            passengers: result.passengers as number,
+            trip_type: result.trip_type as string,
+            return_date: result.return_date as string,
+          };
+        }
       }
     }
   }
