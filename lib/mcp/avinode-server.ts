@@ -45,8 +45,8 @@ export class AvinodeMCPServer extends BaseMCPServer {
     this.clientInitialized = true;
 
     // Read environment variables at call time (lazy loading)
-    this.apiKey = process.env.AVINODE_API_KEY || '';
-    const baseUrl = process.env.AVINODE_BASE_URL || 'https://sandbox.avinode.com/api';
+    this.apiKey = (process.env.AVINODE_API_KEY || '').trim();
+    const baseUrl = (process.env.AVINODE_BASE_URL || 'https://sandbox.avinode.com/api').trim();
 
     this.logger.info('Initializing Avinode client (lazy)', {
       apiKeyLength: this.apiKey.length,

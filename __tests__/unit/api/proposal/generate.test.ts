@@ -9,7 +9,7 @@
  * Generates PDF proposals from selected RFQ flights.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
@@ -142,6 +142,13 @@ function setupAuthMock(mode: 'success' | 'unauthorized' | 'not_found' = 'success
 // =============================================================================
 
 describe('POST /api/proposal/generate', () => {
+  let POST: typeof import('@/app/api/proposal/generate/route')['POST'];
+
+  beforeAll(async () => {
+    const mod = await import('@/app/api/proposal/generate/route');
+    POST = mod.POST;
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     setupAuthMock('success');
@@ -167,7 +174,7 @@ describe('POST /api/proposal/generate', () => {
 
   describe('Successful Requests', () => {
     it('generates a PDF proposal with valid input', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -181,7 +188,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('calls generateProposal with correct parameters', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
@@ -195,7 +202,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('includes pricing information in response', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -208,7 +215,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('includes generatedAt timestamp', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -219,7 +226,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('accepts custom jetvisionFeePercentage', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         jetvisionFeePercentage: 15,
@@ -239,7 +246,7 @@ describe('POST /api/proposal/generate', () => {
     it('returns 401 when not authenticated', async () => {
       setupAuthMock('unauthorized');
 
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -250,7 +257,7 @@ describe('POST /api/proposal/generate', () => {
     it('returns 404 when user not found in database', async () => {
       setupAuthMock('not_found');
 
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -261,7 +268,7 @@ describe('POST /api/proposal/generate', () => {
 
   describe('Validation Errors', () => {
     it('returns 400 when customer name is missing', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         customer: { email: 'test@example.com' },
@@ -275,7 +282,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 400 when customer email is missing', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         customer: { name: 'John Smith' },
@@ -289,7 +296,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 400 when selectedFlights is empty', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         selectedFlights: [],
@@ -303,7 +310,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 400 when tripDetails is missing', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         customer: validRequestBody.customer,
         selectedFlights: validRequestBody.selectedFlights,
@@ -317,7 +324,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 400 for invalid JSON body', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = new NextRequest('http://localhost:3000/api/proposal/generate', {
         method: 'POST',
         body: 'invalid-json',
@@ -338,7 +345,7 @@ describe('POST /api/proposal/generate', () => {
     it('returns 500 when PDF generation fails', async () => {
       mockGenerateProposal.mockRejectedValue(new Error('PDF generation failed'));
 
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -351,7 +358,7 @@ describe('POST /api/proposal/generate', () => {
     it('returns 500 with error details when generator throws', async () => {
       mockGenerateProposal.mockRejectedValue(new Error('Buffer allocation failed'));
 
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -364,7 +371,7 @@ describe('POST /api/proposal/generate', () => {
 
   describe('Response Format', () => {
     it('returns proper content type', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -373,7 +380,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns all required fields in success response', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -426,7 +433,7 @@ describe('POST /api/proposal/generate', () => {
     };
 
     it('generates proposal with both outbound and return legs', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(roundTripRequestBody);
 
       const response = await POST(request);
@@ -438,7 +445,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('calls generateProposal with round-trip tripDetails', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(roundTripRequestBody);
 
       await POST(request);
@@ -454,7 +461,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('calls generateProposal with both outbound and return flights', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(roundTripRequestBody);
 
       await POST(request);
@@ -470,7 +477,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 400 when round-trip is missing return date', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         tripDetails: {
@@ -487,7 +494,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 400 when round-trip is missing return flights', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         selectedFlights: [outboundFlight], // Only outbound, no return
@@ -501,7 +508,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 400 when round-trip is missing outbound flights', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         selectedFlights: [returnFlight], // Only return, no outbound
@@ -515,7 +522,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('returns 400 when return date is before departure date', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         tripDetails: {
@@ -533,7 +540,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('accepts one-way proposal without round-trip validation', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         tripDetails: {
@@ -550,7 +557,7 @@ describe('POST /api/proposal/generate', () => {
     });
 
     it('defaults to one-way when tripType is not specified', async () => {
-      const { POST } = await import('@/app/api/proposal/generate/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);

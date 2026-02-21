@@ -9,7 +9,7 @@
  * Generates PDF and sends proposal via email.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 // Import RFQFlight type from component (lib/mcp is excluded from tsconfig)
 import type { RFQFlight } from '../../../../components/avinode/rfq-flight-card';
@@ -170,6 +170,13 @@ function setupAuthMock(mode: 'success' | 'unauthorized' | 'not_found' = 'success
 // =============================================================================
 
 describe('POST /api/proposal/send', () => {
+  let POST: typeof import('../../../../app/api/proposal/send/route')['POST'];
+
+  beforeAll(async () => {
+    const mod = await import('../../../../app/api/proposal/send/route');
+    POST = mod.POST;
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     setupAuthMock('success');
@@ -212,7 +219,7 @@ describe('POST /api/proposal/send', () => {
 
   describe('Successful Requests', () => {
     it('generates PDF and sends email with valid input', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -225,7 +232,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('calls generateProposal before sending email', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
@@ -243,7 +250,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('sends email to customer email address', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
@@ -256,7 +263,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('uses custom email subject if provided', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
@@ -269,7 +276,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('uses custom email message if provided', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       await POST(request);
@@ -282,7 +289,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns email message ID on success', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -292,7 +299,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('includes pricing summary in response', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -307,7 +314,7 @@ describe('POST /api/proposal/send', () => {
     it('returns 401 when not authenticated', async () => {
       setupAuthMock('unauthorized');
 
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -318,7 +325,7 @@ describe('POST /api/proposal/send', () => {
     it('returns 404 when user not found in database', async () => {
       setupAuthMock('not_found');
 
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -329,7 +336,7 @@ describe('POST /api/proposal/send', () => {
 
   describe('Validation Errors', () => {
     it('returns 400 when customer email is missing', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         customer: { name: 'John Smith' },
@@ -343,7 +350,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('accepts passengers as an array of passenger objects', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         tripDetails: {
@@ -364,7 +371,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when passenger array has invalid type', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         tripDetails: {
@@ -383,7 +390,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when passenger array has missing name', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         tripDetails: {
@@ -402,7 +409,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when passenger array has invalid dateOfBirth format', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         tripDetails: {
@@ -421,7 +428,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when selectedFlights is empty', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         selectedFlights: [],
@@ -435,7 +442,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when customer email format is invalid', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         customer: { name: 'John', email: 'invalid-email' },
@@ -453,7 +460,7 @@ describe('POST /api/proposal/send', () => {
     it('returns 500 when PDF generation fails', async () => {
       mockGenerateProposal.mockRejectedValue(new Error('PDF generation failed'));
 
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -470,7 +477,7 @@ describe('POST /api/proposal/send', () => {
         error: 'SMTP connection failed',
       });
 
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -487,7 +494,7 @@ describe('POST /api/proposal/send', () => {
         error: 'SMTP connection failed',
       });
 
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -500,7 +507,7 @@ describe('POST /api/proposal/send', () => {
 
   describe('Response Format', () => {
     it('returns all required fields in success response', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(validRequestBody);
 
       const response = await POST(request);
@@ -515,7 +522,7 @@ describe('POST /api/proposal/send', () => {
 
   describe('Email Content', () => {
     it('includes customer name in email options', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         emailMessage: undefined,
@@ -531,7 +538,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('includes trip details in email options', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         emailMessage: undefined,
@@ -588,7 +595,7 @@ describe('POST /api/proposal/send', () => {
     };
 
     it('sends round-trip proposal with both legs', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(roundTripRequestBody);
 
       const response = await POST(request);
@@ -600,7 +607,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('includes round-trip details in email subject', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         emailSubject: undefined, // Let it use default
@@ -616,7 +623,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('includes return date in email trip details', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest(roundTripRequestBody);
 
       await POST(request);
@@ -631,7 +638,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when round-trip is missing return date', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         tripDetails: {
@@ -648,7 +655,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when round-trip is missing return flights', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         selectedFlights: [outboundFlight], // Only outbound
@@ -662,7 +669,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('returns 400 when round-trip is missing outbound flights', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         selectedFlights: [returnFlight], // Only return
@@ -702,7 +709,7 @@ describe('POST /api/proposal/send', () => {
         },
       });
 
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...roundTripRequestBody,
         selectedFlights: [outboundWithPrice, returnWithPrice],
@@ -718,7 +725,7 @@ describe('POST /api/proposal/send', () => {
     });
 
     it('works with one-way proposal (backward compatibility)', async () => {
-      const { POST } = await import('../../../../app/api/proposal/send/route');
+
       const request = createMockRequest({
         ...validRequestBody,
         tripDetails: {

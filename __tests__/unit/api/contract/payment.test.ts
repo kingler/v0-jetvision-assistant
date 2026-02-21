@@ -11,7 +11,7 @@
  * @see app/api/contract/[id]/payment/route.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import {
   MOCK_AGENT_ID,
@@ -78,8 +78,9 @@ function setupAuthMock(mode: 'success' | 'unauthorized' | 'not_found' = 'success
   }
 }
 
+let POST: typeof import('../../../../app/api/contract/[id]/payment/route')['POST'];
+
 async function callPOST(body: unknown) {
-  const { POST } = await import('../../../../app/api/contract/[id]/payment/route');
   const request = createMockRequest(body);
   return POST(request, { params: Promise.resolve({ id: MOCK_CONTRACT_ID }) });
 }
@@ -89,6 +90,11 @@ async function callPOST(body: unknown) {
 // =============================================================================
 
 describe('POST /api/contract/[id]/payment', () => {
+  beforeAll(async () => {
+    const mod = await import('../../../../app/api/contract/[id]/payment/route');
+    POST = mod.POST;
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     setupAuthMock('success');

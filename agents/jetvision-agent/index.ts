@@ -41,7 +41,7 @@ export class JetvisionAgent {
 
   constructor(context: AgentContext) {
     this.context = context;
-    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY?.trim() });
     this.toolExecutor = createToolExecutor(context);
   }
 
