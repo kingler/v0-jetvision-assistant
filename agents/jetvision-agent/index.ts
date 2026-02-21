@@ -86,6 +86,7 @@ export class JetvisionAgent {
       departure_date?: string;
       passengers?: number;
       return_date?: string;
+      trip_type?: string;
       special_requirements?: string;
     };
   }> {
@@ -236,6 +237,7 @@ export class JetvisionAgent {
       departure_date: createTripParams.departure_date as string | undefined,
       passengers: createTripParams.passengers as number | undefined,
       return_date: createTripParams.return_date as string | undefined,
+      trip_type: createTripParams.return_date ? 'round_trip' : (createTripParams.trip_type as string | undefined) || 'one_way',
       special_requirements: createTripParams.special_requirements as string | undefined,
     } : undefined;
 

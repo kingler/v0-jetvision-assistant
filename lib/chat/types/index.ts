@@ -82,6 +82,8 @@ export interface TripData {
   arrival_airport?: AirportInfo;
   departure_date?: string;
   passengers?: number;
+  trip_type?: string;
+  return_date?: string;
   route?: {
     departure?: { date?: string; airport?: AirportInfo };
     arrival?: { airport?: AirportInfo };

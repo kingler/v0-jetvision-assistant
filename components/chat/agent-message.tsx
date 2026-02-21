@@ -95,6 +95,8 @@ export interface AgentMessageProps {
     arrivalAirport?: { icao: string; name?: string; city?: string }
     departureDate?: string
     passengers?: number
+    tripType?: 'one_way' | 'round_trip'
+    returnDate?: string
     aircraftPreferences?: string
     specialRequirements?: string
   }
@@ -483,6 +485,8 @@ export function AgentMessage({
               ),
               departureDate: deepLinkData.departureDate || new Date().toISOString().split('T')[0],
               passengers: deepLinkData.passengers || 1,
+              tripType: deepLinkData.tripType,
+              returnDate: deepLinkData.returnDate,
               requestId: deepLinkData.rfqId,
               aircraftPreferences: deepLinkData.aircraftPreferences,
               specialRequirements: deepLinkData.specialRequirements,

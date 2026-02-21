@@ -1004,6 +1004,8 @@ export function ChatInterface({
         arrivalAirport: tripData?.arrival_airport,
         departureDate: tripData?.departure_date,
         passengers: tripData?.passengers,
+        tripType: (tripData?.trip_type || rfpData?.trip_type) === 'round_trip' ? 'round_trip' as const : 'one_way' as const,
+        returnDate: tripData?.return_date || rfpData?.return_date,
       } : undefined,
       showQuotes: quotes.length > 0 || (result.rfqData?.flights?.length ?? 0) > 0,
       showPipeline: !!result.pipelineData,
@@ -1064,6 +1066,15 @@ export function ChatInterface({
     const passengerCount = tripData?.passengers || rfpData?.passengers
     if (passengerCount) {
       updates.passengers = passengerCount
+    }
+    // Extract trip type and return date from SSE data
+    const tripType = tripData?.trip_type || rfpData?.trip_type
+    if (tripType) {
+      updates.tripType = tripType === 'round_trip' ? 'round_trip' : 'one_way'
+    }
+    const returnDate = tripData?.return_date || rfpData?.return_date
+    if (returnDate) {
+      updates.returnDate = returnDate
     }
 
     // Generate a descriptive name for the sidebar card
@@ -2818,10 +2829,14 @@ export function ChatInterface({
                       </div>
                     ) : process.env.NEXT_PUBLIC_ENABLE_MCP_UI === 'true' && message.toolResults?.length ? (
                       // MCP UI Registry path: render AgentMessageV2 with tool results
+                      // CRITICAL: Filter out create_trip tool results when the parent is already rendering FlightSearchProgress
+                      // This prevents duplicate FlightSearchProgress cards
                       <AgentMessageV2
                         content={stripMarkdown(message.content)}
                         timestamp={message.timestamp}
-                        toolResults={message.toolResults}
+                        toolResults={shouldShowFlightSearchProgress
+                          ? message.toolResults?.filter(tr => tr.name !== 'create_trip')
+                          : message.toolResults}
                         actionContext={{
                           sendMessage: (msg: string) => {
                             setInputValue(msg)

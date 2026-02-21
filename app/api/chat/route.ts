@@ -622,6 +622,7 @@ export async function POST(req: NextRequest) {
             departure_date: result.rfpData?.departure_date,
             passengers: result.rfpData?.passengers,
             return_date: result.rfpData?.return_date,
+            trip_type: result.rfpData?.trip_type,
             special_requirements: result.rfpData?.special_requirements,
           },
         });
