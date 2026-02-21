@@ -16,6 +16,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { MCPServerManager, ServerState } from '@/lib/services/mcp-server-manager';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 /**
  * Format uptime in milliseconds to human-readable string
  *

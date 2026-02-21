@@ -12,6 +12,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAircraftImages } from '@/lib/aircraft/image-search-service';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 // Simple in-memory rate limiter
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 10;
