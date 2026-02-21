@@ -109,16 +109,20 @@ export function TripRequestCard({
       <div className="space-y-3">
         {/* Route Visualization */}
         <div className="rounded-md bg-surface-secondary p-3 space-y-2">
-          {/* Trip Type Badge */}
+          {/* Trip Type Badge — supports one_way, round_trip, and multi_city */}
           <span
             className={cn(
               'inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap',
-              flightRequest.tripType === 'round_trip'
+              flightRequest.tripType === 'round_trip' || flightRequest.tripType === 'multi_city'
                 ? 'bg-primary/10 text-primary'
                 : 'bg-surface-tertiary text-muted-foreground',
             )}
           >
-            {flightRequest.tripType === 'round_trip' ? 'Round-Trip' : 'One-Way'}
+            {flightRequest.tripType === 'multi_city'
+              ? 'Multi-City'
+              : flightRequest.tripType === 'round_trip'
+                ? 'Round-Trip'
+                : 'One-Way'}
           </span>
 
           <div className="flex items-center justify-between gap-2">

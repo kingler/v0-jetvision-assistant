@@ -719,7 +719,7 @@ export default function AllToolUIDemoPage() {
                       arrivalAirport: { icao: 'KTEB', name: 'Teterboro Airport', city: 'Teterboro', state: 'NJ' },
                       departureDate: '2026-03-20',
                       passengers: 5,
-                      tripType: 'one_way',
+                      tripType: 'multi_city',
                     }}
                     isCompleted={false}
                   />

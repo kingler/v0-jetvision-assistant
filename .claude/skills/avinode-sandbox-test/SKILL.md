@@ -1,23 +1,25 @@
 ---
 name: avinode-sandbox-test
-description: Use when testing the complete Avinode integration workflow end-to-end, verifying bidirectional RFP flow between ISO agent and operator roles in the Avinode Sandbox, or when debugging Avinode deep link, webhook, or quote retrieval issues using browser automation.
+description: Use when testing the complete Avinode integration workflow end-to-end, from flight request through proposal, contract, payment, deal closure, and archival, verifying bidirectional RFP flow between ISO agent and operator roles in the Avinode Sandbox, or when debugging any stage of the charter flight lifecycle using browser automation.
 ---
 
 # Avinode Sandbox Integration Test
 
 ## Overview
 
-Interactive browser automation skill that tests the complete Avinode RFP workflow by driving Chrome through the full bidirectional flow: ISO agent creates trip via Jetvision, sends RFP in Avinode Marketplace, switches to Operator role to respond with a quote, then verifies the quote arrives back via webhook.
+Interactive browser automation skill that tests the **complete charter flight lifecycle** by driving Chrome through the full end-to-end flow: flight request entry, trip creation, RFP exchange, quote verification, proposal generation and email, contract generation and send, payment confirmation, deal closure, and trip archival.
 
 Uses `mcp__claude-in-chrome__*` tools for all browser interactions.
 
 ## When to Use
 
-- Testing the complete Avinode integration end-to-end after code changes
+- Testing the complete charter flight lifecycle end-to-end after code changes
 - Verifying deep link generation, webhook reception, and quote display
+- Testing proposal generation, PDF rendering, and email delivery
+- Testing contract generation, signing flow, and payment recording
 - Debugging Avinode API issues that require UI-level verification
 - After running `/avinode-sandbox-reset` to verify clean state
-- Before sprint demos to confirm the full RFP workflow works
+- Before sprint demos to confirm the full workflow works
 
 ## When NOT to Use
 
@@ -35,15 +37,23 @@ Uses `mcp__claude-in-chrome__*` tools for all browser interactions.
 ## Command Usage
 
 ```bash
-# Full workflow (all 5 phases)
+# Full workflow (all 10 phases)
 /avinode-sandbox-test
 
 # Specific phase only
-/avinode-sandbox-test --phase 1    # Login only
-/avinode-sandbox-test --phase 2    # ISO Agent: Create trip & send RFP
-/avinode-sandbox-test --phase 3    # Switch to Operator & respond
-/avinode-sandbox-test --phase 4    # Switch back & verify quote
-/avinode-sandbox-test --phase 5    # Verification summary
+/avinode-sandbox-test --phase 1     # Login to Avinode Sandbox
+/avinode-sandbox-test --phase 2     # ISO Agent: Create trip & send RFP
+/avinode-sandbox-test --phase 3     # Switch to Operator & submit quote
+/avinode-sandbox-test --phase 4     # Switch back & verify quote received
+/avinode-sandbox-test --phase 5     # Proposal generation & send (human-in-the-loop)
+/avinode-sandbox-test --phase 6     # Contract generation & send
+/avinode-sandbox-test --phase 7     # Payment confirmation
+/avinode-sandbox-test --phase 8     # Deal closure & archival
+/avinode-sandbox-test --phase 9     # Full verification summary (database + UI)
+
+# Phase ranges
+/avinode-sandbox-test --phase 1-4   # RFP flow only (original test)
+/avinode-sandbox-test --phase 5-8   # Post-quote flow only (proposal → close)
 ```
 
 ## Sandbox Credentials
@@ -76,24 +86,44 @@ digraph avinode_test {
   rankdir=TB;
   node [shape=box, style=rounded];
 
-  login [label="Phase 1: Login to Avinode"];
-  create_trip [label="Phase 2: Create Trip\n(via Jetvision App)"];
-  send_rfp [label="Phase 2b: Send RFP\n(in Avinode Marketplace)"];
+  login [label="Phase 1: Login\nto Avinode"];
+  create_trip [label="Phase 2: Flight Request\n& Trip Creation"];
+  send_rfp [label="Phase 2b: Send RFP\nin Avinode Marketplace"];
   switch_op [label="Phase 3: Switch to\nOperator Role"];
   respond [label="Phase 3b: Submit Quote\nas Operator"];
-  switch_back [label="Phase 4: Switch Back\nto ISO Agent"];
-  verify [label="Phase 4b: Verify Quote\nReceived"];
-  summary [label="Phase 5: Verification\nSummary"];
+  switch_back [label="Phase 4: Switch Back\n& Verify Quote"];
+  proposal [label="Phase 5: Proposal\nGeneration & Send"];
+  contract [label="Phase 6: Contract\nGeneration & Send"];
+  payment [label="Phase 7: Payment\nConfirmation"];
+  close [label="Phase 8: Deal Closure\n& Archival"];
+  summary [label="Phase 9: Full\nVerification Summary"];
 
   login -> create_trip;
   create_trip -> send_rfp;
   send_rfp -> switch_op;
   switch_op -> respond;
   respond -> switch_back;
-  switch_back -> verify;
-  verify -> summary;
+  switch_back -> proposal;
+  proposal -> contract;
+  contract -> payment;
+  payment -> close;
+  close -> summary;
 }
 ```
+
+### Phase Overview
+
+| Phase | Name | What Happens | Where |
+|-------|------|-------------|-------|
+| 1 | Login | Authenticate to Avinode Sandbox | Avinode tab |
+| 2 | Flight Request & RFP | Enter request in Jetvision chat, create trip, send RFP | Jetvision + Avinode tabs |
+| 3 | Operator Quote | Switch to Operator role, find RFP, submit $45K quote | Avinode tab |
+| 4 | Quote Verification | Switch back to ISO Agent, verify quote in Avinode + Jetvision | Both tabs |
+| 5 | Proposal | Ask agent to generate proposal, review email draft, approve send | Jetvision tab |
+| 6 | Contract | Ask agent to generate contract, review, send to client | Jetvision tab |
+| 7 | Payment | Tell agent payment received, verify confirmation card | Jetvision tab |
+| 8 | Close & Archive | Verify deal closed, archive session, check sidebar | Jetvision tab |
+| 9 | Verification | Database checks across all tables, generate pass/fail report | Supabase MCP |
 
 ---
 
@@ -180,34 +210,82 @@ digraph avinode_test {
 
 ## Trip Test Scenarios
 
-Use one of these three scenarios when creating a trip in Phase 2. Each tests a different trip type supported by the Avinode API.
+Use one of these scenarios when creating a trip in Phase 2. Scenarios A-C provide **full information** — all required fields are present in the initial message. Scenario D tests **ambiguous/vague requests** where the agent must ask clarifying questions before creating a trip.
 
-### Scenario A: One-Way Trip (Default)
+### Scenario A: One-Way Trip — Full Info (Default)
 
 ```txt
 I need a one way flight from KTEB to KVNY for 4 passengers on March 25, 2026 at 4:00pm EST
 ```
 
+**Expected behavior:** Agent creates trip immediately (no clarification needed).
 **Expected create_trip payload:** 1 leg (KTEB → KVNY)
 **Verification:** Single leg displayed in Avinode with correct departure time.
 
-### Scenario B: Round Trip
+### Scenario B: Round Trip — Full Info
 
 ```txt
 I need a round trip flight from KTEB to KVNY for 4 passengers on March 2, 2026 at 9:00am EST
 ```
 
+**Expected behavior:** Agent creates trip immediately. May prompt for return date/time if not inferred.
 **Expected create_trip payload:** 2 legs (KTEB → KVNY, KVNY → KTEB)
 **Verification:** Both outbound and return legs displayed in Avinode. Return date/time may be auto-calculated or prompted.
 
-### Scenario C: Multi-City Trip
+### Scenario C: Multi-City Trip — Full Info
 
 ```txt
 I need a multi-city trip: KTEB to London Luton (EGGW), then London Luton to Paris Le Bourget (LFPB), then Paris Le Bourget back to KTEB. March 10-15, 4 passengers
 ```
 
+**Expected behavior:** Agent creates trip immediately with all 3 legs.
 **Expected create_trip payload:** 3 legs (KTEB → EGGW, EGGW → LFPB, LFPB → KTEB)
 **Verification:** All 3 legs displayed in Avinode with correct airports. International airports resolve correctly.
+
+### Scenario D: Ambiguous / Vague Requests
+
+These requests are intentionally incomplete. The agent **must ask clarifying questions** before creating a trip. Use these to test the agent's clarification flow and NLP handling of imprecise inputs.
+
+**D1 — Vague cities, no ICAO codes:**
+
+```txt
+Book a flight for tomorrow for three people from New York to Canada
+```
+
+**Missing/ambiguous:** No ICAO codes, "Canada" is a country not an airport, "tomorrow" is relative, no departure time.
+**Expected agent behavior:**
+- Ask which airport in New York (KTEB, KJFK, KLGA, KHPN)
+- Ask which city/airport in Canada (CYYZ Toronto, CYUL Montreal, CYVR Vancouver, etc.)
+- Confirm passenger count (3)
+- Ask for departure time preference
+
+**D2 — States instead of airports:**
+
+```txt
+I need a flight from Florida to California tomorrow
+```
+
+**Missing/ambiguous:** States not airports, no specific cities, "tomorrow" is relative, no passenger count, no departure time.
+**Expected agent behavior:**
+- Ask which airport in Florida (KOPF, KFLL, KMIA, KTPA, KJAX, etc.)
+- Ask which airport in California (KVNY, KLAX, KSFO, KSAN, etc.)
+- Ask for number of passengers
+- Ask for departure time preference
+- Clarify one-way vs round trip
+
+**D3 — Vague date range, no departure time:**
+
+```txt
+I need a round trip flight from New York to Kansas for 4 passengers in March
+```
+
+**Missing/ambiguous:** "New York" and "Kansas" are regions not airports, "in March" has no specific date, no departure time.
+**Expected agent behavior:**
+- Ask which airport in New York (KTEB, KJFK, KLGA, KHPN)
+- Ask which airport in Kansas (KMCI Kansas City, KICT Wichita, etc.)
+- Ask for specific departure date within March
+- Ask for departure time
+- May ask for return date/time (round trip)
 
 ### Choosing a Scenario
 
@@ -216,7 +294,8 @@ I need a multi-city trip: KTEB to London Luton (EGGW), then London Luton to Pari
 | Default / quick test | A (One-Way) | Simplest, fastest to verify |
 | After NLP parser changes | B (Round Trip) | Tests return-leg generation |
 | After multi-leg or airport search changes | C (Multi-City) | Tests multi-leg creation + international ICAO resolution |
-| Full regression | All three sequentially | Complete coverage |
+| After clarification flow changes | D (Ambiguous) | Tests agent clarification questions and NLP disambiguation |
+| Full regression | All (A → B → C → D1 → D2 → D3) | Complete coverage |
 
 ---
 
@@ -242,7 +321,7 @@ I need a multi-city trip: KTEB to London Luton (EGGW), then London Luton to Pari
 
    If redirected to sign-in, authenticate with Clerk first.
 
-3. **Submit a flight request in the chat** (use one of the scenarios above):
+3. **Submit a flight request in the chat** (use one of the scenarios from Trip Test Scenarios):
 
    ```txt
    Tool: mcp__claude-in-chrome__form_input
@@ -270,18 +349,80 @@ I need a multi-city trip: KTEB to London Luton (EGGW), then London Luton to Pari
    tabId: <jetvision-tab-id>
    ```
 
-   Look for:
+   **For Scenarios A, B, C (Full Info)** — look for:
    - Trip creation confirmation
    - Deep link button ("Open in Avinode" or "Open in Avinode Marketplace")
    - Trip ID (format: `atrip-XXXXXXXX`)
    - Request ID
 
-   **Save these values:**
+   **For Scenario D (Ambiguous/Vague)** — look for:
+   - Clarifying questions from the agent (airport disambiguation, date/time, passenger count)
+   - Do NOT expect a trip to be created yet
+
+   If running Scenario D, proceed to **Step 5b (Clarification Loop)** below. Otherwise, skip to Step 6.
+
+#### Step 5b: Clarification Loop (Scenario D Only)
+
+When the agent asks clarifying questions, respond with specific answers to resolve ambiguities. Repeat until the agent has enough information to create a trip.
+
+   a. **Read the agent's clarification question:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   Identify what the agent is asking for (airport, date, time, passengers, trip type).
+
+   b. **Respond with a specific answer:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "textarea, input[placeholder*='message' i], [data-testid='chat-input']"
+       value: "<specific answer to the clarification question>"
+   ```
+
+   Example responses for each Scenario D variant:
+   - **D1:** "KTEB Teterboro" → "CYYZ Toronto Pearson" → "10:00am" → confirm
+   - **D2:** "KOPF Opa-locka, FL" → "KVNY Van Nuys, CA" → "2 passengers" → "one way" → "2:00pm" → confirm
+   - **D3:** "KTEB Teterboro" → "KMCI Kansas City" → "March 15, 2026" → "9:00am" → "March 18 return" → confirm
+
+   c. **Send the response:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button[type='submit'], button[aria-label*='send' i]"
+   ```
+
+   d. **Wait and read the agent's next message:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   **Repeat steps a-d** until the agent confirms all details and creates the trip. You should see:
+   - A confirmation summary of the resolved flight details
+   - Trip creation confirmation with deep link
+
+   **Verification for Scenario D:**
+   - [ ] Agent asked relevant clarifying questions (did not hallucinate airports)
+   - [ ] Agent correctly interpreted answers
+   - [ ] Agent did NOT create a trip before all required fields were resolved
+   - [ ] Final trip payload matches the resolved details
+
+6. **Save the trip details:**
+
+   **Save these values** (applies to all scenarios after trip is created):
    - `tripId`: The Avinode trip ID
    - `deepLinkUrl`: The full Avinode marketplace URL
    - `requestId`: The Jetvision request ID
 
-6. **Screenshot the deep link display:**
+7. **Screenshot the deep link display:**
 
    ```txt
    Tool: mcp__claude-in-chrome__upload_image
@@ -582,39 +723,478 @@ I need a multi-city trip: KTEB to London Luton (EGGW), then London Luton to Pari
 
 ---
 
-## Phase 5: Verification Summary
+## Phase 5: Proposal Generation & Send
+
+This phase tests the agent's ability to generate a proposal from the received quote and send it via email with human-in-the-loop approval.
+
+### Step 5a: Ask Agent to Generate Proposal
+
+1. **Tell the agent to create a proposal from the quote:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "textarea, input[placeholder*='message' i], [data-testid='chat-input']"
+       value: "Generate a proposal from the Sandbox Seller quote for $45,000"
+   ```
+
+2. **Send the message:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button[type='submit'], button[aria-label*='send' i]"
+   ```
+
+3. **Wait for agent response (up to 60 seconds):**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   Look for:
+   - Agent calling `create_proposal` tool
+   - Proposal number generated (format: `PROP-YYYY-NNN`)
+   - Proposal PDF created
+   - Agent asking if you want to send it to the client
+
+   **Save:** `proposalId`, `proposalNumber`
+
+4. **Screenshot the proposal confirmation:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__upload_image
+   tabId: <jetvision-tab-id>
+   ```
+
+### Step 5b: Send Proposal Email (Human-in-the-Loop)
+
+5. **Tell the agent to prepare the proposal email:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "textarea, input[placeholder*='message' i], [data-testid='chat-input']"
+       value: "Send the proposal to the client at test@example.com"
+   ```
+
+6. **Send the message:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button[type='submit'], button[aria-label*='send' i]"
+   ```
+
+7. **Wait for the EmailPreviewCard to appear:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   The agent should call `prepare_proposal_email` (NOT `send_proposal_email`), which renders an **EmailPreviewCard** UI component with:
+   - Email subject line
+   - Email body preview
+   - Recipient (test@example.com)
+   - PDF attachment indicator
+   - "Send Email" approval button
+
+   **Verification:**
+   - [ ] Agent used `prepare_proposal_email` (human-in-the-loop), NOT `send_proposal_email`
+   - [ ] EmailPreviewCard is visible with correct details
+
+8. **Approve the email by clicking Send:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button:has-text('Send Email'), button:has-text('Send'), [data-testid='approve-email']"
+   ```
+
+9. **Verify email sent confirmation:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   Look for:
+   - "Proposal sent" confirmation message
+   - Email message ID (Gmail tracking)
+   - Proposal status updated to "sent"
+
+10. **Screenshot the sent confirmation:**
+
+    ```txt
+    Tool: mcp__claude-in-chrome__upload_image
+    tabId: <jetvision-tab-id>
+    ```
+
+### Troubleshooting - Proposal
+
+| Issue | Solution |
+|-------|----------|
+| Agent calls `send_proposal_email` directly | This is a **FAIL** — agent should use `prepare_proposal_email` for human-in-the-loop |
+| No EmailPreviewCard appears | Check that the UI component renders tool results correctly |
+| Email send fails | Check Gmail MCP server is running, OAuth tokens are valid |
+| PDF not generated | Check `lib/pdf/proposal-generator.ts` for errors, verify quote data is complete |
+
+---
+
+## Phase 6: Contract Generation & Send
+
+This phase tests contract generation from the accepted proposal, PDF creation, and email delivery to the client.
+
+### Step 6a: Generate Contract
+
+1. **Tell the agent to generate a contract:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "textarea, input[placeholder*='message' i], [data-testid='chat-input']"
+       value: "Generate a contract for this deal and send it to the client"
+   ```
+
+2. **Send the message:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button[type='submit'], button[aria-label*='send' i]"
+   ```
+
+3. **Wait for agent response (up to 60 seconds):**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   Look for:
+   - Agent calling `generate_contract` tool
+   - Contract number generated (format: `CONTRACT-YYYY-NNN`)
+   - Contract PDF created with pricing breakdown:
+     - Flight cost
+     - Federal excise tax (7.5% for US domestic)
+     - Domestic segment fee ($5.20/pax/segment)
+     - Credit card fee percentage
+     - Total amount
+   - **ContractSentConfirmation** UI card with:
+     - Contract number
+     - Customer name and email
+     - Flight route
+     - Total amount
+     - "View Contract PDF" button
+     - Status badge ("sent")
+
+   **Save:** `contractId`, `contractNumber`
+
+4. **Verify the contract PDF link works:**
+
+   If a "View Contract PDF" button is visible:
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "a:has-text('View Contract'), button:has-text('View Contract'), [data-testid='view-contract-pdf']"
+   ```
+
+   Verify PDF opens with:
+   - Quote summary page (client, aircraft, amenities, itinerary, pricing)
+   - Terms & conditions (12 sections)
+   - Credit card authorization form
+
+5. **Screenshot the contract card:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__upload_image
+   tabId: <jetvision-tab-id>
+   ```
+
+### Troubleshooting - Contract
+
+| Issue | Solution |
+|-------|----------|
+| Contract generation fails | Check that proposal exists and has complete data |
+| PDF link returns 404 | Verify Supabase storage bucket "contracts" exists and is public |
+| Email not sent | Check Gmail MCP server, verify email-service.ts is configured |
+| Pricing shows $0 | Verify quote data includes flight cost; check contract-generator.ts |
+
+---
+
+## Phase 7: Payment Confirmation
+
+This phase tests manual payment recording. The system supports wire transfer, check, and credit card payments (no Stripe integration).
+
+### Steps
+
+1. **Tell the agent payment was received:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "textarea, input[placeholder*='message' i], [data-testid='chat-input']"
+       value: "Payment of $45,000 has been received via wire transfer, reference number WT-2026-SANDBOX-001"
+   ```
+
+2. **Send the message:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button[type='submit'], button[aria-label*='send' i]"
+   ```
+
+3. **Wait for agent response:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   Look for:
+   - Agent calling `confirm_payment` tool with:
+     - `contract_id`: The contract from Phase 6
+     - `payment_amount`: 45000
+     - `payment_method`: "wire"
+     - `payment_reference`: "WT-2026-SANDBOX-001"
+   - **PaymentConfirmedCard** UI component showing:
+     - Payment confirmed checkmark
+     - Contract number
+     - Amount paid ($45,000)
+     - Payment method (Wire Transfer)
+     - Reference number
+   - Contract status updated to "paid"
+
+   **Alternative:** If a **PaymentConfirmationModal** appears instead of automatic processing:
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "input[name*='amount'], input[placeholder*='amount' i]"
+       value: "45000"
+     - selector: "input[name*='reference'], input[placeholder*='reference' i]"
+       value: "WT-2026-SANDBOX-001"
+   ```
+
+   Select payment method "Wire Transfer" from the dropdown and click confirm.
+
+4. **Screenshot the payment confirmation:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__upload_image
+   tabId: <jetvision-tab-id>
+   ```
+
+### Troubleshooting - Payment
+
+| Issue | Solution |
+|-------|----------|
+| Agent doesn't recognize payment info | Rephrase with explicit amounts: "Confirm payment: $45,000, wire, ref WT-2026-SANDBOX-001" |
+| Payment API fails | Check `/api/contract/[id]/payment` route, verify contract exists and is in valid state |
+| Contract status not updated | Check contract-service.ts `updateContractPayment()` function |
+
+---
+
+## Phase 8: Deal Closure & Archival
+
+This phase verifies that the deal is marked as closed and the session can be archived.
+
+### Step 8a: Verify Deal Closure
+
+1. **Read the chat to check for deal closure:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   After payment confirmation, look for:
+   - **ClosedWonConfirmation** card with:
+     - Deal closed checkmark
+     - Contract number
+     - Customer name
+     - Flight route
+     - Deal value (green, large)
+     - Timeline: proposal sent → contract sent → payment received
+   - Workflow progress bar at step 10 ("Closed Won")
+
+   If deal closure card is not visible, explicitly ask:
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "textarea, input[placeholder*='message' i], [data-testid='chat-input']"
+       value: "Close the deal"
+   ```
+
+   Send and wait for the ClosedWonConfirmation card.
+
+2. **Screenshot the closed deal:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__upload_image
+   tabId: <jetvision-tab-id>
+   ```
+
+### Step 8b: Archive the Session
+
+3. **Find the archive button on the flight request card:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__find
+   tabId: <jetvision-tab-id>
+   query: "Archive"
+   ```
+
+4. **Click the archive action** (may be in a dropdown menu):
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button:has-text('Archive'), [data-testid='archive-button'], [aria-label*='archive' i]"
+   ```
+
+5. **Confirm archival if a dialog appears:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button:has-text('Confirm'), button:has-text('Yes'), [data-testid='confirm-archive']"
+   ```
+
+6. **Verify the session is archived:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   Check:
+   - Chat input is disabled with "This session is archived and read-only" message
+   - Session no longer appears in the "Active" sidebar tab
+
+7. **Verify session appears in Archive tab:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__find
+   tabId: <jetvision-tab-id>
+   query: "Archive"
+   ```
+
+   Click the "Archive" tab in the sidebar:
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "[data-testid='archive-tab'], button:has-text('Archive'), [role='tab']:has-text('Archive')"
+   ```
+
+   Verify the archived session appears in the list.
+
+8. **Screenshot the archived state:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__upload_image
+   tabId: <jetvision-tab-id>
+   ```
+
+### Troubleshooting - Archival
+
+| Issue | Solution |
+|-------|----------|
+| Archive button not visible | Check that session is in a completed/closed state; archive is only available for terminal states |
+| Session still appears in Active tab | Refresh the page and check again; the API may need a moment to update |
+| Archived sessions not loading | Check `/api/chat-sessions?status=archived` endpoint |
+
+---
+
+## Phase 9: Full Verification Summary
 
 ### Database Verification
 
-Use the Supabase MCP tools to verify webhook event storage:
+Use the Supabase MCP tools to verify the complete lifecycle data:
 
 1. **Check `avinode_webhook_events` table:**
    Query for the latest `TripRequestSellerResponse` event matching our trip ID.
 
 2. **Check `quotes` table:**
-   Query for quotes linked to our request ID.
+   Query for quotes linked to our request ID. Verify status reflects acceptance.
 
 3. **Check `requests` table:**
-   Verify the request has `avinode_trip_id` and `avinode_deep_link` populated.
+   Verify:
+   - `avinode_trip_id` and `avinode_deep_link` populated
+   - `status` is 'completed' or terminal state
+   - `session_status` is 'archived'
+   - `current_step` is 'closed_won'
+
+4. **Check `proposals` table:**
+   Query for proposals linked to our request ID. Verify:
+   - `status` is 'sent'
+   - `proposal_number` matches (PROP-YYYY-NNN)
+   - `sent_to_email` matches test client
+   - `file_url` is populated (PDF uploaded)
+
+5. **Check `contracts` table:**
+   Query for contracts linked to our request ID. Verify:
+   - `status` is 'paid' or 'completed'
+   - `contract_number` matches (CONTRACT-YYYY-NNN)
+   - `payment_amount` is 45000
+   - `payment_method` is 'wire'
+   - `payment_reference` is 'WT-2026-SANDBOX-001'
+   - `payment_received_at` is populated
+   - `file_url` is populated (PDF uploaded)
+
+6. **Check `messages` table:**
+   Query for messages in the conversation. Verify message content types include:
+   - Flight request (user message)
+   - Trip creation confirmation
+   - Quote received
+   - Proposal shared (`contentType: 'proposal_shared'`)
+   - Contract sent (`contentType: 'contract_shared'`)
+   - Payment confirmed (`contentType: 'payment_confirmed'`)
+   - Deal closed (`contentType: 'deal_closed'`)
 
 ### Summary Report
 
 Generate a pass/fail report:
 
-```
+```txt
 ============================================================
-  Avinode Sandbox Integration Test Report
+  Avinode Sandbox Full Lifecycle Test Report
 ============================================================
 
-Scenario: {A: One-Way | B: Round Trip | C: Multi-City}
-Route:    {KTEB→KVNY | KTEB→KVNY→KTEB | KTEB→EGGW→LFPB→KTEB}
+Scenario: {A: One-Way | B: Round Trip | C: Multi-City | D1/D2/D3: Ambiguous}
+Route:    {resolved route after clarification if Scenario D}
 Legs:     {1 | 2 | 3}
 
 Phase 1 - Login:
   [ ] Login successful
   [ ] Account verified as ISO Agent
 
-Phase 2 - Trip Creation & RFP:
+Phase 2 - Flight Request Entry & Trip Creation:
+  [ ] Flight request entered in Jetvision chat
+  [ ] (Scenario D only) Agent asked relevant clarifying questions
+  [ ] (Scenario D only) Agent did NOT create trip before all fields resolved
+  [ ] (Scenario D only) Agent correctly interpreted user answers
   [ ] Trip created via Jetvision (Trip ID: __________)
   [ ] Deep link generated (URL: __________)
   [ ] Correct number of legs created ({1|2|3})
@@ -633,6 +1213,45 @@ Phase 4 - Quote Verification:
   [ ] Quote visible in Jetvision app
   [ ] Webhook event stored in Supabase
 
+Phase 5 - Proposal Generation & Send:
+  [ ] Proposal created (Number: __________)
+  [ ] Proposal PDF generated
+  [ ] Agent used prepare_proposal_email (human-in-the-loop)
+  [ ] EmailPreviewCard displayed with correct details
+  [ ] Email approved and sent
+  [ ] Email confirmation with message ID
+  [ ] Proposal status updated to "sent" in DB
+
+Phase 6 - Contract Generation & Send:
+  [ ] Contract created (Number: __________)
+  [ ] Contract PDF generated with pricing breakdown
+  [ ] ContractSentConfirmation card displayed
+  [ ] Contract PDF accessible via link
+  [ ] Contract email sent to client
+  [ ] Contract status "sent" in DB
+
+Phase 7 - Payment Confirmation:
+  [ ] Payment recorded ($45,000 wire WT-2026-SANDBOX-001)
+  [ ] PaymentConfirmedCard displayed
+  [ ] Contract status updated to "paid" in DB
+  [ ] payment_received_at timestamp set
+
+Phase 8 - Deal Closure & Archival:
+  [ ] ClosedWonConfirmation card displayed with timeline
+  [ ] Workflow progress bar at step 10 (Closed Won)
+  [ ] Session archived successfully
+  [ ] Chat input disabled (read-only)
+  [ ] Session appears in Archive tab
+  [ ] session_status = "archived" in DB
+
+Phase 9 - Database Verification:
+  [ ] avinode_webhook_events has TripRequestSellerResponse
+  [ ] quotes table has quote linked to request
+  [ ] requests table has trip_id, deep_link, archived status
+  [ ] proposals table has sent proposal with PDF
+  [ ] contracts table has paid contract with payment data
+  [ ] messages table has full conversation history
+
 Overall: PASS / FAIL
 ============================================================
 ```
@@ -647,6 +1266,14 @@ Overall: PASS / FAIL
 | Submitting RFP without selecting an operator | Must select Sandbox Seller before sending |
 | Expecting instant webhook delivery | Webhook events may take 5-30 seconds; retry reads if not found |
 | Using production dates | Use dates 30+ days in the future for sandbox trips |
+| Scenario D: Skipping clarification loop | For ambiguous requests, do NOT expect immediate trip creation — wait for agent questions |
+| Scenario D: Providing ICAO codes in answers | Answer naturally (e.g., "Teterboro") to test NLP resolution, not "KTEB" |
+| Scenario D: Not verifying agent asked questions | Check that the agent identified missing fields before creating the trip |
+| Proposal: Not checking for human-in-the-loop | Agent MUST use `prepare_proposal_email`, not `send_proposal_email` directly |
+| Contract: Skipping PDF verification | Always click "View Contract PDF" to verify PDF renders correctly |
+| Payment: Using wrong format | Include amount, method, and reference in the chat message explicitly |
+| Archival: Trying to archive before deal is closed | Archive button only appears for terminal states (completed, closed_won, cancelled) |
+| Running Phase 5+ without completing Phase 4 | Phases 5-8 depend on a received quote; ensure Phase 4 passes first |
 
 ## Related Skills
 
@@ -658,4 +1285,28 @@ Overall: PASS / FAIL
 - [Avinode API Integration](docs/api/AVINODE_API_INTEGRATION.md)
 - [Deep Link Workflow](docs/subagents/agents/flight-search/DEEP_LINK_WORKFLOW.md)
 - [Webhook Events](docs/implementation/WORKFLOW-AVINODE-INTEGRATION.md)
+- [State Machine Diagram](docs/architecture/STATE_MACHINE_DIAGRAM.md)
 - [E2E Test: avinode-deeplink-workflow.spec.ts](__tests__/e2e/avinode-deeplink-workflow.spec.ts)
+
+## Key Files Reference
+
+| Area | File |
+|------|------|
+| Agent tools (26) | `agents/jetvision-agent/tools.ts` |
+| Agent system prompt | `lib/prompts/jetvision-system-prompt.ts` |
+| Chat API route | `app/api/chat/route.ts` |
+| Proposal API | `app/api/proposal/generate/route.ts`, `app/api/proposal/send/route.ts` |
+| Contract API | `app/api/contract/generate/route.ts`, `app/api/contract/send/route.ts` |
+| Payment API | `app/api/contract/[id]/payment/route.ts` |
+| Signing API | `app/api/contract/[id]/sign/route.ts` |
+| Proposal PDF | `lib/pdf/proposal-generator.ts`, `lib/pdf/proposal-template.tsx` |
+| Contract PDF | `lib/pdf/contract-generator.ts`, `lib/pdf/contract-template.tsx` |
+| Email service | `lib/services/email-service.ts` |
+| Proposal service | `lib/services/proposal-service.ts` |
+| Contract service | `lib/services/contract-service.ts` |
+| Archive API | `app/api/requests/route.ts` (PATCH with action: 'archive') |
+| Archive UI | `components/chat-sidebar.tsx`, `components/chat/flight-request-card.tsx` |
+| Contract UI | `components/contract/contract-sent-confirmation.tsx` |
+| Payment UI | `components/contract/payment-confirmed-card.tsx`, `payment-confirmation-modal.tsx` |
+| Closed Won UI | `components/contract/closed-won-confirmation.tsx` |
+| Gmail MCP | `mcp-servers/gmail-mcp-server/src/index.ts` |
