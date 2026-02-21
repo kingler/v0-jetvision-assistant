@@ -34,6 +34,8 @@ import { formatMessageTimestamp } from "@/lib/utils/format"
  */
 function stripMarkdown(text: string): string {
   return text
+    // Remove standalone JSON object lines (tool results leaked by model)
+    .replace(/^\s*\{"[^"]+"\s*:.*\}\s*$/gm, '')
     // Remove bold/italic markers
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')

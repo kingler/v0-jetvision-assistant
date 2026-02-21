@@ -206,7 +206,9 @@ export class JetvisionAgent {
       temperature: 0,
     });
 
-    const finalMessage = finalResponse.choices[0].message.content || '';
+    const rawContent = finalResponse.choices[0].message.content || '';
+    // gpt-5.2 may return reasoning/thinking tokens as leading newlines — strip them
+    const finalMessage = rawContent.replace(/^\n+/, '').trim() || rawContent;
 
     // Extract trip data if present
     let tripId: string | undefined;
