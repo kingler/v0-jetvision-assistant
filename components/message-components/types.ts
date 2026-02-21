@@ -226,6 +226,13 @@ export interface AvinodeTripSummaryComponent extends BaseMessageComponent {
   tripType?: 'single_leg' | 'round_trip' | 'multi_city';
   /** Return date for round-trip flights (YYYY-MM-DD) */
   returnDate?: string;
+  /** All trip segments for multi-city display */
+  segments?: Array<{
+    departureAirport: { icao: string; name: string; city: string };
+    arrivalAirport: { icao: string; name: string; city: string };
+    departureDate: string;
+    passengers: number;
+  }>;
   onCopyTripId?: () => void;
 }
 

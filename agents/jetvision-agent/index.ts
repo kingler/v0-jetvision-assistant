@@ -88,6 +88,12 @@ export class JetvisionAgent {
       return_date?: string;
       trip_type?: string;
       special_requirements?: string;
+      segments?: Array<{
+        departure_airport: unknown;
+        arrival_airport: unknown;
+        departure_date: string;
+        passengers: number;
+      }>;
     };
   }> {
     // Detect intent from message AND conversation history
@@ -234,14 +240,29 @@ export class JetvisionAgent {
 
     // Build rfpData from create_trip params only if trip was successfully created
     // Don't send rfpData when create_trip failed (e.g., forced call with empty params → 422)
+    const segments = createTripParams?.segments as Array<{
+      departure_airport: unknown;
+      arrival_airport: unknown;
+      departure_date: string;
+      passengers: number;
+    }> | undefined;
+
+    // Determine trip_type: multi_city if segments present, round_trip if return_date, else one_way
+    const tripType = (segments && segments.length > 1)
+      ? 'multi_city'
+      : createTripParams?.return_date
+        ? 'round_trip'
+        : (createTripParams?.trip_type as string | undefined) || 'one_way';
+
     const rfpData = (createTripParams && tripId) ? {
       departure_airport: createTripParams.departure_airport as string | undefined,
       arrival_airport: createTripParams.arrival_airport as string | undefined,
       departure_date: createTripParams.departure_date as string | undefined,
       passengers: createTripParams.passengers as number | undefined,
       return_date: createTripParams.return_date as string | undefined,
-      trip_type: createTripParams.return_date ? 'round_trip' : (createTripParams.trip_type as string | undefined) || 'one_way',
+      trip_type: tripType,
       special_requirements: createTripParams.special_requirements as string | undefined,
+      segments,
     } : undefined;
 
     return {

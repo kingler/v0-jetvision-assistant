@@ -156,6 +156,7 @@ export function MessageRenderer({ component, onAction, className }: MessageRende
           status={component.status}
           tripType={component.tripType}
           returnDate={component.returnDate}
+          segments={component.segments}
           onCopyTripId={component.onCopyTripId || (() => handleAction('copy_trip_id', { tripId: component.tripId }))}
         />
       );
