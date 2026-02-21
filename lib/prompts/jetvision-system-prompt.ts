@@ -1137,9 +1137,11 @@ export const FORCED_TOOL_PATTERNS: Array<{
   /**
    * Clarification-style: "KTEB (Teterboro) to KMCI (Kansas City Intl) at 4:00pm EST".
    * Agent previously asked for airports; user supplies ICAO pair. Force create_trip.
+   * IMPORTANT: Require uppercase ICAO codes only (case-sensitive) to avoid false positives
+   * like "flight from New York to Miami" where "New " and "Miam" would match [A-Z]{4}/i
    */
   {
-    pattern: /\b([A-Z]{4})\s*(?:\([^)]*\))?\s+to\s+([A-Z]{4})\s*(?:\([^)]*\))?/i,
+    pattern: /\b([A-Z]{4})\s*(?:\([^)]*\))?\s+to\s+([A-Z]{4})\s*(?:\([^)]*\))?/,
     toolName: 'create_trip',
     description: 'ICAO-to-ICAO clarification (follow-up after airport request)',
   },

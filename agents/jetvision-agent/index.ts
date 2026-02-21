@@ -230,8 +230,9 @@ export class JetvisionAgent {
       }
     }
 
-    // Build rfpData from create_trip params if available
-    const rfpData = createTripParams ? {
+    // Build rfpData from create_trip params only if trip was successfully created
+    // Don't send rfpData when create_trip failed (e.g., forced call with empty params → 422)
+    const rfpData = (createTripParams && tripId) ? {
       departure_airport: createTripParams.departure_airport as string | undefined,
       arrival_airport: createTripParams.arrival_airport as string | undefined,
       departure_date: createTripParams.departure_date as string | undefined,
