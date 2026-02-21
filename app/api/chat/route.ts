@@ -660,9 +660,17 @@ export async function POST(req: NextRequest) {
     return new Response(stream, { headers: SSE_HEADERS });
 
   } catch (error) {
-    console.error('[Chat API] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return Response.json({ error: errorMessage }, { status: 500 });
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('[Chat API] Error:', {
+      message: errorMessage,
+      stack: errorStack,
+      name: error instanceof Error ? error.name : typeof error,
+    });
+    return Response.json({
+      error: errorMessage,
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    }, { status: 500 });
   }
 }
 
@@ -671,9 +679,30 @@ export async function POST(req: NextRequest) {
 // =============================================================================
 
 export async function GET() {
+  // Quick connectivity checks
+  const checks: Record<string, string> = {};
+
+  // Check OpenAI
+  try {
+    const openai = new (await import('openai')).default({ apiKey: process.env.OPENAI_API_KEY?.trim() });
+    const models = await openai.models.list();
+    checks.openai = `ok (${models.data.length} models)`;
+  } catch (e) {
+    checks.openai = `error: ${e instanceof Error ? e.message : String(e)}`;
+  }
+
+  // Check Supabase
+  try {
+    const { count, error } = await supabaseAdmin.from('iso_agents').select('id', { count: 'exact', head: true });
+    checks.supabase = error ? `error: ${error.message}` : `ok (${count} agents)`;
+  } catch (e) {
+    checks.supabase = `error: ${e instanceof Error ? e.message : String(e)}`;
+  }
+
   return Response.json({
     status: 'ok',
     agent: 'JetvisionAgent',
+    checks,
     tools: {
       avinode: 8,
       database: 12,
