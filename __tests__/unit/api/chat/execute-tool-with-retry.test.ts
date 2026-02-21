@@ -3,7 +3,7 @@
  * ONEK-82: Add Retry Logic and Error Handling for Tool Execution
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 // Mock dependencies
@@ -25,6 +25,12 @@ describe('executeToolWithRetry()', () => {
   let mockClient: ReturnType<typeof createMockMCPClient>;
   let mockEncoder: ReturnType<typeof createMockEncoder>;
   let mockController: ReturnType<typeof createMockController>;
+  let executeToolWithRetry: Awaited<typeof import('@/lib/mcp/tool-executor')>['executeToolWithRetry'];
+
+  beforeAll(async () => {
+    const mod = await import('@/lib/mcp/tool-executor');
+    executeToolWithRetry = mod.executeToolWithRetry;
+  }, 30_000);
 
   beforeEach(() => {
     mockClient = createMockMCPClient();
@@ -40,7 +46,7 @@ describe('executeToolWithRetry()', () => {
       };
       mockClient.callTool.mockResolvedValue(mockResult);
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       const result = await executeToolWithRetry(
         'search_flights',
         { departure: 'KJFK' },
@@ -59,7 +65,7 @@ describe('executeToolWithRetry()', () => {
       };
       mockClient.callTool.mockResolvedValue(mockResult);
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
       // Should emit tool_call_start and tool_call_result, but NOT tool_call_retry
@@ -82,7 +88,7 @@ describe('executeToolWithRetry()', () => {
           content: [{ type: 'text', text: '{"success": true}' }],
         });
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       const result = await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
       expect(mockClient.callTool).toHaveBeenCalledTimes(3);
@@ -111,7 +117,7 @@ describe('executeToolWithRetry()', () => {
         return originalSetTimeout(fn, 0); // Execute immediately for test
       }) as any;
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
       global.setTimeout = originalSetTimeout;
@@ -133,7 +139,7 @@ describe('executeToolWithRetry()', () => {
       const originalMathRandom = Math.random;
       Math.random = vi.fn(() => 0);
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
       Math.random = originalMathRandom;
@@ -157,7 +163,7 @@ describe('executeToolWithRetry()', () => {
           content: [{ type: 'text', text: '{}' }],
         });
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       const result = await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
       expect(mockClient.callTool).toHaveBeenCalledTimes(2);
@@ -171,7 +177,7 @@ describe('executeToolWithRetry()', () => {
           content: [{ type: 'text', text: '{}' }],
         });
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
       expect(mockClient.callTool).toHaveBeenCalledTimes(2);
@@ -184,7 +190,7 @@ describe('executeToolWithRetry()', () => {
           content: [{ type: 'text', text: '{}' }],
         });
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
       expect(mockClient.callTool).toHaveBeenCalledTimes(2);
@@ -195,7 +201,7 @@ describe('executeToolWithRetry()', () => {
     it('should not retry on validation errors', async () => {
       mockClient.callTool.mockRejectedValue(new Error('Invalid arguments: missing required field'));
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
@@ -207,7 +213,7 @@ describe('executeToolWithRetry()', () => {
     it('should not retry on tool not found errors', async () => {
       mockClient.callTool.mockRejectedValue(new Error('Tool not found: invalid_tool'));
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry('invalid_tool', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
@@ -219,7 +225,7 @@ describe('executeToolWithRetry()', () => {
     it('should not retry on 400 Bad Request', async () => {
       mockClient.callTool.mockRejectedValue(new Error('HTTP 400: Bad Request'));
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
@@ -231,7 +237,7 @@ describe('executeToolWithRetry()', () => {
     it('should not retry on 401 Unauthorized', async () => {
       mockClient.callTool.mockRejectedValue(new Error('HTTP 401: Unauthorized'));
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
@@ -243,7 +249,7 @@ describe('executeToolWithRetry()', () => {
     it('should not retry on 404 Not Found', async () => {
       mockClient.callTool.mockRejectedValue(new Error('HTTP 404: Not Found'));
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
@@ -257,7 +263,7 @@ describe('executeToolWithRetry()', () => {
     it('should throw after 3 failed attempts', async () => {
       mockClient.callTool.mockRejectedValue(new Error('ETIMEDOUT'));
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
@@ -269,7 +275,7 @@ describe('executeToolWithRetry()', () => {
     it('should emit final error event after max retries', async () => {
       mockClient.callTool.mockRejectedValue(new Error('Network error'));
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
@@ -289,7 +295,7 @@ describe('executeToolWithRetry()', () => {
       const consoleSpy = vi.spyOn(console, 'log');
       mockClient.callTool.mockRejectedValue(new Error('Timeout'));
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)
@@ -319,7 +325,7 @@ describe('executeToolWithRetry()', () => {
         return originalSetTimeout(fn, 0); // Execute immediately
       }) as any;
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
 
       await expect(
         executeToolWithRetry(
@@ -353,7 +359,7 @@ describe('executeToolWithRetry()', () => {
         return originalSetTimeout(fn, 0);
       }) as any;
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       await executeToolWithRetry(
         'search_flights',
         {},
@@ -377,7 +383,7 @@ describe('executeToolWithRetry()', () => {
           )
       );
 
-      const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+
       const result = await executeToolWithRetry(
         'search_flights',
         {},
@@ -407,7 +413,7 @@ describe('executeToolWithRetry()', () => {
           .mockRejectedValueOnce(new Error(errorMsg))
           .mockResolvedValueOnce({ content: [{ type: 'text', text: '{}' }] });
 
-        const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+  
         await executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any);
 
         expect(mockClient.callTool).toHaveBeenCalledTimes(2);
@@ -428,7 +434,7 @@ describe('executeToolWithRetry()', () => {
       for (const errorMsg of permanentErrors) {
         mockClient.callTool.mockRejectedValue(new Error(errorMsg));
 
-        const executeToolWithRetry = (await import('@/lib/mcp/tool-executor')).executeToolWithRetry;
+  
 
         await expect(
           executeToolWithRetry('search_flights', {}, mockClient as unknown as Client, mockEncoder as any, mockController as any)

@@ -684,13 +684,13 @@ describe('CircuitBreaker', () => {
       });
 
       const nonCriticalFn = async () => {
-        throw new Error('non-critical error');
+        throw new Error('minor error');
       };
       const criticalFn = async () => {
         throw new Error('critical error');
       };
 
-      // Non-critical errors should not trip the circuit
+      // Minor errors should not trip the circuit
       for (let i = 0; i < 5; i++) {
         try {
           await circuitBreaker.execute(nonCriticalFn);

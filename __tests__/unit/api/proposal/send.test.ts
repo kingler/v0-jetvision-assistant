@@ -175,7 +175,7 @@ describe('POST /api/proposal/send', () => {
   beforeAll(async () => {
     const mod = await import('../../../../app/api/proposal/send/route');
     POST = mod.POST;
-  });
+  }, 30_000);
 
   beforeEach(() => {
     vi.clearAllMocks();

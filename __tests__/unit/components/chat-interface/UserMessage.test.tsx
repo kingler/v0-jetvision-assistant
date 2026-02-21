@@ -15,12 +15,12 @@ describe('UserMessage', () => {
     expect(screen.getByText('Hello, I need a flight')).toBeInTheDocument();
   });
 
-  it('should apply blue bubble styling', () => {
+  it('should apply primary bubble styling', () => {
     render(<UserMessage content="Test message" />);
 
     const bubble = screen.getByText('Test message').closest('div');
-    expect(bubble).toHaveClass('bg-blue-600');
-    expect(bubble).toHaveClass('text-white');
+    expect(bubble).toHaveClass('bg-primary');
+    expect(bubble).toHaveClass('text-primary-foreground');
     expect(bubble).toHaveClass('rounded-2xl');
   });
 
@@ -44,7 +44,7 @@ describe('UserMessage', () => {
     render(<UserMessage content="Test message" />);
 
     // Check that there's no time element
-    const timeElements = document.querySelectorAll('.text-blue-200');
+    const timeElements = document.querySelectorAll('.text-primary-foreground\\/60');
     expect(timeElements.length).toBe(0);
   });
 

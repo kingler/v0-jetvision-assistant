@@ -147,7 +147,7 @@ describe('POST /api/proposal/generate', () => {
   beforeAll(async () => {
     const mod = await import('@/app/api/proposal/generate/route');
     POST = mod.POST;
-  });
+  }, 30_000);
 
   beforeEach(() => {
     vi.clearAllMocks();

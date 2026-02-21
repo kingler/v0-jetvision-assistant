@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 // Mock supabase mcp-helpers before import
 vi.mock('../../../lib/supabase/mcp-helpers', () => ({
@@ -13,35 +13,31 @@ vi.mock('../../../lib/supabase/mcp-helpers', () => ({
 }));
 
 describe('Supabase MCP Server Module', () => {
-  it('should export createServerInstance factory', async () => {
-    const { createServerInstance } = await import(
+  let serverModule: typeof import('../../../mcp-servers/supabase-mcp-server/src/server');
+
+  beforeAll(async () => {
+    serverModule = await import(
       '../../../mcp-servers/supabase-mcp-server/src/server'
     );
-    expect(typeof createServerInstance).toBe('function');
+  }, 30_000);
+
+  it('should export createServerInstance factory', () => {
+    expect(typeof serverModule.createServerInstance).toBe('function');
   });
 
-  it('should export loadHelpers function', async () => {
-    const { loadHelpers } = await import(
-      '../../../mcp-servers/supabase-mcp-server/src/server'
-    );
-    expect(typeof loadHelpers).toBe('function');
+  it('should export loadHelpers function', () => {
+    expect(typeof serverModule.loadHelpers).toBe('function');
   });
 
-  it('should create independent server instances', async () => {
-    const { createServerInstance } = await import(
-      '../../../mcp-servers/supabase-mcp-server/src/server'
-    );
-    const server1 = createServerInstance();
-    const server2 = createServerInstance();
+  it('should create independent server instances', () => {
+    const server1 = serverModule.createServerInstance();
+    const server2 = serverModule.createServerInstance();
     expect(server1).not.toBe(server2);
   });
 
-  it('should export TOOLS array with 8 tools', async () => {
-    const { TOOLS } = await import(
-      '../../../mcp-servers/supabase-mcp-server/src/server'
-    );
-    expect(TOOLS).toHaveLength(8);
-    const names = TOOLS.map((t: { name: string }) => t.name);
+  it('should export TOOLS array with 8 tools', () => {
+    expect(serverModule.TOOLS).toHaveLength(8);
+    const names = serverModule.TOOLS.map((t: { name: string }) => t.name);
     expect(names).toContain('supabase_query');
     expect(names).toContain('supabase_insert');
     expect(names).toContain('supabase_count');

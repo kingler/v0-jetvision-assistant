@@ -93,7 +93,7 @@ describe('POST /api/contract/[id]/payment', () => {
   beforeAll(async () => {
     const mod = await import('../../../../app/api/contract/[id]/payment/route');
     POST = mod.POST;
-  });
+  }, 30_000);
 
   beforeEach(() => {
     vi.clearAllMocks();
