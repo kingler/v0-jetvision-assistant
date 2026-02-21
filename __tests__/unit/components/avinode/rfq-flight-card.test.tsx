@@ -10,9 +10,21 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RFQFlightCard, type RFQFlightCardProps } from '@/components/avinode/rfq-flight-card';
+
+// Mock fetch for AircraftImageGallery used within RFQFlightCard
+beforeEach(() => {
+  global.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve({
+      aircraftModel: '',
+      exteriorImages: [],
+      interiorImages: [],
+    }),
+  });
+});
 
 // =============================================================================
 // TEST DATA
@@ -148,22 +160,37 @@ describe('RFQFlightCard', () => {
       expect(screen.getAllByText(/\$25,000/).length).toBeGreaterThan(0);
     });
 
-    it('renders aircraft image when provided', () => {
+    it('renders aircraft image when provided', async () => {
       render(<RFQFlightCard flight={mockFlight} />);
 
-      const image = screen.getByRole('img', { name: /gulfstream g200/i });
-      expect(image).toBeInTheDocument();
-      expect(image).toHaveAttribute('src', 'https://example.com/g200.jpg');
+      // AircraftImageGallery renders the image after loading
+      await waitFor(() => {
+        const images = screen.getAllByTestId('aircraft-gallery-image');
+        expect(images.length).toBeGreaterThan(0);
+      });
+
+      // The gallery falls back to the stock image since fetch returns empty gallery,
+      // but the fallback URL is the tailPhotoUrl when available
+      const images = screen.getAllByTestId('aircraft-gallery-image');
+      const img = images[0] as HTMLImageElement;
+      expect(img).toBeInTheDocument();
+      expect(img.src).toContain('example.com/g200.jpg');
     });
 
-    it('renders stock category image when no tail photo', () => {
+    it('renders stock category image when no tail photo', async () => {
       render(<RFQFlightCard flight={minimalFlight} />);
 
-      // With no tailPhotoUrl, the card should render a stock category image
-      const img = screen.getByTestId('aircraft-placeholder');
+      // With no tailPhotoUrl and empty gallery, the card should render a stock category image
+      await waitFor(() => {
+        const images = screen.getAllByTestId('aircraft-gallery-image');
+        expect(images.length).toBeGreaterThan(0);
+      });
+
+      const images = screen.getAllByTestId('aircraft-gallery-image');
+      const img = images[0] as HTMLImageElement;
       expect(img).toBeInTheDocument();
       expect(img.tagName).toBe('IMG');
-      expect(img).toHaveAttribute('src', expect.stringContaining('/images/aircraft/'));
+      expect(img.src).toContain('/images/aircraft/');
     });
   });
 

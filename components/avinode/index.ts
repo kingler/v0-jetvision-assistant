@@ -37,6 +37,10 @@ export type { TripRequestCardProps } from './trip-request-card';
 export { AvinodeSearchCard } from './avinode-search-card';
 export type { AvinodeSearchCardProps } from './avinode-search-card';
 
+// Aircraft Image Gallery (pre-production image search fallback)
+export { AircraftImageGallery } from './aircraft-image-gallery';
+export type { AircraftImageGalleryProps } from './aircraft-image-gallery';
+
 // Empty Leg Watch components (ONEK-202)
 export { EmptyLegWatchCard } from './empty-leg-watch-card';
 export type { EmptyLegWatchCardProps, EmptyLegWatch } from './empty-leg-watch-card';

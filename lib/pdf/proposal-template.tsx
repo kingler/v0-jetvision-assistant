@@ -50,6 +50,8 @@ export interface ProposalData {
     company?: string;
     phone?: string;
   };
+  /** Map of flight ID → searched exterior image URL (pre-production fallback) */
+  searchedImageUrls?: Record<string, string>;
   tripDetails: {
     /**
      * Type of trip - one_way or round_trip
@@ -486,12 +488,15 @@ interface FlightCardProps {
   index: number;
   /** Optional leg label for round-trip proposals (e.g., "Outbound", "Return") */
   legLabel?: string;
+  /** Optional pre-fetched image URL from aircraft image search (pre-production fallback) */
+  searchedImageUrl?: string;
 }
 
-function FlightCard({ flight, index, legLabel }: FlightCardProps) {
+function FlightCard({ flight, index, legLabel, searchedImageUrl }: FlightCardProps) {
   const amenityLabels = getAmenityLabels(flight.amenities);
   const isReturn = legLabel === 'Return' || flight.legType === 'return';
-  const imageUrl = resolveAircraftImageUrl({
+  // Use searched image if available, otherwise fall back to existing resolver
+  const imageUrl = searchedImageUrl || resolveAircraftImageUrl({
     tailPhotoUrl: flight.tailPhotoUrl,
     aircraftType: flight.aircraftType,
     aircraftModel: flight.aircraftModel,
@@ -659,9 +664,11 @@ function TripDetailsSection({ tripDetails }: { tripDetails: ProposalData['tripDe
 function FlightOptionsSection({
   selectedFlights,
   tripType,
+  searchedImageUrls,
 }: {
   selectedFlights: RFQFlight[];
   tripType?: TripType;
+  searchedImageUrls?: Record<string, string>;
 }) {
   const isRoundTrip = tripType === 'round_trip';
 
@@ -685,6 +692,7 @@ function FlightOptionsSection({
           flight={flight}
           index={index}
           legLabel={isRoundTrip ? 'Outbound' : undefined}
+          searchedImageUrl={searchedImageUrls?.[flight.id]}
         />
       ))}
 
@@ -699,6 +707,7 @@ function FlightOptionsSection({
               flight={flight}
               index={index}
               legLabel="Return"
+              searchedImageUrl={searchedImageUrls?.[flight.id]}
             />
           ))}
         </>
@@ -785,6 +794,7 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
         <FlightOptionsSection
           selectedFlights={data.selectedFlights}
           tripType={data.tripDetails.tripType}
+          searchedImageUrls={data.searchedImageUrls}
         />
 
         {/* Pricing Summary */}

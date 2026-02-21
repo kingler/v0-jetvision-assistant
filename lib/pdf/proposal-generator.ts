@@ -18,6 +18,7 @@ import {
   type ProposalAirport,
 } from './proposal-template';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
+import { resolveAircraftImageWithSearch } from '@/lib/aircraft/image-resolver';
 
 // =============================================================================
 // TYPES
@@ -512,6 +513,26 @@ export async function generateProposal(
     input.jetvisionFeePercentage
   );
 
+  // Pre-fetch searched images for flights that lack tail photos (pre-production fallback)
+  const searchedImageUrls: Record<string, string> = {};
+  try {
+    const imagePromises = clientFacingFlights.map(async (flight) => {
+      if (flight.tailPhotoUrl) return; // real image available
+      const gallery = await resolveAircraftImageWithSearch({
+        aircraftType: flight.aircraftType,
+        aircraftModel: flight.aircraftModel,
+        yearOfManufacture: flight.yearOfManufacture,
+      });
+      if (gallery && gallery.exteriorImages.length > 0) {
+        searchedImageUrls[flight.id] = gallery.exteriorImages[0].url;
+      }
+    });
+    await Promise.all(imagePromises);
+  } catch (err) {
+    // Non-critical: fall through to stock images on failure
+    console.warn('[ProposalGenerator] Aircraft image search failed:', err);
+  }
+
   // Prepare proposal data
   const proposalData: ProposalData = {
     proposalId,
@@ -521,6 +542,7 @@ export async function generateProposal(
     selectedFlights: clientFacingFlights,
     pricing,
     quoteValidUntil,
+    searchedImageUrls: Object.keys(searchedImageUrls).length > 0 ? searchedImageUrls : undefined,
   };
 
   // Generate PDF

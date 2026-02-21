@@ -125,3 +125,63 @@ export function resolveAircraftImageUrlWeb(input: ResolveInput): string {
   // Tier 3: Generic silhouette fallback
   return WEB_FALLBACK;
 }
+
+// =============================================================================
+// ASYNC SEARCH FALLBACK (Pre-production)
+// =============================================================================
+
+interface ResolveWithSearchInput extends ResolveInput {
+  yearOfManufacture?: number;
+}
+
+/**
+ * Async image resolver that adds a web search tier between tailPhotoUrl and stock images.
+ *
+ * 4-tier strategy:
+ * 1. If `tailPhotoUrl` exists → return null (real image available, no search needed)
+ * 2. Check DB for previously searched images
+ * 3. Web search via SerpAPI → store results in DB
+ * 4. On error → return null (caller uses existing stock fallback)
+ *
+ * @returns AircraftImageGallery if search images found, null otherwise
+ */
+export async function resolveAircraftImageWithSearch(
+  input: ResolveWithSearchInput
+): Promise<import('./image-search-types').AircraftImageGallery | null> {
+  // Tier 1: If real tail photo exists, no search needed
+  if (input.tailPhotoUrl && input.tailPhotoUrl.trim().length > 0) {
+    return null;
+  }
+
+  // Tier 2+3: DB lookup + web search
+  const model = input.aircraftModel || input.aircraftType;
+  if (!model) {
+    return null;
+  }
+
+  try {
+    const { getAircraftImages } = await import('./image-search-service');
+
+    // Derive category from aircraftType
+    let category: string | undefined;
+    if (input.aircraftType) {
+      for (const [pattern, cat] of CATEGORY_KEYWORDS) {
+        if (pattern.test(input.aircraftType)) {
+          category = cat;
+          break;
+        }
+      }
+    }
+
+    const gallery = await getAircraftImages(model, category, input.yearOfManufacture);
+
+    if (gallery.exteriorImages.length === 0 && gallery.interiorImages.length === 0) {
+      return null;
+    }
+
+    return gallery;
+  } catch (err) {
+    console.error('[ImageResolver] Search fallback failed:', err);
+    return null;
+  }
+}

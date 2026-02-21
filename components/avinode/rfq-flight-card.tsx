@@ -43,6 +43,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { resolveAircraftImageUrlWeb } from '@/lib/aircraft/image-resolver';
+import { AircraftImageGallery } from './aircraft-image-gallery';
 
 // =============================================================================
 // TYPES — re-exported from canonical source (lib/chat/types)
@@ -549,15 +550,16 @@ export function RFQFlightCard({
         <div className="flex gap-3 sm:gap-4 pb-4 pt-2">
           {/* Compact Image: 80x80 on small screens, 120x120 thumbnail on larger */}
           <div
-            className="bg-muted flex flex-col items-center justify-center shrink-0 w-20 h-20 sm:w-[120px] sm:h-[120px]"
+            className="bg-muted shrink-0 w-20 h-20 sm:w-[120px] sm:h-[120px] rounded overflow-hidden"
           >
-            <img
-              src={displayImageUrl}
+            <AircraftImageGallery
+              aircraftModel={flight.aircraftModel || flight.aircraftType || ''}
+              aircraftCategory={category}
+              yearOfManufacture={flight.yearOfManufacture}
+              fallbackImageUrl={displayImageUrl}
+              compact={true}
               alt={flight.aircraftModel || flight.aircraftType || 'Aircraft'}
-              className="w-full h-full object-cover"
-              style={{ objectFit: 'cover' }}
-              onError={handleImageError}
-              data-testid={flight.tailPhotoUrl && !imageError ? undefined : 'aircraft-placeholder'}
+              onImageError={handleImageError}
             />
           </div>
 
@@ -680,20 +682,21 @@ export function RFQFlightCard({
                 : 'flex flex-col sm:flex-row'
             )}
           >
-            {/* Column 1: Aircraft Image - 33.3% width, constrained to grid cell */}
+            {/* Column 1: Aircraft Image Gallery - 33.3% width, constrained to grid cell */}
             <div
               className={cn(
-                'bg-muted flex flex-col items-center justify-center rounded-lg overflow-hidden min-w-0',
-                compact && isExpanded ? 'w-full aspect-5/6 max-h-[180px]' : 'w-full sm:w-[150px] h-[150px] sm:h-[180px] shrink-0'
+                'rounded-lg overflow-hidden min-w-0',
+                compact && isExpanded ? 'w-full max-h-[180px]' : 'w-full sm:w-[150px] shrink-0'
               )}
             >
-              <img
-                src={displayImageUrl}
+              <AircraftImageGallery
+                aircraftModel={flight.aircraftModel || flight.aircraftType || ''}
+                aircraftCategory={category}
+                yearOfManufacture={flight.yearOfManufacture}
+                fallbackImageUrl={displayImageUrl}
+                compact={false}
                 alt={flight.aircraftModel || flight.aircraftType || 'Aircraft'}
-                className="w-full h-full object-cover"
-                style={{ objectFit: 'cover' }}
-                onError={handleImageError}
-                data-testid={flight.tailPhotoUrl && !imageError ? undefined : 'aircraft-placeholder'}
+                onImageError={handleImageError}
               />
             </div>
 
