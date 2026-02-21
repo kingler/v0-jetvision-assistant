@@ -23,25 +23,27 @@ import {
   type Resource,
   type Action,
   type PermissionCheck,
+  type RBACContext,
 } from '@/lib/middleware/rbac';
 import { mockUser } from '../../utils/mock-factories';
 
-// Mock Supabase client - must be declared before vi.mock()
-const mockSupabaseClient = {
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        single: vi.fn(),
+// Use vi.hoisted so mocks are available when vi.mock factories run (hoisted to top)
+const { mockSupabaseClient, mockAuthFn } = vi.hoisted(() => {
+  const mockSupabaseClient = {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(),
+        })),
       })),
     })),
-  })),
-};
+  };
+  const mockAuthFn = vi.fn();
+  return { mockSupabaseClient, mockAuthFn };
+});
 
-// Mock Auth function - must be declared before vi.mock()
-const mockAuthFn = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => mockSupabaseClient),
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: mockSupabaseClient,
 }));
 
 vi.mock('@clerk/nextjs/server', () => ({
@@ -513,7 +515,7 @@ describe('RBAC Middleware - Route Protection', () => {
       mockSupabaseClient.from = vi.fn().mockReturnValueOnce({ select: mockSelectFn });
 
       const contextCapture = vi.fn();
-      const handlerWithContext = vi.fn(async (req: NextRequest, context?: any) => {
+      const handlerWithContext = vi.fn(async (req: NextRequest, context?: RBACContext) => {
         contextCapture(context);
         return NextResponse.json({ success: true });
       });

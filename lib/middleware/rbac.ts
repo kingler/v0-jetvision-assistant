@@ -68,6 +68,13 @@ type PermissionMatrix = {
  * Defines what actions each role can perform on each resource
  */
 export const PERMISSIONS: PermissionMatrix = {
+  iso_agent: {
+    clients: ['create', 'read', 'update', 'delete'],
+    requests: ['create', 'read', 'update', 'delete'],
+    quotes: ['read', 'update'],
+    users: ['read_own', 'update_own'],
+    analytics: ['read_own'],
+  },
   sales_rep: {
     clients: ['create', 'read', 'update', 'delete'],
     requests: ['create', 'read', 'update', 'delete'],

@@ -260,8 +260,9 @@ export function ChatInterface({
     // A trip is considered created when we have either:
     // 1. A tripId (from create_trip tool response)
     // 2. A deepLink (from create_trip tool response)
-    // 3. A requestId (from database after trip creation)
-    const hasTripCreated = !!(activeChat.tripId || activeChat.deepLink || activeChat.requestId)
+    // Note: requestId alone is NOT sufficient — it's the conversation/session ID
+    // which gets set on every API response, even clarification messages before trip creation
+    const hasTripCreated = !!(activeChat.tripId || activeChat.deepLink)
     
     // Also verify we have the basic trip information for display
     const hasValidRoute =
@@ -286,7 +287,6 @@ export function ChatInterface({
   }, [
     activeChat.tripId,
     activeChat.deepLink,
-    activeChat.requestId,
     activeChat.route,
     activeChat.date,
     activeChat.passengers,
