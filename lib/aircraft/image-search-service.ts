@@ -35,17 +35,19 @@ export class SerpAPIImageSearchProvider implements IAircraftImageSearchProvider 
   private apiKey: string;
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.SERPAPI_API_KEY || '';
+    this.apiKey = apiKey !== undefined
+      ? apiKey
+      : (process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '');
   }
 
   async search(params: AircraftImageSearchParams): Promise<AircraftImageResult[]> {
     if (!this.apiKey) {
-      console.warn('[AircraftImageSearch] No SERPAPI_API_KEY configured, skipping web search');
+      console.warn('[AircraftImageSearch] No SERPAPI_KEY configured, skipping web search');
       return [];
     }
 
-    const { getJson } = await import('google-search-results-nodejs');
-    const client = new getJson(this.apiKey);
+    const { GoogleSearch } = await import('google-search-results-nodejs');
+    const client = new GoogleSearch(this.apiKey);
 
     const query = this.buildQuery(params);
     const maxResults = params.maxResults ?? DEFAULT_MAX_RESULTS;

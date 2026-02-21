@@ -53,6 +53,16 @@ playwright-report/
 screenshots/
 build-output.log
 
+# AI tool config directories
+.agent/
+.agents/
+.cline/
+.goose/
+.kiro/
+.qwen/
+.trae/
+.windsurf/
+
 # Git Worktree Workspaces (phase directories only, keep archive and config)
 .context/workspaces/phase-*/
 
