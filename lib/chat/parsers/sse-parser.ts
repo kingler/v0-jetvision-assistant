@@ -443,6 +443,7 @@ export function extractDeepLinkData(data: SSEStreamData): {
             passengers: result.passengers as number,
             trip_type: result.trip_type as string,
             return_date: result.return_date as string,
+            segments: result.segments as any,
           };
         }
       }

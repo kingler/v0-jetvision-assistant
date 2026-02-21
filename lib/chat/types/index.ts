@@ -73,6 +73,16 @@ export interface ToolResultWithInput {
 }
 
 /**
+ * A single flight segment for multi-city trips
+ */
+export interface TripSegment {
+  departure_airport: AirportInfo;
+  arrival_airport: AirportInfo;
+  departure_date: string;
+  passengers: number;
+}
+
+/**
  * Trip data from create_trip tool
  */
 export interface TripData {
@@ -84,6 +94,8 @@ export interface TripData {
   passengers?: number;
   trip_type?: string;
   return_date?: string;
+  /** Segments for multi-city trips (3+ legs) */
+  segments?: TripSegment[];
   route?: {
     departure?: { date?: string; airport?: AirportInfo };
     arrival?: { airport?: AirportInfo };
