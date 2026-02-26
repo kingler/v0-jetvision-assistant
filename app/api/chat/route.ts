@@ -680,17 +680,17 @@ export async function POST(req: NextRequest) {
 // =============================================================================
 
 export async function GET() {
-  // Quick connectivity checks
+  // Authenticate - same as POST handler
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Quick connectivity checks (no live API calls)
   const checks: Record<string, string> = {};
 
-  // Check OpenAI
-  try {
-    const openai = new (await import('openai')).default({ apiKey: process.env.OPENAI_API_KEY?.trim() });
-    const models = await openai.models.list();
-    checks.openai = `ok (${models.data.length} models)`;
-  } catch (e) {
-    checks.openai = `error: ${e instanceof Error ? e.message : String(e)}`;
-  }
+  // Check OpenAI API key is configured (don't make a live API call)
+  checks.openai = process.env.OPENAI_API_KEY?.trim() ? 'ok (key configured)' : 'error: OPENAI_API_KEY not set';
 
   // Check Supabase
   try {

@@ -52,7 +52,7 @@ export interface FlightRequestDetails {
   };
   departureDate: string;
   passengers: number;
-  tripType?: 'one_way' | 'round_trip';
+  tripType?: 'one_way' | 'round_trip' | 'multi_city';
   returnDate?: string;
   aircraftPreferences?: string;
   specialRequirements?: string;

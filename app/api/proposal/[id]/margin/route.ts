@@ -24,6 +24,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Look up the ISO agent for the authenticated user
+    const { data: isoAgent, error: agentError } = await supabaseAdmin
+      .from('iso_agents')
+      .select('id')
+      .eq('clerk_user_id', userId)
+      .single();
+
+    if (agentError || !isoAgent) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const agentId = isoAgent.id;
+
     const { id: proposalId } = await params;
     const body = await request.json();
     const { marginPercentage } = body;
@@ -35,11 +48,12 @@ export async function PATCH(
       );
     }
 
-    // Fetch current proposal
+    // Fetch current proposal (scoped to authenticated agent)
     const { data: proposal, error: fetchError } = await supabaseAdmin
       .from('proposals')
       .select('id, total_amount, margin_applied, final_amount')
       .eq('id', proposalId)
+      .eq('iso_agent_id', agentId)
       .single();
 
     if (fetchError || !proposal) {
@@ -50,7 +64,7 @@ export async function PATCH(
     const marginAmount = totalAmount * (marginPercentage / 100);
     const finalAmount = Math.round((totalAmount + marginAmount) * 100) / 100;
 
-    // Update proposal
+    // Update proposal (scoped to authenticated agent)
     const { error: updateError } = await supabaseAdmin
       .from('proposals')
       .update({
@@ -58,7 +72,8 @@ export async function PATCH(
         final_amount: finalAmount,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', proposalId);
+      .eq('id', proposalId)
+      .eq('iso_agent_id', agentId);
 
     if (updateError) {
       console.error('[proposal/margin] Update failed:', updateError);

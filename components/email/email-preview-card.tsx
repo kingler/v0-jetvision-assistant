@@ -508,7 +508,7 @@ export function EmailPreviewCard({
 
         {/* Generated timestamp */}
         {generatedAt && (
-          <p className="text-xs text-muted-foreground text-right">
+          <p className="text-xs text-muted-foreground text-right" suppressHydrationWarning>
             Draft generated {new Date(generatedAt).toLocaleString()}
           </p>
         )}

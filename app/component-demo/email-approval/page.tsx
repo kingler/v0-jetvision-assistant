@@ -118,7 +118,7 @@ export default function EmailApprovalDemo() {
                 tripType: 'one_way',
               }}
               pricing={{ subtotal: 42000, total: 45000, currency: 'USD' }}
-              generatedAt={new Date().toISOString()}
+              generatedAt="2026-02-26T12:00:00.000Z"
               requestId="req-001"
               onAction={handleAction('one-way')}
             />
@@ -154,7 +154,7 @@ export default function EmailApprovalDemo() {
                 returnDate: '2026-04-08',
               }}
               pricing={{ subtotal: 88000, total: 92500, currency: 'USD' }}
-              generatedAt={new Date().toISOString()}
+              generatedAt="2026-02-26T12:00:00.000Z"
               requestId="req-002"
               onAction={handleAction('round-trip')}
             />
@@ -194,7 +194,7 @@ export default function EmailApprovalDemo() {
                 ],
               }}
               pricing={{ subtotal: 175000, total: 185000, currency: 'USD' }}
-              generatedAt={new Date().toISOString()}
+              generatedAt="2026-02-26T12:00:00.000Z"
               requestId="req-003"
               onAction={handleAction('multi-city-3')}
             />
@@ -235,7 +235,7 @@ export default function EmailApprovalDemo() {
                 ],
               }}
               pricing={{ subtotal: 232000, total: 245000, currency: 'EUR' }}
-              generatedAt={new Date().toISOString()}
+              generatedAt="2026-02-26T12:00:00.000Z"
               requestId="req-004"
               onAction={handleAction('multi-city-4')}
             />
@@ -333,7 +333,7 @@ export default function EmailApprovalDemo() {
                   ],
                 }}
                 pricing={{ subtotal: 125000, total: 132000, currency: 'USD' }}
-                generatedAt={new Date().toISOString()}
+                generatedAt="2026-02-26T12:00:00.000Z"
                 onAction={handleAction('edge-multi-attach')}
               />
             </div>

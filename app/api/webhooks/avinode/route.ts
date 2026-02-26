@@ -10,6 +10,36 @@ import type { Json } from '@/lib/types/database';
 import { storeOperatorQuote, fetchMessageDetails } from './webhook-utils';
 
 /**
+ * Helper: Update the most recent webhook event row matching filters.
+ *
+ * PostgREST ignores `.order()` and `.limit()` on UPDATE, so we first
+ * SELECT the specific row id, then UPDATE by primary key.
+ */
+async function updateLatestWebhookEvent(
+  filters: {
+    avinode_trip_id: string;
+    event_type: 'quote_received' | 'quote_rejected' | 'message_received' | 'trip_created' | 'trip_updated';
+  },
+  updateData: Record<string, unknown>,
+): Promise<void> {
+  const { data: row } = await supabaseAdmin
+    .from('avinode_webhook_events')
+    .select('id')
+    .eq('avinode_trip_id', filters.avinode_trip_id)
+    .eq('event_type', filters.event_type)
+    .order('received_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (row) {
+    await supabaseAdmin
+      .from('avinode_webhook_events')
+      .update(updateData)
+      .eq('id', row.id);
+  }
+}
+
+/**
  * Avinode Webhook Handler
  *
  * Receives webhook events from Avinode Broker API
@@ -177,13 +207,10 @@ async function handleSellerResponse(
       console.warn('[Avinode Webhook] No request found for trip ID:', trip.id);
       // Still mark webhook as processed even if we can't find the request
       const eventType = request.status === 'quoted' ? 'quote_received' : 'quote_rejected';
-      await supabaseAdmin
-        .from('avinode_webhook_events')
-        .update({ processing_status: 'skipped', processed_at: new Date().toISOString() })
-        .eq('avinode_trip_id', trip.id)
-        .eq('event_type', eventType)
-        .order('received_at', { ascending: false })
-        .limit(1);
+      await updateLatestWebhookEvent(
+        { avinode_trip_id: trip.id, event_type: eventType },
+        { processing_status: 'skipped', processed_at: new Date().toISOString() },
+      );
       return;
     }
 
@@ -228,13 +255,10 @@ async function handleSellerResponse(
         console.log('[Avinode Webhook] Quote stored successfully:', quoteId);
 
         // Mark webhook as processed
-        await supabaseAdmin
-          .from('avinode_webhook_events')
-          .update({ processing_status: 'completed', processed_at: new Date().toISOString() })
-          .eq('avinode_trip_id', trip.id)
-          .eq('event_type', 'quote_received')
-          .order('received_at', { ascending: false })
-          .limit(1);
+        await updateLatestWebhookEvent(
+          { avinode_trip_id: trip.id, event_type: 'quote_received' },
+          { processing_status: 'completed', processed_at: new Date().toISOString() },
+        );
 
         // TODO: Notify ProposalAnalysisAgent to score this quote
         // TODO: Update workflow state machine
@@ -261,13 +285,10 @@ async function handleSellerResponse(
         console.log('[Avinode Webhook] Decline stored successfully:', quoteId);
 
         // Mark webhook as processed
-        await supabaseAdmin
-          .from('avinode_webhook_events')
-          .update({ processing_status: 'completed', processed_at: new Date().toISOString() })
-          .eq('avinode_trip_id', trip.id)
-          .eq('event_type', 'quote_rejected')
-          .order('received_at', { ascending: false })
-          .limit(1);
+        await updateLatestWebhookEvent(
+          { avinode_trip_id: trip.id, event_type: 'quote_rejected' },
+          { processing_status: 'completed', processed_at: new Date().toISOString() },
+        );
 
         // TODO: Notify if all operators declined
 
