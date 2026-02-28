@@ -1735,7 +1735,7 @@ export default function JetvisionAgent() {
   }
 
   return (
-    <div className="h-screen bg-background flex overflow-hidden">
+    <div className="h-full bg-background flex overflow-hidden">
       {/* Backdrop when sidebar is overlay (phone + tablet); click to close */}
       {isTabletOrSmaller && sidebarOpen && (
         <div

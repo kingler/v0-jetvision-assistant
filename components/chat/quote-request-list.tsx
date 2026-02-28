@@ -55,7 +55,7 @@ export function QuoteRequestList({ quotes, onViewDetails }: QuoteRequestListProp
       </div>
 
       {/* Quote list */}
-      <div className="space-y-2 max-h-[300px] overflow-y-auto">
+      <div className="space-y-2">
         {quotes.map((quote) => (
           <QuoteRequestItem
             key={quote.id}

@@ -87,7 +87,7 @@ export function DynamicChatHeader({
   ].filter(Boolean).join(' • ')
 
   return (
-    <div className="border-b border-border bg-surface-secondary px-4 sm:px-6 py-3 sm:py-4">
+    <div className="border-b border-border bg-surface-secondary px-4 sm:px-6 py-3 sm:py-4 shrink-0">
       {/* Primary Row: single line, no wrap - route summary truncates; trip ID and status stay visible */}
       <div className="flex items-center justify-between gap-3 flex-nowrap min-w-0">
         <div className="flex-1 min-w-0 overflow-hidden">
@@ -143,10 +143,12 @@ export function DynamicChatHeader({
 
       {/* Quote Requests List - only when tripId exists and quotes available */}
       {showTripId && activeChat.tripId && quoteRequests.length > 0 && (
-        <QuoteRequestList
-          quotes={quoteRequests}
-          onViewDetails={onViewQuoteDetails}
-        />
+        <div className="max-h-[150px] overflow-y-auto mt-2">
+          <QuoteRequestList
+            quotes={quoteRequests}
+            onViewDetails={onViewQuoteDetails}
+          />
+        </div>
       )}
     </div>
   )

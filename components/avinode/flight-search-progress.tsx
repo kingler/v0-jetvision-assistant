@@ -422,11 +422,10 @@ export function FlightSearchProgress({
             <div
               data-testid="step-3-content"
               className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 shadow-sm w-full bg-card border border-border mb-6"
-              style={{ 
+              style={{
                 minHeight: 'auto',
                 height: 'auto',
                 overflow: 'visible',
-                display: 'block',
                 width: '100%',
                 position: 'relative'
               }}
