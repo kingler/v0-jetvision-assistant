@@ -447,6 +447,19 @@ describe('Forced Tool Detection', () => {
       expect(detectForcedTool('KJFK to KORD at 2pm')).toBe('create_trip');
     });
 
+    it('should NOT force create_trip when round trip is mentioned without return date', () => {
+      // Round trip without return date — let the LLM ask for it
+      expect(detectForcedTool('I need a round trip flight from KTEB to KVNY for 4 passengers on March 2, 2026 at 9:00am EST')).toBeNull();
+      expect(detectForcedTool('Book a round trip KJFK to KORD')).toBeNull();
+      expect(detectForcedTool('KTEB to KVNY round trip')).toBeNull();
+    });
+
+    it('should force create_trip when round trip is mentioned WITH return date', () => {
+      // Round trip with return date — safe to force
+      expect(detectForcedTool('Book a round trip KJFK to KORD returning March 5')).toBe('create_trip');
+      expect(detectForcedTool('Round trip KTEB to KVNY returning Jan 10')).toBe('create_trip');
+    });
+
     it('should detect search_empty_legs from empty leg queries', () => {
       expect(detectForcedTool('Search empty legs')).toBe('search_empty_legs');
       expect(detectForcedTool('Find empty leg flights')).toBe('search_empty_legs');

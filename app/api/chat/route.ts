@@ -447,6 +447,9 @@ export async function POST(req: NextRequest) {
         if (result.rfpData.special_requirements) {
           updateData.special_requirements = result.rfpData.special_requirements;
         }
+        if (result.rfpData.trip_type) {
+          updateData.trip_type = result.rfpData.trip_type;
+        }
       }
 
       await supabaseAdmin

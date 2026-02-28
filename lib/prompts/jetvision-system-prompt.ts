@@ -1252,6 +1252,10 @@ export const FORCED_TOOL_PATTERNS: Array<{
   },
 ];
 
+/** Detect round-trip intent without a return date in the message */
+const ROUND_TRIP_INDICATORS = /\b(?:round\s*trip|round-trip|return\s+flight|both\s+ways)\b/i;
+const RETURN_DATE_INDICATORS = /\b(?:return(?:ing)?\s+(?:on\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}[\/\-]\d{1,2}|\d{4}-\d{2}-\d{2}))/i;
+
 /**
  * Check if user message should force a specific tool
  * @param message User message to check
@@ -1260,6 +1264,11 @@ export const FORCED_TOOL_PATTERNS: Array<{
 export function detectForcedTool(message: string): string | null {
   for (const { pattern, toolName } of FORCED_TOOL_PATTERNS) {
     if (pattern.test(message)) {
+      // Guard: Don't force create_trip when round-trip is indicated
+      // but return date is missing — let the LLM ask for it first
+      if (toolName === 'create_trip' && ROUND_TRIP_INDICATORS.test(message) && !RETURN_DATE_INDICATORS.test(message)) {
+        return null;
+      }
       return toolName;
     }
   }
