@@ -397,10 +397,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Capture rfpData into working memory
+    // Capture rfpData into working memory (ensure airports are ICAO strings, not objects)
     if (result.rfpData) {
-      if (result.rfpData.departure_airport) workingMemory.departureAirport = result.rfpData.departure_airport;
-      if (result.rfpData.arrival_airport) workingMemory.arrivalAirport = result.rfpData.arrival_airport;
+      if (result.rfpData.departure_airport) {
+        const dep = result.rfpData.departure_airport;
+        workingMemory.departureAirport = typeof dep === 'string' ? dep : (dep as any)?.icao || String(dep);
+      }
+      if (result.rfpData.arrival_airport) {
+        const arr = result.rfpData.arrival_airport;
+        workingMemory.arrivalAirport = typeof arr === 'string' ? arr : (arr as any)?.icao || String(arr);
+      }
       if (result.rfpData.departure_date) workingMemory.departureDate = result.rfpData.departure_date;
       if (result.rfpData.passengers) workingMemory.passengers = result.rfpData.passengers;
       if (result.rfpData.return_date) workingMemory.returnDate = result.rfpData.return_date;

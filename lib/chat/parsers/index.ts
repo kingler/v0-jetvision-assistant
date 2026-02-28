@@ -5,6 +5,7 @@ export {
   extractQuotesFromSSEData,
   extractDeepLinkData,
   determineWorkflowStatus,
+  resolveAirportIcao,
   type SSEHandlers,
 } from './sse-parser';
 

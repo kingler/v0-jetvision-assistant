@@ -19,6 +19,7 @@ import type {
   PipelineData,
   Quote,
   AgentMetadata,
+  AirportInfo,
 } from '../types';
 
 /**
@@ -399,6 +400,43 @@ export function extractQuotesFromSSEData(data: SSEStreamData): Quote[] {
 }
 
 /**
+ * Normalize an airport field that may be a string (ICAO code) or an AirportInfo object.
+ * Tool call results from create_trip return strings, while get_rfq returns objects.
+ */
+function normalizeAirportField(value: unknown): AirportInfo | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    return { icao: value.toUpperCase() };
+  }
+  if (typeof value === 'object' && value !== null && 'icao' in value) {
+    return value as AirportInfo;
+  }
+  return undefined;
+}
+
+/**
+ * Resolve an airport value to an ICAO code string.
+ * Handles: string, AirportInfo object, or any object with icao/code/searchValue.
+ * Prevents "[object Object]" from appearing in template literals or route strings.
+ */
+export function resolveAirportIcao(value: unknown): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    // Guard against already-stringified objects
+    if (value === '[object Object]') return undefined;
+    return value.toUpperCase();
+  }
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+    const icao = obj.icao ?? obj.code ?? obj.searchValue;
+    if (typeof icao === 'string' && icao !== '[object Object]') {
+      return icao.toUpperCase();
+    }
+  }
+  return undefined;
+}
+
+/**
  * Extract deep link data from SSE response
  */
 export function extractDeepLinkData(data: SSEStreamData): {
@@ -410,14 +448,22 @@ export function extractDeepLinkData(data: SSEStreamData): {
   let rfpData: RFPData | undefined;
   let showDeepLink = false;
 
-  // Check direct data fields
+  // Check direct data fields — normalize airport fields that may be strings from the API
   if (data.trip_data) {
-    tripData = data.trip_data;
+    tripData = {
+      ...data.trip_data,
+      departure_airport: normalizeAirportField(data.trip_data.departure_airport),
+      arrival_airport: normalizeAirportField(data.trip_data.arrival_airport),
+    };
     showDeepLink = true;
   }
 
   if (data.rfp_data) {
-    rfpData = data.rfp_data;
+    rfpData = {
+      ...data.rfp_data,
+      departure_airport: normalizeAirportField(data.rfp_data.departure_airport),
+      arrival_airport: normalizeAirportField(data.rfp_data.arrival_airport),
+    };
     showDeepLink = true;
   }
 
@@ -437,8 +483,8 @@ export function extractDeepLinkData(data: SSEStreamData): {
             trip_id: result.trip_id as string,
             deep_link: (result.deep_link as string) ||
               'https://sandbox.avinode.com/marketplace/mvc/search#preSearch',
-            departure_airport: result.departure_airport as any,
-            arrival_airport: result.arrival_airport as any,
+            departure_airport: normalizeAirportField(result.departure_airport),
+            arrival_airport: normalizeAirportField(result.arrival_airport),
             departure_date: (result.route as any)?.departure?.date || result.departure_date as string,
             passengers: result.passengers as number,
             trip_type: result.trip_type as string,
@@ -457,8 +503,8 @@ export function extractDeepLinkData(data: SSEStreamData): {
             rfq_id: (result.rfq_id || result.rfp_id) as string,
             deep_link: (result.deep_link as string) ||
               'https://sandbox.avinode.com/marketplace/mvc/search#preSearch',
-            departure_airport: result.departure_airport as any,
-            arrival_airport: result.arrival_airport as any,
+            departure_airport: normalizeAirportField(result.departure_airport),
+            arrival_airport: normalizeAirportField(result.arrival_airport),
             departure_date: (result.route as any)?.departure?.date || result.departure_date as string,
             passengers: result.passengers as number,
             trip_type: result.trip_type as string,

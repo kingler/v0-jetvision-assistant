@@ -82,6 +82,9 @@ import { ChatLoadingSkeleton } from "@/components/chat/chat-loading-skeleton"
 
 // Flight request parser utility
 import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
+
+// Defensive ICAO extraction - prevents "[object Object]" from appearing in route strings
+import { resolveAirportIcao } from "@/lib/chat/parsers/sse-parser"
 import { formatDate, formatMessageTimestamp, safeParseTimestamp } from "@/lib/utils/format"
 import { generateEmailDraft } from "@/lib/utils/email-draft-generator"
 import type { EmailApprovalRequestContent } from "@/lib/types/chat"
@@ -1002,11 +1005,16 @@ export function ChatInterface({
         tripId: tripData?.trip_id || rfpData?.trip_id,
         rfqId: rfpData?.rfq_id,
         deepLink: tripData?.deep_link || rfpData?.deep_link,
-        departureAirport: tripData?.departure_airport,
-        arrivalAirport: tripData?.arrival_airport,
+        departureAirport: (() => { const icao = resolveAirportIcao(tripData?.departure_airport); return icao ? { icao } : undefined; })(),
+        arrivalAirport: (() => { const icao = resolveAirportIcao(tripData?.arrival_airport); return icao ? { icao } : undefined; })(),
         departureDate: tripData?.departure_date,
         passengers: tripData?.passengers,
-        tripType: (tripData?.trip_type || rfpData?.trip_type) === 'round_trip' ? 'round_trip' as const : 'one_way' as const,
+        tripType: (() => {
+          const tt = tripData?.trip_type || rfpData?.trip_type;
+          if (tt === 'round_trip') return 'round_trip' as const;
+          if (tt === 'multi_city') return 'multi_city' as const;
+          return 'one_way' as const;
+        })(),
         returnDate: tripData?.return_date || rfpData?.return_date,
       } : undefined,
       showQuotes: quotes.length > 0 || (result.rfqData?.flights?.length ?? 0) > 0,
@@ -1041,8 +1049,10 @@ export function ChatInterface({
 
     // Update route, date, and passengers from trip data
     // This ensures the sidebar card shows the correct flight details
-    const departureAirport = tripData?.departure_airport || rfpData?.departure_airport
-    const arrivalAirport = tripData?.arrival_airport || rfpData?.arrival_airport
+    // NOTE: departure_airport can be a string (from LLM tool params) or AirportInfo object
+    // (from typed TripData). Use resolveAirportIcao to safely extract ICAO string.
+    const departureAirport = resolveAirportIcao(tripData?.departure_airport) || resolveAirportIcao(rfpData?.departure_airport)
+    const arrivalAirport = resolveAirportIcao(tripData?.arrival_airport) || resolveAirportIcao(rfpData?.arrival_airport)
     if (departureAirport && arrivalAirport) {
       updates.route = `${departureAirport} → ${arrivalAirport}`
     }
@@ -1072,7 +1082,7 @@ export function ChatInterface({
     // Extract trip type and return date from SSE data
     const tripType = tripData?.trip_type || rfpData?.trip_type
     if (tripType) {
-      updates.tripType = tripType === 'round_trip' ? 'round_trip' : 'one_way'
+      updates.tripType = tripType === 'round_trip' ? 'round_trip' : tripType === 'multi_city' ? 'multi_city' : 'one_way'
     }
     const returnDate = tripData?.return_date || rfpData?.return_date
     if (returnDate) {
@@ -2973,12 +2983,8 @@ export function ChatInterface({
                         renderMode="steps-1-2"
                         currentStep={computedCurrentStep}
                         flightRequest={{
-                          departureAirport: activeChat.route?.split(' → ')[0]
-                            ? { icao: activeChat.route.split(' → ')[0].trim() }
-                            : { icao: 'TBD' },
-                          arrivalAirport: activeChat.route?.split(' → ')[1]
-                            ? { icao: activeChat.route.split(' → ')[1].trim() }
-                            : { icao: 'TBD' },
+                          departureAirport: { icao: resolveAirportIcao(activeChat.route?.split(' → ')[0]) || 'TBD' },
+                          arrivalAirport: { icao: resolveAirportIcao(activeChat.route?.split(' → ')[1]) || 'TBD' },
                           departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
                           passengers: activeChat.passengers || 1,
                           tripType: activeChat.tripType,
@@ -3020,12 +3026,8 @@ export function ChatInterface({
                         renderMode="steps-3-4"
                         currentStep={computedCurrentStep}
                         flightRequest={{
-                          departureAirport: activeChat.route?.split(' → ')[0]
-                            ? { icao: activeChat.route.split(' → ')[0].trim() }
-                            : { icao: 'TBD' },
-                          arrivalAirport: activeChat.route?.split(' → ')[1]
-                            ? { icao: activeChat.route.split(' → ')[1].trim() }
-                            : { icao: 'TBD' },
+                          departureAirport: { icao: resolveAirportIcao(activeChat.route?.split(' → ')[0]) || 'TBD' },
+                          arrivalAirport: { icao: resolveAirportIcao(activeChat.route?.split(' → ')[1]) || 'TBD' },
                           departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
                           passengers: activeChat.passengers || 1,
                           tripType: activeChat.tripType,

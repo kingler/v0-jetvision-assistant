@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { parseSSEStream, extractQuotesFromSSEData, extractDeepLinkData, determineWorkflowStatus } from '../parsers';
+import { parseSSEStream, extractQuotesFromSSEData, extractDeepLinkData, determineWorkflowStatus, resolveAirportIcao } from '../parsers';
 import { convertQuotesToRFQFlights, extractRouteParts } from '../transformers';
 import { WorkflowStatus, PollingConfig, SSEConfig, ToolName } from '../constants';
 import type {
@@ -259,13 +259,13 @@ export function useStreamingChat(options: UseStreamingChatOptions) {
                 extractedFlights = convertQuotesToRFQFlights(finalResult.quotes, routeParts, context?.date);
               }
 
-              // Extract deep link data
+              // Extract deep link data — normalize airports to ICAO strings to prevent [object Object]
               if (finalResult.tripData) {
                 extractedDeepLink = {
                   tripId: finalResult.tripData.trip_id,
                   deepLink: finalResult.tripData.deep_link,
-                  departureAirport: finalResult.tripData.departure_airport,
-                  arrivalAirport: finalResult.tripData.arrival_airport,
+                  departureAirport: resolveAirportIcao(finalResult.tripData.departure_airport),
+                  arrivalAirport: resolveAirportIcao(finalResult.tripData.arrival_airport),
                   departureDate: finalResult.tripData.departure_date,
                   passengers: finalResult.tripData.passengers,
                 };
@@ -276,8 +276,8 @@ export function useStreamingChat(options: UseStreamingChatOptions) {
                   tripId: finalResult.rfpData.trip_id,
                   rfqId: finalResult.rfpData.rfq_id,
                   deepLink: finalResult.rfpData.deep_link,
-                  departureAirport: finalResult.rfpData.departure_airport,
-                  arrivalAirport: finalResult.rfpData.arrival_airport,
+                  departureAirport: resolveAirportIcao(finalResult.rfpData.departure_airport),
+                  arrivalAirport: resolveAirportIcao(finalResult.rfpData.arrival_airport),
                   departureDate: finalResult.rfpData.departure_date,
                   passengers: finalResult.rfpData.passengers,
                 };

@@ -70,8 +70,10 @@ export function DynamicChatHeader({
   }
 
   // Build single-line route summary so it truncates instead of wrapping (responsive header)
+  // Guard: strip any "[object Object]" that may have leaked from AirportInfo objects
+  const safeRoute = activeChat.route?.includes('[object Object]') ? undefined : activeChat.route
   const routeSummary = [
-    activeChat.route && (activeChat.tripType === 'round_trip' ? activeChat.route.replace(' → ', ' ⇄ ') : activeChat.route),
+    safeRoute && (activeChat.tripType === 'round_trip' ? safeRoute.replace(' → ', ' ⇄ ') : safeRoute),
     activeChat.passengers && `${activeChat.passengers} passengers`,
     activeChat.date && (() => {
       try {
