@@ -107,10 +107,24 @@ export async function createOrUpdateChatSession(
   try {
     // If we have an existing request ID, update it
     if (existingRequestId) {
+      // Guard: don't overwrite terminal states (archived/completed) with 'active'
+      let effectiveSessionStatus = sessionData.session_status || 'active';
+      if (effectiveSessionStatus === 'active') {
+        const { data: current } = await supabaseAdmin
+          .from('requests')
+          .select('session_status')
+          .eq('id', existingRequestId)
+          .single();
+
+        if (current?.session_status === 'archived' || current?.session_status === 'completed') {
+          effectiveSessionStatus = current.session_status as 'archived' | 'completed';
+        }
+      }
+
       const { data: updated, error } = await supabaseAdmin
         .from('requests')
         .update({
-          session_status: sessionData.session_status || 'active',
+          session_status: effectiveSessionStatus,
           conversation_type: sessionData.conversation_type,
           avinode_trip_id: sessionData.avinode_trip_id,
           avinode_rfq_id: sessionData.avinode_rfq_id,

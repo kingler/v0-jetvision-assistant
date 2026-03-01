@@ -292,6 +292,14 @@ export interface DatabaseTools {
     };
     result: Proposal | null;
   };
+
+  archive_session: {
+    params: {
+      request_id?: string;
+      archive_label?: string;
+    };
+    result: Record<string, unknown>;
+  };
 }
 
 export interface ClientProfile {
