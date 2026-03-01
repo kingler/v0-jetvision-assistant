@@ -32,6 +32,7 @@ import {
 
 // Import Contract Service for UUID resolution
 import {
+  getContractByNumber,
   getContractsByRequest,
   getContractsByProposal,
 } from '@/lib/services/contract-service';
@@ -620,40 +621,35 @@ export class ToolExecutor {
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    // Resolve non-UUID contract_id (e.g., 'CONTRACT-MM7XPEY4-QADB') via metadata lookup
+    // Strategy 1: Resolve non-UUID contract_id via getContractByNumber
     if (contract_id && typeof contract_id === 'string' && !uuidRegex.test(contract_id)) {
       console.log('[ToolExecutor] contract_id is non-UUID, resolving:', contract_id);
       try {
-        // Search by metadata->localContractId or contract_number
-        const { data: metaMatch } = await supabaseAdmin
-          .from('contracts')
-          .select('id')
-          .or(`metadata->>localContractId.eq.${contract_id},contract_number.eq.${contract_id}`)
-          .limit(1)
-          .maybeSingle();
-        if (metaMatch) {
-          console.log('[ToolExecutor] Resolved contract via metadata/number:', contract_id, '→', metaMatch.id);
-          contract_id = metaMatch.id;
+        const match = await getContractByNumber(contract_id);
+        if (match) {
+          console.log('[ToolExecutor] Resolved contract via contract_number:', contract_id, '→', match.id);
+          contract_id = match.id;
+        } else {
+          console.warn('[ToolExecutor] getContractByNumber returned null for:', contract_id);
         }
       } catch (err) {
-        console.warn('[ToolExecutor] Contract metadata resolution failed:', err);
+        console.warn('[ToolExecutor] Contract number resolution failed:', err);
       }
     }
 
-    // Auto-resolve contract_id from session context
-    if (!contract_id && this.context.requestId) {
+    // Strategy 2: Fallback to requestId context (when still non-UUID or missing)
+    if ((!contract_id || (typeof contract_id === 'string' && !uuidRegex.test(contract_id))) && this.context.requestId) {
       const contracts = await getContractsByRequest(this.context.requestId);
       if (contracts && contracts.length > 0) {
-        // Use the most recent non-cancelled contract
         const activeContract = contracts.find(c => c.status !== 'cancelled' && c.status !== 'expired');
         if (activeContract) {
+          console.log('[ToolExecutor] Auto-resolved contract_id from request:', activeContract.id);
           contract_id = activeContract.id;
-          console.log('[ToolExecutor] Auto-resolved contract_id from request:', contract_id);
         }
       }
     }
 
-    // If still no UUID contract_id, try via most recent contract for this user
+    // Strategy 3: Fallback to most recent contract for this agent
     if ((!contract_id || (typeof contract_id === 'string' && !uuidRegex.test(contract_id))) && this.context.isoAgentId) {
       try {
         const { data: recentContract } = await supabaseAdmin
