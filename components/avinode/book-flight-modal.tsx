@@ -384,11 +384,12 @@ The Jetvision Team`;
       setState('success');
 
       // Pass full contract data to parent for rich chat card rendering
-      if (onContractSent && data.dbContractId) {
+      // Fire even without dbContractId — local contractId and email confirmation are valid
+      if (onContractSent) {
         const dep = flight.departureAirport?.icao || tripDetails.departureAirport.icao;
         const arr = flight.arrivalAirport?.icao || tripDetails.arrivalAirport.icao;
         onContractSent({
-          contractId: data.dbContractId,
+          contractId: data.dbContractId || data.contractId,
           contractNumber: data.contractNumber,
           pdfUrl: data.pdfUrl || '',
           customerName: customer.name,

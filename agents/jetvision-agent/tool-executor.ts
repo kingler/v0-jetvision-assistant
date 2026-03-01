@@ -618,6 +618,28 @@ export class ToolExecutor {
     let { contract_id } = params;
     const { payment_amount, payment_method, payment_reference } = params;
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Resolve non-UUID contract_id (e.g., 'CONTRACT-MM7XPEY4-QADB') via metadata lookup
+    if (contract_id && typeof contract_id === 'string' && !uuidRegex.test(contract_id)) {
+      console.log('[ToolExecutor] contract_id is non-UUID, resolving:', contract_id);
+      try {
+        // Search by metadata->localContractId or contract_number
+        const { data: metaMatch } = await supabaseAdmin
+          .from('contracts')
+          .select('id')
+          .or(`metadata->>localContractId.eq.${contract_id},contract_number.eq.${contract_id}`)
+          .limit(1)
+          .maybeSingle();
+        if (metaMatch) {
+          console.log('[ToolExecutor] Resolved contract via metadata/number:', contract_id, '→', metaMatch.id);
+          contract_id = metaMatch.id;
+        }
+      } catch (err) {
+        console.warn('[ToolExecutor] Contract metadata resolution failed:', err);
+      }
+    }
+
     // Auto-resolve contract_id from session context
     if (!contract_id && this.context.requestId) {
       const contracts = await getContractsByRequest(this.context.requestId);
@@ -628,6 +650,26 @@ export class ToolExecutor {
           contract_id = activeContract.id;
           console.log('[ToolExecutor] Auto-resolved contract_id from request:', contract_id);
         }
+      }
+    }
+
+    // If still no UUID contract_id, try via most recent contract for this user
+    if ((!contract_id || (typeof contract_id === 'string' && !uuidRegex.test(contract_id))) && this.context.isoAgentId) {
+      try {
+        const { data: recentContract } = await supabaseAdmin
+          .from('contracts')
+          .select('id')
+          .eq('iso_agent_id', this.context.isoAgentId)
+          .not('status', 'in', '("cancelled","expired")')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (recentContract) {
+          contract_id = recentContract.id;
+          console.log('[ToolExecutor] Auto-resolved contract_id from most recent:', contract_id);
+        }
+      } catch (err) {
+        console.warn('[ToolExecutor] Most recent contract resolution failed:', err);
       }
     }
 

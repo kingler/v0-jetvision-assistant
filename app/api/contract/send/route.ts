@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateContract } from '@/lib/pdf';
 import { sendContractEmail } from '@/lib/services/email-service';
-import { uploadContractPdf, downloadProposalPdf } from '@/lib/supabase/admin';
+import { supabaseAdmin, uploadContractPdf, downloadProposalPdf, findRequestByTripId } from '@/lib/supabase/admin';
 import {
   getAuthenticatedAgent,
   isErrorResponse,
@@ -214,10 +214,131 @@ export async function POST(
       );
     }
 
+    // =========================================================================
+    // RESOLVE REQUEST ID — multi-strategy resolution (same pattern as
+    // approve-email/route.ts). The UI may send a non-UUID identifier like
+    // an Avinode quote ID ('flight-aquote-397331667') or a trip ID. We need
+    // a UUID for DB operations.
+    // =========================================================================
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let resolvedRequestId: string | undefined = uuidRegex.test(body.requestId)
+      ? body.requestId
+      : undefined;
+
+    if (!resolvedRequestId) {
+      console.log('[SendContract] requestId is non-UUID, attempting resolution:', body.requestId);
+
+      // Strategy 1: Search by avinode_trip_id (handles atrip-XXXXX format)
+      if (body.tripId) {
+        try {
+          const request = await findRequestByTripId(body.tripId, authResult.id);
+          if (request) {
+            resolvedRequestId = request.id;
+            console.log('[SendContract] Resolved via tripId:', body.tripId, '→', resolvedRequestId);
+          }
+        } catch (err) {
+          console.warn('[SendContract] tripId resolution failed:', err);
+        }
+      }
+
+      // Strategy 2: Search by avinode_trip_id matching the requestId value itself
+      if (!resolvedRequestId) {
+        try {
+          const request = await findRequestByTripId(body.requestId, authResult.id);
+          if (request) {
+            resolvedRequestId = request.id;
+            console.log('[SendContract] Resolved via requestId-as-tripId:', body.requestId, '→', resolvedRequestId);
+          }
+        } catch (err) {
+          console.warn('[SendContract] requestId-as-tripId resolution failed:', err);
+        }
+      }
+
+      // Strategy 3: Search by avinode_rfp_id or metadata containing the requestId
+      if (!resolvedRequestId) {
+        try {
+          const { data: rfpMatch } = await supabaseAdmin
+            .from('requests')
+            .select('id')
+            .eq('iso_agent_id', authResult.id)
+            .or(`avinode_rfp_id.eq.${body.requestId},metadata->>requestId.eq.${body.requestId},metadata->>localRequestId.eq.${body.requestId}`)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (rfpMatch) {
+            resolvedRequestId = rfpMatch.id;
+            console.log('[SendContract] Resolved via rfp_id/metadata:', body.requestId, '→', resolvedRequestId);
+          }
+        } catch (err) {
+          console.warn('[SendContract] rfp_id/metadata resolution failed:', err);
+        }
+      }
+
+      // Strategy 4: Find most recent request for this user (last resort before auto-create)
+      if (!resolvedRequestId) {
+        try {
+          const { data: recentMatch } = await supabaseAdmin
+            .from('requests')
+            .select('id')
+            .eq('iso_agent_id', authResult.id)
+            .not('avinode_trip_id', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (recentMatch) {
+            resolvedRequestId = recentMatch.id;
+            console.log('[SendContract] Resolved via most recent request:', resolvedRequestId);
+          }
+        } catch (err) {
+          console.warn('[SendContract] Recent request resolution failed:', err);
+        }
+      }
+
+      // Strategy 5: Auto-create a request record (last resort)
+      if (!resolvedRequestId) {
+        try {
+          const dep = body.flightDetails.departureAirport.icao;
+          const arr = body.flightDetails.arrivalAirport.icao;
+          console.log('[SendContract] Auto-creating request record for:', body.requestId);
+          const { data: newRequest, error: createErr } = await supabaseAdmin
+            .from('requests')
+            .insert({
+              iso_agent_id: authResult.id,
+              avinode_trip_id: body.tripId || null,
+              avinode_rfp_id: body.requestId,
+              departure_airport: dep,
+              arrival_airport: arr,
+              departure_date: body.flightDetails.departureDate,
+              passengers: body.flightDetails.passengers,
+              status: 'pending',
+              metadata: {
+                autoCreatedByContractSend: true,
+                originalRequestId: body.requestId,
+              },
+            })
+            .select('id')
+            .single();
+
+          if (createErr) {
+            console.error('[SendContract] Failed to auto-create request:', createErr);
+          } else if (newRequest) {
+            resolvedRequestId = newRequest.id;
+            console.log('[SendContract] Auto-created request:', resolvedRequestId);
+          }
+        } catch (err) {
+          console.error('[SendContract] Auto-create request failed:', err);
+        }
+      }
+    }
+
+    // Use resolved UUID for all downstream operations; fall back to original if resolution failed
+    const effectiveRequestId = resolvedRequestId || body.requestId;
+    console.log('[SendContract] Using effectiveRequestId:', effectiveRequestId, '(original:', body.requestId, ')');
+
     // Fetch proposal PDF to include as first pages (if available)
     let proposalPdfBuffer: Buffer | undefined;
     try {
-      const proposals = await getProposalsByRequest(body.requestId);
+      const proposals = await getProposalsByRequest(effectiveRequestId);
       const latestProposal = proposals.find((p) => p.file_path);
       if (latestProposal?.file_path) {
         const buffer = await downloadProposalPdf(latestProposal.file_path);
@@ -234,7 +355,7 @@ export async function POST(
     let contractResult;
     try {
       contractResult = await generateContract({
-        requestId: body.requestId,
+        requestId: effectiveRequestId,
         isoAgentId: authResult.id,
         proposalId: body.proposalId,
         quoteId: body.quoteId,
@@ -275,7 +396,7 @@ export async function POST(
       // Create contract with automatic request/client resolution
       const createResult = await createContractWithResolution(
         {
-          request_id: body.requestId,
+          request_id: effectiveRequestId,
           iso_agent_id: authResult.id,
           proposal_id: body.proposalId,
           quote_id: body.quoteId,
@@ -387,7 +508,8 @@ export async function POST(
     }
 
     // Persist contract-sent confirmation message so it survives browser refresh
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    // Use effectiveRequestId (resolved UUID) for message persistence
+    const hasValidRequestForPersistence = uuidRegex.test(effectiveRequestId);
     const hasValidConversationId =
       typeof body.conversationId === 'string' &&
       body.conversationId.trim() !== '' &&
@@ -396,43 +518,41 @@ export async function POST(
 
     const isoAgentId = authResult.id;
 
-    if (hasValidConversationId && body.conversationId) {
+    if ((hasValidConversationId || hasValidRequestForPersistence) && isoAgentId) {
       try {
-        if (isoAgentId) {
-          const confirmationContent = emailResult.success
-            ? `The contract for ${dep} → ${arr} was sent to ${body.customer.name} at ${body.customer.email}.`
-            : `The contract for ${dep} → ${arr} was generated. Email could not be sent.`;
-          const contractSentData = {
-            flightDetails: {
-              departureAirport: dep,
-              arrivalAirport: arr,
-              departureDate: body.flightDetails.departureDate,
-              aircraftType: body.flightDetails.aircraftType,
-            },
-            client: { name: body.customer.name, email: body.customer.email },
-            pdfUrl: uploadResult.publicUrl ?? '',
-            fileName: contractResult.fileName,
-            contractId: contractResult.contractId,
-            contractNumber,
-            pricing: {
-              total: body.pricing.totalAmount,
-              currency: body.pricing.currency,
-            },
-          };
-          const msgId = await saveMessage({
-            requestId: body.requestId,
-            senderType: 'ai_assistant',
-            senderIsoAgentId: isoAgentId,
-            content: confirmationContent,
-            contentType: 'contract_shared',
-            richContent: { contractSent: contractSentData },
-          });
-          savedMessageId = msgId;
-          console.log('[SendContract] Persisted contract-sent confirmation:', {
-            requestId: body.requestId,
-            messageId: msgId,
-          });
-        }
+        const confirmationContent = emailResult.success
+          ? `The contract for ${dep} → ${arr} was sent to ${body.customer.name} at ${body.customer.email}.`
+          : `The contract for ${dep} → ${arr} was generated. Email could not be sent.`;
+        const contractSentData = {
+          flightDetails: {
+            departureAirport: dep,
+            arrivalAirport: arr,
+            departureDate: body.flightDetails.departureDate,
+            aircraftType: body.flightDetails.aircraftType,
+          },
+          client: { name: body.customer.name, email: body.customer.email },
+          pdfUrl: uploadResult.publicUrl ?? '',
+          fileName: contractResult.fileName,
+          contractId: contractResult.contractId,
+          contractNumber,
+          pricing: {
+            total: body.pricing.totalAmount,
+            currency: body.pricing.currency,
+          },
+        };
+        const msgId = await saveMessage({
+          requestId: effectiveRequestId,
+          senderType: 'ai_assistant',
+          senderIsoAgentId: isoAgentId,
+          content: confirmationContent,
+          contentType: 'contract_shared',
+          richContent: { contractSent: contractSentData },
+        });
+        savedMessageId = msgId;
+        console.log('[SendContract] Persisted contract-sent confirmation:', {
+          requestId: effectiveRequestId,
+          messageId: msgId,
+        });
       } catch (persistErr) {
         console.warn('[SendContract] Failed to persist contract-sent message:', persistErr);
       }

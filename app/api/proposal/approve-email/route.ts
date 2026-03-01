@@ -30,6 +30,7 @@ import {
 import {
   getProposalById,
   getProposalByNumber,
+  createProposal,
   updateProposalSent,
 } from '@/lib/services/proposal-service'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -152,12 +153,63 @@ export async function POST(
     }
 
     // Get proposal to validate state
-    // The proposalId may be a UUID (id column) or a proposal number (e.g., JV-MM7WKKOT-FUNB)
+    // The proposalId may be a UUID (id column), a proposal number (e.g., PROP-2025-001),
+    // or a local proposal ID stored in metadata (e.g., JV-MM7WKKOT-FUNB)
     const uuidRegexCheck = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     const isUuid = uuidRegexCheck.test(body.proposalId)
-    const proposal = isUuid
+    let proposal = isUuid
       ? await getProposalById(body.proposalId)
       : await getProposalByNumber(body.proposalId)
+
+    // Fallback: search by metadata->localProposalId (local IDs like JV-xxx)
+    if (!proposal && !isUuid) {
+      const { data: metaMatch } = await supabaseAdmin
+        .from('proposals')
+        .select('*')
+        .eq('metadata->>localProposalId', body.proposalId)
+        .limit(1)
+        .maybeSingle()
+      if (metaMatch) {
+        proposal = metaMatch
+        console.log('[ApproveEmail] Found proposal via metadata localProposalId:', body.proposalId)
+      }
+    }
+
+    // Fallback: search by request_id if provided (last resort)
+    if (!proposal && body.requestId) {
+      const { data: reqMatch } = await supabaseAdmin
+        .from('proposals')
+        .select('*')
+        .eq('request_id', body.requestId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (reqMatch) {
+        proposal = reqMatch
+        console.log('[ApproveEmail] Found proposal via request_id fallback:', body.requestId)
+      }
+    }
+
+    // If no proposal found anywhere, auto-create a draft so we can proceed with sending
+    if (!proposal && body.requestId) {
+      console.log('[ApproveEmail] No proposal record found, auto-creating for request:', body.requestId)
+      try {
+        const createResult = await createProposal({
+          request_id: body.requestId,
+          iso_agent_id: authResult.id,
+          title: body.subject,
+          file_name: '',
+          file_url: '',
+          metadata: { localProposalId: body.proposalId, autoCreatedByApproveEmail: true },
+        })
+        // Re-fetch the full proposal record
+        proposal = await getProposalById(createResult.id)
+        console.log('[ApproveEmail] Auto-created proposal:', createResult.id)
+      } catch (createErr) {
+        console.error('[ApproveEmail] Failed to auto-create proposal:', createErr)
+      }
+    }
+
     if (!proposal) {
       return NextResponse.json(
         { success: false, error: 'Proposal not found' },
