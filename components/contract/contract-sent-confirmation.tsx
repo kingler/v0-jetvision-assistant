@@ -80,7 +80,7 @@ export function ContractSentConfirmation({
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.draft
 
   return (
-    <div className="w-full">
+    <div className="w-full" data-testid="contract-sent-confirmation">
       <Card className="w-full">
         <CardContent className="p-6 space-y-4">
           {/* Header */}

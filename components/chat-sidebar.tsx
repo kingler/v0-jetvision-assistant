@@ -353,6 +353,7 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
             role="tab"
             aria-selected={activeTab === 'archive'}
             onClick={handleArchiveTabClick}
+            data-testid="archive-tab"
             className={`flex-1 text-xs sm:text-sm py-1.5 px-2 font-medium border-b-2 transition-colors ${
               activeTab === 'archive'
                 ? 'border-primary text-foreground'

@@ -433,7 +433,7 @@ export function CustomerSelectionDialog({
 
   return (
     <ResponsiveModal open={open} onOpenChange={handleClose}>
-      <ResponsiveModalContent className="sm:max-w-[500px] overflow-visible">
+      <ResponsiveModalContent className="sm:max-w-[500px] overflow-visible" data-testid="customer-selection-dialog">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
             {mode === 'select' ? 'Select Customer for Proposal' : 'Create New Customer'}
@@ -479,6 +479,7 @@ export function CustomerSelectionDialog({
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-placeholder pointer-events-none" />
                   <Input
                     id="customer-typeahead"
+                    data-testid="customer-search"
                     type="text"
                     placeholder="Search by name, company, or email..."
                     value={searchQuery}

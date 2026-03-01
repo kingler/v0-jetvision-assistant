@@ -637,6 +637,7 @@ export function RFQFlightCard({
                           disabled={bookFlightDisabled}
                           className="flex items-center gap-1 sm:gap-1.5 text-foreground text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8"
                           aria-label="Book flight"
+                          data-testid="book-flight"
                         >
                           <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                           <span className="sm:hidden">Book</span><span className="hidden sm:inline">Book flight</span>
@@ -652,6 +653,7 @@ export function RFQFlightCard({
                           disabled={proposalSentForSession}
                           className="flex items-center gap-1 sm:gap-1.5 text-foreground text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8 shrink-0"
                           aria-label={proposalSentForSession ? 'Proposal Sent' : 'Generate Proposal'}
+                          data-testid="generate-proposal"
                         >
                           <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                           <span className="sm:hidden">{proposalSentForSession ? 'Sent' : 'Proposal'}</span><span className="hidden sm:inline">{proposalSentForSession ? 'Proposal Sent' : 'Generate Proposal'}</span>
@@ -891,6 +893,7 @@ export function RFQFlightCard({
                         disabled={bookFlightDisabled}
                         className="flex items-center gap-1 sm:gap-1.5 text-foreground text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8"
                         aria-label="Book flight"
+                        data-testid="book-flight"
                       >
                         <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                         <span className="sm:hidden">Book</span><span className="hidden sm:inline">Book Flight</span>
@@ -906,6 +909,7 @@ export function RFQFlightCard({
                         disabled={proposalSentForSession}
                         className="flex items-center gap-1 sm:gap-1.5 text-foreground text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8 shrink-0"
                         aria-label={proposalSentForSession ? 'Proposal Sent' : 'Generate flight proposal'}
+                        data-testid="generate-proposal"
                       >
                         <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                         <span className="sm:hidden">{proposalSentForSession ? 'Sent' : 'Proposal'}</span><span className="hidden sm:inline">{proposalSentForSession ? 'Proposal Sent' : 'Generate Proposal'}</span>

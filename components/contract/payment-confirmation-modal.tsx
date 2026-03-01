@@ -83,7 +83,7 @@ export function PaymentConfirmationModal({
 
   return (
     <ResponsiveModal open={open} onOpenChange={(v) => !v && !isSubmitting && onClose()}>
-      <ResponsiveModalContent className="sm:max-w-[420px]">
+      <ResponsiveModalContent className="sm:max-w-[420px]" data-testid="payment-confirmation-modal">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />

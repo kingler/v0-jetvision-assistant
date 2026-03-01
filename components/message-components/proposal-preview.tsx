@@ -38,7 +38,7 @@ export function ProposalPreview({ proposal, onDownload, onView, onAccept, classN
   const tripLabel = getTripTypeLabel(tripType);
 
   return (
-    <Card className={`${className || ''}`}>
+    <Card className={`${className || ''}`} data-testid="proposal-preview">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -180,6 +180,7 @@ export function ProposalPreview({ proposal, onDownload, onView, onAccept, classN
             <Button
               size="sm"
               onClick={() => onAccept(id)}
+              data-testid="approve-email"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Accept Proposal
