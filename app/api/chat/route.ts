@@ -508,14 +508,36 @@ export async function POST(req: NextRequest) {
           updateData.special_requirements = result.rfpData.special_requirements;
         }
         if (result.rfpData.trip_type) {
-          updateData.trip_type = result.rfpData.trip_type;
+          // Normalize: agent returns 'one_way' but DB constraint expects 'single_leg'
+          updateData.trip_type = result.rfpData.trip_type === 'one_way'
+            ? 'single_leg'
+            : result.rfpData.trip_type;
         }
       }
 
-      await supabaseAdmin
+      console.log('[Chat API] Updating requests table:', {
+        conversationId,
+        fields: Object.keys(updateData),
+        tripId: updateData.avinode_trip_id || null,
+        depAirport: updateData.departure_airport || null,
+        arrAirport: updateData.arrival_airport || null,
+        passengers: updateData.passengers || null,
+      });
+
+      const { error: requestUpdateError, count: requestUpdateCount } = await supabaseAdmin
         .from('requests')
         .update(updateData)
         .eq('id', conversationId);
+
+      if (requestUpdateError) {
+        console.error('[Chat API] ❌ Failed to update requests table:', {
+          error: requestUpdateError.message,
+          code: requestUpdateError.code,
+          conversationId,
+        });
+      } else {
+        console.log('[Chat API] ✅ Requests table updated:', { conversationId, matchedRows: requestUpdateCount });
+      }
 
       // 8a. Persist trip segments for multi-city trips
       if (result.rfpData?.segments && Array.isArray(result.rfpData.segments) && result.rfpData.segments.length > 0) {

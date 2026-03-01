@@ -502,6 +502,7 @@ export function AgentMessage({
             }}
           deepLink={deepLinkData.deepLink || (deepLinkData.tripId ? `https://sandbox.avinode.com/marketplace/mvc/search#preSearch` : undefined)}
           tripId={deepLinkData.tripId}
+          isTripCreated={!!(deepLinkData.tripId || deepLinkData.deepLink)}
           isTripIdLoading={isTripIdLoading}
           tripIdError={tripIdError}
           tripIdSubmitted={tripIdSubmitted}
