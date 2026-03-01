@@ -180,10 +180,10 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
           tripId: tripData.tripId || '',
           deepLink: tripData.deepLink || '',
           departureAirport: tripData.departureAirport
-            ? { icao: typeof tripData.departureAirport === 'string' ? tripData.departureAirport : (tripData.departureAirport as { icao: string }).icao }
+            ? { icao: tripData.departureAirport }
             : undefined,
           arrivalAirport: tripData.arrivalAirport
-            ? { icao: typeof tripData.arrivalAirport === 'string' ? tripData.arrivalAirport : (tripData.arrivalAirport as { icao: string }).icao }
+            ? { icao: tripData.arrivalAirport }
             : undefined,
           departureDate: tripData.departureDate,
           passengers: tripData.passengers,
