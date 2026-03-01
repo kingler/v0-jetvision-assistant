@@ -138,6 +138,14 @@ export async function GET(request: NextRequest) {
           created_at,
           valid_until,
           decline_reason
+        ),
+        trip_segments(
+          segment_order,
+          departure_airport,
+          arrival_airport,
+          departure_date,
+          departure_time,
+          passengers
         )
       `)
       .eq('iso_agent_id', agent.id)
@@ -216,6 +224,8 @@ export async function GET(request: NextRequest) {
         avinode_rfq_id: req.avinode_rfq_id,
         avinode_deep_link: req.avinode_deep_link,
         created_at: req.created_at,
+        trip_segments: ((req as any).trip_segments || [])
+          .sort((a: any, b: any) => a.segment_order - b.segment_order),
       },
 
       // Conversation metadata (previously from conversations join)

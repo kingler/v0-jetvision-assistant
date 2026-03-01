@@ -422,6 +422,14 @@ export async function POST(req: NextRequest) {
       if (result.rfpData.departure_date) workingMemory.departureDate = result.rfpData.departure_date;
       if (result.rfpData.passengers) workingMemory.passengers = result.rfpData.passengers;
       if (result.rfpData.return_date) workingMemory.returnDate = result.rfpData.return_date;
+      if (result.rfpData.segments && Array.isArray(result.rfpData.segments) && result.rfpData.segments.length > 0) {
+        workingMemory.segments = result.rfpData.segments.map((seg: any) => ({
+          departure_airport: typeof seg.departure_airport === 'string' ? seg.departure_airport : (seg.departure_airport?.icao || String(seg.departure_airport)),
+          arrival_airport: typeof seg.arrival_airport === 'string' ? seg.arrival_airport : (seg.arrival_airport?.icao || String(seg.arrival_airport)),
+          departure_date: seg.departure_date,
+          passengers: seg.passengers,
+        }));
+      }
     }
     workingMemory.lastUpdated = new Date().toISOString();
 
@@ -474,6 +482,43 @@ export async function POST(req: NextRequest) {
         .from('requests')
         .update(updateData)
         .eq('id', conversationId);
+
+      // 8a. Persist trip segments for multi-city trips
+      if (result.rfpData?.segments && Array.isArray(result.rfpData.segments) && result.rfpData.segments.length > 0) {
+        const segments = result.rfpData.segments;
+        const firstSeg = segments[0];
+        const lastSeg = segments[segments.length - 1];
+
+        // Backfill flat departure/arrival from first/last segment when agent used segments[] only
+        const resolveCode = (val: unknown): string | null => {
+          if (typeof val === 'string') return val.toUpperCase();
+          if (val && typeof val === 'object' && 'icao' in (val as Record<string, unknown>)) return ((val as any).icao as string).toUpperCase();
+          return null;
+        };
+        const backfillDep = resolveCode(firstSeg.departure_airport);
+        const backfillArr = resolveCode(lastSeg.arrival_airport);
+
+        if (backfillDep || backfillArr) {
+          const backfill: Record<string, unknown> = { segment_count: segments.length };
+          if (backfillDep && !updateData.departure_airport) backfill.departure_airport = backfillDep;
+          if (backfillArr && !updateData.arrival_airport) backfill.arrival_airport = backfillArr;
+          await supabaseAdmin.from('requests').update(backfill).eq('id', conversationId);
+        }
+
+        // Upsert segments (delete + insert for idempotency)
+        await supabaseAdmin.from('trip_segments').delete().eq('request_id', conversationId);
+        const segmentRows = segments.map((seg: any, idx: number) => ({
+          request_id: conversationId,
+          segment_order: idx,
+          departure_airport: resolveCode(seg.departure_airport) || 'UNKN',
+          arrival_airport: resolveCode(seg.arrival_airport) || 'UNKN',
+          departure_date: seg.departure_date,
+          departure_time: seg.departure_time || null,
+          passengers: seg.passengers || result.rfpData?.passengers || 1,
+        }));
+        const { error: segError } = await supabaseAdmin.from('trip_segments').insert(segmentRows);
+        if (segError) console.error('[Chat API] Failed to insert trip_segments:', segError);
+      }
     }
 
     // 8b. Always persist working memory (workflow_state) back to requests table

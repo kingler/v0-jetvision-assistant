@@ -73,6 +73,14 @@ type ChatSessionRow = {
     avinode_rfq_id: string | null;
     avinode_deep_link: string | null;
     created_at: string;
+    trip_segments?: Array<{
+      segment_order: number;
+      departure_airport: string;
+      arrival_airport: string;
+      departure_date: string;
+      departure_time: string | null;
+      passengers: number;
+    }>;
   } | null;
   /** RFQ flights from quotes JOIN — partial because API returns a subset of RFQFlight fields */
   rfqFlights?: Array<Partial<RFQFlight> & { rfqStatus?: string }>;
@@ -241,7 +249,7 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
   const request = chatSessionRow.request;
   const conversation = chatSessionRow.conversation;
 
-  // Generate route string from request airports
+  // Generate route string — supports multi-city from trip_segments
   // Guard: departure_airport may be stored as a string or JSON object { icao: "KTEB" }
   const depCode = typeof request?.departure_airport === 'object' && request?.departure_airport !== null
     ? (request.departure_airport as unknown as { icao: string }).icao
@@ -249,9 +257,19 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
   const arrCode = typeof request?.arrival_airport === 'object' && request?.arrival_airport !== null
     ? (request.arrival_airport as unknown as { icao: string }).icao
     : request?.arrival_airport;
-  const route = depCode && arrCode
-    ? `${depCode} → ${arrCode}`
-    : 'Select route';
+
+  const tripSegments = request?.trip_segments;
+  let route: string;
+  if (tripSegments && tripSegments.length > 1) {
+    // Multi-city: "KTEB → EGGW → LFPB → KTEB"
+    const airports = tripSegments.map(s => s.departure_airport);
+    airports.push(tripSegments[tripSegments.length - 1].arrival_airport);
+    route = airports.join(' → ');
+  } else if (depCode && arrCode) {
+    route = `${depCode} → ${arrCode}`;
+  } else {
+    route = 'Select route';
+  }
 
   // Format date for display
   const date = formatDateForDisplay(request?.departure_date || null);
@@ -293,6 +311,14 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     // Infer round_trip if return_date exists even when trip_type is 'single_leg'
     tripType: (request?.trip_type === 'multi_city' ? 'multi_city' : request?.trip_type === 'round_trip' || request?.return_date ? 'round_trip' : request?.trip_type === 'one_way' || request?.trip_type === 'single_leg' ? 'one_way' : undefined) as ChatSession['tripType'],
     returnDate: request?.return_date ? request.return_date.split('T')[0] : undefined,
+    segments: tripSegments && tripSegments.length > 1
+      ? tripSegments.map(s => ({
+          departure_airport: { icao: s.departure_airport },
+          arrival_airport: { icao: s.arrival_airport },
+          departure_date: s.departure_date,
+          passengers: s.passengers,
+        }))
+      : undefined,
     status,
     currentStep,
     totalSteps: 10,
