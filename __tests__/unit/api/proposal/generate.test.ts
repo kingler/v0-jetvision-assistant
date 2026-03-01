@@ -403,7 +403,7 @@ describe('POST /api/proposal/generate', () => {
   // - __tests__/integration/proposal/round-trip.test.ts (7 tests)
   // API route tests with complex mock setups are skipped to avoid flakiness.
 
-  describe.skip('Round-Trip Proposals', () => {
+  describe('Round-Trip Proposals', () => {
     const outboundFlight: RFQFlight = {
       ...mockFlight,
       id: 'flight-outbound-001',

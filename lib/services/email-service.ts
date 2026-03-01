@@ -57,6 +57,12 @@ export interface SendProposalEmailOptions {
     departureAirport: string;
     arrivalAirport: string;
     departureDate: string;
+    /** Trip type for round-trip proposals */
+    tripType?: 'one_way' | 'round_trip';
+    /** Return date (ISO YYYY-MM-DD) for round-trip proposals */
+    returnDate?: string;
+    /** Return airport ICAO for round-trip proposals */
+    returnAirport?: string;
   };
   pricing?: {
     total: number;
