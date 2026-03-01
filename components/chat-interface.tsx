@@ -1815,6 +1815,7 @@ export function ChatInterface({
           selectedFlights: selectedFlightsForProposal,
           jetvisionFeePercentage: margin,
           saveDraft: true,
+          requestId: requestIdForSave,
         }),
       })
 
@@ -1871,6 +1872,9 @@ export function ChatInterface({
 
       // Build email approval data for EmailPreviewCard
       const proposalId = generateResult.dbProposalId || generateResult.proposalId
+      if (!generateResult.dbProposalId) {
+        console.warn('[ChatInterface] ⚠️ No dbProposalId from generate API — using local ID as fallback:', proposalId)
+      }
       const approvalData: EmailApprovalRequestContent = {
         proposalId,
         proposalNumber: generateResult.proposalNumber,

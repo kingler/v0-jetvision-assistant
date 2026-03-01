@@ -23,6 +23,7 @@ import {
   type ErrorResponse,
 } from '@/lib/utils/api';
 import {
+  createProposal,
   createProposalWithResolution,
   findQuoteByAvinodeId,
 } from '@/lib/services/proposal-service';
@@ -74,6 +75,8 @@ interface GenerateProposalRequest {
   jetvisionFeePercentage?: number;
   /** If true, creates a draft proposal record in the database */
   saveDraft?: boolean;
+  /** Explicit request_id fallback when tripId resolution fails */
+  requestId?: string;
 }
 
 interface GenerateProposalResponse {
@@ -304,8 +307,40 @@ export async function POST(
             dbId: draftResult.id,
             proposalNumber: draftResult.proposal_number,
           });
+        } else if (body.requestId) {
+          // ONEK-309: Fallback — create proposal directly with explicit requestId
+          // when tripId→requestId resolution failed
+          console.warn('[Generate] Resolution failed for tripId, falling back to explicit requestId:', {
+            tripId: body.tripDetails.tripId,
+            requestId: body.requestId,
+          });
+          const fallbackResult = await createProposal({
+            request_id: body.requestId,
+            iso_agent_id: authResult.id,
+            quote_id: quoteId,
+            title,
+            description,
+            total_amount: result.pricing.subtotal,
+            margin_applied: body.jetvisionFeePercentage ?? 10,
+            final_amount: result.pricing.total,
+            file_name: result.fileName,
+            file_url: '',
+            metadata: {
+              localProposalId: result.proposalId,
+              generatedAt: result.generatedAt,
+              pricing: result.pricing,
+              flightCount: body.selectedFlights.length,
+              fallbackCreation: true,
+            },
+          });
+          response.dbProposalId = fallbackResult.id;
+          response.proposalNumber = fallbackResult.proposal_number;
+          console.log('[Generate] Created draft proposal via fallback:', {
+            dbId: fallbackResult.id,
+            proposalNumber: fallbackResult.proposal_number,
+          });
         } else {
-          console.warn('[Generate] Could not create draft proposal - request not found for tripId:', body.tripDetails.tripId);
+          console.warn('[Generate] Could not create draft proposal - no requestId fallback available for tripId:', body.tripDetails.tripId);
         }
       } catch (draftError) {
         // Log error but don't fail the request - draft saving is optional
