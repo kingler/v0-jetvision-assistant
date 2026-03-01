@@ -458,12 +458,25 @@ export async function POST(req: NextRequest) {
       }
 
       // Add flight details from rfpData (create_trip params)
+      // Normalize airport values — LLM may pass string "KTEB" or object {icao:"KTEB"}
       if (result.rfpData) {
-        if (result.rfpData.departure_airport) {
-          updateData.departure_airport = result.rfpData.departure_airport;
+        const normalizeAirport = (val: unknown): string | undefined => {
+          if (!val) return undefined;
+          if (typeof val === 'string') return val.toUpperCase();
+          if (typeof val === 'object' && val !== null) {
+            const obj = val as Record<string, unknown>;
+            const icao = obj.icao ?? obj.code ?? obj.searchValue;
+            return typeof icao === 'string' ? icao.toUpperCase() : undefined;
+          }
+          return undefined;
+        };
+        const depAirport = normalizeAirport(result.rfpData.departure_airport);
+        if (depAirport) {
+          updateData.departure_airport = depAirport;
         }
-        if (result.rfpData.arrival_airport) {
-          updateData.arrival_airport = result.rfpData.arrival_airport;
+        const arrAirport = normalizeAirport(result.rfpData.arrival_airport);
+        if (arrAirport) {
+          updateData.arrival_airport = arrAirport;
         }
         if (result.rfpData.departure_date) {
           updateData.departure_date = result.rfpData.departure_date;
