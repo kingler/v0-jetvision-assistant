@@ -47,7 +47,7 @@ export function ClosedWonConfirmation({
   ].filter((t) => t.date)
 
   return (
-    <div className="w-full">
+    <div className="w-full" data-testid="closed-won-confirmation">
       <Card className="w-full">
         <CardContent className="p-6 space-y-4">
           {/* Header */}

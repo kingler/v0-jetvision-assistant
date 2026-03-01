@@ -469,6 +469,7 @@ The Jetvision Team`;
     >
       <ResponsiveModalContent
         className="sm:max-w-[550px]"
+        data-testid="book-flight-modal"
         onInteractOutside={(e: Event) => {
           if (['email_review', 'generating', 'sending'].includes(state)) {
             e.preventDefault();
@@ -762,7 +763,7 @@ The Jetvision Team`;
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button onClick={handleSendContract} className="min-h-[44px] md:min-h-0" data-testid="contract-send-btn">
+              <Button onClick={handleSendContract} className="min-h-[44px] md:min-h-0" data-testid="approve-send">
                 <Send className="mr-2 h-4 w-4" />
                 Approve &amp; Send
               </Button>

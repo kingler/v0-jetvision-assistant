@@ -149,7 +149,7 @@ export function ProposalSentConfirmation({
       : `${safeFlightDetails.departureAirport || 'N/A'} → ${safeFlightDetails.arrivalAirport || 'N/A'}`
 
   return (
-    <div className="w-full">
+    <div className="w-full" data-testid="proposal-sent-confirmation">
       <Card className="w-full">
         <CardContent className="p-6 space-y-4">
         {/* Success Header */}

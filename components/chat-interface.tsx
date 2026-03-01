@@ -1281,16 +1281,11 @@ export function ChatInterface({
       }
     }
 
-    // Phase 1: Auto-archive when payment is confirmed via agent path
-    // (aligns agent confirm_payment path with UI handlePaymentConfirm path)
+    // Set status to closed_won when payment is confirmed via agent path
+    // Do NOT auto-archive — let the user see PaymentConfirmedCard and
+    // ClosedWonConfirmation before they manually archive via the sidebar
     if (result.paymentConfirmationData && result.closedWonData) {
       updates.status = 'closed_won' as const;
-      // Trigger archive after a short delay to let message render first
-      setTimeout(() => {
-        if (onArchiveChat) {
-          onArchiveChat(activeChat.id);
-        }
-      }, 1500);
     }
 
     onUpdateChat(activeChat.id, updates)
@@ -2425,20 +2420,16 @@ export function ChatInterface({
     }
 
     // Update status to closed_won and append messages
+    // Do NOT auto-archive — let the user see the confirmation cards first
     onUpdateChat(activeChat.id, {
       status: 'closed_won' as const,
       messages: [...(activeChat.messages || []), paymentMessage, closedMessage],
     })
 
-    // Auto-archive the session after payment confirmation
-    if (onArchiveChat) {
-      onArchiveChat(activeChat.id)
-    }
-
     // Close modal and reset state
     setIsPaymentModalOpen(false)
     setPaymentContractData(null)
-  }, [paymentContractData, activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat, onArchiveChat])
+  }, [paymentContractData, activeChat.id, activeChat.requestId, activeChat.conversationId, activeChat.messages, onUpdateChat])
 
   /**
    * Handle sending operator message

@@ -53,7 +53,7 @@ export function PaymentConfirmedCard({
   const paymentMethodLabel = PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod
 
   return (
-    <div className="w-full">
+    <div className="w-full" data-testid="payment-confirmed-card">
       <Card className="w-full">
         <CardContent className="p-6 space-y-4">
           {/* Header */}
