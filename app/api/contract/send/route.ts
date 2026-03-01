@@ -254,23 +254,23 @@ export async function POST(
         }
       }
 
-      // Strategy 3: Search by avinode_rfp_id or metadata containing the requestId
+      // Strategy 3: Search by avinode_rfq_id or metadata containing the requestId
       if (!resolvedRequestId) {
         try {
-          const { data: rfpMatch } = await supabaseAdmin
+          const { data: rfqMatch } = await supabaseAdmin
             .from('requests')
             .select('id')
             .eq('iso_agent_id', authResult.id)
-            .or(`avinode_rfp_id.eq.${body.requestId},metadata->>requestId.eq.${body.requestId},metadata->>localRequestId.eq.${body.requestId}`)
+            .or(`avinode_rfq_id.eq.${body.requestId},metadata->>requestId.eq.${body.requestId},metadata->>localRequestId.eq.${body.requestId}`)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-          if (rfpMatch) {
-            resolvedRequestId = rfpMatch.id;
-            console.log('[SendContract] Resolved via rfp_id/metadata:', body.requestId, '→', resolvedRequestId);
+          if (rfqMatch) {
+            resolvedRequestId = rfqMatch.id;
+            console.log('[SendContract] Resolved via rfq_id/metadata:', body.requestId, '→', resolvedRequestId);
           }
         } catch (err) {
-          console.warn('[SendContract] rfp_id/metadata resolution failed:', err);
+          console.warn('[SendContract] rfq_id/metadata resolution failed:', err);
         }
       }
 
@@ -305,7 +305,7 @@ export async function POST(
             .insert({
               iso_agent_id: authResult.id,
               avinode_trip_id: body.tripId || null,
-              avinode_rfp_id: body.requestId,
+              avinode_rfq_id: body.requestId || null,
               departure_airport: dep,
               arrival_airport: arr,
               departure_date: body.flightDetails.departureDate,
@@ -393,6 +393,14 @@ export async function POST(
 
     // Create contract record in database
     try {
+      console.log('[SendContract] Creating contract record:', {
+        effectiveRequestId,
+        isoAgentId: authResult.id,
+        tripId: body.tripId,
+        customerEmail: body.customer.email,
+        isUUID: uuidRegex.test(effectiveRequestId),
+      });
+
       // Create contract with automatic request/client resolution
       const createResult = await createContractWithResolution(
         {
@@ -433,13 +441,23 @@ export async function POST(
           dbId: dbContractId,
           contractNumber,
           requestId: body.requestId,
+          effectiveRequestId,
         });
       } else {
-        console.warn('[SendContract] Could not create contract record - request not found');
+        console.warn('[SendContract] Could not create contract record - createContractWithResolution returned null', {
+          effectiveRequestId,
+          tripId: body.tripId,
+          isUUID: uuidRegex.test(effectiveRequestId),
+        });
       }
     } catch (dbError) {
       // Log error but don't fail the request - DB tracking is secondary
-      console.error('[SendContract] Error creating contract record:', dbError);
+      console.error('[SendContract] Error creating contract record:', {
+        error: dbError instanceof Error ? dbError.message : String(dbError),
+        stack: dbError instanceof Error ? dbError.stack : undefined,
+        effectiveRequestId,
+        tripId: body.tripId,
+      });
     }
 
     // Build email subject and body

@@ -18,9 +18,11 @@ import {
 } from '@/lib/utils/api';
 import {
   getContractById,
+  getContractByNumber,
   updateContractPayment,
   completeContract,
 } from '@/lib/services/contract-service';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { ContractPaymentData, ContractStatus } from '@/lib/types/contract';
 import { saveMessage } from '@/lib/conversation/message-persistence';
 
@@ -146,8 +148,35 @@ export async function POST(
       );
     }
 
+    // Resolve contract ID — may be a UUID or a local/contract_number string
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let resolvedId = id;
+
+    if (!uuidRegex.test(id)) {
+      // Strategy 1: Look up by contract_number (e.g., "CONTRACT-MM7XPEY4-QADB")
+      const byNumber = await getContractByNumber(id);
+      if (byNumber) {
+        resolvedId = byNumber.id;
+        console.log('[RecordPayment] Resolved non-UUID via contract_number:', id, '→', resolvedId);
+      } else {
+        // Strategy 2: Look up by metadata.localContractId
+        const { data: byMeta } = await supabaseAdmin
+          .from('contracts')
+          .select('id')
+          .eq('metadata->>localContractId', id)
+          .limit(1)
+          .maybeSingle();
+        if (byMeta) {
+          resolvedId = byMeta.id;
+          console.log('[RecordPayment] Resolved non-UUID via metadata:', id, '→', resolvedId);
+        } else {
+          console.warn('[RecordPayment] Could not resolve non-UUID contract ID:', id);
+        }
+      }
+    }
+
     // Fetch contract to verify ownership and status
-    const contract = await getContractById(id);
+    const contract = await getContractById(resolvedId);
     if (!contract) {
       return NextResponse.json(
         { success: false, error: 'Contract not found' },
@@ -181,8 +210,8 @@ export async function POST(
       cc_last_four: body.cc_last_four,
     };
 
-    // Update contract with payment
-    let result = await updateContractPayment(id, paymentData);
+    // Update contract with payment (use resolvedId, not raw id)
+    let result = await updateContractPayment(resolvedId, paymentData);
 
     console.log('[RecordPayment] Payment recorded:', {
       id: result.id,
@@ -193,7 +222,7 @@ export async function POST(
 
     // Optionally mark contract as completed
     if (body.markComplete) {
-      const completedContract = await completeContract(id);
+      const completedContract = await completeContract(resolvedId);
       result = {
         id: completedContract.id,
         contract_number: completedContract.contract_number,

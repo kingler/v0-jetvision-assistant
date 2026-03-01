@@ -37,12 +37,22 @@ vi.mock('@/lib/utils/api', async (importOriginal) => {
 });
 
 const mockGetContractById = vi.fn();
+const mockGetContractByNumber = vi.fn();
 const mockUpdateContractPayment = vi.fn();
 const mockCompleteContract = vi.fn();
 vi.mock('@/lib/services/contract-service', () => ({
   getContractById: (...args: unknown[]) => mockGetContractById(...args),
+  getContractByNumber: (...args: unknown[]) => mockGetContractByNumber(...args),
   updateContractPayment: (...args: unknown[]) => mockUpdateContractPayment(...args),
   completeContract: (...args: unknown[]) => mockCompleteContract(...args),
+}));
+
+// Mock supabaseAdmin for non-UUID contract ID resolution via metadata lookup
+const mockSupabaseFrom = vi.fn();
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
+    from: (...args: unknown[]) => mockSupabaseFrom(...args),
+  },
 }));
 
 const mockSaveMessage = vi.fn();
@@ -98,6 +108,17 @@ describe('POST /api/contract/[id]/payment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupAuthMock('success');
+    mockGetContractByNumber.mockResolvedValue(null);
+    // Set up supabaseAdmin.from().select().eq().limit().maybeSingle() chain
+    mockSupabaseFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+          }),
+        }),
+      }),
+    });
     mockGetContractById.mockResolvedValue(mockContractRow);
     mockUpdateContractPayment.mockResolvedValue(mockPaymentResult);
     mockCompleteContract.mockResolvedValue(mockCompletedContract);

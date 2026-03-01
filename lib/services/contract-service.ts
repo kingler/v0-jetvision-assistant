@@ -113,6 +113,20 @@ async function generateContractNumber(): Promise<string> {
  * @param input - Contract creation input
  * @returns Created contract with ID and contract_number
  */
+/**
+ * Normalize payment method to DB-allowed values.
+ * DB constraint: CHECK (payment_method IN ('wire', 'credit_card'))
+ */
+function normalizePaymentMethod(method: string | undefined | null): 'wire' | 'credit_card' | null {
+  if (!method) return null;
+  const lower = method.toLowerCase().replace(/[\s_-]+/g, '');
+  if (lower.includes('wire')) return 'wire';
+  if (lower.includes('credit') || lower.includes('card') || lower === 'cc') return 'credit_card';
+  // Unknown method — return null to avoid constraint violation
+  console.warn('[ContractService] Unknown payment method, defaulting to null:', method);
+  return null;
+}
+
 export async function createContract(
   input: CreateContractInput
 ): Promise<CreateContractResult> {
@@ -152,8 +166,8 @@ export async function createContract(
     currency: input.pricing.currency,
     // Amenities
     amenities: (input.amenities as Json) ?? {},
-    // Payment method
-    payment_method: input.paymentMethod ?? null,
+    // Payment method — normalize to DB-allowed values ('wire' | 'credit_card')
+    payment_method: normalizePaymentMethod(input.paymentMethod),
     // Status
     status: 'draft',
     // Metadata

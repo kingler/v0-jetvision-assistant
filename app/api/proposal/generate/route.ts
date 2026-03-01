@@ -280,6 +280,7 @@ export async function POST(
         const draftResult = await createProposalWithResolution(
           {
             iso_agent_id: authResult.id,
+            request_id: body.requestId,
             quote_id: quoteId,
             title,
             description,
