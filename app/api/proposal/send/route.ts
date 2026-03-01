@@ -481,6 +481,11 @@ export async function POST(
         departureAirport: body.tripDetails.departureAirport.icao,
         arrivalAirport: body.tripDetails.arrivalAirport.icao,
         departureDate: body.tripDetails.departureDate,
+        ...(isRoundTrip && {
+          tripType: 'round_trip' as const,
+          returnDate: resolvedReturnDate,
+          returnAirport: returnAirport?.icao,
+        }),
       },
       pricing: {
         total: proposalResult.pricing.total,
