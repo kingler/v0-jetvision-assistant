@@ -551,7 +551,7 @@ export async function POST(
           client: { name: body.customer.name, email: body.customer.email },
           pdfUrl: uploadResult.publicUrl ?? '',
           fileName: contractResult.fileName,
-          contractId: contractResult.contractId,
+          contractId: dbContractId || contractResult.contractId,
           contractNumber,
           pricing: {
             total: body.pricing.totalAmount,

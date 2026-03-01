@@ -673,6 +673,14 @@ export class ToolExecutor {
       throw new Error('payment_amount, payment_method, and payment_reference are required. contract_id could not be auto-resolved — please provide it explicitly.');
     }
 
+    // Final UUID validation — prevent "invalid input syntax for type uuid" from PostgreSQL
+    if (typeof contract_id === 'string' && !uuidRegex.test(contract_id)) {
+      throw new Error(
+        `Could not resolve contract "${contract_id}" to a database UUID. ` +
+        `Please provide the contract UUID (from the contracts table), or omit contract_id to auto-resolve from the active session.`
+      );
+    }
+
     const { updateContractPayment, completeContract, getContractById } = await import('@/lib/services/contract-service');
 
     // Duplicate-payment guard (mirrors contract duplicate guard at generateContract)

@@ -175,6 +175,13 @@ export async function POST(
       }
     }
 
+    if (!uuidRegex.test(resolvedId)) {
+      return NextResponse.json(
+        { success: false, error: `Contract not found: unable to resolve "${id}" to a valid contract` },
+        { status: 404 }
+      );
+    }
+
     // Fetch contract to verify ownership and status
     const contract = await getContractById(resolvedId);
     if (!contract) {

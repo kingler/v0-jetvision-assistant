@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Allowed content types for client-side persistence
-    const allowedTypes = ['text', 'margin_selection', 'email_approval_request'] as const;
+    const allowedTypes = ['text', 'margin_selection', 'email_approval_request', 'contract_shared', 'payment_confirmed', 'deal_closed'] as const;
     const safeContentType = allowedTypes.includes(contentType as typeof allowedTypes[number])
       ? (contentType as typeof allowedTypes[number])
       : 'text';

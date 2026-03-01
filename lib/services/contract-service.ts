@@ -206,6 +206,12 @@ export async function createContract(
  * @returns Contract row or null if not found
  */
 export async function getContractById(id: string): Promise<Contract | null> {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    console.warn('[ContractService] getContractById called with non-UUID:', id);
+    return null;
+  }
+
   const { data, error } = await supabaseAdmin
     .from('contracts')
     .select('*')
