@@ -72,29 +72,16 @@ test.describe('Phase 1: Flight Requests', () => {
 
     await captureScreenshot(page, '01-chat-ready', 'round-trip');
 
-    // Send round-trip request with ALL details upfront (including return)
+    // Send round-trip request with ALL details upfront (departure + return)
     await sendChatMessage(
       page,
       'I need a round trip flight from EGGW to KVNY for 4 passengers. Departing March 2, 2026 at 9:00am EST, returning March 5, 2026 at 2:00pm EST'
     );
 
-    // Wait for either trip card or a clarification question
-    const tripOrClarify = await Promise.race([
-      page.waitForSelector('[data-testid="trip-request-card"]', { timeout: 60_000 })
-        .then(() => 'trip' as const),
-      page.waitForSelector('text=/return|Return/', { timeout: 60_000 })
-        .then(() => 'clarify' as const),
-    ]);
-
-    if (tripOrClarify === 'clarify') {
-      await captureScreenshot(page, '02-clarification', 'round-trip');
-      // Agent asked for return details — provide them
-      await sendChatMessage(page, 'Return on March 5, 2026 at 2:00pm EST');
-      await waitForComponent(page, '[data-testid="trip-request-card"]', 60_000);
-    }
-
+    // Wait for TripRequestCard
+    await waitForComponent(page, '[data-testid="trip-request-card"]', 90_000);
     await demoPause(page);
-    await captureScreenshot(page, '03-trip-created', 'round-trip');
+    await captureScreenshot(page, '02-trip-created', 'round-trip');
 
     // Verify both legs
     await assertTextVisible(page, 'EGGW');
@@ -106,7 +93,7 @@ test.describe('Phase 1: Flight Requests', () => {
     );
     await expect(deepLink.first()).toBeVisible();
 
-    await captureScreenshot(page, '04-final-state', 'round-trip');
+    await captureScreenshot(page, '03-final-state', 'round-trip');
   });
 
   test('Scenario 3: Multi-city trip — full info', async ({ page }) => {

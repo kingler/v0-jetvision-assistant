@@ -72,8 +72,8 @@ export async function navigateToChat(page: Page): Promise<void> {
     }
   }
 
-  // Wait for chat interface (landing page uses <input>, chat view uses <textarea>)
-  await page.waitForSelector('textarea, input[placeholder*="message"], [role="textbox"]', {
+  // Wait for chat interface (landing page uses <input>, chat view uses <input>)
+  await page.waitForSelector('textarea, input[placeholder*="message" i], [role="textbox"]', {
     timeout: 30_000,
   });
 }
@@ -83,8 +83,10 @@ export async function sendChatMessage(
   page: Page,
   message: string
 ): Promise<void> {
-  // Landing page uses <input>, active chat uses <textarea>
-  const chatInput = page.locator('textarea, input[placeholder*="message"]').last();
+  // Landing page uses <input placeholder="Type your message...">,
+  // Active chat uses <input placeholder="Message about this request...">
+  // Use case-insensitive CSS attribute selector (i flag)
+  const chatInput = page.locator('textarea, input[placeholder*="message" i]').last();
   await chatInput.fill(message);
   await chatInput.press('Enter');
 }
@@ -103,10 +105,13 @@ export async function waitForAssistantReply(
   page: Page,
   timeout = 60_000
 ): Promise<void> {
+  // Agent messages are identified by "Jetvision Agent" label text
   await page.waitForSelector(
-    '[data-role="assistant"], .assistant-message, [data-testid="assistant-message"]',
+    'text="Jetvision Agent"',
     { timeout }
   );
+  // Brief pause for the response to finish streaming
+  await page.waitForTimeout(2_000);
 }
 
 /** Assert that a component is NOT visible (useful for ambiguous flow checks) */
