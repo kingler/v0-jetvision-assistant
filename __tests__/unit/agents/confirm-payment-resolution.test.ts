@@ -15,10 +15,10 @@ const mockSingle = vi.fn().mockResolvedValue({ data: null, error: null });
 const mockEq = vi.fn(() => ({ not: mockNot, limit: mockLimit, single: mockSingle, eq: mockEq, order: mockOrder }));
 const mockOr = vi.fn(() => ({ limit: mockLimit }));
 const mockSelect = vi.fn(() => ({ eq: mockEq, or: mockOr }));
-const mockFrom = vi.fn(() => ({ select: mockSelect }));
+const mockFrom = vi.fn((_table: string) => ({ select: mockSelect }));
 
 vi.mock('@/lib/supabase/admin', () => ({
-  supabaseAdmin: { from: (...args: unknown[]) => mockFrom(...args) },
+  supabaseAdmin: { from: (table: string) => mockFrom(table) },
 }));
 
 // Mock contract service

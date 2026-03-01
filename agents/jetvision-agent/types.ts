@@ -293,6 +293,38 @@ export interface DatabaseTools {
     result: Proposal | null;
   };
 
+  // Contract Management
+  generate_contract: {
+    params: {
+      proposal_id?: string;
+      request_id?: string;
+      quote_id?: string;
+      customer_name?: string;
+      customer_email?: string;
+      margin_percentage?: number;
+    };
+    result: Record<string, unknown>;
+  };
+
+  confirm_payment: {
+    params: {
+      contract_id?: string;
+      payment_amount: number;
+      payment_method: 'wire' | 'credit_card' | 'check';
+      payment_reference: string;
+    };
+    result: Record<string, unknown>;
+  };
+
+  update_request_status: {
+    params: {
+      request_id?: string;
+      status?: string;
+      current_step?: string;
+    };
+    result: Record<string, unknown>;
+  };
+
   archive_session: {
     params: {
       request_id?: string;

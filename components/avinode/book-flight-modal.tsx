@@ -390,6 +390,7 @@ The Jetvision Team`;
         const arr = flight.arrivalAirport?.icao || tripDetails.arrivalAirport.icao;
         onContractSent({
           contractId: data.dbContractId || data.contractId,
+          dbContractId: data.dbContractId,
           contractNumber: data.contractNumber,
           pdfUrl: data.pdfUrl || '',
           customerName: customer.name,

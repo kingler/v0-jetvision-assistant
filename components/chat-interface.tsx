@@ -236,7 +236,7 @@ export function ChatInterface({
   // Payment confirmation modal state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [paymentContractData, setPaymentContractData] = useState<{
-    contractId: string; contractNumber: string; totalAmount: number; currency: string;
+    contractId: string; dbContractId?: string; contractNumber: string; totalAmount: number; currency: string;
     customerName?: string; flightRoute?: string
   } | null>(null)
 
@@ -2315,10 +2315,11 @@ export function ChatInterface({
   /**
    * Handle "Mark Payment Received" button click on a contract card
    */
-  const handleMarkPayment = useCallback((contractId: string, contractData: { contractNumber: string; totalAmount: number; currency: string; customerName?: string; flightRoute?: string }) => {
-    console.log('[ChatInterface] Mark payment:', { contractId, contractData })
+  const handleMarkPayment = useCallback((contractId: string, contractData: { contractNumber: string; totalAmount: number; currency: string; customerName?: string; flightRoute?: string; dbContractId?: string }) => {
+    console.log('[ChatInterface] Mark payment:', { contractId, dbContractId: contractData.dbContractId, contractData })
     setPaymentContractData({
       contractId,
+      dbContractId: contractData.dbContractId,
       contractNumber: contractData.contractNumber,
       totalAmount: contractData.totalAmount,
       currency: contractData.currency,
@@ -2353,7 +2354,9 @@ export function ChatInterface({
     // Find proposal sent message for timeline
     const proposalMsg = activeChat.messages?.find(m => m.showProposalSentConfirmation && m.proposalSentData)
 
-    const response = await fetch(`/api/contract/${paymentContractData.contractId}/payment`, {
+    // Prefer dbContractId (UUID) over contractId (may be a contract number)
+    const paymentEndpointId = paymentContractData.dbContractId || paymentContractData.contractId
+    const response = await fetch(`/api/contract/${paymentEndpointId}/payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

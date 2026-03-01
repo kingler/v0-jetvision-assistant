@@ -12,9 +12,9 @@ import type { ContractStatus } from '@/lib/types/contract';
 // CONSTANTS
 // =============================================================================
 
-export const MOCK_AGENT_ID = 'agent-uuid-123';
-export const MOCK_CONTRACT_ID = 'contract-uuid-456';
-export const MOCK_REQUEST_ID = 'request-uuid-789';
+export const MOCK_AGENT_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+export const MOCK_CONTRACT_ID = 'c0c0c0c0-d1d1-e2e2-f3f3-a4a4a4a4a4a4';
+export const MOCK_REQUEST_ID = 'r0r0r0r0-e1e1-q2q2-u3u3-e4e4e4e4e4e4';
 
 // =============================================================================
 // CONTRACT DATA

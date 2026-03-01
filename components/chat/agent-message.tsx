@@ -674,7 +674,7 @@ export function AgentMessage({
           <ContractSentConfirmation
             {...contractSentData}
             onMarkPayment={onMarkPayment
-              ? () => onMarkPayment(contractSentData.contractId, contractSentData)
+              ? () => onMarkPayment(contractSentData.dbContractId || contractSentData.contractId, contractSentData)
               : undefined}
           />
         </div>

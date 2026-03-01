@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 /** Core contract data shared between the modal callback, chat message, and confirmation card. */
 export interface ContractSentPayload {
   contractId: string
+  /** Database UUID — preferred over contractId for API calls. Falls back to contractId when undefined. */
+  dbContractId?: string
   contractNumber: string
   customerName: string
   customerEmail: string
