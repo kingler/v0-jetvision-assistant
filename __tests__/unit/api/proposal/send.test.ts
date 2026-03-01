@@ -565,7 +565,7 @@ describe('POST /api/proposal/send', () => {
   // and __tests__/integration/proposal/round-trip.test.ts
   // These tests verify the mock setup works but API validation tests require
   // additional mock configuration that conflicts with existing test patterns.
-  describe.skip('Round-Trip Proposals', () => {
+  describe('Round-Trip Proposals', () => {
     const outboundFlight: RFQFlight = {
       ...mockFlight,
       id: 'flight-outbound-001',
