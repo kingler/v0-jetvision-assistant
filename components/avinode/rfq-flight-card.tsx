@@ -500,6 +500,8 @@ export function RFQFlightCard({
   return (
     <div
       data-testid="rfq-flight-card"
+      data-quote-id={quoteId}
+      data-flight-id={flight.id}
       className={cn(
         'transition-all relative',
         flight.isSelected && selectable && 'ring-2 ring-ring border-transparent',

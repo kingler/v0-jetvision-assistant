@@ -942,8 +942,10 @@ export default function JetvisionAgent() {
     setCurrentView("chat")
     setIsSessionDataLoading(true)
 
-    // Find the current session
-    const session = chatSessions.find((s) => s.id === chatId);
+    // Find the current session — search both active and archived sessions
+    const session = chatSessions.find((s) => s.id === chatId)
+      ?? archivedSessions.find((s) => s.id === chatId);
+    const isArchivedSession = !chatSessions.find((s) => s.id === chatId) && !!session;
     if (!session) {
       console.warn('[handleSelectChat] Session not found:', chatId);
       setIsSessionDataLoading(false)
@@ -1003,7 +1005,7 @@ export default function JetvisionAgent() {
     const hasNewData = messages.length > 0 || rfqFlights.length > 0 || Object.keys(operatorThreads).length > 0 || (session.requestId || session.conversationId);
     
     if (hasNewData) {
-      setChatSessions((prevSessions) =>
+      const updateSession = (prevSessions: ChatSession[]) =>
         prevSessions.map((s) => {
           if (s.id !== chatId) return s;
 
@@ -1056,8 +1058,14 @@ export default function JetvisionAgent() {
             requestIdPreserved: s.requestId === updatedSession.requestId,
           });
           return updatedSession;
-        })
-      );
+        });
+
+      // Update the correct state array depending on where the session lives
+      if (isArchivedSession) {
+        setArchivedSessions(updateSession);
+      } else {
+        setChatSessions(updateSession);
+      }
 
       console.log('[handleSelectChat] ✅ Loaded and updated session data:', {
         chatId,
@@ -1718,7 +1726,10 @@ export default function JetvisionAgent() {
     }
   }
 
-  const activeChat = activeChatId ? chatSessions.find((chat) => chat.id === activeChatId) : null
+  const activeChat = activeChatId
+    ? (chatSessions.find((chat) => chat.id === activeChatId)
+      ?? archivedSessions.find((chat) => chat.id === activeChatId))
+    : null
 
   // Show loading state while Clerk is initializing or requests are loading
   if (!isLoaded || isLoadingRequests) {

@@ -53,6 +53,7 @@ Demo spec files are in `__tests__/e2e/demo/` split by phase:
 | `phase3-avinode-rfq.demo.spec.ts` | 7-8 | Avinode RFQ + operator |
 | `phase4-update-rfq.demo.spec.ts` | 9 | Update RFQ |
 | `phase5-proposal-to-close.demo.spec.ts` | 10-13 | Proposal to closure |
+| `phase6-trip-type-lifecycle.demo.spec.ts` | 14-15 | Trip type ID traceability |
 
 ### gif_creator (Interactive) — Per-Scenario
 
@@ -171,6 +172,52 @@ flowchart LR
     style CLOSE fill:#e8f5e9,stroke:#4CAF50
     style ARCHIVE fill:#f3e5f5,stroke:#9C27B0
 ```
+
+---
+
+## ID Traceability
+
+Every lifecycle phase captures and verifies tripID/quoteID continuity across the Jetvision -> Avinode -> Operator -> Jetvision chain.
+
+### ID Chain
+
+```
+request (avinode_trip_id, avinode_rfp_id)
+  -> quote (avinode_quote_id)
+    -> proposal (request_id, quote_id)
+      -> contract (request_id, proposal_id)
+```
+
+### Per-Scenario ID Verification
+
+| Scenario | ID Captured | Source | DB Verification |
+|----------|------------|--------|-----------------|
+| 7 | tripId | Deep link URL + `data-trip-id` | `requests.avinode_trip_id` is set |
+| 8 | — | — | `avinode_webhook_events` has TripRequestSellerResponse |
+| 9 | quoteId, flightId | `data-quote-id`, `data-flight-id` on RFQFlightCard | `quotes` table has record |
+| 10 | proposalId | `data-proposal-id` on ProposalSentConfirmation | `proposals.request_id` is set |
+| 11 | contractId, contractNumber | `data-contract-id`, `data-contract-number` | `contracts.request_id` set, `contract.proposal_id == proposal.id` |
+| 12 | — | — | `contracts.payment_reference` = WT-2026-TEST-001 |
+| 13 | — | — | Full FK chain: request -> proposal -> contract |
+
+### `data-*` Attributes Reference
+
+| Component | Attribute | Source Prop |
+|-----------|-----------|-------------|
+| `FlightSearchProgress` | `data-trip-id` | `tripId` |
+| `RFQFlightCard` | `data-quote-id` | `quoteId` |
+| `RFQFlightCard` | `data-flight-id` | `flight.id` |
+| `ProposalSentConfirmation` | `data-proposal-id` | `proposalId` |
+| `ContractSentConfirmation` | `data-contract-id` | `contractId` |
+| `ContractSentConfirmation` | `data-contract-number` | `contractNumber` |
+| `BookFlightModal` | `data-quote-id` | `flight.quoteId` |
+
+### Phase 6: Trip Type Lifecycle Variants
+
+| File | Test | What it verifies |
+|------|------|-----------------|
+| `phase6-trip-type-lifecycle.demo.spec.ts` | Round-trip | `data-trip-id` + `data-quote-id` populated for 2-leg trips |
+| `phase6-trip-type-lifecycle.demo.spec.ts` | Multi-city | `data-trip-id` + per-leg `data-quote-id` populated for 3+ legs |
 
 ---
 
