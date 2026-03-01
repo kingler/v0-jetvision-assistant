@@ -2577,7 +2577,7 @@ export function ChatInterface({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full bg-background">
+      <div className="flex-1 flex flex-col min-h-0 bg-background">
         <DynamicChatHeader
           activeChat={activeChat}
           flightRequestName={activeChat.generatedName}
@@ -2592,7 +2592,7 @@ export function ChatInterface({
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex-1 flex flex-col min-h-0 bg-background">
       {/* Dynamic Chat Header - shows flight name, IDs, and quote requests */}
       <DynamicChatHeader
         activeChat={activeChat}
@@ -2604,7 +2604,7 @@ export function ChatInterface({
       />
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-scroll">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-4xl mx-auto p-4">
           <div className="space-y-4">
 
@@ -3323,7 +3323,7 @@ export function ChatInterface({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-border bg-background p-4">
+      <div className="border-t border-border bg-background p-4 shrink-0">
         <div className="max-w-4xl mx-auto">
           {isArchived ? (
             <div className="flex items-center justify-center py-2 px-4 rounded-lg bg-muted text-muted-foreground text-sm">
