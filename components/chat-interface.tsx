@@ -2273,7 +2273,7 @@ export function ChatInterface({
     const contractSentMessage = {
       id: `msg-${Date.now()}`,
       type: 'agent' as const,
-      content: `Contract ${contractData.contractNumber} has been generated and sent to ${contractData.customerName} at ${contractData.customerEmail}.`,
+      content: `Contract ${contractData.contractNumber || 'document'} has been generated and sent to ${contractData.customerName} at ${contractData.customerEmail}.`,
       timestamp: new Date(),
       showWorkflow: false,
       showContractSentConfirmation: true,
