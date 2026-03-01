@@ -539,7 +539,7 @@ export async function POST(
       success: true,
       contractId: contractResult.contractId,
       dbContractId,
-      contractNumber,
+      contractNumber: contractNumber || contractResult.contractNumber || contractResult.contractId,
       emailSent: true,
       messageId: emailResult.messageId,
       sentAt: new Date().toISOString(),
