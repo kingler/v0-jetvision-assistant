@@ -447,8 +447,26 @@ The Jetvision Team`;
   }, []);
 
   return (
-    <ResponsiveModal open={open} onOpenChange={handleClose}>
-      <ResponsiveModalContent className="sm:max-w-[550px]">
+    <ResponsiveModal
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen && ['generating', 'sending'].includes(state)) return;
+        if (!isOpen) handleClose();
+      }}
+    >
+      <ResponsiveModalContent
+        className="sm:max-w-[550px]"
+        onInteractOutside={(e: Event) => {
+          if (['email_review', 'generating', 'sending'].includes(state)) {
+            e.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(e: KeyboardEvent) => {
+          if (['generating', 'sending'].includes(state)) {
+            e.preventDefault();
+          }
+        }}
+      >
         <ResponsiveModalHeader>
           <ResponsiveModalTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-warning" />
@@ -679,6 +697,7 @@ The Jetvision Team`;
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
                 className="min-h-[44px] md:min-h-0"
+                data-testid="contract-preview-btn"
               >
                 <FileText className="mr-2 h-4 w-4" />
                 Preview
@@ -688,6 +707,7 @@ The Jetvision Team`;
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
                 className="min-h-[44px] md:min-h-0"
+                data-testid="contract-generate-btn"
               >
                 <Mail className="mr-2 h-4 w-4" />
                 Send Contract
@@ -715,6 +735,7 @@ The Jetvision Team`;
                 onClick={handlePrepareEmail}
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
+                data-testid="contract-email-btn"
               >
                 <Mail className="mr-2 h-4 w-4" />
                 Send Contract
@@ -724,11 +745,11 @@ The Jetvision Team`;
 
           {state === 'email_review' && (
             <>
-              <Button variant="outline" onClick={() => setState('ready')} className="min-h-[44px] md:min-h-0">
+              <Button variant="outline" onClick={() => setState('ready')} className="min-h-[44px] md:min-h-0" data-testid="contract-back-btn">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button onClick={handleSendContract} className="min-h-[44px] md:min-h-0">
+              <Button onClick={handleSendContract} className="min-h-[44px] md:min-h-0" data-testid="contract-send-btn">
                 <Send className="mr-2 h-4 w-4" />
                 Approve &amp; Send
               </Button>
@@ -743,7 +764,7 @@ The Jetvision Team`;
           )}
 
           {state === 'success' && (
-            <Button onClick={handleClose}>
+            <Button onClick={handleClose} data-testid="contract-done-btn">
               Done
             </Button>
           )}
