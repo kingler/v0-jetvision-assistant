@@ -23,34 +23,49 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-# Find all WebM files in test-results
-shopt -s globstar nullglob
-FOUND=0
-for webm in test-results/**/*.webm; do
-  FOUND=1
-  name=$(basename "${webm%.webm}")
+# Convert a single WebM file (called by find -exec)
+convert_one() {
+  local webm="$1"
+  local output_dir="$2"
+  local gif_mode="$3"
+
+  # Derive unique name from parent directory (Playwright names all videos "video.webm")
+  local parent_dir
+  parent_dir=$(basename "$(dirname "$webm")")
+  local name="${parent_dir}"
 
   # WebM -> MP4
-  echo "Converting: $webm -> $OUTPUT_DIR/${name}.mp4"
-  ffmpeg -y -i "$webm" -c:v libx264 -preset fast -crf 23 "$OUTPUT_DIR/${name}.mp4" 2>/dev/null
-  echo "  Created: $OUTPUT_DIR/${name}.mp4"
+  echo "Converting: $webm"
+  echo "  -> ${output_dir}/${name}.mp4"
+  ffmpeg -y -i "$webm" -c:v libx264 -preset fast -crf 23 "${output_dir}/${name}.mp4" 2>/dev/null
+  echo "  Done."
 
   # WebM -> GIF (optional)
-  if [ "$GIF_MODE" = true ]; then
-    echo "  Converting to GIF..."
+  if [ "$gif_mode" = "true" ]; then
+    echo "  -> ${output_dir}/${name}.gif"
     ffmpeg -y -i "$webm" \
       -vf "fps=10,scale=800:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" \
-      "$OUTPUT_DIR/${name}.gif" 2>/dev/null
-    echo "  Created: $OUTPUT_DIR/${name}.gif"
+      "${output_dir}/${name}.gif" 2>/dev/null
+    echo "  Done."
   fi
-done
+  echo ""
+}
+export -f convert_one
 
-if [ "$FOUND" -eq 0 ]; then
+# Count recordings
+COUNT=$(find test-results -name "*.webm" 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$COUNT" -eq 0 ]; then
   echo "No WebM recordings found in test-results/."
   echo "Run 'npm run test:e2e:demo' first to generate recordings."
   exit 0
 fi
 
+echo "Found $COUNT WebM recording(s). Converting..."
 echo ""
+
+# Process each file
+find test-results -name "*.webm" -exec /bin/bash -c 'convert_one "$1" "$2" "$3"' _ {} "$OUTPUT_DIR" "$GIF_MODE" \;
+
 echo "All recordings saved to: $OUTPUT_DIR"
 ls -lh "$OUTPUT_DIR"

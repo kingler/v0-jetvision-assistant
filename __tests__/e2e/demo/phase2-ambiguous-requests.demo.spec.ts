@@ -25,7 +25,7 @@ test.describe('Phase 2: Ambiguous Requests', () => {
   });
 
   test('Scenario 4: Ambiguous — tomorrow to Canada', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await captureScreenshot(page, '01-chat-ready', 'ambiguous');
 
@@ -66,7 +66,7 @@ test.describe('Phase 2: Ambiguous Requests', () => {
   });
 
   test('Scenario 5: Ambiguous — Florida to California', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     // Send vague request
     await sendChatMessage(
@@ -103,7 +103,7 @@ test.describe('Phase 2: Ambiguous Requests', () => {
   });
 
   test('Scenario 6: Ambiguous — round trip vague date', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     // Send vague request
     await sendChatMessage(

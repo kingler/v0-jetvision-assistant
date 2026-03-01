@@ -45,6 +45,21 @@ playwright-report/
 **/coverage/
 
 # IDE
+.claude/commands/
+.claude/commands/e2e-test.md
+.claude/commands/e2e-test-issue.md
+.claude/commands/avinode-test.md
+.claude/commands/avinode-test-issue.md
+.claude/commands/avinode-test-trip.md
+.claude/commands/avinode-test-webhook.md
+.claude/commands/avinode-test-full.md
+.claude/commands/avinode-test-env.md
+.claude/commands/avinode-test-health.md
+.claude/commands/avinode-test-trip.md
+.claude/commands/avinode-test-webhook.md
+.claude/commands/avinode-test-full.md
+.claude/commands/avinode-test-env.md
+.claude/commands/avinode-test-health.md
 .cursor/
 .obsidian/
 .conductor/
@@ -61,7 +76,10 @@ build-output.log
 .kiro/
 .qwen/
 .trae/
+.goose/
 .windsurf/
+.conductor/
+.context/
 
 # Git Worktree Workspaces (phase directories only, keep archive and config)
 .context/workspaces/phase-*/

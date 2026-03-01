@@ -73,8 +73,9 @@ export async function navigateToChat(page: Page): Promise<void> {
   }
 
   // Wait for chat interface (landing page uses <input>, chat view uses <input>)
+  // Allow extra time — app may show "Loading..." while fetching user data
   await page.waitForSelector('textarea, input[placeholder*="message" i], [role="textbox"]', {
-    timeout: 30_000,
+    timeout: 60_000,
   });
 }
 
@@ -87,6 +88,11 @@ export async function sendChatMessage(
   // Active chat uses <input placeholder="Message about this request...">
   // Use case-insensitive CSS attribute selector (i flag)
   const chatInput = page.locator('textarea, input[placeholder*="message" i]').last();
+
+  // Wait for input to be enabled (disabled during agent streaming)
+  await chatInput.waitFor({ state: 'attached', timeout: 90_000 });
+  await expect(chatInput).toBeEnabled({ timeout: 90_000 });
+
   await chatInput.fill(message);
   await chatInput.press('Enter');
 }
@@ -100,18 +106,31 @@ export async function waitForComponent(
   await page.waitForSelector(selector, { timeout });
 }
 
-/** Wait for any new assistant message to appear after sending */
+/** Wait for a new assistant message to appear after the current count */
 export async function waitForAssistantReply(
   page: Page,
   timeout = 60_000
 ): Promise<void> {
-  // Agent messages are identified by "Jetvision Agent" label text
-  await page.waitForSelector(
-    'text="Jetvision Agent"',
+  // Count existing agent messages so we can detect a NEW one
+  const existingCount = await page.locator('text="Jetvision Agent"').count();
+
+  // Wait for one more agent message than currently exists
+  await page.waitForFunction(
+    (expected) => {
+      const labels = document.querySelectorAll('*');
+      let count = 0;
+      labels.forEach((el) => {
+        if (el.textContent?.trim() === 'Jetvision Agent') count++;
+      });
+      return count > expected;
+    },
+    existingCount,
     { timeout }
   );
-  // Brief pause for the response to finish streaming
-  await page.waitForTimeout(2_000);
+
+  // Wait for the input to re-enable (signals streaming is done)
+  const chatInput = page.locator('textarea, input[placeholder*="message" i]').last();
+  await expect(chatInput).toBeEnabled({ timeout: 60_000 });
 }
 
 /** Assert that a component is NOT visible (useful for ambiguous flow checks) */
