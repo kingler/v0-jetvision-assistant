@@ -19,6 +19,19 @@ import {
  * PREREQUISITE: Phase 3 must have been run first (Operator approved quote).
  */
 test.describe('Phase 4: Update RFQ', () => {
+  test.beforeAll(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      throw new Error(
+        'NEXT_PUBLIC_SUPABASE_URL is not set. Phase 4 tests require Supabase for database verification.'
+      );
+    }
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        'SUPABASE_SERVICE_ROLE_KEY is not set. Phase 4 tests require Supabase for database verification.'
+      );
+    }
+  });
+
   test('Scenario 9: Update RFQ in Jetvision', async ({ page }) => {
     test.setTimeout(120_000);
 
@@ -67,11 +80,9 @@ test.describe('Phase 4: Update RFQ', () => {
       }
 
       // DB verification: quotes table has a record
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        const quoteRow = await querySupabase('quotes', {});
-        if (quoteRow) {
-          console.log(`[Phase 4] Quote DB row: id=${quoteRow.id}, avinode_quote_id=${quoteRow.avinode_quote_id}`);
-        }
+      const quoteRow = await querySupabase('quotes', {});
+      if (quoteRow) {
+        console.log(`[Phase 4] Quote DB row: id=${quoteRow.id}, avinode_quote_id=${quoteRow.avinode_quote_id}`);
       }
 
       // Verify "Generate Proposal" button is visible

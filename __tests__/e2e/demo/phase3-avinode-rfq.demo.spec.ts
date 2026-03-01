@@ -143,9 +143,15 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
     const context = await browser.newContext();
     jetvisionPage = await context.newPage();
 
-    // Warn if Supabase env vars are missing (DB verification will be skipped)
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.warn('[Phase 3] Supabase env vars not set — DB verification will be skipped.');
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      throw new Error(
+        'NEXT_PUBLIC_SUPABASE_URL is not set. Phase 3 tests require Supabase for database verification.'
+      );
+    }
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        'SUPABASE_SERVICE_ROLE_KEY is not set. Phase 3 tests require Supabase for database verification.'
+      );
     }
   });
 
@@ -277,13 +283,11 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
     await captureScreenshot(avinodePage, '06-flight-board', 'avinode-rfq');
 
     // DB verification: tripId stored in requests table
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const requestRow = await querySupabase('requests', {});
-      expect(requestRow).not.toBeNull();
-      if (capturedTripId) {
-        expect(requestRow!.avinode_trip_id).toBeTruthy();
-        console.log(`[Phase 3] DB requests.avinode_trip_id: ${requestRow!.avinode_trip_id}`);
-      }
+    const requestRow = await querySupabase('requests', {});
+    expect(requestRow).not.toBeNull();
+    if (capturedTripId) {
+      expect(requestRow!.avinode_trip_id).toBeTruthy();
+      console.log(`[Phase 3] DB requests.avinode_trip_id: ${requestRow!.avinode_trip_id}`);
     }
 
     await avinodePage.close();
@@ -348,18 +352,16 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
     await captureScreenshot(page, '04-quote-approved', 'operator-quote');
 
     // DB verification: webhook event after operator approval
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      await page.waitForTimeout(5000); // Give webhook time to process
-      const webhookRow = await querySupabase('avinode_webhook_events', {
-        event_type: 'TripRequestSellerResponse',
-      });
-      // Webhook may not exist in sandbox — log but don't fail hard
-      if (webhookRow) {
-        expect(webhookRow.avinode_trip_id || webhookRow.avinode_quote_id).toBeTruthy();
-        console.log(`[Phase 3] Webhook event captured: trip=${webhookRow.avinode_trip_id}, quote=${webhookRow.avinode_quote_id}`);
-      } else {
-        console.warn('[Phase 3] No webhook event found — sandbox may not emit webhooks.');
-      }
+    await page.waitForTimeout(5000); // Give webhook time to process
+    const webhookRow = await querySupabase('avinode_webhook_events', {
+      event_type: 'TripRequestSellerResponse',
+    });
+    // Webhook may not exist in sandbox — log but don't fail hard
+    if (webhookRow) {
+      expect(webhookRow.avinode_trip_id || webhookRow.avinode_quote_id).toBeTruthy();
+      console.log(`[Phase 3] Webhook event captured: trip=${webhookRow.avinode_trip_id}, quote=${webhookRow.avinode_quote_id}`);
+    } else {
+      console.warn('[Phase 3] No webhook event found — sandbox may not emit webhooks.');
     }
   });
 });
