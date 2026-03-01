@@ -46,20 +46,7 @@ playwright-report/
 
 # IDE
 .claude/commands/
-.claude/commands/e2e-test.md
-.claude/commands/e2e-test-issue.md
-.claude/commands/avinode-test.md
-.claude/commands/avinode-test-issue.md
-.claude/commands/avinode-test-trip.md
-.claude/commands/avinode-test-webhook.md
-.claude/commands/avinode-test-full.md
-.claude/commands/avinode-test-env.md
-.claude/commands/avinode-test-health.md
-.claude/commands/avinode-test-trip.md
-.claude/commands/avinode-test-webhook.md
-.claude/commands/avinode-test-full.md
-.claude/commands/avinode-test-env.md
-.claude/commands/avinode-test-health.md
+.claude/skills/
 .cursor/
 .obsidian/
 .conductor/
@@ -106,3 +93,11 @@ client_secret*.json
 # .claude/plans/
 # Agent identity docs (local reference)
 agents/jetvision-agent/
+
+# Scripts
+
+scripts/generate-demo-slides.ts
+scripts/generate-demo-slides.js
+
+# Files
+prompt.md

@@ -858,8 +858,13 @@ flowchart TD
 16. **Verify post-send state:**
     - `ProposalSentConfirmation` card visible in chat with flight details and client info
     - "Generate Proposal" button on the quote card is now disabled or shows "Proposal Sent"
-17. **Check browser console** for errors
-18. **Record result:** PASS or FAIL with notes
+    - **"View Full Proposal PDF" button** is visible on the confirmation card
+17. **Click the "View Full Proposal PDF" button** on the `ProposalSentConfirmation` card
+18. **Verify a NEW BROWSER TAB opens** with the proposal PDF loaded (Supabase storage URL)
+19. **Take a screenshot** of the PDF tab → `e2e-screenshots/proposal/06-proposal-pdf-tab.png`
+20. **Switch back to the Jetvision tab**
+21. **Check browser console** for errors
+22. **Record result:** PASS or FAIL with notes
 
 **Expected UI Components (in order of appearance):**
 
@@ -870,7 +875,8 @@ flowchart TD
 | Search result | Filtered customer list | Inside dialog | "Willy Bercy — ABC Corp" visible after typing search term |
 | Email composer | `ProposalPreview` | `components/message-components/proposal-preview.tsx` | Inline in chat: subject, body, PDF, recipient = Willy Bercy |
 | Approval button | "Approve & Send" | Inside `ProposalPreview` | Clickable, not disabled |
-| Send confirmation | `ProposalSentConfirmation` | `components/proposal/proposal-sent-confirmation.tsx` | Flight details, client name/email, confirmation |
+| Send confirmation | `ProposalSentConfirmation` | `components/proposal/proposal-sent-confirmation.tsx` | Flight details, client name/email, "View Full Proposal PDF" button |
+| PDF new tab | Proposal PDF | New browser tab (Supabase storage URL) | PDF loads and displays proposal content |
 
 **Post-send database verification:**
 - Query `proposals` table: `status = 'sent'`, proposal number matches PROP-YYYY-NNN
@@ -883,6 +889,8 @@ flowchart TD
 - FAIL if agent uses `send_proposal_email` directly (must use `prepare_proposal_email`)
 - FAIL if email sends without user clicking "Approve & Send"
 - FAIL if ProposalPreview shows wrong recipient after dialog selection
+- FAIL if `ProposalSentConfirmation` card does not show "View Full Proposal PDF" button
+- FAIL if clicking "View Full Proposal PDF" does NOT open a new browser tab with the PDF
 
 **Screenshots:** `e2e-screenshots/proposal/`
 
@@ -937,14 +945,18 @@ flowchart TD
    - Subject line contains contract number (CONTRACT-YYYY-NNN)
    - PDF attachment present containing: quote summary, terms & conditions, CC auth form
 8. **Click the "Approve & Send" button** on the BookFlightModal
-9. **Wait** for `ContractSentConfirmation` card to render in the chat stream
-10. **Take a screenshot** → `e2e-screenshots/contract/03-sent-confirmation.png`
-11. **Verify the ContractSentConfirmation card:**
+9. **IMPORTANT: A NEW BROWSER TAB auto-opens** with the contract PDF (`window.open` in `book-flight-modal.tsx:410`). This happens automatically on successful send.
+10. **Wait** for the new PDF tab to load
+11. **Take a screenshot** of the contract PDF tab → `e2e-screenshots/contract/03-contract-pdf-tab.png`
+12. **Switch back to the Jetvision tab**
+13. **Wait** for `ContractSentConfirmation` card to render in the chat stream
+14. **Take a screenshot** → `e2e-screenshots/contract/04-sent-confirmation.png`
+15. **Verify the ContractSentConfirmation card:**
     - Contract number (CONTRACT-YYYY-NNN) displayed
     - Pricing breakdown visible
-    - PDF download link functional
-12. **Check browser console** for errors
-13. **Record result:** PASS or FAIL with notes
+    - **"View Contract PDF" button** visible (opens same PDF in new tab on click)
+16. **Check browser console** for errors
+17. **Record result:** PASS or FAIL with notes
 
 **Expected UI Components (in order of appearance):**
 
@@ -954,7 +966,8 @@ flowchart TD
 | Loading / PDF gen | Spinner or loading state | — | Brief loading while contract PDF generates. NO customer dialog. |
 | Email composer | `BookFlightModal` | `components/avinode/book-flight-modal.tsx` | Inline in chat: subject, body, contract PDF, recipient = Willy Bercy (auto-populated) |
 | Approval button | "Approve & Send" | Inside `BookFlightModal` | Clickable, not disabled |
-| Confirmation card | `ContractSentConfirmation` | `components/contract/contract-sent-confirmation.tsx` | Contract #, pricing breakdown, PDF link |
+| **PDF auto-open** | Contract PDF | **New browser tab** (auto-opened by `window.open`) | PDF loads with contract content, terms & conditions, CC auth form |
+| Confirmation card | `ContractSentConfirmation` | `components/contract/contract-sent-confirmation.tsx` | Contract #, pricing breakdown, "View Contract PDF" button |
 
 **Post-send database verification:**
 - Query `contracts` table: `status = 'sent'`, contract number matches CONTRACT-YYYY-NNN
@@ -967,6 +980,8 @@ flowchart TD
 - FAIL if "Book Flight" was available before proposal was sent (ordering dependency)
 - FAIL if contract PDF missing terms & conditions or CC auth form
 - FAIL if ContractSentConfirmation card does not render after send
+- FAIL if a NEW BROWSER TAB does NOT auto-open with the contract PDF after "Approve & Send"
+- FAIL if "View Contract PDF" button is not visible on the ContractSentConfirmation card
 
 **Screenshots:** `e2e-screenshots/contract/`
 
@@ -1159,7 +1174,9 @@ Scenarios 4-6 (ambiguous requests) are independent and can be run in any order.
 | 7 | Avinode Marketplace (NEW tab) | Opens via deep link click |
 | 8 | Avinode Marketplace | Same Avinode tab, switch account |
 | 9 | Jetvision (localhost:3000) | Switch BACK to original tab |
-| 10-13 | Jetvision (localhost:3000) | All remaining work in Jetvision |
+| 10 | Jetvision + PDF tab | "View Full Proposal PDF" opens NEW tab (user-initiated click) |
+| 11 | Jetvision + PDF tab | Contract PDF **auto-opens** in NEW tab on "Approve & Send" (`window.open`) |
+| 12-13 | Jetvision (localhost:3000) | All remaining work in Jetvision |
 
 ## Key Component Reference
 
