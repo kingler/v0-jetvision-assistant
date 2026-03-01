@@ -9,6 +9,7 @@
  */
 
 import type { ToolName, ToolResult, AgentContext } from './types';
+import type { Json } from '@/lib/types/database';
 import { getToolCategory } from './tools';
 
 // Import Supabase MCP helpers
@@ -28,6 +29,15 @@ import {
   updateProposalSent,
   updateProposalStatus,
 } from '@/lib/services/proposal-service';
+
+// Import Contract Service for UUID resolution
+import {
+  getContractsByRequest,
+  getContractsByProposal,
+} from '@/lib/services/contract-service';
+
+// Import Supabase admin for direct DB operations
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // =============================================================================
 // MCP SERVER INTERFACES
@@ -145,7 +155,67 @@ export class ToolExecutor {
 
     // Route to Avinode MCP server
     const result = await this.avinodeMCP.callTool(name, params);
+
+    // Store audit records in avinode_webhook_events when quotes are fetched via API
+    if (name === 'get_rfq' && result) {
+      this.storeQuoteAuditRecords(result, params).catch(err => {
+        console.warn('[ToolExecutor] Failed to store quote audit records:', err);
+      });
+    }
+
     return result;
+  }
+
+  /**
+   * Store audit records in avinode_webhook_events when quotes are fetched
+   * via direct API polling (since webhooks can't reach localhost).
+   */
+  private async storeQuoteAuditRecords(
+    rfqResult: unknown,
+    params: Record<string, unknown>
+  ): Promise<void> {
+    const result = rfqResult as Record<string, unknown>;
+    const flights = result?.flights as Array<Record<string, unknown>> | undefined;
+
+    if (!flights || flights.length === 0) return;
+
+    const tripId = (result.trip_id as string) || (params.rfq_id as string) || '';
+
+    for (const flight of flights) {
+      const quoteId = (flight.quoteId as string) || (flight.id as string) || '';
+      const eventId = `api_poll_${tripId}_${quoteId}_${Date.now()}`;
+
+      try {
+        // Upsert to avoid duplicates — use avinode_event_id for dedup
+        const { error } = await supabaseAdmin
+          .from('avinode_webhook_events')
+          .upsert(
+            {
+              event_type: 'quote_received',
+              avinode_event_id: `api_poll_${tripId}_${quoteId}`,
+              avinode_trip_id: tripId,
+              raw_payload: {
+                source: 'api_poll',
+                flight: JSON.parse(JSON.stringify(flight)),
+                polled_at: new Date().toISOString(),
+              } as unknown as Json,
+              processing_status: 'completed',
+              received_at: new Date().toISOString(),
+              request_id: this.context.requestId || null,
+            },
+            { onConflict: 'avinode_event_id' }
+          );
+
+        if (error) {
+          console.warn('[ToolExecutor] Failed to store quote audit record:', error.message);
+        }
+      } catch (err) {
+        // Non-blocking — audit records are supplementary
+        console.warn('[ToolExecutor] Error storing audit record for quote:', quoteId, err);
+      }
+    }
+
+    console.log(`[ToolExecutor] Stored ${flights.length} quote audit records for trip ${tripId}`);
   }
 
   // ===========================================================================
@@ -185,6 +255,10 @@ export class ToolExecutor {
         return this.generateContract(params);
       case 'confirm_payment':
         return this.confirmPayment(params);
+      case 'update_request_status':
+        return this.updateRequestStatus(params);
+      case 'archive_session':
+        return this.archiveSession(params);
       default:
         throw new Error(`Unknown database tool: ${name}`);
     }
@@ -428,10 +502,44 @@ export class ToolExecutor {
   }
 
   private async generateContract(params: Record<string, unknown>): Promise<unknown> {
-    const { proposal_id, request_id } = params;
+    let { proposal_id, request_id } = params;
+
+    // Auto-resolve request_id from session context
+    if (!request_id && this.context.requestId) {
+      request_id = this.context.requestId;
+      console.log('[ToolExecutor] Auto-resolved request_id from context:', request_id);
+    }
+
+    // Auto-resolve proposal_id from request_id
+    if (!proposal_id && request_id) {
+      const proposals = await getProposalsByRequest(request_id as string);
+      if (proposals && proposals.length > 0) {
+        // Use the most recent sent proposal, or fallback to the most recent one
+        const sentProposal = proposals.find((p: Record<string, unknown>) => p.status === 'sent');
+        const resolvedProposal = sentProposal || proposals[0];
+        proposal_id = (resolvedProposal as Record<string, unknown>).id;
+        console.log('[ToolExecutor] Auto-resolved proposal_id from request:', proposal_id);
+      }
+    }
 
     if (!proposal_id || !request_id) {
-      throw new Error('proposal_id and request_id are required');
+      throw new Error('Could not resolve proposal_id and request_id. Please provide them explicitly or ensure a proposal exists for this session.');
+    }
+
+    // ONEK-303: Check for existing non-cancelled contract to prevent duplicates
+    const existingContracts = await getContractsByRequest(request_id as string);
+    if (existingContracts && existingContracts.length > 0) {
+      const activeContract = existingContracts.find(c => c.status !== 'cancelled' && c.status !== 'expired');
+      if (activeContract) {
+        console.log('[ToolExecutor] Returning existing contract instead of creating duplicate:', activeContract.contract_number);
+        return {
+          contractId: activeContract.id,
+          contractNumber: activeContract.contract_number,
+          status: activeContract.status,
+          pdfUrl: activeContract.file_url,
+          message: `Contract ${activeContract.contract_number} already exists for this request (status: ${activeContract.status})`,
+        };
+      }
     }
 
     // Fetch the proposal to get pricing and customer data
@@ -439,6 +547,26 @@ export class ToolExecutor {
     if (!proposal) {
       throw new Error(`Proposal not found: ${proposal_id}`);
     }
+
+    // Fetch the request to get authoritative flight details
+    const requestResult = await queryTable('requests', {
+      filter: { id: request_id as string },
+    });
+
+    const requestRows = requestResult.data as Array<Record<string, unknown>> | null;
+    const request = requestRows?.[0];
+    if (!request) {
+      throw new Error(`Request not found: ${request_id}`);
+    }
+
+    // Extract flight details from request (authoritative source)
+    const departureAirport = (request.departure_airport as string) || '';
+    const arrivalAirport = (request.arrival_airport as string) || '';
+    const departureDate = request.departure_date
+      ? new Date(request.departure_date as string).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+    const aircraftType = (request.aircraft_type as string) || '';
+    const passengers = (request.passengers as number) || 1;
 
     // Create contract record via service
     const { createContract } = await import('@/lib/services/contract-service');
@@ -452,11 +580,11 @@ export class ToolExecutor {
         email: proposal.sent_to_email || '',
       },
       flightDetails: {
-        departureAirport: { icao: (proposal.metadata as Record<string, unknown>)?.departure_airport as string || '' },
-        arrivalAirport: { icao: (proposal.metadata as Record<string, unknown>)?.arrival_airport as string || '' },
-        departureDate: (proposal.metadata as Record<string, unknown>)?.departure_date as string || '',
-        aircraftType: (proposal.metadata as Record<string, unknown>)?.aircraft_type as string || '',
-        passengers: (proposal.metadata as Record<string, unknown>)?.passengers as number || 1,
+        departureAirport: { icao: departureAirport },
+        arrivalAirport: { icao: arrivalAirport },
+        departureDate,
+        aircraftType,
+        passengers,
       },
       pricing: {
         flightCost: proposal.total_amount || 0,
@@ -473,15 +601,36 @@ export class ToolExecutor {
       contractId: contract.id,
       contractNumber: contract.contract_number,
       status: contract.status,
+      // Enriched data for ContractSentConfirmation card (ONEK-299)
+      customerName: proposal.sent_to_name || 'Customer',
+      customerEmail: proposal.sent_to_email || '',
+      flightRoute: `${departureAirport} → ${arrivalAirport}`,
+      departureDate: departureDate,
+      totalAmount: proposal.final_amount || proposal.total_amount || 0,
+      currency: 'USD',
       message: `Contract ${contract.contract_number} created successfully`,
     };
   }
 
   private async confirmPayment(params: Record<string, unknown>): Promise<unknown> {
-    const { contract_id, payment_amount, payment_method, payment_reference } = params;
+    let { contract_id } = params;
+    const { payment_amount, payment_method, payment_reference } = params;
+
+    // Auto-resolve contract_id from session context
+    if (!contract_id && this.context.requestId) {
+      const contracts = await getContractsByRequest(this.context.requestId);
+      if (contracts && contracts.length > 0) {
+        // Use the most recent non-cancelled contract
+        const activeContract = contracts.find(c => c.status !== 'cancelled' && c.status !== 'expired');
+        if (activeContract) {
+          contract_id = activeContract.id;
+          console.log('[ToolExecutor] Auto-resolved contract_id from request:', contract_id);
+        }
+      }
+    }
 
     if (!contract_id || !payment_amount || !payment_method || !payment_reference) {
-      throw new Error('contract_id, payment_amount, payment_method, and payment_reference are required');
+      throw new Error('payment_amount, payment_method, and payment_reference are required. contract_id could not be auto-resolved — please provide it explicitly.');
     }
 
     const { updateContractPayment, completeContract } = await import('@/lib/services/contract-service');
@@ -503,7 +652,185 @@ export class ToolExecutor {
       status: completed.status,
       paymentReference: paymentResult.payment_reference,
       paymentAmount: paymentResult.payment_amount,
+      paymentMethod: payment_method as string,
+      paidAt: new Date().toISOString(),
+      currency: 'USD',
       message: `Payment of ${payment_amount} recorded. Contract ${paymentResult.contract_number} is now complete.`,
+    };
+  }
+
+  // ===========================================================================
+  // REQUEST STATUS & ARCHIVE TOOLS
+  // ===========================================================================
+
+  private async updateRequestStatus(params: Record<string, unknown>): Promise<unknown> {
+    let { request_id } = params;
+    const { status, current_step } = params;
+
+    // Auto-resolve request_id from session context
+    if (!request_id && this.context.requestId) {
+      request_id = this.context.requestId;
+      console.log('[ToolExecutor] Auto-resolved request_id from context:', request_id);
+    }
+
+    if (!request_id) {
+      throw new Error('request_id is required and could not be auto-resolved from the active session');
+    }
+
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status) updateData.status = status;
+    if (current_step) updateData.current_step = current_step;
+
+    const result = await updateRow(
+      'requests',
+      { id: request_id, iso_agent_id: this.context.isoAgentId },
+      updateData
+    );
+
+    if (result.error) throw new Error(result.error);
+
+    console.log('[ToolExecutor] Updated request status:', { request_id, status, current_step });
+
+    return {
+      request_id,
+      status: status || 'unchanged',
+      current_step: current_step || 'unchanged',
+      message: `Request status updated successfully`,
+    };
+  }
+
+  private async archiveSession(params: Record<string, unknown>): Promise<unknown> {
+    let { request_id } = params;
+    const { archive_label } = params;
+
+    // Auto-resolve request_id from session context
+    if (!request_id && this.context.requestId) {
+      request_id = this.context.requestId;
+      console.log('[ToolExecutor] Auto-resolved request_id for archive from context:', request_id);
+    }
+
+    if (!request_id) {
+      throw new Error('request_id is required and could not be auto-resolved from the active session');
+    }
+
+    const now = new Date().toISOString();
+
+    // First, ensure the request is in a terminal state that allows archiving
+    // Update status to 'completed' and current_step to 'closed_won' if not already
+    const { error: statusError } = await supabaseAdmin
+      .from('requests')
+      .update({
+        status: 'completed',
+        current_step: 'closed_won',
+        updated_at: now,
+      })
+      .eq('id', request_id as string)
+      .eq('iso_agent_id', this.context.isoAgentId);
+
+    if (statusError) {
+      console.error('[ToolExecutor] Failed to update request status before archive:', statusError);
+      throw new Error(`Failed to update request status: ${statusError.message}`);
+    }
+
+    // Now archive the session
+    const metadata: Record<string, unknown> = {
+      archived: true,
+      archived_at: now,
+    };
+    if (archive_label) {
+      metadata.archive_label = archive_label;
+    }
+
+    // Fetch existing metadata to merge
+    const { data: existingRequest } = await supabaseAdmin
+      .from('requests')
+      .select('metadata')
+      .eq('id', request_id as string)
+      .single();
+
+    const mergedMetadata = {
+      ...(existingRequest?.metadata as Record<string, unknown> || {}),
+      ...metadata,
+    };
+
+    const { error: archiveError } = await supabaseAdmin
+      .from('requests')
+      .update({
+        session_status: 'archived',
+        session_ended_at: now,
+        updated_at: now,
+        metadata: mergedMetadata as unknown as Json,
+      })
+      .eq('id', request_id as string)
+      .eq('iso_agent_id', this.context.isoAgentId);
+
+    if (archiveError) {
+      console.error('[ToolExecutor] Failed to archive session:', archiveError);
+      throw new Error(`Failed to archive session: ${archiveError.message}`);
+    }
+
+    console.log('[ToolExecutor] Session archived successfully:', { request_id, archive_label });
+
+    // Fetch deal timeline data for ClosedWonConfirmation card (ONEK-301)
+    let contractNumber = '';
+    let customerName = '';
+    let flightRoute = '';
+    let dealValue = 0;
+    let proposalSentAt: string | undefined;
+    let contractSentAt: string | undefined;
+    let paymentReceivedAt: string | undefined;
+
+    try {
+      const contracts = await getContractsByRequest(request_id as string);
+      if (contracts && contracts.length > 0) {
+        const latestContract = contracts.find(c => c.status !== 'cancelled') || contracts[0];
+        contractNumber = latestContract.contract_number || '';
+        customerName = latestContract.client_name || '';
+        dealValue = latestContract.total_amount || latestContract.payment_amount || 0;
+        contractSentAt = latestContract.sent_at ?? latestContract.created_at ?? undefined;
+        paymentReceivedAt = latestContract.payment_date ?? latestContract.updated_at ?? undefined;
+      }
+      const { data: reqData } = await supabaseAdmin
+        .from('requests')
+        .select('departure_airport, arrival_airport')
+        .eq('id', request_id as string)
+        .single();
+      if (reqData) {
+        flightRoute = `${reqData.departure_airport || ''} → ${reqData.arrival_airport || ''}`;
+      }
+      const proposals = await getProposalsByRequest(request_id as string);
+      if (proposals && proposals.length > 0) {
+        const sentProposal = proposals.find((p: Record<string, unknown>) => p.status === 'sent') || proposals[0];
+        proposalSentAt = (sentProposal as Record<string, unknown>).sent_at as string ||
+          (sentProposal as Record<string, unknown>).created_at as string;
+        if (!customerName) {
+          customerName = (sentProposal as Record<string, unknown>).sent_to_name as string || '';
+        }
+      }
+    } catch (err) {
+      console.warn('[ToolExecutor] Could not fetch deal timeline data:', err);
+    }
+
+    return {
+      request_id,
+      session_status: 'archived',
+      status: 'completed',
+      current_step: 'closed_won',
+      archive_label: archive_label || null,
+      archived_at: now,
+      // Enriched data for ClosedWonConfirmation card (ONEK-301)
+      contractNumber,
+      customerName,
+      flightRoute,
+      dealValue,
+      currency: 'USD',
+      proposalSentAt,
+      contractSentAt,
+      paymentReceivedAt,
+      message: 'Session archived successfully. The session will appear in the Archive tab.',
     };
   }
 

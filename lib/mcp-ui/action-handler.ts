@@ -22,9 +22,11 @@ export function handleUIAction(
 ): void {
   switch (action.type) {
     case 'tool':
-      // Invoke another tool via chat message
+      // Invoke a tool via natural language message to the agent.
+      // The agent will determine which tool to call based on the request.
+      // Previously used `/tool` syntax which the agent couldn't parse.
       context.sendMessage(
-        `/tool ${action.payload.toolName} ${JSON.stringify(action.payload.params)}`
+        `Please use the ${action.payload.toolName} tool with these parameters: ${JSON.stringify(action.payload.params)}`
       );
       break;
 

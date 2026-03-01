@@ -523,7 +523,43 @@ export async function POST(req: NextRequest) {
       requestId?: string;
     } | undefined;
 
+    // 11c. ONEK-299: Extract contract_sent_data from generate_contract tool results
+    let contractSentData: {
+      contractId: string;
+      contractNumber: string;
+      status: string;
+      pdfUrl?: string;
+      customer?: { name: string; email: string };
+      pricing?: { totalAmount: number; currency: string };
+      flightRoute?: string;
+    } | undefined;
+
+    // 11d. ONEK-300: Extract payment_confirmation_data from confirm_payment tool results
+    let paymentConfirmationData: {
+      contractId: string;
+      contractNumber: string;
+      paymentAmount: number;
+      paymentMethod: string;
+      paymentReference: string;
+      paidAt: string;
+      currency: string;
+    } | undefined;
+
+    // 11e. ONEK-301: Extract closed_won_data from archive_session tool results
+    let closedWonData: {
+      contractNumber: string;
+      customerName: string;
+      flightRoute: string;
+      dealValue: number;
+      currency: string;
+      proposalSentAt?: string;
+      contractSentAt?: string;
+      paymentReceivedAt?: string;
+    } | undefined;
+
     for (const tr of result.toolResults) {
+      const toolName = tr.name as string; // Widen type for new tool names not in union
+
       // Check for prepare_proposal_email results
       if (tr.name === 'prepare_proposal_email' && tr.success && tr.data) {
         const data = tr.data as Record<string, unknown>;
@@ -549,6 +585,67 @@ export async function POST(req: NextRequest) {
           pricing: data.pricing as { subtotal: number; total: number; currency: string } | undefined,
           generatedAt: data.generated_at as string | undefined,
           requestId: (data.request_id as string) || conversationId,
+        };
+      }
+
+      // ONEK-299: Extract generate_contract results for ContractSentConfirmation card
+      if (toolName === 'generate_contract' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        console.log('[Chat API] ✅ generate_contract tool succeeded:', {
+          contractId: data.contractId,
+          contractNumber: data.contractNumber,
+        });
+        contractSentData = {
+          contractId: data.contractId as string,
+          contractNumber: data.contractNumber as string,
+          status: (data.status as string) || 'sent',
+          pdfUrl: data.pdfUrl as string | undefined,
+          customer: {
+            name: (data.customerName as string) || 'Customer',
+            email: (data.customerEmail as string) || '',
+          },
+          pricing: {
+            totalAmount: (data.totalAmount as number) || 0,
+            currency: (data.currency as string) || 'USD',
+          },
+          flightRoute: (data.flightRoute as string) || '',
+        };
+      }
+
+      // ONEK-300: Extract confirm_payment results for PaymentConfirmedCard
+      if (toolName === 'confirm_payment' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        console.log('[Chat API] ✅ confirm_payment tool succeeded:', {
+          contractNumber: data.contractNumber,
+          paymentAmount: data.paymentAmount,
+        });
+        paymentConfirmationData = {
+          contractId: data.contractId as string,
+          contractNumber: data.contractNumber as string,
+          paymentAmount: data.paymentAmount as number,
+          paymentMethod: (data.paymentMethod as string) || 'wire',
+          paymentReference: data.paymentReference as string,
+          paidAt: (data.paidAt as string) || new Date().toISOString(),
+          currency: (data.currency as string) || 'USD',
+        };
+      }
+
+      // ONEK-301: Extract archive_session results for ClosedWonConfirmation card
+      if (toolName === 'archive_session' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        console.log('[Chat API] ✅ archive_session tool succeeded:', {
+          request_id: data.request_id,
+          contractNumber: data.contractNumber,
+        });
+        closedWonData = {
+          contractNumber: (data.contractNumber as string) || '',
+          customerName: (data.customerName as string) || '',
+          flightRoute: (data.flightRoute as string) || '',
+          dealValue: (data.dealValue as number) || 0,
+          currency: (data.currency as string) || 'USD',
+          proposalSentAt: data.proposalSentAt as string | undefined,
+          contractSentAt: data.contractSentAt as string | undefined,
+          paymentReceivedAt: data.paymentReceivedAt as string | undefined,
         };
       }
 
@@ -653,6 +750,37 @@ export async function POST(req: NextRequest) {
         });
         yield JSON.stringify({
           email_approval_data: emailApprovalData,
+        });
+      }
+
+      // ONEK-299: Send contract sent data if generate_contract was called
+      if (contractSentData) {
+        console.log('[Chat API] 🔍 Sending contract_sent_data SSE chunk:', {
+          contractNumber: contractSentData.contractNumber,
+        });
+        yield JSON.stringify({
+          contract_sent_data: contractSentData,
+        });
+      }
+
+      // ONEK-300: Send payment confirmation data if confirm_payment was called
+      if (paymentConfirmationData) {
+        console.log('[Chat API] 🔍 Sending payment_confirmation_data SSE chunk:', {
+          contractNumber: paymentConfirmationData.contractNumber,
+          paymentAmount: paymentConfirmationData.paymentAmount,
+        });
+        yield JSON.stringify({
+          payment_confirmation_data: paymentConfirmationData,
+        });
+      }
+
+      // ONEK-301: Send closed won data if archive_session was called
+      if (closedWonData) {
+        console.log('[Chat API] 🔍 Sending closed_won_data SSE chunk:', {
+          contractNumber: closedWonData.contractNumber,
+        });
+        yield JSON.stringify({
+          closed_won_data: closedWonData,
         });
       }
 

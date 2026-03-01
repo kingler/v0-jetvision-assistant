@@ -46,6 +46,37 @@ export interface SSEStreamData {
   rfq_data?: RFQData;
   pipeline_data?: PipelineData;
   email_approval_data?: EmailApprovalData;
+  /** Contract sent data from generate_contract tool result */
+  contract_sent_data?: {
+    contractId: string;
+    contractNumber: string;
+    status: string;
+    pdfUrl?: string;
+    customer?: { name: string; email: string };
+    pricing?: { totalAmount: number; currency: string };
+    flightRoute?: string;
+  };
+  /** Payment confirmation data from confirm_payment tool result */
+  payment_confirmation_data?: {
+    contractId: string;
+    contractNumber: string;
+    paymentAmount: number;
+    paymentMethod: string;
+    paymentReference: string;
+    paidAt: string;
+    currency: string;
+  };
+  /** Closed won data from archive_session tool result */
+  closed_won_data?: {
+    contractNumber: string;
+    customerName: string;
+    flightRoute: string;
+    dealValue: number;
+    currency: string;
+    proposalSentAt?: string;
+    contractSentAt?: string;
+    paymentReceivedAt?: string;
+  };
   quotes?: Quote[];
   agent?: AgentMetadata;
   _debug?: Record<string, unknown>;
@@ -428,6 +459,37 @@ export interface SSEParseResult {
   rfqData?: RFQData;
   pipelineData?: PipelineData;
   emailApprovalData?: EmailApprovalData;
+  /** Contract sent confirmation data from generate_contract tool */
+  contractSentData?: {
+    contractId: string;
+    contractNumber: string;
+    status: string;
+    pdfUrl?: string;
+    customer?: { name: string; email: string };
+    pricing?: { totalAmount: number; currency: string };
+    flightRoute?: string;
+  };
+  /** Payment confirmed data from confirm_payment tool */
+  paymentConfirmationData?: {
+    contractId: string;
+    contractNumber: string;
+    paymentAmount: number;
+    paymentMethod: string;
+    paymentReference: string;
+    paidAt: string;
+    currency: string;
+  };
+  /** Closed won data from archive_session tool */
+  closedWonData?: {
+    contractNumber: string;
+    customerName: string;
+    flightRoute: string;
+    dealValue: number;
+    currency: string;
+    proposalSentAt?: string;
+    contractSentAt?: string;
+    paymentReceivedAt?: string;
+  };
   quotes: Quote[];
   agentMetadata?: AgentMetadata;
   debug?: Record<string, unknown>;

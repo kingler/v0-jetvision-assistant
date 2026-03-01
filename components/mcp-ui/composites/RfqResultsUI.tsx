@@ -29,10 +29,9 @@ export function RfqResultsUI({ flights, onAction }: RfqResultsUIProps) {
       groupByLeg={flights.some(f => f.legType != null)}
       onBookFlight={(flightId, quoteId) => {
         onAction(
-          uiActionResultToolCall('book_flight', {
-            quote_id: quoteId,
-            flight_id: flightId,
-          })
+          uiActionResultPrompt(
+            `Please generate a contract for quote ${quoteId || flightId}. The customer details should be reused from the proposal that was already sent.`
+          )
         );
       }}
       onGenerateProposal={(flightId, quoteId) => {

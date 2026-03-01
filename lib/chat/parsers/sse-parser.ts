@@ -160,6 +160,31 @@ function processSSEData(
     });
   }
 
+  // Extract contract sent data (ONEK-299)
+  if (data.contract_sent_data) {
+    result.contractSentData = data.contract_sent_data;
+    logger.debug('Contract sent data received', {
+      contractNumber: data.contract_sent_data.contractNumber,
+    });
+  }
+
+  // Extract payment confirmation data (ONEK-300)
+  if (data.payment_confirmation_data) {
+    result.paymentConfirmationData = data.payment_confirmation_data;
+    logger.debug('Payment confirmation data received', {
+      contractNumber: data.payment_confirmation_data.contractNumber,
+      paymentAmount: data.payment_confirmation_data.paymentAmount,
+    });
+  }
+
+  // Extract closed won data (ONEK-301)
+  if (data.closed_won_data) {
+    result.closedWonData = data.closed_won_data;
+    logger.debug('Closed won data received', {
+      contractNumber: data.closed_won_data.contractNumber,
+    });
+  }
+
   // Extract session info from ALL events (sent with initial content, not just done)
   // This ensures the frontend can update session state with the database ID
   if (data.conversation_id) {
@@ -228,6 +253,17 @@ function processSSEData(
     // Extract email approval data
     if (data.email_approval_data) {
       result.emailApprovalData = data.email_approval_data;
+    }
+
+    // Extract contract/payment/close data (ONEK-299/300/301)
+    if (data.contract_sent_data) {
+      result.contractSentData = data.contract_sent_data;
+    }
+    if (data.payment_confirmation_data) {
+      result.paymentConfirmationData = data.payment_confirmation_data;
+    }
+    if (data.closed_won_data) {
+      result.closedWonData = data.closed_won_data;
     }
 
     // Extract quotes

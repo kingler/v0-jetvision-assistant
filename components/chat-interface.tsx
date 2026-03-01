@@ -1020,6 +1020,26 @@ export function ChatInterface({
       showQuotes: quotes.length > 0 || (result.rfqData?.flights?.length ?? 0) > 0,
       showPipeline: !!result.pipelineData,
       pipelineData: result.pipelineData,
+      // ONEK-299: Contract sent confirmation card
+      showContractSentConfirmation: !!result.contractSentData,
+      contractSentData: result.contractSentData ? {
+        contractId: result.contractSentData.contractId,
+        contractNumber: result.contractSentData.contractNumber,
+        status: (result.contractSentData.status as 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed') || 'sent',
+        pdfUrl: result.contractSentData.pdfUrl,
+        customerName: result.contractSentData.customer?.name || 'Customer',
+        customerEmail: result.contractSentData.customer?.email || '',
+        flightRoute: result.contractSentData.flightRoute || '',
+        departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
+        totalAmount: result.contractSentData.pricing?.totalAmount || 0,
+        currency: result.contractSentData.pricing?.currency || 'USD',
+      } : undefined,
+      // ONEK-300: Payment confirmed card
+      showPaymentConfirmation: !!result.paymentConfirmationData,
+      paymentConfirmationData: result.paymentConfirmationData,
+      // ONEK-301: Closed won confirmation card
+      showClosedWon: !!result.closedWonData,
+      closedWonData: result.closedWonData,
       // MCP UI registry: pass tool results for feature-flagged rendering
       toolResults: result.toolResults,
     }

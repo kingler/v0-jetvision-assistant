@@ -40,6 +40,11 @@ export const AVINODE_TOOLS: OpenAIToolDefinition[] = [
             type: 'string',
             description: 'Departure time in HH:MM format (24-hour). Convert user times: "4:00pm" → "16:00", "10am" → "10:00". Default to "10:00" if not specified.',
           },
+          trip_type: {
+            type: 'string',
+            enum: ['one_way', 'round_trip', 'multi_city'],
+            description: 'Trip type. Set to round_trip when the user requests a round trip even if return_date is not yet known.',
+          },
           return_date: {
             type: 'string',
             description: 'Return date in YYYY-MM-DD format (for round trips only)',
@@ -530,20 +535,20 @@ export const DATABASE_TOOLS: OpenAIToolDefinition[] = [
     type: 'function',
     function: {
       name: 'generate_contract',
-      description: 'Generate a contract from an accepted proposal. Creates a contract record and generates a PDF. Use this after a proposal has been sent and the customer is ready to proceed.',
+      description: 'Generate a contract from an accepted proposal. Creates a contract record and generates a PDF. Use this after a proposal has been sent and the customer is ready to proceed. Both IDs are auto-resolved from the active session if not provided.',
       parameters: {
         type: 'object',
         properties: {
           proposal_id: {
             type: 'string',
-            description: 'The proposal UUID to generate a contract from',
+            description: 'The proposal UUID (optional — auto-resolved from active session if omitted)',
           },
           request_id: {
             type: 'string',
-            description: 'The flight request UUID',
+            description: 'The flight request UUID (optional — auto-resolved from active session if omitted)',
           },
         },
-        required: ['proposal_id', 'request_id'],
+        required: [],
       },
     },
   },
@@ -551,13 +556,13 @@ export const DATABASE_TOOLS: OpenAIToolDefinition[] = [
     type: 'function',
     function: {
       name: 'confirm_payment',
-      description: 'Record payment received for a contract and close the deal. Use this when the customer has paid.',
+      description: 'Record payment received for a contract and close the deal. Use this when the customer has paid. The contract_id is auto-resolved from the active session if not provided.',
       parameters: {
         type: 'object',
         properties: {
           contract_id: {
             type: 'string',
-            description: 'The contract UUID',
+            description: 'The contract UUID (optional — auto-resolved from active session if omitted)',
           },
           payment_amount: {
             type: 'number',
@@ -573,7 +578,55 @@ export const DATABASE_TOOLS: OpenAIToolDefinition[] = [
             description: 'Payment reference or transaction ID',
           },
         },
-        required: ['contract_id', 'payment_amount', 'payment_method', 'payment_reference'],
+        required: ['payment_amount', 'payment_method', 'payment_reference'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_request_status',
+      description: 'Update the status and current_step of a flight request. Use this to advance the workflow (e.g., to "completed" after payment, or "closed_won" step). The request_id is auto-resolved from the active session if not provided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          request_id: {
+            type: 'string',
+            description: 'Request UUID (optional — auto-resolved from active session if omitted)',
+          },
+          status: {
+            type: 'string',
+            description: 'New request status',
+            enum: ['draft', 'pending', 'awaiting_quotes', 'completed', 'cancelled'],
+          },
+          current_step: {
+            type: 'string',
+            description: 'Current workflow step',
+            enum: ['understanding_request', 'searching_flights', 'awaiting_quotes', 'analyzing_options', 'proposal_ready', 'proposal_sent', 'contract_sent', 'payment_pending', 'closed_won'],
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'archive_session',
+      description: 'Archive the current chat session after a deal is closed or cancelled. Sets the request status to completed, current_step to closed_won, and session_status to archived. The request_id is auto-resolved from the active session if not provided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          request_id: {
+            type: 'string',
+            description: 'Request UUID (optional — auto-resolved from active session if omitted)',
+          },
+          archive_label: {
+            type: 'string',
+            description: 'Label for the archived session (e.g., "Closed – ABC Corp – 2026-03-25")',
+          },
+        },
+        required: [],
       },
     },
   },
@@ -751,6 +804,8 @@ export const TOOL_CATEGORIES: Record<string, 'avinode' | 'database' | 'gmail'> =
   get_proposal: 'database',
   generate_contract: 'database',
   confirm_payment: 'database',
+  update_request_status: 'database',
+  archive_session: 'database',
 
   // Gmail tools
   send_email: 'gmail',
