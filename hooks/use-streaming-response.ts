@@ -96,6 +96,7 @@ export function useStreamingResponse(
   // Refs for abort control and reconnection
   const abortControllerRef = useRef<AbortController | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const reachedTerminalStateRef = useRef<boolean>(false);
 
   /**
    * Parse SSE data line
@@ -230,6 +231,7 @@ export function useStreamingResponse(
         }
 
         case 'complete': {
+          reachedTerminalStateRef.current = true;
           setState('completed');
           if (onComplete) {
             onComplete();
@@ -239,6 +241,7 @@ export function useStreamingResponse(
 
         case 'error': {
           const errorData = message.data as { error: string };
+          reachedTerminalStateRef.current = true;
           setError(errorData.error);
           setState('error');
           if (onError) {
@@ -264,6 +267,7 @@ export function useStreamingResponse(
       setError(null);
       setToolCalls([]);
       setState('connecting');
+      reachedTerminalStateRef.current = false;
 
       // Create abort controller
       abortControllerRef.current = new AbortController();
@@ -329,7 +333,9 @@ export function useStreamingResponse(
         }
 
         // If we reach here without completion message, mark as completed
-        if (state !== 'completed' && state !== 'error') {
+        // Use ref instead of state to avoid stale closure issue
+        if (!reachedTerminalStateRef.current) {
+          reachedTerminalStateRef.current = true;
           setState('completed');
           if (onComplete) {
             onComplete();
@@ -354,7 +360,7 @@ export function useStreamingResponse(
         readerRef.current = null;
       }
     },
-    [endpoint, parseSSEMessage, handleMessage, onComplete, onError, state]
+    [endpoint, parseSSEMessage, handleMessage, onComplete, onError]
   );
 
   /**

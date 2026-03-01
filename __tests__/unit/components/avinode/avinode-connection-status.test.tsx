@@ -51,16 +51,17 @@ describe('AvinodeConnectionStatus', () => {
       const { container } = render(<AvinodeConnectionStatus {...mockSuccessProps} />);
 
       const statusCard = container.firstChild;
-      expect(statusCard).toHaveClass('bg-green-50');
+      expect(statusCard).toHaveClass('bg-success-bg');
       expect(statusCard).toHaveClass('border-l-4');
-      expect(statusCard).toHaveClass('border-green-500');
+      expect(statusCard).toHaveClass('border-success-border');
     });
 
     it('applies dark mode success styling', () => {
       const { container } = render(<AvinodeConnectionStatus {...mockSuccessProps} />);
 
-      const statusCard = container.firstChild as HTMLElement;
-      expect(statusCard?.className).toMatch(/dark:bg-green-950\/30/);
+      // Component uses design-token classes (bg-success-bg) which are theme-aware
+      const statusCard = container.firstChild;
+      expect(statusCard).toHaveClass('bg-success-bg');
     });
   });
 
@@ -95,26 +96,28 @@ describe('AvinodeConnectionStatus', () => {
       const { container } = render(<AvinodeConnectionStatus {...mockFailureProps} />);
 
       const statusCard = container.firstChild;
-      expect(statusCard).toHaveClass('bg-red-50');
+      expect(statusCard).toHaveClass('bg-error-bg');
       expect(statusCard).toHaveClass('border-l-4');
-      expect(statusCard).toHaveClass('border-red-500');
+      expect(statusCard).toHaveClass('border-error-border');
     });
 
     it('applies dark mode failure styling', () => {
       const { container } = render(<AvinodeConnectionStatus {...mockFailureProps} />);
 
-      const statusCard = container.firstChild as HTMLElement;
-      expect(statusCard?.className).toMatch(/dark:bg-red-950\/30/);
+      // Component uses design-token classes (bg-error-bg) which are theme-aware
+      const statusCard = container.firstChild;
+      expect(statusCard).toHaveClass('bg-error-bg');
     });
   });
 
   describe('Typography', () => {
     it('applies correct title typography', () => {
-      const { container } = render(<AvinodeConnectionStatus {...mockSuccessProps} />);
+      render(<AvinodeConnectionStatus {...mockSuccessProps} />);
 
       const title = screen.getByText(/avinode api connection test - success/i);
-      expect(title).toHaveClass('text-base');
       expect(title).toHaveClass('font-semibold');
+      // Component uses responsive text-sm sm:text-base
+      expect(title).toHaveClass('text-sm');
     });
 
     it('applies correct timestamp typography', () => {
@@ -132,7 +135,7 @@ describe('AvinodeConnectionStatus', () => {
 
       const icon = container.querySelector('svg');
       expect(icon).toBeInTheDocument();
-      expect(icon?.getAttribute('class')).toContain('text-green-500');
+      expect(icon?.getAttribute('class')).toContain('text-success');
     });
 
     it('renders red icon for failure', () => {
@@ -140,7 +143,7 @@ describe('AvinodeConnectionStatus', () => {
 
       const icon = container.querySelector('svg');
       expect(icon).toBeInTheDocument();
-      expect(icon?.getAttribute('class')).toContain('text-red-500');
+      expect(icon?.getAttribute('class')).toContain('text-destructive');
     });
   });
 

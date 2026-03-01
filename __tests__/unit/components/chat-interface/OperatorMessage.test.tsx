@@ -41,7 +41,7 @@ describe('OperatorMessage', () => {
   it('should apply amber styling', () => {
     const { container } = render(<OperatorMessage {...defaultProps} />);
 
-    const bubble = container.querySelector('.bg-amber-50');
+    const bubble = container.querySelector('.bg-warning-bg');
     expect(bubble).toBeInTheDocument();
   });
 
