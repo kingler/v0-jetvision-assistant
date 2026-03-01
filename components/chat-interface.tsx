@@ -1040,6 +1040,11 @@ export function ChatInterface({
       // ONEK-301: Closed won confirmation card
       showClosedWon: !!result.closedWonData,
       closedWonData: result.closedWonData,
+      // Phase 4b: Customer preferences from get_client tool
+      showCustomerPreferences: !!result.clientData?.preferences && Object.keys(result.clientData.preferences).length > 0,
+      // Phase 6: Empty leg search results
+      showEmptyLegs: !!result.emptyLegData && result.emptyLegData.length > 0,
+      emptyLegData: result.emptyLegData,
       // MCP UI registry: pass tool results for feature-flagged rendering
       toolResults: result.toolResults,
     }
@@ -1155,7 +1160,26 @@ export function ChatInterface({
         }
         return existing
       })
-      const allRfqFlights = [...updatedExisting, ...uniqueNewFlights]
+      let allRfqFlights = [...updatedExisting, ...uniqueNewFlights]
+
+      // Phase 5: Tag flights with legType for round-trip grouping
+      // Match departure airport against the original request's departure/arrival
+      if (activeChat.tripType === 'round_trip' && activeChat.route) {
+        const [routeDep, routeArr] = (activeChat.route || '').split(' → ').map(s => s?.trim().toUpperCase());
+        if (routeDep && routeArr) {
+          allRfqFlights = allRfqFlights.map(f => {
+            if (f.legType) return f; // Already tagged
+            const flightDep = f.departureAirport?.icao?.toUpperCase();
+            if (flightDep === routeDep) {
+              return { ...f, legType: 'outbound' as const, legSequence: 1 };
+            } else if (flightDep === routeArr) {
+              return { ...f, legType: 'return' as const, legSequence: 2 };
+            }
+            return f;
+          });
+        }
+      }
+
       updates.rfqFlights = allRfqFlights
       updates.quotesTotal = allRfqFlights.length
       updates.quotesReceived = allRfqFlights.filter((f) => f.rfqStatus === 'quoted' || (f.totalPrice && f.totalPrice > 0)).length
@@ -1227,6 +1251,28 @@ export function ChatInterface({
     }
     if (result.conversationType) {
       updates.conversationType = result.conversationType
+    }
+
+    // Phase 4b: Update customer data when get_client returns preferences
+    if (result.clientData) {
+      updates.customer = {
+        name: result.clientData.name,
+        email: result.clientData.email,
+        company: result.clientData.company,
+        preferences: result.clientData.preferences as { catering?: string; groundTransport?: string } | undefined,
+      }
+    }
+
+    // Phase 1: Auto-archive when payment is confirmed via agent path
+    // (aligns agent confirm_payment path with UI handlePaymentConfirm path)
+    if (result.paymentConfirmationData && result.closedWonData) {
+      updates.status = 'closed_won' as const;
+      // Trigger archive after a short delay to let message render first
+      setTimeout(() => {
+        if (onArchiveChat) {
+          onArchiveChat(activeChat.id);
+        }
+      }, 1500);
     }
 
     onUpdateChat(activeChat.id, updates)
@@ -2589,6 +2635,9 @@ export function ChatInterface({
                   flightRoute: string; dealValue: number; currency: string
                   proposalSentAt?: string; contractSentAt?: string; paymentReceivedAt?: string
                 }
+                // Empty leg search results
+                showEmptyLegs?: boolean
+                emptyLegData?: Array<Record<string, unknown>>
                 // Email approval workflow properties (human-in-the-loop)
                 showEmailApprovalRequest?: boolean
                 emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
@@ -2952,6 +3001,8 @@ export function ChatInterface({
                         onGenerateProposal={handleGenerateProposal}
                         showPipeline={message.showPipeline}
                         pipelineData={message.pipelineData}
+                        showEmptyLegs={message.showEmptyLegs}
+                        emptyLegData={message.emptyLegData}
                         showMarginSelection={message.showMarginSelection}
                         marginSelectionData={message.marginSelectionData}
                         showProposalSentConfirmation={message.showProposalSentConfirmation}
@@ -2979,11 +3030,30 @@ export function ChatInterface({
                             handleSendMessage()
                           }, 100)
                         }}
-                        showOperatorMessages={false}
-                        operatorMessages={undefined}
-                        operatorFlightContext={undefined}
-                        onViewOperatorThread={undefined}
-                        onReplyToOperator={undefined}
+                        showOperatorMessages={Object.keys(activeChat.operatorMessages || {}).length > 0}
+                        operatorMessages={activeChat.operatorMessages}
+                        operatorFlightContext={(() => {
+                          // Build flight context map from rfqFlights for operator messages
+                          const ctx: Record<string, FlightContext> = {};
+                          for (const f of (rfqFlights || [])) {
+                            if (f.quoteId) {
+                              ctx[f.quoteId] = {
+                                quoteId: f.quoteId,
+                                operatorName: f.operatorName || 'Unknown Operator',
+                                aircraftType: f.aircraftType,
+                                departureAirport: f.departureAirport?.icao,
+                                arrivalAirport: f.arrivalAirport?.icao,
+                              };
+                            }
+                          }
+                          return Object.keys(ctx).length > 0 ? ctx : undefined;
+                        })()}
+                        onViewOperatorThread={(quoteId) => {
+                          setSelectedQuoteId(quoteId);
+                        }}
+                        onReplyToOperator={(quoteId) => {
+                          setSelectedQuoteId(quoteId);
+                        }}
                       />
                     )}
 

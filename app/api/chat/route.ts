@@ -471,11 +471,17 @@ export async function POST(req: NextRequest) {
       .eq('id', conversationId);
 
     // 9. Update chat session
+    // Detect if archive_session was called successfully in this turn
+    const wasArchived = result.toolResults.some(
+      (tr) => tr.name === 'archive_session' && tr.success
+    );
+
     const sessionData: ChatSessionInsert = {
       iso_agent_id: isoAgentId,
-      session_status: 'active',
+      session_status: wasArchived ? 'archived' : 'active',
       conversation_type: conversationType,
       workflow_state: workingMemory,
+      ...(wasArchived ? { current_step: 'closed_won' } : {}),
       ...(result.tripId ? { avinode_trip_id: result.tripId } : {}),
     };
     await createOrUpdateChatSession(sessionData, conversationId);
@@ -557,8 +563,57 @@ export async function POST(req: NextRequest) {
       paymentReceivedAt?: string;
     } | undefined;
 
+    // Phase 4b: Extract client data for customer preferences display
+    let clientData: {
+      name: string;
+      email: string;
+      company: string;
+      preferences?: Record<string, unknown>;
+    } | undefined;
+
+    // Phase 6: Extract empty leg search results
+    let emptyLegData: Array<Record<string, unknown>> | undefined;
+
+    // Phase 7: Extract pipeline data
+    let pipelineData: {
+      stats: { totalRequests: number; pendingRequests: number; completedRequests: number; totalQuotes: number; activeWorkflows: number };
+      recentRequests: Array<{ id: string; departureAirport: string; arrivalAirport: string; departureDate: string; passengers: number; status: string; createdAt: string }>;
+      lastUpdated: string;
+    } | undefined;
+
     for (const tr of result.toolResults) {
       const toolName = tr.name as string; // Widen type for new tool names not in union
+
+      // Phase 4b: Extract get_client results for customer preferences display
+      if (toolName === 'get_client' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        const preferences = data.preferences as Record<string, unknown> | undefined;
+        if (data.contact_name || data.email) {
+          clientData = {
+            name: (data.contact_name as string) || '',
+            email: (data.email as string) || '',
+            company: (data.company_name as string) || '',
+            preferences,
+          };
+        }
+      }
+
+      // Phase 7: Extract get_pipeline results for PipelineDashboard
+      if (toolName === 'get_pipeline' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        pipelineData = {
+          stats: data.stats as { totalRequests: number; pendingRequests: number; completedRequests: number; totalQuotes: number; activeWorkflows: number },
+          recentRequests: (data.recentRequests || []) as Array<{ id: string; departureAirport: string; arrivalAirport: string; departureDate: string; passengers: number; status: string; createdAt: string }>,
+          lastUpdated: (data.lastUpdated as string) || new Date().toISOString(),
+        };
+      }
+
+      // Phase 6: Extract search_empty_legs results
+      if (toolName === 'search_empty_legs' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        const legs = (data.empty_legs || data.results || data) as Array<Record<string, unknown>> | Record<string, unknown>;
+        emptyLegData = Array.isArray(legs) ? legs : [legs];
+      }
 
       // Check for prepare_proposal_email results
       if (tr.name === 'prepare_proposal_email' && tr.success && tr.data) {
@@ -628,6 +683,22 @@ export async function POST(req: NextRequest) {
           paidAt: (data.paidAt as string) || new Date().toISOString(),
           currency: (data.currency as string) || 'USD',
         };
+
+        // Auto-create ClosedWon data from enriched payment response
+        // (aligns agent path with UI handlePaymentConfirm path)
+        if (!closedWonData) {
+          closedWonData = {
+            contractNumber: (data.contractNumber as string) || '',
+            customerName: (data.customerName as string) || '',
+            flightRoute: (data.flightRoute as string) || '',
+            dealValue: (data.dealValue as number) || (data.paymentAmount as number) || 0,
+            currency: (data.currency as string) || 'USD',
+            proposalSentAt: data.proposalSentAt as string | undefined,
+            contractSentAt: data.contractSentAt as string | undefined,
+            paymentReceivedAt: (data.paidAt as string) || new Date().toISOString(),
+          };
+          console.log('[Chat API] ✅ Auto-created closedWonData from confirm_payment');
+        }
       }
 
       // ONEK-301: Extract archive_session results for ClosedWonConfirmation card
@@ -781,6 +852,27 @@ export async function POST(req: NextRequest) {
         });
         yield JSON.stringify({
           closed_won_data: closedWonData,
+        });
+      }
+
+      // Phase 7: Send pipeline data for PipelineDashboard
+      if (pipelineData) {
+        yield JSON.stringify({
+          pipeline_data: pipelineData,
+        });
+      }
+
+      // Phase 4b: Send client data for customer preferences display
+      if (clientData) {
+        yield JSON.stringify({
+          client_data: clientData,
+        });
+      }
+
+      // Phase 6: Send empty leg search results
+      if (emptyLegData && emptyLegData.length > 0) {
+        yield JSON.stringify({
+          empty_leg_data: emptyLegData,
         });
       }
 

@@ -257,6 +257,8 @@ export class ToolExecutor {
         return this.confirmPayment(params);
       case 'update_request_status':
         return this.updateRequestStatus(params);
+      case 'get_pipeline':
+        return this.getPipeline(params);
       case 'archive_session':
         return this.archiveSession(params);
       default:
@@ -633,7 +635,23 @@ export class ToolExecutor {
       throw new Error('payment_amount, payment_method, and payment_reference are required. contract_id could not be auto-resolved — please provide it explicitly.');
     }
 
-    const { updateContractPayment, completeContract } = await import('@/lib/services/contract-service');
+    const { updateContractPayment, completeContract, getContractById } = await import('@/lib/services/contract-service');
+
+    // Duplicate-payment guard (mirrors contract duplicate guard at generateContract)
+    const existingContract = await getContractById(contract_id as string);
+    if (existingContract?.payment_reference) {
+      return {
+        contractId: existingContract.id,
+        contractNumber: existingContract.contract_number,
+        status: existingContract.status,
+        paymentReference: existingContract.payment_reference,
+        paymentAmount: existingContract.payment_amount,
+        paymentMethod: existingContract.payment_method || payment_method as string,
+        paidAt: existingContract.payment_date || new Date().toISOString(),
+        currency: 'USD',
+        message: `Payment already recorded for contract ${existingContract.contract_number}`,
+      };
+    }
 
     // Record payment
     const paymentResult = await updateContractPayment(contract_id as string, {
@@ -646,6 +664,40 @@ export class ToolExecutor {
     // Complete the contract
     const completed = await completeContract(contract_id as string);
 
+    // Enrich return data with fields needed for ClosedWonConfirmation
+    let customerName = '';
+    let flightRoute = '';
+    let proposalSentAt: string | undefined;
+    let contractSentAt: string | undefined;
+
+    try {
+      // Get request data for route
+      if (this.context.requestId) {
+        const { data: reqData } = await supabaseAdmin
+          .from('requests')
+          .select('departure_airport, arrival_airport')
+          .eq('id', this.context.requestId)
+          .single();
+        if (reqData) {
+          flightRoute = `${reqData.departure_airport || ''} → ${reqData.arrival_airport || ''}`;
+        }
+      }
+      // Get proposal data for customer name and timeline
+      if (this.context.requestId) {
+        const proposals = await getProposalsByRequest(this.context.requestId);
+        if (proposals && proposals.length > 0) {
+          const sentProposal = proposals.find((p: Record<string, unknown>) => p.status === 'sent') || proposals[0];
+          customerName = (sentProposal as Record<string, unknown>).sent_to_name as string || '';
+          proposalSentAt = (sentProposal as Record<string, unknown>).sent_at as string ||
+            (sentProposal as Record<string, unknown>).created_at as string;
+        }
+      }
+      // Get contract timeline
+      contractSentAt = existingContract?.sent_at ?? existingContract?.created_at ?? undefined;
+    } catch (err) {
+      console.warn('[ToolExecutor] Could not fetch enrichment data for payment:', err);
+    }
+
     return {
       contractId: paymentResult.id,
       contractNumber: paymentResult.contract_number,
@@ -655,7 +707,70 @@ export class ToolExecutor {
       paymentMethod: payment_method as string,
       paidAt: new Date().toISOString(),
       currency: 'USD',
+      // Enriched data for ClosedWonConfirmation (mirrors handlePaymentConfirm)
+      customerName,
+      flightRoute,
+      dealValue: payment_amount as number,
+      proposalSentAt,
+      contractSentAt,
       message: `Payment of ${payment_amount} recorded. Contract ${paymentResult.contract_number} is now complete.`,
+    };
+  }
+
+  // ===========================================================================
+  // PIPELINE DATA TOOL
+  // ===========================================================================
+
+  private async getPipeline(params: Record<string, unknown>): Promise<unknown> {
+    const limit = (params.limit as number) || 20;
+
+    // Query requests for this ISO agent
+    const { data: requests, error } = await supabaseAdmin
+      .from('requests')
+      .select('id, departure_airport, arrival_airport, departure_date, passengers, status, current_step, created_at, client_profile_id, session_status')
+      .eq('iso_agent_id', this.context.isoAgentId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Failed to fetch pipeline data: ${error.message}`);
+    }
+
+    const allRequests = requests || [];
+
+    // Compute stats by grouping on status/current_step
+    const stats = {
+      totalRequests: allRequests.length,
+      pendingRequests: allRequests.filter(r => r.status === 'pending' || r.status === 'draft').length,
+      completedRequests: allRequests.filter(r => r.status === 'completed').length,
+      totalQuotes: 0,
+      activeWorkflows: allRequests.filter(r =>
+        r.status !== 'completed' && r.status !== 'cancelled' && r.session_status !== 'archived'
+      ).length,
+    };
+
+    // Get quote count
+    const { count } = await supabaseAdmin
+      .from('quotes')
+      .select('id', { count: 'exact', head: true })
+      .in('request_id', allRequests.map(r => r.id));
+    stats.totalQuotes = count || 0;
+
+    // Format recent requests for display
+    const recentRequests = allRequests.slice(0, 10).map(r => ({
+      id: r.id,
+      departureAirport: r.departure_airport || '',
+      arrivalAirport: r.arrival_airport || '',
+      departureDate: r.departure_date || '',
+      passengers: r.passengers || 0,
+      status: r.current_step || r.status || 'pending',
+      createdAt: r.created_at,
+    }));
+
+    return {
+      stats,
+      recentRequests,
+      lastUpdated: new Date().toISOString(),
     };
   }
 

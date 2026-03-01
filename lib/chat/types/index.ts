@@ -77,6 +77,15 @@ export interface SSEStreamData {
     contractSentAt?: string;
     paymentReceivedAt?: string;
   };
+  /** Client data from get_client tool for customer preferences display */
+  client_data?: {
+    name: string;
+    email: string;
+    company: string;
+    preferences?: Record<string, unknown>;
+  };
+  /** Empty leg search results from search_empty_legs tool */
+  empty_leg_data?: Array<Record<string, unknown>>;
   quotes?: Quote[];
   agent?: AgentMetadata;
   _debug?: Record<string, unknown>;
@@ -490,6 +499,15 @@ export interface SSEParseResult {
     contractSentAt?: string;
     paymentReceivedAt?: string;
   };
+  /** Client data for customer preferences display */
+  clientData?: {
+    name: string;
+    email: string;
+    company: string;
+    preferences?: Record<string, unknown>;
+  };
+  /** Empty leg search results */
+  emptyLegData?: Array<Record<string, unknown>>;
   quotes: Quote[];
   agentMetadata?: AgentMetadata;
   debug?: Record<string, unknown>;

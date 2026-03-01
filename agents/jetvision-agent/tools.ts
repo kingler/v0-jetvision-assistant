@@ -612,6 +612,23 @@ export const DATABASE_TOOLS: OpenAIToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'get_pipeline',
+      description: 'Get pipeline/deals dashboard data. Shows all active and recent flight requests grouped by status, with counts and key metrics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: {
+            type: 'number',
+            description: 'Maximum number of recent requests to return (default 20)',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'archive_session',
       description: 'Archive the current chat session after a deal is closed or cancelled. Sets the request status to completed, current_step to closed_won, and session_status to archived. The request_id is auto-resolved from the active session if not provided.',
       parameters: {
@@ -805,6 +822,7 @@ export const TOOL_CATEGORIES: Record<string, 'avinode' | 'database' | 'gmail'> =
   generate_contract: 'database',
   confirm_payment: 'database',
   update_request_status: 'database',
+  get_pipeline: 'database',
   archive_session: 'database',
 
   // Gmail tools

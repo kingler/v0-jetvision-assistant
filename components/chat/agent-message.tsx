@@ -26,6 +26,7 @@ import {
 } from "../message-components/operator-chat-inline"
 import type { PipelineData } from "@/lib/types/chat-agent"
 import { EmailPreviewCard, type EmailPreviewCardProps } from "@/components/email"
+import { EmptyLegMatchCard, type EmptyLegMatchData } from "@/components/avinode/empty-leg-match-card"
 import { formatMessageTimestamp } from "@/lib/utils/format"
 
 /**
@@ -97,7 +98,7 @@ export interface AgentMessageProps {
     arrivalAirport?: { icao: string; name?: string; city?: string }
     departureDate?: string
     passengers?: number
-    tripType?: 'one_way' | 'round_trip'
+    tripType?: 'one_way' | 'round_trip' | 'multi_city'
     returnDate?: string
     aircraftPreferences?: string
     specialRequirements?: string
@@ -250,6 +251,10 @@ export interface AgentMessageProps {
     contractSentAt?: string
     paymentReceivedAt?: string
   }
+  /** Whether to show empty leg search results */
+  showEmptyLegs?: boolean
+  /** Empty leg search result data */
+  emptyLegData?: Array<Record<string, unknown>>
   /** Whether to show email approval request card (human-in-the-loop) */
   showEmailApprovalRequest?: boolean
   /** Data for EmailPreviewCard when showEmailApprovalRequest is true */
@@ -332,6 +337,8 @@ export function AgentMessage({
   operatorFlightContext,
   onViewOperatorThread,
   onReplyToOperator,
+  showEmptyLegs,
+  emptyLegData,
   showMarginSelection,
   marginSelectionData,
   showProposalSentConfirmation,
@@ -535,6 +542,53 @@ export function AgentMessage({
             quotes={sortedQuotes}
             onSelectQuote={onSelectQuote}
           />
+        </div>
+      )}
+
+      {/* Empty Leg Search Results */}
+      {showEmptyLegs && emptyLegData && emptyLegData.length > 0 && (
+        <div className="mt-3 space-y-3 w-full">
+          <h4 className="text-sm font-medium text-foreground">
+            Empty Leg Flights ({emptyLegData.length} found)
+          </h4>
+          {emptyLegData.map((leg, index) => {
+            const matchData: EmptyLegMatchData = {
+              match_id: (leg.match_id as string) || (leg.id as string) || `el-${index}`,
+              watch_id: (leg.watch_id as string) || '',
+              empty_leg_id: (leg.empty_leg_id as string) || (leg.id as string) || `el-${index}`,
+              departure: {
+                airport: (leg.departure_airport as string) || (leg.departure as Record<string, unknown>)?.airport as string || '',
+                name: (leg.departure as Record<string, unknown>)?.name as string,
+                city: (leg.departure as Record<string, unknown>)?.city as string,
+                date: (leg.departure_date as string) || (leg.departure as Record<string, unknown>)?.date as string || '',
+                time: (leg.departure_time as string) || (leg.departure as Record<string, unknown>)?.time as string,
+              },
+              arrival: {
+                airport: (leg.arrival_airport as string) || (leg.arrival as Record<string, unknown>)?.airport as string || '',
+                name: (leg.arrival as Record<string, unknown>)?.name as string,
+                city: (leg.arrival as Record<string, unknown>)?.city as string,
+              },
+              price: (leg.price as number) || 0,
+              currency: (leg.currency as string) || 'USD',
+              discount_percentage: leg.discount_percentage as number,
+              regular_price: leg.regular_price as number,
+              aircraft: {
+                type: (leg.aircraft_type as string) || (leg.aircraft as Record<string, unknown>)?.type as string || 'Unknown',
+                model: (leg.aircraft_model as string) || (leg.aircraft as Record<string, unknown>)?.model as string || 'Unknown',
+                category: (leg.aircraft_category as string) || (leg.aircraft as Record<string, unknown>)?.category as string || '',
+                capacity: (leg.passenger_capacity as number) || (leg.aircraft as Record<string, unknown>)?.capacity as number || 0,
+              },
+              operator: {
+                id: (leg.operator_id as string) || (leg.operator as Record<string, unknown>)?.id as string || '',
+                name: (leg.operator_name as string) || (leg.operator as Record<string, unknown>)?.name as string || 'Unknown',
+                rating: (leg.operator_rating as number) || (leg.operator as Record<string, unknown>)?.rating as number,
+              },
+              viewed: false,
+              interested: false,
+              matched_at: new Date().toISOString(),
+            };
+            return <EmptyLegMatchCard key={matchData.match_id} match={matchData} />;
+          })}
         </div>
       )}
 

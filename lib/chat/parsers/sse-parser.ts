@@ -185,6 +185,31 @@ function processSSEData(
     });
   }
 
+  // Extract client data for customer preferences display (Phase 4b)
+  if (data.client_data) {
+    result.clientData = data.client_data;
+    logger.debug('Client data received', {
+      name: data.client_data.name,
+      hasPreferences: !!data.client_data.preferences,
+    });
+  }
+
+  // Extract empty leg search results (Phase 6)
+  if (data.empty_leg_data) {
+    result.emptyLegData = data.empty_leg_data;
+    logger.debug('Empty leg data received', {
+      count: data.empty_leg_data.length,
+    });
+  }
+
+  // Extract pipeline data (Phase 7)
+  if (data.pipeline_data) {
+    result.pipelineData = data.pipeline_data;
+    logger.debug('Pipeline data received', {
+      hasStats: !!data.pipeline_data.stats,
+    });
+  }
+
   // Extract session info from ALL events (sent with initial content, not just done)
   // This ensures the frontend can update session state with the database ID
   if (data.conversation_id) {
@@ -264,6 +289,12 @@ function processSSEData(
     }
     if (data.closed_won_data) {
       result.closedWonData = data.closed_won_data;
+    }
+    if (data.client_data) {
+      result.clientData = data.client_data;
+    }
+    if (data.empty_leg_data) {
+      result.emptyLegData = data.empty_leg_data;
     }
 
     // Extract quotes

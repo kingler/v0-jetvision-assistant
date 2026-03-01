@@ -60,6 +60,9 @@ export interface UnifiedMessage {
   // Email approval workflow
   showEmailApprovalRequest?: boolean;
   emailApprovalData?: EmailApprovalRequestContent;
+  // Empty leg search results
+  showEmptyLegs?: boolean;
+  emptyLegData?: Array<Record<string, unknown>>;
   // Operator message properties
   operatorName?: string;
   operatorQuoteId?: string;
