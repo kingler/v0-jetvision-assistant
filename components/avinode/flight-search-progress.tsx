@@ -54,6 +54,13 @@ export interface FlightRequestDetails {
   passengers: number;
   tripType?: 'one_way' | 'round_trip' | 'multi_city';
   returnDate?: string;
+  /** Segments for multi-city trips (3+ legs) */
+  segments?: Array<{
+    departureAirport: { icao: string; name?: string; city?: string; state?: string };
+    arrivalAirport: { icao: string; name?: string; city?: string; state?: string };
+    departureDate: string;
+    passengers: number;
+  }>;
   aircraftPreferences?: string;
   specialRequirements?: string;
   requestId?: string;

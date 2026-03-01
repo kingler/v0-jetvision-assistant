@@ -79,10 +79,17 @@ export interface ChatSession {
   date: string
   /** ISO format date (YYYY-MM-DD) for API calls */
   isoDate?: string
-  /** Trip type: one-way or round-trip */
-  tripType?: 'one_way' | 'round_trip'
+  /** Trip type: one-way, round-trip, or multi-city */
+  tripType?: 'one_way' | 'round_trip' | 'multi_city'
   /** Return date for round-trip flights (YYYY-MM-DD) */
   returnDate?: string
+  /** Segments for multi-city trips (3+ legs) */
+  segments?: Array<{
+    departure_airport: { icao: string; name?: string; city?: string; state?: string };
+    arrival_airport: { icao: string; name?: string; city?: string; state?: string };
+    departure_date: string;
+    passengers: number;
+  }>
   status: "proposal_ready" | "proposal_sent" | "requesting_quotes" | "understanding_request" | "searching_aircraft" | "analyzing_options" | "contract_generated" | "contract_sent" | "payment_pending" | "closed_won"
   currentStep: number
   totalSteps: number
@@ -193,7 +200,7 @@ export interface ChatSession {
         arrivalAirport: string
         departureDate: string
         passengers?: number
-        tripType?: 'one_way' | 'round_trip'
+        tripType?: 'one_way' | 'round_trip' | 'multi_city'
         returnDate?: string
         returnAirport?: string
       }

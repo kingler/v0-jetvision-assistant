@@ -3094,8 +3094,8 @@ export function ChatInterface({
                           returnDate: activeChat.returnDate,
                           requestId: activeChat.requestId,
                           segments: activeChat.segments?.map(s => ({
-                            departureAirport: { icao: (s.departure_airport as { icao?: string })?.icao || 'TBD' },
-                            arrivalAirport: { icao: (s.arrival_airport as { icao?: string })?.icao || 'TBD' },
+                            departureAirport: { icao: resolveAirportIcao(s.departure_airport) || 'TBD' },
+                            arrivalAirport: { icao: resolveAirportIcao(s.arrival_airport) || 'TBD' },
                             departureDate: s.departure_date,
                             passengers: s.passengers,
                           })),
@@ -3143,8 +3143,8 @@ export function ChatInterface({
                           returnDate: activeChat.returnDate,
                           requestId: activeChat.requestId,
                           segments: activeChat.segments?.map(s => ({
-                            departureAirport: { icao: (s.departure_airport as { icao?: string })?.icao || 'TBD' },
-                            arrivalAirport: { icao: (s.arrival_airport as { icao?: string })?.icao || 'TBD' },
+                            departureAirport: { icao: resolveAirportIcao(s.departure_airport) || 'TBD' },
+                            arrivalAirport: { icao: resolveAirportIcao(s.arrival_airport) || 'TBD' },
                             departureDate: s.departure_date,
                             passengers: s.passengers,
                           })),

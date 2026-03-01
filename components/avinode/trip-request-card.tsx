@@ -10,6 +10,7 @@ import {
   MapPin,
   ArrowRight,
   ArrowLeftRight,
+  ArrowDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAirportByIcao } from '@/lib/airports/airport-database';
@@ -125,103 +126,196 @@ export function TripRequestCard({
                 : 'One-Way'}
           </span>
 
-          <div className="flex items-center justify-between gap-2">
-            {/* Departure */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1 whitespace-nowrap">
-                <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                <span className="text-sm font-bold text-primary">
-                  {flightRequest.departureAirport?.icao?.toUpperCase() || 'N/A'}
-                </span>
+          {/* Multi-city: render each leg vertically */}
+          {flightRequest.tripType === 'multi_city' && flightRequest.segments && flightRequest.segments.length > 1 ? (
+            <div className="space-y-2">
+              {flightRequest.segments.map((seg, idx) => (
+                <div key={idx}>
+                  {idx > 0 && (
+                    <div className="flex justify-center py-1">
+                      <ArrowDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2">
+                    {/* Leg Departure */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 whitespace-nowrap">
+                        <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-bold text-primary">
+                          {seg.departureAirport?.icao?.toUpperCase() || 'N/A'}
+                        </span>
+                      </div>
+                      {(() => {
+                        const { city, state } = resolveAirportLocation(seg.departureAirport);
+                        if (city || state) {
+                          return (
+                            <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">
+                              {city}
+                              {state ? `, ${state}` : ''}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+
+                    {/* Route Arrow */}
+                    <div className="flex items-center gap-1.5 px-2 shrink-0">
+                      <div className="h-px w-3 bg-border-strong" />
+                      <Plane className="size-5 text-primary rotate-90" />
+                      <ArrowRight className="size-4 text-muted-foreground" />
+                      <div className="h-px w-3 bg-border-strong" />
+                    </div>
+
+                    {/* Leg Arrival */}
+                    <div className="flex-1 text-right min-w-0">
+                      <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                        <span className="text-sm font-bold text-primary">
+                          {seg.arrivalAirport?.icao?.toUpperCase() || 'N/A'}
+                        </span>
+                        <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                      </div>
+                      {(() => {
+                        const { city, state } = resolveAirportLocation(seg.arrivalAirport);
+                        if (city || state) {
+                          return (
+                            <p className="text-xs text-muted-foreground mt-0.5 text-right whitespace-nowrap">
+                              {city}
+                              {state ? `, ${state}` : ''}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              {/* Departure */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1 whitespace-nowrap">
+                  <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-bold text-primary">
+                    {flightRequest.departureAirport?.icao?.toUpperCase() || 'N/A'}
+                  </span>
+                </div>
+                {(() => {
+                  const { city, state } = resolveAirportLocation(flightRequest.departureAirport);
+                  if (city || state) {
+                    return (
+                      <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">
+                        {city}
+                        {state ? `, ${state}` : ''}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
-              {(() => {
-                const { city, state } = resolveAirportLocation(flightRequest.departureAirport);
-                if (city || state) {
-                  return (
-                    <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">
-                      {city}
-                      {state ? `, ${state}` : ''}
-                    </p>
-                  );
-                }
-                return null;
-              })()}
-            </div>
 
-            {/* Route Arrow */}
-            <div className="flex items-center gap-1.5 px-2 shrink-0">
-              <div className="h-px w-4 bg-border-strong" />
-              <Plane className="size-6 text-primary rotate-90" />
-              {flightRequest.tripType === 'round_trip' ? (
-                <ArrowLeftRight className="size-6 text-primary" />
-              ) : (
-                <ArrowRight className="size-6 text-muted-foreground" />
-              )}
-              <div className="h-px w-4 bg-border-strong" />
-            </div>
-
-            {/* Arrival */}
-            <div className="flex-1 text-right min-w-0">
-              <div className="flex items-center justify-end gap-1 whitespace-nowrap">
-                <span className="text-sm font-bold text-primary">
-                  {flightRequest.arrivalAirport?.icao?.toUpperCase() || 'N/A'}
-                </span>
-                <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+              {/* Route Arrow */}
+              <div className="flex items-center gap-1.5 px-2 shrink-0">
+                <div className="h-px w-4 bg-border-strong" />
+                <Plane className="size-6 text-primary rotate-90" />
+                {flightRequest.tripType === 'round_trip' ? (
+                  <ArrowLeftRight className="size-6 text-primary" />
+                ) : (
+                  <ArrowRight className="size-6 text-muted-foreground" />
+                )}
+                <div className="h-px w-4 bg-border-strong" />
               </div>
-              {(() => {
-                const { city, state } = resolveAirportLocation(flightRequest.arrivalAirport);
-                if (city || state) {
-                  return (
-                    <p className="text-xs text-muted-foreground mt-0.5 text-right whitespace-nowrap">
-                      {city}
-                      {state ? `, ${state}` : ''}
-                    </p>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          </div>
-        </div>
 
-        {/* Flight Details Grid */}
-        <div
-          className={`grid gap-1.5 text-sm min-w-0 ${
-            flightRequest.tripType === 'round_trip' && flightRequest.returnDate
-              ? 'grid-cols-1 sm:grid-cols-3'
-              : 'grid-cols-1 sm:grid-cols-2'
-          }`}
-        >
-          <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
-            <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <div className="min-w-0">
-              <p className="text-sm text-muted-foreground whitespace-nowrap">
-                {flightRequest.tripType === 'round_trip' ? 'Depart' : 'Date'}
-              </p>
-              <p className="font-medium text-sm text-foreground whitespace-nowrap">
-                {formatDateShort(flightRequest.departureDate)}
-              </p>
-            </div>
-          </div>
-          {flightRequest.tripType === 'round_trip' && flightRequest.returnDate && (
-            <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
-              <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
-              <div className="min-w-0">
-                <p className="text-sm text-muted-foreground whitespace-nowrap">Return</p>
-                <p className="font-medium text-sm text-foreground whitespace-nowrap">
-                  {formatDateShort(flightRequest.returnDate)}
-                </p>
+              {/* Arrival */}
+              <div className="flex-1 text-right min-w-0">
+                <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                  <span className="text-sm font-bold text-primary">
+                    {flightRequest.arrivalAirport?.icao?.toUpperCase() || 'N/A'}
+                  </span>
+                  <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                </div>
+                {(() => {
+                  const { city, state } = resolveAirportLocation(flightRequest.arrivalAirport);
+                  if (city || state) {
+                    return (
+                      <p className="text-xs text-muted-foreground mt-0.5 text-right whitespace-nowrap">
+                        {city}
+                        {state ? `, ${state}` : ''}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
           )}
-          <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
-            <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <p className="text-sm text-foreground whitespace-nowrap">
-              <span className="text-muted-foreground">Passengers: </span>
-              <span className="font-medium">{flightRequest.passengers}</span>
-            </p>
-          </div>
         </div>
+
+        {/* Flight Details Grid */}
+        {flightRequest.tripType === 'multi_city' && flightRequest.segments && flightRequest.segments.length > 1 ? (
+          <div className="grid gap-1.5 text-sm min-w-0 grid-cols-1">
+            {flightRequest.segments.map((seg, idx) => (
+              <div key={idx} className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
+                <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="text-sm text-muted-foreground whitespace-nowrap">
+                    Leg {idx + 1}: {seg.departureAirport?.icao?.toUpperCase()} → {seg.arrivalAirport?.icao?.toUpperCase()}
+                  </p>
+                  <p className="font-medium text-sm text-foreground whitespace-nowrap">
+                    {formatDateShort(seg.departureDate)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
+              <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <p className="text-sm text-foreground whitespace-nowrap">
+                <span className="text-muted-foreground">Passengers: </span>
+                <span className="font-medium">{flightRequest.passengers}</span>
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            className={`grid gap-1.5 text-sm min-w-0 ${
+              flightRequest.tripType === 'round_trip' && flightRequest.returnDate
+                ? 'grid-cols-1 sm:grid-cols-3'
+                : 'grid-cols-1 sm:grid-cols-2'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
+              <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground whitespace-nowrap">
+                  {flightRequest.tripType === 'round_trip' ? 'Depart' : 'Date'}
+                </p>
+                <p className="font-medium text-sm text-foreground whitespace-nowrap">
+                  {formatDateShort(flightRequest.departureDate)}
+                </p>
+              </div>
+            </div>
+            {flightRequest.tripType === 'round_trip' && flightRequest.returnDate && (
+              <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
+                <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="text-sm text-muted-foreground whitespace-nowrap">Return</p>
+                  <p className="font-medium text-sm text-foreground whitespace-nowrap">
+                    {formatDateShort(flightRequest.returnDate)}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 rounded-md bg-surface-secondary p-1.5 min-w-0">
+              <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <p className="text-sm text-foreground whitespace-nowrap">
+                <span className="text-muted-foreground">Passengers: </span>
+                <span className="font-medium">{flightRequest.passengers}</span>
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Optional Details */}
         {(flightRequest.aircraftPreferences || flightRequest.specialRequirements) && (
