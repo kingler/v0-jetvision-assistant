@@ -386,8 +386,20 @@ export async function POST(req: NextRequest) {
       if ((tr.name === 'send_proposal_email' || tr.name === 'send_email') && tr.success) {
         workingMemory.workflowStage = 'proposal_sent';
       }
-      // Detect customer reply via search_emails results (Gmail MCP tool, not in typed AllTools)
+      // ONEK-306: Track contract generation in workflow stage
       const toolName = tr.name as string;
+      if (toolName === 'generate_contract' && tr.success) {
+        workingMemory.workflowStage = 'contract_generated';
+      }
+      // ONEK-306: Track payment confirmation in workflow stage
+      if (toolName === 'confirm_payment' && tr.success) {
+        workingMemory.workflowStage = 'closed_won';
+      }
+      // ONEK-306: Track archive in workflow stage
+      if (toolName === 'archive_session' && tr.success) {
+        workingMemory.workflowStage = 'closed_won';
+      }
+      // Detect customer reply via search_emails results (Gmail MCP tool, not in typed AllTools)
       if (toolName === 'search_emails' && tr.success && tr.data) {
         const data = tr.data as Record<string, unknown>;
         const messages = data.messages as unknown[] | undefined;
@@ -476,11 +488,14 @@ export async function POST(req: NextRequest) {
       (tr) => tr.name === 'archive_session' && tr.success
     );
 
+    // ONEK-306: Always sync current_step from workflowStage so sidebar badge stays current
+    const currentStepFromWorkflow = workingMemory.workflowStage as string | undefined;
     const sessionData: ChatSessionInsert = {
       iso_agent_id: isoAgentId,
       session_status: wasArchived ? 'archived' : 'active',
       conversation_type: conversationType,
       workflow_state: workingMemory,
+      ...(currentStepFromWorkflow ? { current_step: currentStepFromWorkflow } : {}),
       ...(wasArchived ? { current_step: 'closed_won' } : {}),
       ...(result.tripId ? { avinode_trip_id: result.tripId } : {}),
     };

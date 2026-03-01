@@ -420,8 +420,8 @@ export interface EmailApprovalRequestContent {
     arrivalAirport: string;
     departureDate: string;
     passengers?: number;
-    /** Trip type: one_way or round_trip */
-    tripType?: 'one_way' | 'round_trip';
+    /** Trip type: one_way, round_trip, or multi_city */
+    tripType?: 'one_way' | 'round_trip' | 'multi_city';
     /** Return date for round-trip (ISO format YYYY-MM-DD) */
     returnDate?: string;
     /** Return airport ICAO for round-trip */

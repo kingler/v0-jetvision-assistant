@@ -58,6 +58,8 @@ export interface RFQFlightsListProps {
   onViewChat?: (flightId: string, quoteId?: string, messageId?: string) => void;
   /** Callback when "Generate flight proposal" button is clicked */
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
+  /** Whether a proposal has already been sent for this session */
+  proposalSentForSession?: boolean;
   /** Callback when "Book Flight" button is clicked (triggers contract generation modal) */
   onBookFlight?: (flightId: string, quoteId?: string) => void;
   /** Whether the Book Flight button should be disabled */
@@ -131,6 +133,7 @@ export function RFQFlightsList({
   onReviewAndBook,
   onViewChat,
   onGenerateProposal,
+  proposalSentForSession = false,
   onBookFlight,
   bookFlightDisabled,
   bookFlightDisabledReason,
@@ -277,6 +280,7 @@ export function RFQFlightsList({
           onReviewAndBook={onReviewAndBook}
           onViewChat={onViewChat}
           onGenerateProposal={onGenerateProposal}
+          proposalSentForSession={proposalSentForSession}
           onBookFlight={onBookFlight}
           bookFlightDisabled={bookFlightDisabled}
           bookFlightDisabledReason={bookFlightDisabledReason}

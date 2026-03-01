@@ -29,6 +29,7 @@ import {
 } from '@/lib/utils/api'
 import {
   getProposalById,
+  getProposalByNumber,
   updateProposalSent,
 } from '@/lib/services/proposal-service'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -151,7 +152,12 @@ export async function POST(
     }
 
     // Get proposal to validate state
-    const proposal = await getProposalById(body.proposalId)
+    // The proposalId may be a UUID (id column) or a proposal number (e.g., JV-MM7WKKOT-FUNB)
+    const uuidRegexCheck = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const isUuid = uuidRegexCheck.test(body.proposalId)
+    const proposal = isUuid
+      ? await getProposalById(body.proposalId)
+      : await getProposalByNumber(body.proposalId)
     if (!proposal) {
       return NextResponse.json(
         { success: false, error: 'Proposal not found' },
@@ -189,7 +195,7 @@ export async function POST(
           email_draft_body: body.body,
           updated_at: approvedAt,
         })
-        .eq('id', body.proposalId)
+        .eq('id', proposal.id)
 
       console.log('[ApproveEmail] Updated proposal to approved status')
     } catch (updateError) {
@@ -245,7 +251,7 @@ export async function POST(
             email_approval_notes: `Send failed: ${emailResult.error}`,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', body.proposalId)
+          .eq('id', proposal.id)
       } catch {
         // Ignore update errors in error path
       }
@@ -262,7 +268,7 @@ export async function POST(
 
     // Update proposal with sent status
     const sentAt = new Date().toISOString()
-    await updateProposalSent(body.proposalId, {
+    await updateProposalSent(proposal.id, {
       sent_to_email: body.to.email,
       sent_to_name: body.to.name,
       email_subject: body.subject,

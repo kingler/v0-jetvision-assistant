@@ -214,7 +214,7 @@ export class AvinodeClient {
     });
 
     // Get the API token from environment (separate from the JWT auth token)
-    const apiToken = process.env.AVINODE_API_TOKEN || '';
+    const apiToken = (process.env.AVINODE_API_TOKEN || '').trim();
 
     this.client = axios.create({
       baseURL: config.baseUrl,

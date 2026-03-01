@@ -242,8 +242,15 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
   const conversation = chatSessionRow.conversation;
 
   // Generate route string from request airports
-  const route = request?.departure_airport && request?.arrival_airport
-    ? `${request.departure_airport} → ${request.arrival_airport}`
+  // Guard: departure_airport may be stored as a string or JSON object { icao: "KTEB" }
+  const depCode = typeof request?.departure_airport === 'object' && request?.departure_airport !== null
+    ? (request.departure_airport as unknown as { icao: string }).icao
+    : request?.departure_airport;
+  const arrCode = typeof request?.arrival_airport === 'object' && request?.arrival_airport !== null
+    ? (request.arrival_airport as unknown as { icao: string }).icao
+    : request?.arrival_airport;
+  const route = depCode && arrCode
+    ? `${depCode} → ${arrCode}`
     : 'Select route';
 
   // Format date for display
@@ -284,7 +291,7 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
     date,
     isoDate: request?.departure_date ? request.departure_date.split('T')[0] : undefined,
     // Infer round_trip if return_date exists even when trip_type is 'single_leg'
-    tripType: (request?.trip_type === 'round_trip' || request?.return_date ? 'round_trip' : request?.trip_type === 'one_way' || request?.trip_type === 'single_leg' ? 'one_way' : undefined) as ChatSession['tripType'],
+    tripType: (request?.trip_type === 'multi_city' ? 'multi_city' : request?.trip_type === 'round_trip' || request?.return_date ? 'round_trip' : request?.trip_type === 'one_way' || request?.trip_type === 'single_leg' ? 'one_way' : undefined) as ChatSession['tripType'],
     returnDate: request?.return_date ? request.return_date.split('T')[0] : undefined,
     status,
     currentStep,
@@ -323,9 +330,9 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
         return subject;
       }
 
-      // Fallback to route-based name from request data
-      if (request?.departure_airport && request?.arrival_airport) {
-        return `${request.departure_airport} → ${request.arrival_airport} (${date})`;
+      // Fallback to route-based name from request data (reuse extracted ICAO codes)
+      if (depCode && arrCode) {
+        return `${depCode} → ${arrCode} (${date})`;
       }
 
       // Final fallback using tripId if available

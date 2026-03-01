@@ -73,6 +73,8 @@ export interface RFQFlightCardProps {
   bookFlightDisabledReason?: string;
   /** Callback when "Generate flight proposal" button is clicked */
   onGenerateProposal?: (flightId: string, quoteId?: string) => void;
+  /** Whether a proposal has already been sent for this session (disables Generate Proposal button) */
+  proposalSentForSession?: boolean;
   /** Whether operator messages exist for this flight (triggers display of action buttons) */
   hasMessages?: boolean;
   /** Whether there are new/unread messages from the operator (shows notification dot on Messages button) */
@@ -319,6 +321,7 @@ export function RFQFlightCard({
   bookFlightDisabled,
   bookFlightDisabledReason,
   onGenerateProposal,
+  proposalSentForSession = false,
   hasMessages = false,
   hasNewMessages = false,
   quoteId,
@@ -641,16 +644,19 @@ export function RFQFlightCard({
                       </div>
                     )}
                     {onGenerateProposal && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleGenerateProposal}
-                        className="flex items-center gap-1 sm:gap-1.5 text-foreground text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8 shrink-0"
-                        aria-label="Generate Proposal"
-                      >
-                        <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                        <span className="sm:hidden">Proposal</span><span className="hidden sm:inline">Generate Proposal</span>
-                      </Button>
+                      <div title={proposalSentForSession ? 'Proposal already sent' : undefined} className="shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGenerateProposal}
+                          disabled={proposalSentForSession}
+                          className="flex items-center gap-1 sm:gap-1.5 text-foreground text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8 shrink-0"
+                          aria-label={proposalSentForSession ? 'Proposal Sent' : 'Generate Proposal'}
+                        >
+                          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                          <span className="sm:hidden">{proposalSentForSession ? 'Sent' : 'Proposal'}</span><span className="hidden sm:inline">{proposalSentForSession ? 'Proposal Sent' : 'Generate Proposal'}</span>
+                        </Button>
+                      </div>
                     )}
                   </>
                 )}
@@ -892,16 +898,19 @@ export function RFQFlightCard({
                     </div>
                   )}
                   {onGenerateProposal && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateProposal}
-                      className="flex items-center gap-1 sm:gap-1.5 text-foreground text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8 shrink-0"
-                      aria-label="Generate flight proposal"
-                    >
-                      <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                      <span className="sm:hidden">Proposal</span><span className="hidden sm:inline">Generate Proposal</span>
-                    </Button>
+                    <div title={proposalSentForSession ? 'Proposal already sent' : undefined} className="shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateProposal}
+                        disabled={proposalSentForSession}
+                        className="flex items-center gap-1 sm:gap-1.5 text-foreground text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8 shrink-0"
+                        aria-label={proposalSentForSession ? 'Proposal Sent' : 'Generate flight proposal'}
+                      >
+                        <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                        <span className="sm:hidden">{proposalSentForSession ? 'Sent' : 'Proposal'}</span><span className="hidden sm:inline">{proposalSentForSession ? 'Proposal Sent' : 'Generate Proposal'}</span>
+                      </Button>
+                    </div>
                   )}
                 </>
               )}

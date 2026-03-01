@@ -372,6 +372,11 @@ export function ChatInterface({
     return flights
   }, [activeChat.rfqFlights, activeChat.quotes, activeChat.date, routeParts, quoteDetailsMap, activeChat.rfqsLastFetchedAt]) // Add rfqsLastFetchedAt to dependencies to force update when RFQs are fetched
 
+  // ONEK-304: Track if any proposal has been sent for this session (disables Generate Proposal button)
+  const proposalSentForSession = useMemo(() => {
+    return activeChat.messages?.some(msg => msg.showProposalSentConfirmation) ?? false
+  }, [activeChat.messages])
+
   // Scroll to bottom when messages change
   useEffect(() => {
     latestMessagesRef.current = activeChat.messages
@@ -3115,6 +3120,7 @@ export function ChatInterface({
                         onRfqFlightSelectionChange={setSelectedRfqFlightIds}
                         onViewChat={handleViewChat}
                         onGenerateProposal={handleGenerateProposal}
+                        proposalSentForSession={proposalSentForSession}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
                         bookFlightDisabled={false}
@@ -3164,6 +3170,7 @@ export function ChatInterface({
                         onRfqFlightSelectionChange={setSelectedRfqFlightIds}
                         onViewChat={handleViewChat}
                         onGenerateProposal={handleGenerateProposal}
+                        proposalSentForSession={proposalSentForSession}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
                         bookFlightDisabled={false}

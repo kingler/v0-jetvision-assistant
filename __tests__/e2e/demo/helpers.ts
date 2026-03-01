@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { setupClerkTestingToken, clerk } from '@clerk/testing/playwright';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -38,11 +39,41 @@ export async function waitForPageLoad(page: Page): Promise<void> {
   await page.waitForTimeout(1500);
 }
 
-/** Navigate to the app root and wait for the chat interface */
+/** Setup Clerk authentication and navigate to the chat interface */
 export async function navigateToChat(page: Page): Promise<void> {
+  const email = process.env.E2E_CLERK_USER_USERNAME;
+  if (!email) {
+    throw new Error(
+      'Demo tests require E2E_CLERK_USER_USERNAME env var.'
+    );
+  }
+
+  // Navigate to the app first so Clerk JS loads in the browser
+  await setupClerkTestingToken({ page });
   await page.goto('/');
   await waitForPageLoad(page);
-  await page.waitForSelector('textarea, input[type="text"]', {
+
+  // If redirected to sign-in, use Clerk Backend API sign-in
+  // (bypasses UI form AND email OTP — uses CLERK_SECRET_KEY to create a sign-in token)
+  if (page.url().includes('sign-in')) {
+    await clerk.signIn({
+      page,
+      emailAddress: email,
+    });
+
+    // Navigate to main app after programmatic sign-in
+    await page.goto('/');
+    await waitForPageLoad(page);
+
+    if (page.url().includes('sign-in')) {
+      throw new Error(
+        'Still on sign-in page after clerk.signIn(). Verify CLERK_SECRET_KEY is set and the test user exists.'
+      );
+    }
+  }
+
+  // Wait for chat interface (landing page uses <input>, chat view uses <textarea>)
+  await page.waitForSelector('textarea, input[placeholder*="message"], [role="textbox"]', {
     timeout: 30_000,
   });
 }
@@ -52,7 +83,8 @@ export async function sendChatMessage(
   page: Page,
   message: string
 ): Promise<void> {
-  const chatInput = page.locator('textarea').last();
+  // Landing page uses <input>, active chat uses <textarea>
+  const chatInput = page.locator('textarea, input[placeholder*="message"]').last();
   await chatInput.fill(message);
   await chatInput.press('Enter');
 }
@@ -92,7 +124,7 @@ export async function assertTextVisible(
   page: Page,
   text: string
 ): Promise<void> {
-  await expect(page.getByText(text, { exact: false })).toBeVisible();
+  await expect(page.getByText(text, { exact: false }).first()).toBeVisible();
 }
 
 /** Click a button by its text content */
