@@ -158,6 +158,40 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     }
   }
 
+  // Handle trip_data: detect by richContent.tripData — restores deep link button on reload
+  if (
+    msg.richContent &&
+    typeof msg.richContent === 'object' &&
+    'tripData' in msg.richContent
+  ) {
+    const tripData = msg.richContent.tripData as {
+      tripId?: string;
+      deepLink?: string;
+      departureAirport?: string;
+      arrivalAirport?: string;
+      departureDate?: string;
+      passengers?: number;
+    } | undefined;
+    if (tripData && (tripData.tripId || tripData.deepLink)) {
+      return {
+        ...base,
+        showDeepLink: true,
+        deepLinkData: {
+          tripId: tripData.tripId || '',
+          deepLink: tripData.deepLink || '',
+          departureAirport: tripData.departureAirport
+            ? { icao: typeof tripData.departureAirport === 'string' ? tripData.departureAirport : (tripData.departureAirport as { icao: string }).icao }
+            : undefined,
+          arrivalAirport: tripData.arrivalAirport
+            ? { icao: typeof tripData.arrivalAirport === 'string' ? tripData.arrivalAirport : (tripData.arrivalAirport as { icao: string }).icao }
+            : undefined,
+          departureDate: tripData.departureDate,
+          passengers: tripData.passengers,
+        },
+      };
+    }
+  }
+
   // Handle contract_shared: detect by richContent.contractSent
   if (
     msg.richContent &&

@@ -327,12 +327,29 @@ export async function POST(req: NextRequest) {
       try {
         // CRITICAL: Use requestId (which is the same as conversationId) to ensure messages are linked correctly
         // In the consolidated schema, conversationId IS the requestId
+        // Build richContent — includes email approval AND/OR trip data for reload persistence
+        const richContent: Record<string, unknown> = {};
+        if (savedEmailApproval) {
+          richContent.emailApproval = savedEmailApproval;
+        }
+        if (result.tripId || result.deepLink) {
+          richContent.tripData = {
+            tripId: result.tripId,
+            deepLink: result.deepLink,
+            ...(result.rfpData ? {
+              departureAirport: result.rfpData.departure_airport,
+              arrivalAirport: result.rfpData.arrival_airport,
+              departureDate: result.rfpData.departure_date,
+              passengers: result.rfpData.passengers,
+            } : {}),
+          };
+        }
         const assistantMessageId = await saveMessage({
           requestId: conversationId, // Use requestId explicitly to match database schema
           senderType: 'ai_assistant',
           content: result.message,
           contentType: savedEmailApproval ? 'email_approval_request' : 'text',
-          richContent: savedEmailApproval ? { emailApproval: savedEmailApproval } : undefined,
+          richContent: Object.keys(richContent).length > 0 ? richContent : undefined,
           metadata: {
             toolResults: result.toolResults,
             tripId: result.tripId,
