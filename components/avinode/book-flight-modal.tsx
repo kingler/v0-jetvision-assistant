@@ -251,6 +251,15 @@ export function BookFlightModal({
     setState('generating');
     setError(null);
 
+    // Guard: require a valid UUID requestId to prevent linking to wrong request
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!requestId || !uuidRegex.test(requestId)) {
+      setError('Missing or invalid request ID. Please refresh the page and try again.');
+      setState('error');
+      console.error('[BookFlightModal] Invalid requestId for preview:', requestId);
+      return;
+    }
+
     try {
       const response = await fetch('/api/contract/generate', {
         method: 'POST',
@@ -355,6 +364,15 @@ The Jetvision Team`;
   const handleSendContract = useCallback(async () => {
     setState('sending');
     setError(null);
+
+    // Guard: require a valid UUID requestId to prevent linking to wrong request
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!requestId || !uuidRegex.test(requestId)) {
+      setError('Missing or invalid request ID. Please refresh the page and try again.');
+      setState('error');
+      console.error('[BookFlightModal] Invalid requestId:', requestId);
+      return;
+    }
 
     try {
       const response = await fetch('/api/contract/send', {
