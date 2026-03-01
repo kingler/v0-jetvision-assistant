@@ -72,6 +72,24 @@ export default defineConfig({
       name: 'Mobile Safari',
       use: { ...devices['iPhone 12'] },
     },
+
+    /* Demo recording project — always captures video at 720p with slowMo for watchable demos */
+    {
+      name: 'demo',
+      use: {
+        ...devices['Desktop Chrome'],
+        video: {
+          mode: 'on',
+          size: { width: 1280, height: 720 },
+        },
+        screenshot: 'on',
+        launchOptions: {
+          slowMo: 500,
+        },
+      },
+      testDir: './__tests__/e2e/demo',
+      testMatch: '**/*.demo.spec.ts',
+    },
   ],
 
   /* Run your local dev server before starting the tests */

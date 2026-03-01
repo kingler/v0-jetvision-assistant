@@ -1078,7 +1078,15 @@ export function ChatInterface({
     // (from typed TripData). Use resolveAirportIcao to safely extract ICAO string.
     const departureAirport = resolveAirportIcao(tripData?.departure_airport) || resolveAirportIcao(rfpData?.departure_airport)
     const arrivalAirport = resolveAirportIcao(tripData?.arrival_airport) || resolveAirportIcao(rfpData?.arrival_airport)
-    if (departureAirport && arrivalAirport) {
+    // For multi-city trips, build route from segments to preserve all intermediate stops
+    const rawSegments = tripData?.segments || rfpData?.segments
+    if (rawSegments && Array.isArray(rawSegments) && rawSegments.length > 1) {
+      const segAirports = rawSegments.map((s) => resolveAirportIcao(s.departure_airport) || '???')
+      const lastSeg = rawSegments[rawSegments.length - 1]
+      const lastArr = resolveAirportIcao(lastSeg.arrival_airport) || '???'
+      segAirports.push(lastArr)
+      updates.route = segAirports.join(' → ')
+    } else if (departureAirport && arrivalAirport) {
       updates.route = `${departureAirport} → ${arrivalAirport}`
     }
     const departureDate = tripData?.departure_date || rfpData?.departure_date
@@ -1112,6 +1120,11 @@ export function ChatInterface({
     const returnDate = tripData?.return_date || rfpData?.return_date
     if (returnDate) {
       updates.returnDate = returnDate
+    }
+    // Extract segments for multi-city trips
+    const segments = tripData?.segments || rfpData?.segments
+    if (segments && Array.isArray(segments) && segments.length > 0) {
+      updates.segments = segments as ChatSession['segments']
     }
 
     // Generate a descriptive name for the sidebar card
@@ -3080,6 +3093,12 @@ export function ChatInterface({
                           tripType: activeChat.tripType,
                           returnDate: activeChat.returnDate,
                           requestId: activeChat.requestId,
+                          segments: activeChat.segments?.map(s => ({
+                            departureAirport: { icao: (s.departure_airport as { icao?: string })?.icao || 'TBD' },
+                            arrivalAirport: { icao: (s.arrival_airport as { icao?: string })?.icao || 'TBD' },
+                            departureDate: s.departure_date,
+                            passengers: s.passengers,
+                          })),
                         }}
                         deepLink={activeChat.deepLink}
                         tripId={activeChat.tripId}
@@ -3123,6 +3142,12 @@ export function ChatInterface({
                           tripType: activeChat.tripType,
                           returnDate: activeChat.returnDate,
                           requestId: activeChat.requestId,
+                          segments: activeChat.segments?.map(s => ({
+                            departureAirport: { icao: (s.departure_airport as { icao?: string })?.icao || 'TBD' },
+                            arrivalAirport: { icao: (s.arrival_airport as { icao?: string })?.icao || 'TBD' },
+                            departureDate: s.departure_date,
+                            passengers: s.passengers,
+                          })),
                         }}
                         deepLink={activeChat.deepLink}
                         tripId={activeChat.tripId}

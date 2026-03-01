@@ -7,7 +7,7 @@ description: Use when testing the complete Avinode integration workflow end-to-e
 
 ## Overview
 
-Interactive browser automation skill that tests the **complete charter flight lifecycle** by driving Chrome through the full end-to-end flow: flight request entry, trip creation, RFP exchange, quote verification, proposal generation and email, contract generation and send, payment confirmation, deal closure, and trip archival.
+Interactive browser automation skill that tests the **complete charter flight lifecycle** by driving Chrome through the full end-to-end flow: Jetvision login, flight request entry, trip creation, RFP exchange, quote verification, proposal generation and email, contract generation and send, payment confirmation, deal closure, and trip archival.
 
 Uses `mcp__claude-in-chrome__*` tools for all browser interactions.
 
@@ -37,12 +37,12 @@ Uses `mcp__claude-in-chrome__*` tools for all browser interactions.
 ## Command Usage
 
 ```bash
-# Full workflow (all 10 phases)
+# Full workflow (all phases)
 /avinode-sandbox-test
 
 # Specific phase only
-/avinode-sandbox-test --phase 1     # Login to Avinode Sandbox
-/avinode-sandbox-test --phase 2     # ISO Agent: Create trip & send RFP
+/avinode-sandbox-test --phase 1     # Login to Jetvision & enter flight request
+/avinode-sandbox-test --phase 2     # Open Avinode via deep link & send RFP
 /avinode-sandbox-test --phase 3     # Switch to Operator & submit quote
 /avinode-sandbox-test --phase 4     # Switch back & verify quote received
 /avinode-sandbox-test --phase 5     # Proposal generation & send (human-in-the-loop)
@@ -52,19 +52,41 @@ Uses `mcp__claude-in-chrome__*` tools for all browser interactions.
 /avinode-sandbox-test --phase 9     # Full verification summary (database + UI)
 
 # Phase ranges
-/avinode-sandbox-test --phase 1-4   # RFP flow only (original test)
+/avinode-sandbox-test --phase 1-4   # RFP flow only
 /avinode-sandbox-test --phase 5-8   # Post-quote flow only (proposal → close)
 ```
+
+## Recording Options
+
+```bash
+# Record all phases as video demos (via Playwright)
+npm run test:e2e:demo
+
+# Record with visible browser
+npm run test:e2e:demo:headed
+
+# Record all phases as GIF (via gif_creator, interactive)
+/avinode-sandbox-test --record
+
+# Record specific phase
+/avinode-sandbox-test --phase 1 --record
+```
+
+When `--record` is active, each phase is wrapped with gif_creator start/stop/export calls. For Playwright-based recording, see `__tests__/e2e/demo/` spec files.
+
+---
 
 ## Sandbox Credentials
 
 ```txt
-URL: https://marketplace.avinode.com
+Avinode Marketplace URL: https://marketplace.avinode.com
 Email: kingler@me.com
 Password: 2FRhgGZK3wSy8SY
 ```
 
 **Important:** These are sandbox-only credentials. The API key resets every Monday morning.
+
+**Note:** You do NOT need to login to Avinode separately. The Avinode Marketplace tab will already be authenticated when opened via the deep link from Jetvision.
 
 ## Sandbox Seller Fleet (Predefined Aircraft)
 
@@ -86,9 +108,10 @@ digraph avinode_test {
   rankdir=TB;
   node [shape=box, style=rounded];
 
-  login [label="Phase 1: Login\nto Avinode"];
-  create_trip [label="Phase 2: Flight Request\n& Trip Creation"];
-  send_rfp [label="Phase 2b: Send RFP\nin Avinode Marketplace"];
+  jetvision_login [label="Phase 1: Login to Jetvision\n& Enter Flight Request"];
+  clarification [label="Phase 1b: Clarification Loop\n(Scenario D only)"];
+  trip_created [label="Phase 1c: Trip Created\n& Deep Link Generated"];
+  open_avinode [label="Phase 2: Open Avinode\nvia Deep Link & Send RFP"];
   switch_op [label="Phase 3: Switch to\nOperator Role"];
   respond [label="Phase 3b: Submit Quote\nas Operator"];
   switch_back [label="Phase 4: Switch Back\n& Verify Quote"];
@@ -98,9 +121,11 @@ digraph avinode_test {
   close [label="Phase 8: Deal Closure\n& Archival"];
   summary [label="Phase 9: Full\nVerification Summary"];
 
-  login -> create_trip;
-  create_trip -> send_rfp;
-  send_rfp -> switch_op;
+  jetvision_login -> clarification [label="Scenario D"];
+  jetvision_login -> trip_created [label="Scenarios A/B/C"];
+  clarification -> trip_created;
+  trip_created -> open_avinode;
+  open_avinode -> switch_op;
   switch_op -> respond;
   respond -> switch_back;
   switch_back -> proposal;
@@ -115,8 +140,8 @@ digraph avinode_test {
 
 | Phase | Name | What Happens | Where |
 |-------|------|-------------|-------|
-| 1 | Login | Authenticate to Avinode Sandbox | Avinode tab |
-| 2 | Flight Request & RFP | Enter request in Jetvision chat, create trip, send RFP | Jetvision + Avinode tabs |
+| 1 | Jetvision Login & Flight Request | Open localhost:3000, login via Clerk, enter flight request, get trip + deep link | Jetvision tab |
+| 2 | Open Avinode & Send RFP | Click deep link (Avinode opens already authenticated), select operator, send RFP | Avinode tab |
 | 3 | Operator Quote | Switch to Operator role, find RFP, submit $45K quote | Avinode tab |
 | 4 | Quote Verification | Switch back to ISO Agent, verify quote in Avinode + Jetvision | Both tabs |
 | 5 | Proposal | Ask agent to generate proposal, review email draft, approve send | Jetvision tab |
@@ -127,110 +152,29 @@ digraph avinode_test {
 
 ---
 
-## Phase 1: Login to Avinode Sandbox
-
-### Steps
-
-1. **Get current tab context:**
-
-   ```txt
-   Tool: mcp__claude-in-chrome__tabs_context_mcp
-   ```
-
-   Note which tabs are open. Do NOT reuse tabs from previous sessions.
-
-2. **Create a new tab for Avinode:**
-
-   ```txt
-   Tool: mcp__claude-in-chrome__tabs_create_mcp
-   URL: https://marketplace.avinode.com
-   ```
-
-   Save the returned `tabId` — you will reuse it for the entire session.
-
-3. **Wait for SSO redirect and read the login page:**
-
-   ```txt
-   Tool: mcp__claude-in-chrome__read_page
-   tabId: <saved-tab-id>
-   ```
-
-   The page will redirect through `auth.avinode.com`. Wait for the login form to appear.
-
-4. **Fill login credentials:**
-
-   ```txt
-   Tool: mcp__claude-in-chrome__form_input
-   tabId: <saved-tab-id>
-   formData:
-     - selector: "input[name='email'], input[type='email'], #email"
-       value: "kingler@me.com"
-     - selector: "input[name='password'], input[type='password'], #password"
-       value: "2FRhgGZK3wSy8SY"
-   ```
-
-5. **Click the login/sign-in button:**
-
-   ```txt
-   Tool: mcp__claude-in-chrome__computer
-   tabId: <saved-tab-id>
-   action: click
-   selector: "button[type='submit'], button:has-text('Sign in'), button:has-text('Log in')"
-   ```
-
-6. **Verify login success:**
-
-   ```txt
-   Tool: mcp__claude-in-chrome__read_page
-   tabId: <saved-tab-id>
-   ```
-
-   Confirm you see the marketplace dashboard. Look for:
-   - Account name in header (should show ISO Agent / Buyer account)
-   - Navigation menu with "Trips", "Messages", etc.
-   - No error messages
-
-7. **Screenshot for verification:**
-
-   ```txt
-   Tool: mcp__claude-in-chrome__upload_image
-   tabId: <saved-tab-id>
-   ```
-
-### Troubleshooting - Login
-
-| Issue | Solution |
-|-------|----------|
-| SSO redirect loop | Clear cookies for avinode.com, try again |
-| Invalid credentials | API key may have reset (Monday). Check with team. |
-| MFA prompt | Sandbox should not require MFA. If it does, contact Avinode support. |
-| Page not loading | Check internet connectivity. Try `mcp__claude-in-chrome__navigate` to retry. |
-
----
-
 ## Trip Test Scenarios
 
-Use one of these scenarios when creating a trip in Phase 2. Scenarios A-C provide **full information** — all required fields are present in the initial message. Scenario D tests **ambiguous/vague requests** where the agent must ask clarifying questions before creating a trip.
+Use one of these scenarios when creating a trip in Phase 1. Scenarios A-C provide **full information** — all required fields are present in the initial message. Scenario D tests **ambiguous/vague requests** where the agent must ask clarifying questions before creating a trip.
 
 ### Scenario A: One-Way Trip — Full Info (Default)
 
 ```txt
-I need a one way flight from KTEB to KVNY for 4 passengers on March 25, 2026 at 4:00pm EST
+I need a one way flight from KLGA to KVNY for 4 passengers on March 25, 2026 at 4:00pm EST
 ```
 
 **Expected behavior:** Agent creates trip immediately (no clarification needed).
-**Expected create_trip payload:** 1 leg (KTEB → KVNY)
+**Expected create_trip payload:** 1 leg (KLGA → KVNY)
 **Verification:** Single leg displayed in Avinode with correct departure time.
 
 ### Scenario B: Round Trip — Full Info
 
 ```txt
-I need a round trip flight from KTEB to KVNY for 4 passengers on March 2, 2026 at 9:00am EST
+I need a round trip flight from EGGW to KVNY for 4 passengers on March 2, 2026 at 9:00am EST
 ```
 
 **Expected behavior:** Agent creates trip immediately. May prompt for return date/time if not inferred.
-**Expected create_trip payload:** 2 legs (KTEB → KVNY, KVNY → KTEB)
-**Verification:** Both outbound and return legs displayed in Avinode. Return date/time may be auto-calculated or prompted.
+**Expected create_trip payload:** 2 legs (EGGW → KVNY, KVNY → EGGW)
+**Verification:** Both outbound and return legs displayed in Avinode. Return date/time may be auto-calculated or prompted. Tests international ICAO code (EGGW = London Luton).
 
 ### Scenario C: Multi-City Trip — Full Info
 
@@ -299,29 +243,96 @@ I need a round trip flight from New York to Kansas for 4 passengers in March
 
 ---
 
-## Phase 2: ISO Agent — Create Trip & Send RFP
+## Phase 1: Login to Jetvision & Enter Flight Request
 
-### Step 2a: Create Trip via Jetvision App
+This phase opens the Jetvision app, authenticates via Clerk, and submits a flight request in the chat. The agent processes the request, creates a trip via the Avinode MCP, and returns a deep link.
 
-1. **Open Jetvision app in a new tab:**
+### Step 1a: Open Jetvision App
+
+1. **Get current tab context:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__tabs_context_mcp
+   ```
+
+   Note which tabs are open. Do NOT reuse tabs from previous sessions.
+
+2. **Create a new tab for Jetvision:**
 
    ```txt
    Tool: mcp__claude-in-chrome__tabs_create_mcp
    URL: http://localhost:3000
    ```
 
-   Save this `tabId` as `jetvisionTabId`.
+   Save the returned `tabId` as `jetvisionTabId` — you will reuse it for the entire session.
 
-2. **Navigate to chat interface:**
+3. **Wait for page load and read the page:**
 
    ```txt
    Tool: mcp__claude-in-chrome__read_page
    tabId: <jetvision-tab-id>
    ```
 
-   If redirected to sign-in, authenticate with Clerk first.
+   Check what loaded:
+   - **If you see the chat interface** → Jetvision is already authenticated. Skip to Step 1c.
+   - **If you see a Clerk sign-in page** → Proceed to Step 1b.
+   - **If you see a loading screen** → Wait 3-5 seconds and read again.
 
-3. **Submit a flight request in the chat** (use one of the scenarios from Trip Test Scenarios):
+### Step 1b: Authenticate via Clerk (if needed)
+
+4. **Fill in Clerk login credentials:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "input[name='identifier'], input[type='email'], input[id*='identifier']"
+       value: "kingler@me.com"
+   ```
+
+5. **Click the Continue/Sign-in button:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <jetvision-tab-id>
+   action: click
+   selector: "button[type='submit'], button:has-text('Continue'), button:has-text('Sign in')"
+   ```
+
+6. **If a password field appears, fill it:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__form_input
+   tabId: <jetvision-tab-id>
+   formData:
+     - selector: "input[name='password'], input[type='password']"
+       value: "2FRhgGZK3wSy8SY"
+   ```
+
+   Then click the submit button again.
+
+7. **Verify login success:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <jetvision-tab-id>
+   ```
+
+   Confirm you see the Jetvision chat interface. Look for:
+   - Chat input area (textarea or input)
+   - Sidebar with session list
+   - No error messages
+
+8. **Screenshot for verification:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__upload_image
+   tabId: <jetvision-tab-id>
+   ```
+
+### Step 1c: Enter Flight Request
+
+9. **Submit a flight request in the chat** (use one of the scenarios from Trip Test Scenarios):
 
    ```txt
    Tool: mcp__claude-in-chrome__form_input
@@ -331,37 +342,37 @@ I need a round trip flight from New York to Kansas for 4 passengers in March
        value: "<scenario prompt from Trip Test Scenarios section>"
    ```
 
-   **Default (Scenario A):** `I need a one way flight from KTEB to KVNY for 4 passengers on March 25, 2026 at 4:00pm EST`
+   **Default (Scenario A):** `I need a one way flight from KLGA to KVNY for 4 passengers on March 25, 2026 at 4:00pm EST`
 
-4. **Send the message:**
+10. **Send the message:**
 
-   ```txt
-   Tool: mcp__claude-in-chrome__computer
-   tabId: <jetvision-tab-id>
-   action: click
-   selector: "button[type='submit'], button[aria-label*='send' i]"
-   ```
+    ```txt
+    Tool: mcp__claude-in-chrome__computer
+    tabId: <jetvision-tab-id>
+    action: click
+    selector: "button[type='submit'], button[aria-label*='send' i]"
+    ```
 
-5. **Wait for agent response (up to 60 seconds):**
+11. **Wait for agent response (up to 60 seconds):**
 
-   ```txt
-   Tool: mcp__claude-in-chrome__read_page
-   tabId: <jetvision-tab-id>
-   ```
+    ```txt
+    Tool: mcp__claude-in-chrome__read_page
+    tabId: <jetvision-tab-id>
+    ```
 
-   **For Scenarios A, B, C (Full Info)** — look for:
-   - Trip creation confirmation
-   - Deep link button ("Open in Avinode" or "Open in Avinode Marketplace")
-   - Trip ID (format: `atrip-XXXXXXXX`)
-   - Request ID
+    **For Scenarios A, B, C (Full Info)** — look for:
+    - Trip creation confirmation
+    - Deep link button ("Open in Avinode" or "Open in Avinode Marketplace")
+    - Trip ID (format: `atrip-XXXXXXXX`)
+    - Request ID
 
-   **For Scenario D (Ambiguous/Vague)** — look for:
-   - Clarifying questions from the agent (airport disambiguation, date/time, passenger count)
-   - Do NOT expect a trip to be created yet
+    **For Scenario D (Ambiguous/Vague)** — look for:
+    - Clarifying questions from the agent (airport disambiguation, date/time, passenger count)
+    - Do NOT expect a trip to be created yet
 
-   If running Scenario D, proceed to **Step 5b (Clarification Loop)** below. Otherwise, skip to Step 6.
+    If running Scenario D, proceed to **Step 1d (Clarification Loop)** below. Otherwise, skip to Step 1e.
 
-#### Step 5b: Clarification Loop (Scenario D Only)
+### Step 1d: Clarification Loop (Scenario D Only)
 
 When the agent asks clarifying questions, respond with specific answers to resolve ambiguities. Repeat until the agent has enough information to create a trip.
 
@@ -415,33 +426,70 @@ When the agent asks clarifying questions, respond with specific answers to resol
    - [ ] Agent did NOT create a trip before all required fields were resolved
    - [ ] Final trip payload matches the resolved details
 
-6. **Save the trip details:**
+### Step 1e: Save Trip Details & Screenshot
 
-   **Save these values** (applies to all scenarios after trip is created):
-   - `tripId`: The Avinode trip ID
-   - `deepLinkUrl`: The full Avinode marketplace URL
-   - `requestId`: The Jetvision request ID
+12. **Save the trip details** (applies to all scenarios after trip is created):
 
-7. **Screenshot the deep link display:**
+    **Save these values:**
+    - `tripId`: The Avinode trip ID
+    - `deepLinkUrl`: The full Avinode marketplace URL
+    - `requestId`: The Jetvision request ID
+
+13. **Screenshot the deep link display:**
+
+    ```txt
+    Tool: mcp__claude-in-chrome__upload_image
+    tabId: <jetvision-tab-id>
+    ```
+
+### Troubleshooting - Phase 1
+
+| Issue | Solution |
+|-------|----------|
+| Clerk login page not appearing | Jetvision may already be authenticated. Check for chat UI. |
+| Clerk redirect loop | Clear cookies for localhost:3000, try again |
+| Chat input not found | Check CSS selectors. Try `mcp__claude-in-chrome__find` with query "message" |
+| Agent not responding | Check that the dev server is running (`npm run dev:app`). Check terminal for errors. |
+| No deep link generated | Check Avinode MCP server is running and API key is valid |
+| Trip creation fails | API key may have reset (Monday). Run `/avinode-sandbox-reset`. |
+
+---
+
+## Phase 2: Open Avinode via Deep Link & Send RFP
+
+Clicking the deep link from Jetvision opens the Avinode Marketplace in a new tab. **The Avinode session is already authenticated** — no separate login is required.
+
+### Step 2a: Open Avinode via Deep Link
+
+1. **Click the deep link button in Jetvision:**
 
    ```txt
-   Tool: mcp__claude-in-chrome__upload_image
+   Tool: mcp__claude-in-chrome__computer
    tabId: <jetvision-tab-id>
+   action: click
+   selector: "a:has-text('Open in Avinode'), button:has-text('Open in Avinode'), [data-testid='avinode-deep-link'], a[href*='marketplace.avinode.com']"
    ```
 
-### Step 2b: Send RFP in Avinode Marketplace
+   This should open a new browser tab with the Avinode Marketplace trip page.
 
-7. **Navigate to the deep link in the Avinode tab:**
+   **Alternative:** If the deep link opens in the same tab or doesn't open, navigate manually:
 
    ```txt
-   Tool: mcp__claude-in-chrome__navigate
-   tabId: <avinode-tab-id>
-   url: <deep-link-url>
+   Tool: mcp__claude-in-chrome__tabs_create_mcp
+   URL: <deep-link-url>
    ```
 
-   Or if no deep link, navigate to: `https://marketplace.avinode.com/marketplace/mvc/search/load/<trip-id>`
+   Save the returned `tabId` as `avinodeTabId`.
 
-8. **Read the trip details page:**
+2. **Get the Avinode tab context (if opened via click):**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__tabs_context_mcp
+   ```
+
+   Identify the newly opened Avinode tab and save its `tabId` as `avinodeTabId`.
+
+3. **Read the Avinode trip details page:**
 
    ```txt
    Tool: mcp__claude-in-chrome__read_page
@@ -449,15 +497,27 @@ When the agent asks clarifying questions, respond with specific answers to resol
    ```
 
    Verify:
+   - You are on the Avinode Marketplace (no login page — already authenticated)
    - Route matches the chosen scenario:
-     - Scenario A: KTEB → KVNY (1 leg)
-     - Scenario B: KTEB → KVNY + KVNY → KTEB (2 legs)
+     - Scenario A: KLGA → KVNY (1 leg)
+     - Scenario B: EGGW → KVNY + KVNY → EGGW (2 legs)
      - Scenario C: KTEB → EGGW + EGGW → LFPB + LFPB → KTEB (3 legs)
    - Passenger count matches (4)
    - Date matches
    - Available operators are listed
 
-9. **Select the Sandbox Seller operator:**
+   **If you see a login page instead:** The Avinode session may have expired. See Troubleshooting below.
+
+4. **Screenshot the trip page:**
+
+   ```txt
+   Tool: mcp__claude-in-chrome__upload_image
+   tabId: <avinode-tab-id>
+   ```
+
+### Step 2b: Select Operator & Send RFP
+
+5. **Select the Sandbox Seller operator:**
 
    ```txt
    Tool: mcp__claude-in-chrome__computer
@@ -469,30 +529,40 @@ When the agent asks clarifying questions, respond with specific answers to resol
    If a checkbox: click the checkbox next to "Sandbox Seller"
    If a list: click on the "Sandbox Seller" row
 
-10. **Send the RFP:**
+6. **Send the RFP:**
 
-    ```txt
-    Tool: mcp__claude-in-chrome__computer
-    tabId: <avinode-tab-id>
-    action: click
-    selector: "button:has-text('Send'), button:has-text('Send RFP'), button:has-text('Request Quote')"
-    ```
+   ```txt
+   Tool: mcp__claude-in-chrome__computer
+   tabId: <avinode-tab-id>
+   action: click
+   selector: "button:has-text('Send'), button:has-text('Send RFP'), button:has-text('Request Quote')"
+   ```
 
-11. **Verify RFP sent confirmation:**
+7. **Verify RFP sent confirmation:**
 
-    ```txt
-    Tool: mcp__claude-in-chrome__read_page
-    tabId: <avinode-tab-id>
-    ```
+   ```txt
+   Tool: mcp__claude-in-chrome__read_page
+   tabId: <avinode-tab-id>
+   ```
 
-    Look for success message or status change to "RFP Sent" / "Awaiting Quotes".
+   Look for success message or status change to "RFP Sent" / "Awaiting Quotes".
 
-12. **Screenshot the confirmation:**
+8. **Screenshot the confirmation:**
 
-    ```txt
-    Tool: mcp__claude-in-chrome__upload_image
-    tabId: <avinode-tab-id>
-    ```
+   ```txt
+   Tool: mcp__claude-in-chrome__upload_image
+   tabId: <avinode-tab-id>
+   ```
+
+### Troubleshooting - Phase 2
+
+| Issue | Solution |
+|-------|----------|
+| Avinode login page appears | Session expired. Login manually using sandbox credentials (see Sandbox Credentials section), then navigate back to the deep link URL. |
+| Deep link button not clickable | Try `mcp__claude-in-chrome__find` to locate the element. May need to scroll. |
+| Deep link opens but shows error | Trip may not have been created properly. Check Jetvision chat for error messages. |
+| No operators listed | Trip parameters may not match any available aircraft. Check route and dates. |
+| Sandbox Seller not in list | Ensure the route and aircraft category match the Sandbox Seller fleet (see fleet table above). |
 
 ---
 
@@ -554,18 +624,24 @@ When the agent asks clarifying questions, respond with specific answers to resol
    url: https://marketplace.avinode.com/marketplace/mvc/requests
    ```
 
-5. **Find the RFP we sent** (search by departure airport — always KTEB for all scenarios):
+5. **Find the RFP we sent** (search by departure airport for the chosen scenario):
 
    ```txt
    Tool: mcp__claude-in-chrome__find
    tabId: <avinode-tab-id>
-   query: "KTEB" or "Teterboro"
+   query: "<departure airport ICAO or name>"
    ```
-   
+
+   Departure airports per scenario:
+   - Scenario A: "KLGA" or "LaGuardia"
+   - Scenario B: "EGGW" or "Luton"
+   - Scenario C: "KTEB" or "Teterboro"
+   - Scenario D: Depends on clarification answers
+
    For disambiguation if multiple trips exist, also search by destination:
    - Scenario A: "KVNY" or "Van Nuys"
    - Scenario B: "KVNY" or "Van Nuys"
-   - Scenario C: "EGGW" or "Luton"
+   - Scenario C: "EGGW" or "Luton" (first leg destination)
 
 6. **Open the RFP details:**
 
@@ -677,7 +753,7 @@ When the agent asks clarifying questions, respond with specific answers to resol
    Tool: mcp__claude-in-chrome__read_page
    tabId: <avinode-tab-id>
    ```
-   
+
    Look for:
    - Quote from "Sandbox Seller"
    - Price: $45,000 (or whatever was entered)
@@ -1186,12 +1262,10 @@ Scenario: {A: One-Way | B: Round Trip | C: Multi-City | D1/D2/D3: Ambiguous}
 Route:    {resolved route after clarification if Scenario D}
 Legs:     {1 | 2 | 3}
 
-Phase 1 - Login:
-  [ ] Login successful
-  [ ] Account verified as ISO Agent
-
-Phase 2 - Flight Request Entry & Trip Creation:
-  [ ] Flight request entered in Jetvision chat
+Phase 1 - Jetvision Login & Flight Request:
+  [ ] Jetvision app loaded at localhost:3000
+  [ ] Authentication successful (Clerk)
+  [ ] Flight request entered in chat
   [ ] (Scenario D only) Agent asked relevant clarifying questions
   [ ] (Scenario D only) Agent did NOT create trip before all fields resolved
   [ ] (Scenario D only) Agent correctly interpreted user answers
@@ -1199,7 +1273,12 @@ Phase 2 - Flight Request Entry & Trip Creation:
   [ ] Deep link generated (URL: __________)
   [ ] Correct number of legs created ({1|2|3})
   [ ] All airports resolved correctly
-  [ ] RFP sent to Sandbox Seller
+
+Phase 2 - Open Avinode & Send RFP:
+  [ ] Deep link opened Avinode tab (already authenticated)
+  [ ] Trip details correct in Avinode UI
+  [ ] Sandbox Seller operator selected
+  [ ] RFP sent successfully
 
 Phase 3 - Operator Response:
   [ ] Account switched to Operator
@@ -1261,7 +1340,8 @@ Overall: PASS / FAIL
 | Mistake | Fix |
 |---------|-----|
 | Reusing tab IDs from a previous session | Always call `tabs_context_mcp` first and create new tabs |
-| Not waiting for SSO redirect | The login URL redirects through auth.avinode.com; wait for the form |
+| Trying to login to Avinode separately | Avinode is already authenticated — just open the deep link from Jetvision |
+| Not waiting for Jetvision agent response | The agent may take up to 60 seconds to process a flight request |
 | Forgetting to switch back to ISO Agent | The role switch is persistent; always switch back after Operator actions |
 | Submitting RFP without selecting an operator | Must select Sandbox Seller before sending |
 | Expecting instant webhook delivery | Webhook events may take 5-30 seconds; retry reads if not found |
