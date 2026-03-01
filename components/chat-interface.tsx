@@ -1259,8 +1259,14 @@ export function ChatInterface({
     if (result.conversationId) {
       // In consolidated schema, conversationId === requestId
       updates.conversationId = result.conversationId
-      updates.requestId = result.conversationId
-      console.log('[ChatInterface] 🔄 Session sync - got conversationId:', result.conversationId)
+      // Only set requestId if not already established — prevents overwriting
+      // the correct UUID when the API creates a new conversation by mistake
+      if (!activeChat.requestId || activeChat.requestId.startsWith('temp-')) {
+        updates.requestId = result.conversationId
+        console.log('[ChatInterface] 🔄 Session sync - initial requestId set:', result.conversationId)
+      } else {
+        console.log('[ChatInterface] 🔄 Session sync - keeping existing requestId:', activeChat.requestId, '(API returned:', result.conversationId, ')')
+      }
     }
     if (result.chatSessionId) {
       // chatSessionId is the same as requestId in new schema but kept for backward compat

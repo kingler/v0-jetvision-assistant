@@ -274,60 +274,18 @@ export async function POST(
         }
       }
 
-      // Strategy 4: Find most recent request for this user (last resort before auto-create)
+      // If all resolution strategies failed, return an error instead of
+      // guessing (Strategy 4: "most recent") or auto-creating duplicates
+      // (Strategy 5: auto-create). These fallbacks caused ONEK-329 where
+      // contracts linked to the wrong request.
       if (!resolvedRequestId) {
-        try {
-          const { data: recentMatch } = await supabaseAdmin
-            .from('requests')
-            .select('id')
-            .eq('iso_agent_id', authResult.id)
-            .not('avinode_trip_id', 'is', null)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (recentMatch) {
-            resolvedRequestId = recentMatch.id;
-            console.log('[SendContract] Resolved via most recent request:', resolvedRequestId);
-          }
-        } catch (err) {
-          console.warn('[SendContract] Recent request resolution failed:', err);
-        }
-      }
-
-      // Strategy 5: Auto-create a request record (last resort)
-      if (!resolvedRequestId) {
-        try {
-          const dep = body.flightDetails.departureAirport.icao;
-          const arr = body.flightDetails.arrivalAirport.icao;
-          console.log('[SendContract] Auto-creating request record for:', body.requestId);
-          const { data: newRequest, error: createErr } = await supabaseAdmin
-            .from('requests')
-            .insert({
-              iso_agent_id: authResult.id,
-              avinode_trip_id: body.tripId || null,
-              avinode_rfq_id: body.requestId || null,
-              departure_airport: dep,
-              arrival_airport: arr,
-              departure_date: body.flightDetails.departureDate,
-              passengers: body.flightDetails.passengers,
-              status: 'pending',
-              metadata: {
-                autoCreatedByContractSend: true,
-                originalRequestId: body.requestId,
-              },
-            })
-            .select('id')
-            .single();
-
-          if (createErr) {
-            console.error('[SendContract] Failed to auto-create request:', createErr);
-          } else if (newRequest) {
-            resolvedRequestId = newRequest.id;
-            console.log('[SendContract] Auto-created request:', resolvedRequestId);
-          }
-        } catch (err) {
-          console.error('[SendContract] Auto-create request failed:', err);
-        }
+        console.error('[SendContract] All resolution strategies failed for requestId:', body.requestId);
+        return NextResponse.json({
+          error: 'Could not resolve request ID',
+          message: 'The request associated with this contract could not be found. Please try again or refresh the page.',
+          code: 'REQUEST_ID_RESOLUTION_FAILED',
+          originalRequestId: body.requestId,
+        } as unknown as SendContractResponse, { status: 400 });
       }
     }
 
