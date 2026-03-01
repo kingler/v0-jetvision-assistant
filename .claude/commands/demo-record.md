@@ -66,8 +66,19 @@ Follow the skill's instructions exactly. Do not proceed without loading it first
 4. ffmpeg installed for conversion (`brew install ffmpeg`)
 5. For Phase 3+: Valid Avinode Sandbox credentials
 
+## Next Step: Generate Presentation
+
+After recording, generate a branded slide deck from the videos:
+
+```bash
+/demo-presentation [--phase N] [--title "Sprint Demo"]
+```
+
+This creates a Google Slides-compatible PPTX with video thumbnails, scenario descriptions, and verification checklists embedded in each slide.
+
 ## Related Commands
 
+- `/demo-presentation` - Generate PPTX presentation from recorded demos
 - `/avinode-sandbox-test` - Interactive browser-driven E2E test (Claude-in-Chrome)
 - `/e2e-test` - Full E2E test runbook (13 scenarios, manual walkthrough)
 - `/avinode-sandbox-reset` - Reset sandbox data after API key rotation

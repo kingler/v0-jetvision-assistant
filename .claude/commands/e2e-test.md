@@ -89,7 +89,7 @@ mkdir -p /Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/
 |-------|-------|
 | Company | ABC Corp |
 | Contact | Willy Bercy |
-| Email | willy.bercy@abccorp.com |
+| Email | kingler@me.com |
 | Customer ID | (create via CustomerSelectionDialog if not in seed data) |
 | Role | Recipient for proposal and contract emails |
 

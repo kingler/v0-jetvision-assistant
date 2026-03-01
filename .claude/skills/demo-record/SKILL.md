@@ -284,8 +284,33 @@ download: true
 | `scripts/convert-recordings.sh` | WebM to MP4/GIF converter |
 | `package.json` | npm scripts (`test:e2e:demo`, `demo:convert`) |
 
+## Step 6: Generate Presentation (Optional)
+
+After recording demos, generate a branded PPTX presentation for sprint demos or stakeholder reviews:
+
+```txt
+Skill: demo-presentation
+```
+
+Or use the slash command:
+
+```bash
+/demo-presentation [--phase N] [--title "Sprint Demo"]
+```
+
+This will:
+1. Scan `e2e-screenshots/recordings/` for your MP4/GIF recordings
+2. Extract representative video thumbnails
+3. Generate a slide deck with scenario descriptions and verification points
+4. Output a Google Slides-compatible PPTX to `demo-presentations/`
+
+See the `demo-presentation` skill for full details.
+
+---
+
 ## Related Skills
 
+- `/demo-presentation` — Generate PPTX presentation from recorded demos (Google Slides compatible)
 - `/avinode-sandbox-test` — Interactive E2E test via Claude-in-Chrome (full lifecycle)
 - `/e2e-test` — E2E test runbook (13 scenarios, manual walkthrough)
 - `/avinode-sandbox-reset` — Reset sandbox data after API key rotation
