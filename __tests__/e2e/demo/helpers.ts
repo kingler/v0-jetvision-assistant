@@ -166,3 +166,73 @@ export async function demoPause(
 ): Promise<void> {
   await page.waitForTimeout(ms);
 }
+
+/**
+ * Supabase verification helper.
+ *
+ * Calls the Supabase REST API directly using the service-role key so that
+ * RLS is bypassed and we can inspect any table.  Returns the first matching
+ * row (most recent by created_at), or null if no rows match.
+ */
+export async function querySupabase(
+  table: string,
+  filters: Record<string, string>,
+): Promise<Record<string, unknown> | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  const params = new URLSearchParams();
+  for (const [col, val] of Object.entries(filters)) {
+    params.append(col, `eq.${val}`);
+  }
+  params.append('order', 'created_at.desc');
+  params.append('limit', '1');
+
+  const res = await fetch(`${url}/rest/v1/${table}?${params}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `Supabase query failed: ${res.status} ${res.statusText} (table=${table})`
+    );
+  }
+  const rows = await res.json();
+  return rows[0] ?? null;
+}
+
+/**
+ * Query Supabase and return ALL matching rows (ordered by created_at desc).
+ */
+export async function querySupabaseAll(
+  table: string,
+  filters: Record<string, string>,
+): Promise<Record<string, unknown>[]> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  const params = new URLSearchParams();
+  for (const [col, val] of Object.entries(filters)) {
+    params.append(col, `eq.${val}`);
+  }
+  params.append('order', 'created_at.desc');
+
+  const res = await fetch(`${url}/rest/v1/${table}?${params}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `Supabase query failed: ${res.status} ${res.statusText} (table=${table})`
+    );
+  }
+  return res.json();
+}

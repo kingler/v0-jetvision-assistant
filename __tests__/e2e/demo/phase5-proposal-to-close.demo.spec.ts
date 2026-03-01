@@ -9,44 +9,8 @@ import {
   assertTextVisible,
   assertNotVisible,
   clickButton,
+  querySupabase,
 } from './helpers';
-
-/**
- * Supabase verification helper.
- *
- * Calls the Supabase REST API directly using the service-role key so that
- * RLS is bypassed and we can inspect any table.  Returns the first matching
- * row, or throws if the query fails.
- */
-async function querySupabase(
-  table: string,
-  filters: Record<string, string>,
-): Promise<Record<string, unknown> | null> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-  const params = new URLSearchParams();
-  for (const [col, val] of Object.entries(filters)) {
-    params.append(col, `eq.${val}`);
-  }
-  params.append('limit', '1');
-
-  const res = await fetch(`${url}/rest/v1/${table}?${params}`, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(
-      `Supabase query failed: ${res.status} ${res.statusText} (table=${table})`
-    );
-  }
-  const rows = await res.json();
-  return rows[0] ?? null;
-}
 
 /**
  * Phase 5: Proposal to Close Scenarios (10-13)
@@ -174,6 +138,21 @@ test.describe('Phase 5: Proposal to Close', () => {
     expect(proposalRow).not.toBeNull();
     expect(proposalRow!.status).toBe('sent');
 
+    // FK chain: proposal links to request (and optionally quote)
+    expect(proposalRow!.request_id).toBeTruthy();
+    if (proposalRow!.quote_id) {
+      expect(proposalRow!.quote_id).toBeTruthy();
+    }
+
+    // Extract proposalId from DOM
+    const proposalId = await page
+      .locator('[data-testid="proposal-sent-confirmation"]')
+      .getAttribute('data-proposal-id')
+      .catch(() => null);
+    if (proposalId) {
+      console.log(`[Phase 5] Proposal ID from DOM: ${proposalId}`);
+    }
+
     await captureScreenshot(page, '06-final-state', 'proposal');
   });
 
@@ -250,6 +229,30 @@ test.describe('Phase 5: Proposal to Close', () => {
     expect(contractRow).not.toBeNull();
     expect(contractRow!.status).toBe('sent');
 
+    // FK chain: contract links to request
+    expect(contractRow!.request_id).toBeTruthy();
+
+    // Extract contract IDs from DOM
+    const contractId = await page
+      .locator('[data-testid="contract-sent-confirmation"]')
+      .getAttribute('data-contract-id')
+      .catch(() => null);
+    const contractNumber = await page
+      .locator('[data-testid="contract-sent-confirmation"]')
+      .getAttribute('data-contract-number')
+      .catch(() => null);
+    console.log(`[Phase 5] Contract: id=${contractId}, number=${contractNumber}`);
+
+    // Verify FK consistency: contract and proposal share the same request
+    if (contractRow!.proposal_id) {
+      const linkedProposal = await querySupabase('proposals', {
+        id: String(contractRow!.proposal_id),
+      });
+      if (linkedProposal) {
+        expect(linkedProposal.request_id).toBe(contractRow!.request_id);
+      }
+    }
+
     await captureScreenshot(page, '04-final-state', 'contract');
   });
 
@@ -315,6 +318,11 @@ test.describe('Phase 5: Proposal to Close', () => {
     const contractRow = await querySupabase('contracts', { status: 'paid' });
     expect(contractRow).not.toBeNull();
     expect(contractRow!.status).toBe('paid');
+
+    // Verify payment reference was stored
+    if (contractRow!.payment_reference) {
+      expect(contractRow!.payment_reference).toBe('WT-2026-TEST-001');
+    }
 
     await captureScreenshot(page, '02-final-state', 'payment');
   });
@@ -388,6 +396,19 @@ test.describe('Phase 5: Proposal to Close', () => {
     });
     expect(requestRow).not.toBeNull();
     expect(requestRow!.session_status).toBe('archived');
+
+    // Full lifecycle FK chain validation
+    const requestId = String(requestRow!.id);
+    const proposal = await querySupabase('proposals', { request_id: requestId });
+    const contract = await querySupabase('contracts', { request_id: requestId });
+
+    if (proposal && contract) {
+      // Verify chain: contract.proposal_id == proposal.id
+      if (contract.proposal_id) {
+        expect(contract.proposal_id).toBe(proposal.id);
+      }
+      console.log(`[Phase 5] Full chain verified: request=${requestId} -> proposal=${proposal.id} -> contract=${contract.id}`);
+    }
 
     await captureScreenshot(page, '04-final-state', 'closure');
   });

@@ -488,6 +488,7 @@ The Jetvision Team`;
       <ResponsiveModalContent
         className="sm:max-w-[550px]"
         data-testid="book-flight-modal"
+        data-quote-id={flight?.quoteId}
         onInteractOutside={(e: Event) => {
           if (['email_review', 'generating', 'sending'].includes(state)) {
             e.preventDefault();

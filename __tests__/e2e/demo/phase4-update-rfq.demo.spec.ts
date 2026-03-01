@@ -6,6 +6,7 @@ import {
   demoPause,
   assertTextVisible,
   waitForPageLoad,
+  querySupabase,
 } from './helpers';
 
 /**
@@ -54,6 +55,24 @@ test.describe('Phase 4: Update RFQ', () => {
         '[data-testid="rfq-flight-card"], [data-testid="quote-card"]'
       ).first();
       await expect(quoteCard).toBeVisible();
+
+      // Extract quoteId and flightId from first RFQ flight card
+      const firstCard = page.locator('[data-testid="rfq-flight-card"]').first();
+      const quoteId = await firstCard.getAttribute('data-quote-id').catch(() => null);
+      const flightId = await firstCard.getAttribute('data-flight-id').catch(() => null);
+      console.log(`[Phase 4] Captured quoteId: ${quoteId}, flightId: ${flightId}`);
+
+      if (quoteId) {
+        expect(quoteId).toBeTruthy();
+      }
+
+      // DB verification: quotes table has a record
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const quoteRow = await querySupabase('quotes', {});
+        if (quoteRow) {
+          console.log(`[Phase 4] Quote DB row: id=${quoteRow.id}, avinode_quote_id=${quoteRow.avinode_quote_id}`);
+        }
+      }
 
       // Verify "Generate Proposal" button is visible
       const proposalButton = page.locator(

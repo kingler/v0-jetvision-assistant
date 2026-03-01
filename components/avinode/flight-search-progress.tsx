@@ -377,7 +377,7 @@ export function FlightSearchProgress({
   // ── Compact display mode: trip summary + deep link only ──
   if (displayMode === 'compact') {
     return (
-      <div data-testid="flight-search-progress" className={cn('w-full space-y-3', className)}>
+      <div data-testid="flight-search-progress" data-trip-id={tripId} className={cn('w-full space-y-3', className)}>
         <TripRequestCard
           flightRequest={flightRequest}
           isCompleted={false}
@@ -397,7 +397,7 @@ export function FlightSearchProgress({
   }
 
   return (
-    <div data-testid="flight-search-progress" className={cn('w-full', className)}>
+    <div data-testid="flight-search-progress" data-trip-id={tripId} className={cn('w-full', className)}>
       <div className="py-6">
         {/* Step Content */}
         <div className="space-y-4">

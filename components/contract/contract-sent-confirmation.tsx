@@ -49,6 +49,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 }
 
 export function ContractSentConfirmation({
+  contractId,
   contractNumber,
   customerName,
   customerEmail,
@@ -80,7 +81,7 @@ export function ContractSentConfirmation({
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.draft
 
   return (
-    <div className="w-full" data-testid="contract-sent-confirmation">
+    <div className="w-full" data-testid="contract-sent-confirmation" data-contract-id={contractId} data-contract-number={contractNumber}>
       <Card className="w-full">
         <CardContent className="p-6 space-y-4">
           {/* Header */}

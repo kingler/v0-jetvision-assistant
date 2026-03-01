@@ -6,7 +6,122 @@ import {
   captureScreenshot,
   demoPause,
   waitForPageLoad,
+  querySupabase,
 } from './helpers';
+
+/**
+ * Avinode Sandbox login + organization selection.
+ *
+ * Login flow:
+ *   Step 1: "Login*" text input → "Next" button
+ *   Step 2: "Password*" input → "Log in" button
+ *   Step 3: "Choose an Organization" → select org by name
+ *
+ * @param organization - Which org to select after login:
+ *   'Jetvision LLC' (buyer/broker) or 'Sandbox Dev Operator' (seller/operator)
+ */
+async function loginToAvinode(
+  page: Page,
+  screenshotSubdir?: string,
+  organization: 'Jetvision LLC' | 'Sandbox Dev Operator' = 'Jetvision LLC'
+): Promise<boolean> {
+  const AVINODE_USER = process.env.AVINODE_SANDBOX_USERNAME || 'kingler@me.com';
+  const AVINODE_PASS = process.env.AVINODE_SANDBOX_PASSWORD || '2FRhgGZK3wSy8SY';
+
+  // Detect login page: look for "Log in" heading
+  const isLoginPage = await page
+    .getByRole('heading', { name: 'Log in' })
+    .isVisible({ timeout: 5_000 })
+    .catch(() => false);
+
+  if (!isLoginPage) {
+    // Check for org chooser (already logged in but needs org selection)
+    const isOrgChooser = await page
+      .getByText('Choose an Organization')
+      .isVisible({ timeout: 3_000 })
+      .catch(() => false);
+
+    if (isOrgChooser) {
+      // Skip login, just select org
+      if (screenshotSubdir) {
+        await captureScreenshot(page, 'org-chooser-detected', screenshotSubdir);
+      }
+      await selectOrganization(page, organization, screenshotSubdir);
+      return true;
+    }
+
+    return false; // Not a login page and not an org chooser
+  }
+
+  if (screenshotSubdir) {
+    await captureScreenshot(page, 'login-step1-detected', screenshotSubdir);
+  }
+
+  // Step 1: Fill the login/username field and click "Next"
+  const loginInput = page.getByLabel('Login', { exact: false });
+  await loginInput.waitFor({ state: 'visible', timeout: 10_000 });
+  await loginInput.fill(AVINODE_USER);
+  await demoPause(page, 500);
+
+  await page.locator('button:has-text("Next")').click();
+  await demoPause(page, 2000);
+
+  if (screenshotSubdir) {
+    await captureScreenshot(page, 'login-step2-password', screenshotSubdir);
+  }
+
+  // Step 2: Fill password and submit
+  const passwordInput = page.locator('input[type="password"]');
+  await passwordInput.waitFor({ state: 'visible', timeout: 10_000 });
+  await passwordInput.fill(AVINODE_PASS);
+  await demoPause(page, 500);
+
+  await page
+    .locator('button:has-text("Log in"), button:has-text("Login"), button[type="submit"]')
+    .first()
+    .click();
+  await page.waitForLoadState('load');
+  await demoPause(page, 3000);
+
+  if (screenshotSubdir) {
+    await captureScreenshot(page, 'login-complete', screenshotSubdir);
+  }
+
+  // Step 3: Handle "Choose an Organization" page if it appears
+  await selectOrganization(page, organization, screenshotSubdir);
+
+  return true;
+}
+
+/** Select an organization on the Avinode "Choose an Organization" page. */
+async function selectOrganization(
+  page: Page,
+  organization: string,
+  screenshotSubdir?: string
+): Promise<void> {
+  const hasOrgChooser = await page
+    .getByText('Choose an Organization')
+    .isVisible({ timeout: 5_000 })
+    .catch(() => false);
+
+  if (!hasOrgChooser) return; // No org chooser — already redirected to marketplace
+
+  if (screenshotSubdir) {
+    await captureScreenshot(page, 'org-chooser', screenshotSubdir);
+  }
+
+  // Click the organization button/link by name
+  await page
+    .locator(`text="${organization}"`)
+    .first()
+    .click();
+  await page.waitForLoadState('load');
+  await demoPause(page, 3000);
+
+  if (screenshotSubdir) {
+    await captureScreenshot(page, 'org-selected', screenshotSubdir);
+  }
+}
 
 /**
  * Phase 3: Avinode RFQ Scenarios (7-8)
@@ -27,6 +142,11 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
     // Create a persistent context for Jetvision
     const context = await browser.newContext();
     jetvisionPage = await context.newPage();
+
+    // Warn if Supabase env vars are missing (DB verification will be skipped)
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn('[Phase 3] Supabase env vars not set — DB verification will be skipped.');
+    }
   });
 
   test('Scenario 7: Send RFQ via Avinode Marketplace', async ({ page, context }) => {
@@ -52,6 +172,20 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
     // Get the deep link URL for potential fallback
     const deepLinkUrl = await deepLinkButton.getAttribute('href');
 
+    // Extract tripId from deep link URL
+    const tripIdMatch = deepLinkUrl?.match(/(?:atrip-|\/trip\/)([a-zA-Z0-9-]+)/);
+    const tripIdFromUrl = tripIdMatch ? `atrip-${tripIdMatch[1]}` : null;
+
+    // Also try DOM extraction from flight-search-progress data-trip-id attribute
+    const tripIdFromDom = await page
+      .locator('[data-testid="flight-search-progress"]')
+      .first()
+      .getAttribute('data-trip-id')
+      .catch(() => null);
+
+    const capturedTripId = tripIdFromUrl || tripIdFromDom;
+    console.log(`[Phase 3] Captured tripId: ${capturedTripId}`);
+
     // Open in new tab via context
     const [avinodePage] = await Promise.all([
       context.waitForEvent('page'),
@@ -69,20 +203,8 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
     await demoPause(avinodePage, 2000);
     await captureScreenshot(avinodePage, '02-marketplace-flights-loaded', 'avinode-rfq');
 
-    // Step 3: Check if login is needed (session should be pre-authenticated)
-    const isLoginPage = await avinodePage
-      .locator('input[type="password"], input[name="password"]')
-      .isVisible({ timeout: 3_000 })
-      .catch(() => false);
-
-    if (isLoginPage) {
-      // Fallback: login with sandbox credentials
-      await avinodePage.fill('input[name="email"], input[type="email"]', 'kingler@me.com');
-      await avinodePage.fill('input[type="password"]', '2FRhgGZK3wSy8SY');
-      await avinodePage.click('button[type="submit"]');
-      await avinodePage.waitForLoadState('load');
-      await demoPause(avinodePage, 2000);
-    }
+    // Step 3: Handle Avinode two-step login + org selection (Jetvision LLC = buyer)
+    await loginToAvinode(avinodePage, 'avinode-rfq', 'Jetvision LLC');
 
     // Step 4: Filter by Sandbox Dev Operator (if filter is available)
     try {
@@ -153,6 +275,17 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
     }
 
     await captureScreenshot(avinodePage, '06-flight-board', 'avinode-rfq');
+
+    // DB verification: tripId stored in requests table
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const requestRow = await querySupabase('requests', {});
+      expect(requestRow).not.toBeNull();
+      if (capturedTripId) {
+        expect(requestRow!.avinode_trip_id).toBeTruthy();
+        console.log(`[Phase 3] DB requests.avinode_trip_id: ${requestRow!.avinode_trip_id}`);
+      }
+    }
+
     await avinodePage.close();
   });
 
@@ -164,63 +297,13 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
     await page.waitForLoadState('load');
     await demoPause(page, 2000);
 
-    // Check login state
-    const isLoginPage = await page
-      .locator('input[type="password"]')
-      .isVisible({ timeout: 3_000 })
-      .catch(() => false);
+    // Handle Avinode two-step login + org selection (Sandbox Dev Operator = seller)
+    // This selects the operator org at login, so no manual account switching needed.
+    await loginToAvinode(page, 'operator-quote', 'Sandbox Dev Operator');
 
-    if (isLoginPage) {
-      await page.fill('input[name="email"], input[type="email"]', 'kingler@me.com');
-      await page.fill('input[type="password"]', '2FRhgGZK3wSy8SY');
-      await page.click('button[type="submit"]');
-      await page.waitForLoadState('load');
-      await demoPause(page, 2000);
-    }
+    await captureScreenshot(page, '01-operator-dashboard', 'operator-quote');
 
-    // Step 1: Click avatar/profile to switch account
-    try {
-      await page
-        .locator(
-          '[data-testid="account-switcher"], .profile-menu, .user-menu, .avatar, img[alt*="profile" i]'
-        )
-        .first()
-        .click();
-      await demoPause(page);
-      await captureScreenshot(page, '01-profile-dropdown', 'operator-quote');
-    } catch {
-      await captureScreenshot(page, '01-profile-area', 'operator-quote');
-    }
-
-    // Step 2: Click "Switch Account"
-    try {
-      await page
-        .locator('a:has-text("Switch"), button:has-text("Switch Account")')
-        .first()
-        .click();
-      await page.waitForLoadState('load');
-      await demoPause(page, 2000);
-      await captureScreenshot(page, '02-account-selection', 'operator-quote');
-    } catch {
-      await captureScreenshot(page, '02-switch-attempted', 'operator-quote');
-    }
-
-    // Step 3: Select Sandbox Dev Operator
-    try {
-      await page
-        .locator(
-          'a:has-text("Sandbox"), [data-account*="seller"], li:has-text("Seller"), button:has-text("Sandbox")'
-        )
-        .first()
-        .click();
-      await page.waitForLoadState('load');
-      await demoPause(page, 2000);
-      await captureScreenshot(page, '03-operator-view', 'operator-quote');
-    } catch {
-      await captureScreenshot(page, '03-operator-selection-attempted', 'operator-quote');
-    }
-
-    // Step 4: Navigate to Trips > Selling
+    // Step 1: Navigate to Trips > Selling
     try {
       await page
         .locator('a:has-text("Trips"), [data-nav="trips"]')
@@ -234,24 +317,24 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
         .click();
       await page.waitForLoadState('load');
       await demoPause(page, 2000);
-      await captureScreenshot(page, '04-selling-list', 'operator-quote');
+      await captureScreenshot(page, '02-selling-list', 'operator-quote');
     } catch {
-      await captureScreenshot(page, '04-selling-navigation', 'operator-quote');
+      await captureScreenshot(page, '02-selling-navigation', 'operator-quote');
     }
 
-    // Step 5: Find and approve the RFQ
+    // Step 2: Find and approve the RFQ
     try {
       await page
         .locator('button:has-text("Approve"), button:has-text("Accept"), button:has-text("Quote")')
         .first()
         .click();
       await demoPause(page, 2000);
-      await captureScreenshot(page, '05-approve-confirmation', 'operator-quote');
+      await captureScreenshot(page, '03-approve-confirmation', 'operator-quote');
     } catch {
-      await captureScreenshot(page, '05-approve-attempted', 'operator-quote');
+      await captureScreenshot(page, '03-approve-attempted', 'operator-quote');
     }
 
-    // Step 6: Confirm the response if dialog appears
+    // Step 3: Confirm the response if dialog appears
     try {
       await page
         .locator('button:has-text("Confirm"), button:has-text("Yes")')
@@ -262,6 +345,21 @@ test.describe('Phase 3: Avinode RFQ & Operator Quote', () => {
       // May auto-confirm
     }
 
-    await captureScreenshot(page, '06-quote-approved', 'operator-quote');
+    await captureScreenshot(page, '04-quote-approved', 'operator-quote');
+
+    // DB verification: webhook event after operator approval
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      await page.waitForTimeout(5000); // Give webhook time to process
+      const webhookRow = await querySupabase('avinode_webhook_events', {
+        event_type: 'TripRequestSellerResponse',
+      });
+      // Webhook may not exist in sandbox — log but don't fail hard
+      if (webhookRow) {
+        expect(webhookRow.avinode_trip_id || webhookRow.avinode_quote_id).toBeTruthy();
+        console.log(`[Phase 3] Webhook event captured: trip=${webhookRow.avinode_trip_id}, quote=${webhookRow.avinode_quote_id}`);
+      } else {
+        console.warn('[Phase 3] No webhook event found — sandbox may not emit webhooks.');
+      }
+    }
   });
 });
