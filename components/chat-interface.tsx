@@ -2085,7 +2085,12 @@ export function ChatInterface({
           fileName: pdfAttachment?.name || '',
           proposalId: emailApprovalData.proposalId,
           pricing: emailApprovalData.pricing
-            ? { total: emailApprovalData.pricing.total, currency: emailApprovalData.pricing.currency }
+            ? {
+                total: emailApprovalData.pricing.total,
+                currency: emailApprovalData.pricing.currency,
+                outboundCost: emailApprovalData.pricing.outboundCost,
+                returnCost: emailApprovalData.pricing.returnCost,
+              }
             : undefined,
         }
 
@@ -2256,7 +2261,7 @@ export function ChatInterface({
   /**
    * Handle contract sent - called when contract is successfully sent from the modal
    */
-  const handleContractSent = useCallback((contractData: Required<import('@/components/contract/contract-sent-confirmation').ContractSentPayload>) => {
+  const handleContractSent = useCallback((contractData: import('@/components/contract/contract-sent-confirmation').ContractSentPayload) => {
     console.log('[ChatInterface] Contract sent:', contractData)
 
     // Close the modal
@@ -3422,6 +3427,13 @@ export function ChatInterface({
             departureDate: activeChat.date || new Date().toISOString().split('T')[0],
             passengers: activeChat.passengers || 1,
             tripId: activeChat.tripId,
+            tripType: activeChat.tripType,
+            returnDate: activeChat.returnDate,
+            segments: activeChat.segments?.map(s => ({
+              departureAirport: s.departure_airport?.icao || '',
+              arrivalAirport: s.arrival_airport?.icao || '',
+              departureDate: s.departure_date,
+            })),
           }}
           requestId={activeChat.requestId || ''}
           onContractSent={handleContractSent}

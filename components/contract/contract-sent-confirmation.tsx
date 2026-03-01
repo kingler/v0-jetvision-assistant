@@ -21,10 +21,6 @@ export interface ContractSentPayload {
   totalAmount: number
   currency: string
   pdfUrl?: string
-}
-
-export interface ContractSentConfirmationProps extends ContractSentPayload {
-  status: 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed'
   /** Trip type for structured route display */
   tripType?: 'one_way' | 'round_trip' | 'multi_city'
   /** Return date for round-trip */
@@ -35,6 +31,10 @@ export interface ContractSentConfirmationProps extends ContractSentPayload {
     arrivalAirport: string
     departureDate: string
   }>
+}
+
+export interface ContractSentConfirmationProps extends ContractSentPayload {
+  status: 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed'
   /** Callback for "Mark Payment Received" */
   onMarkPayment?: () => void
 }

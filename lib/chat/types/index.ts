@@ -18,14 +18,23 @@ export interface EmailApprovalData {
   to: { email: string; name: string };
   subject: string;
   body: string;
-  attachments: Array<{ name: string; url: string; size?: number }>;
+  attachments: Array<{ name: string; url: string; size?: number; type?: string }>;
   flightDetails?: {
     departureAirport: string;
     arrivalAirport: string;
     departureDate: string;
     passengers?: number;
+    tripType?: 'one_way' | 'round_trip' | 'multi_city';
+    returnDate?: string;
+    returnAirport?: string;
   };
-  pricing?: { subtotal: number; total: number; currency: string };
+  pricing?: {
+    subtotal: number;
+    total: number;
+    currency: string;
+    outboundCost?: number;
+    returnCost?: number;
+  };
   generatedAt?: string;
   requestId?: string;
 }

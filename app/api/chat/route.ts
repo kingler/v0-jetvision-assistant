@@ -423,12 +423,16 @@ export async function POST(req: NextRequest) {
       if (result.rfpData.passengers) workingMemory.passengers = result.rfpData.passengers;
       if (result.rfpData.return_date) workingMemory.returnDate = result.rfpData.return_date;
       if (result.rfpData.segments && Array.isArray(result.rfpData.segments) && result.rfpData.segments.length > 0) {
-        workingMemory.segments = result.rfpData.segments.map((seg: any) => ({
-          departure_airport: typeof seg.departure_airport === 'string' ? seg.departure_airport : (seg.departure_airport?.icao || String(seg.departure_airport)),
-          arrival_airport: typeof seg.arrival_airport === 'string' ? seg.arrival_airport : (seg.arrival_airport?.icao || String(seg.arrival_airport)),
-          departure_date: seg.departure_date,
-          passengers: seg.passengers,
-        }));
+        workingMemory.segments = result.rfpData.segments.map((seg) => {
+          const depAirport = seg.departure_airport;
+          const arrAirport = seg.arrival_airport;
+          return {
+            departure_airport: typeof depAirport === 'string' ? depAirport : ((depAirport as { icao?: string })?.icao || String(depAirport)),
+            arrival_airport: typeof arrAirport === 'string' ? arrAirport : ((arrAirport as { icao?: string })?.icao || String(arrAirport)),
+            departure_date: seg.departure_date,
+            passengers: seg.passengers,
+          };
+        });
       }
     }
     workingMemory.lastUpdated = new Date().toISOString();
@@ -507,13 +511,13 @@ export async function POST(req: NextRequest) {
 
         // Upsert segments (delete + insert for idempotency)
         await supabaseAdmin.from('trip_segments').delete().eq('request_id', conversationId);
-        const segmentRows = segments.map((seg: any, idx: number) => ({
+        const segmentRows = segments.map((seg, idx: number) => ({
           request_id: conversationId,
           segment_order: idx,
           departure_airport: resolveCode(seg.departure_airport) || 'UNKN',
           arrival_airport: resolveCode(seg.arrival_airport) || 'UNKN',
-          departure_date: seg.departure_date,
-          departure_time: seg.departure_time || null,
+          departure_date: seg.departure_date as string,
+          departure_time: ((seg as Record<string, unknown>).departure_time as string) || null,
           passengers: seg.passengers || result.rfpData?.passengers || 1,
         }));
         const { error: segError } = await supabaseAdmin.from('trip_segments').insert(segmentRows);
@@ -583,8 +587,11 @@ export async function POST(req: NextRequest) {
         arrivalAirport: string;
         departureDate: string;
         passengers?: number;
+        tripType?: 'one_way' | 'round_trip' | 'multi_city';
+        returnDate?: string;
+        returnAirport?: string;
       };
-      pricing?: { subtotal: number; total: number; currency: string };
+      pricing?: { subtotal: number; total: number; currency: string; outboundCost?: number; returnCost?: number };
       generatedAt?: string;
       requestId?: string;
     } | undefined;
@@ -696,8 +703,11 @@ export async function POST(req: NextRequest) {
             arrivalAirport: string;
             departureDate: string;
             passengers?: number;
+            tripType?: 'one_way' | 'round_trip' | 'multi_city';
+            returnDate?: string;
+            returnAirport?: string;
           } | undefined,
-          pricing: data.pricing as { subtotal: number; total: number; currency: string } | undefined,
+          pricing: data.pricing as { subtotal: number; total: number; currency: string; outboundCost?: number; returnCost?: number } | undefined,
           generatedAt: data.generated_at as string | undefined,
           requestId: (data.request_id as string) || conversationId,
         };

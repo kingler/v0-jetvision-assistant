@@ -432,6 +432,10 @@ export interface EmailApprovalRequestContent {
     subtotal: number;
     total: number;
     currency: string;
+    /** Outbound leg cost for round-trip proposals */
+    outboundCost?: number;
+    /** Return leg cost for round-trip proposals */
+    returnCost?: number;
   };
   /** When the draft was generated */
   generatedAt?: string;

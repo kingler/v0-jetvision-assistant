@@ -67,6 +67,16 @@ export interface TripDetails {
   departureTime?: string;
   passengers: number;
   tripId?: string;
+  /** Trip type for structured route display on confirmation card */
+  tripType?: 'one_way' | 'round_trip' | 'multi_city';
+  /** Return date for round-trip */
+  returnDate?: string;
+  /** Segments for multi-city trips */
+  segments?: Array<{
+    departureAirport: string;
+    arrivalAirport: string;
+    departureDate: string;
+  }>;
 }
 
 export interface BookFlightModalProps {
@@ -88,7 +98,7 @@ export interface BookFlightModalProps {
   /** Request ID for database linking */
   requestId: string;
   /** Callback when contract is successfully sent with full contract data */
-  onContractSent?: (contractData: Required<ContractSentPayload>) => void;
+  onContractSent?: (contractData: ContractSentPayload) => void;
 }
 
 type ModalState = 'ready' | 'generating' | 'preview' | 'email_review' | 'sending' | 'success' | 'error';
@@ -399,6 +409,9 @@ The Jetvision Team`;
           departureDate: flight.departureDate || tripDetails.departureDate,
           totalAmount: pricing.totalAmount,
           currency: pricing.currency,
+          tripType: tripDetails.tripType,
+          returnDate: tripDetails.returnDate,
+          segments: tripDetails.segments,
         });
       }
     } catch (err) {
