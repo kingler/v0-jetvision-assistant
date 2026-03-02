@@ -1138,6 +1138,39 @@ export function buildSystemPromptWithWorkingMemory(
   return base + '\n\n---\n\n' + memoryBlock;
 }
 
+/**
+ * Build system prompt dynamically from DB-backed prompt versions.
+ * Falls back to hardcoded constants if no active DB version exists.
+ * Includes working memory injection.
+ */
+export async function buildDynamicSystemPrompt(
+  workingMemory?: Record<string, unknown> | null
+): Promise<string> {
+  // Lazy-import to avoid circular dependency at module load time
+  const { getActivePromptSection } = await import(
+    '@/lib/self-improvement/prompt-version-manager'
+  );
+
+  const dynamicScenarios =
+    (await getActivePromptSection('scenario_handlers')) || SCENARIO_HANDLERS;
+  const dynamicFormats =
+    (await getActivePromptSection('response_formats')) || RESPONSE_FORMATS;
+
+  const base = [
+    IDENTITY,
+    TOOL_REFERENCE,
+    dynamicScenarios,
+    dynamicFormats,
+    CONTEXT_RULES,
+    ERROR_HANDLING,
+    AIRPORT_REFERENCE,
+  ].join('\n\n---\n\n');
+
+  const memoryBlock = renderWorkingMemory(workingMemory);
+  if (!memoryBlock) return base;
+  return base + '\n\n---\n\n' + memoryBlock;
+}
+
 // =============================================================================
 // PROMPT BUILDER FUNCTIONS
 // =============================================================================
