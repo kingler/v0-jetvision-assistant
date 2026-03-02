@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { selfImprovementDb } from '@/lib/self-improvement/db';
 import { createPromptVersion } from '@/lib/self-improvement/prompt-version-manager';
 import { withRoles } from '@/lib/middleware/rbac';
 import type { PromptSection } from '@/lib/self-improvement/types';
@@ -11,7 +11,7 @@ async function handleGet(req: NextRequest) {
   try {
     const status = req.nextUrl.searchParams.get('status') || 'pending';
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await selfImprovementDb
       .from('prompt_suggestions')
       .select('*')
       .eq('status', status)
@@ -43,7 +43,7 @@ async function handlePatch(req: NextRequest) {
     }
 
     if (action === 'approve') {
-      const { data: suggestion } = await supabaseAdmin
+      const { data: suggestion } = await selfImprovementDb
         .from('prompt_suggestions')
         .select('*')
         .eq('id', suggestion_id)
@@ -60,7 +60,7 @@ async function handlePatch(req: NextRequest) {
         'human'
       );
 
-      await supabaseAdmin
+      await selfImprovementDb
         .from('prompt_suggestions')
         .update({
           status: 'implemented',
@@ -78,7 +78,7 @@ async function handlePatch(req: NextRequest) {
     }
 
     if (action === 'reject') {
-      await supabaseAdmin
+      await selfImprovementDb
         .from('prompt_suggestions')
         .update({
           status: 'rejected',

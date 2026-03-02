@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runReflection, canRunReflection } from '@/lib/self-improvement/reflection-engine';
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { selfImprovementDb } from '@/lib/self-improvement/db';
 import { withRoles } from '@/lib/middleware/rbac';
 
 /**
@@ -10,13 +10,13 @@ async function handleGet() {
   try {
     const { canRun, reason } = await canRunReflection();
 
-    const { data: recentLogs } = await supabaseAdmin
+    const { data: recentLogs } = await selfImprovementDb
       .from('reflection_logs')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(10);
 
-    const { data: pendingSuggestions } = await supabaseAdmin
+    const { data: pendingSuggestions } = await selfImprovementDb
       .from('prompt_suggestions')
       .select('*')
       .eq('status', 'pending')

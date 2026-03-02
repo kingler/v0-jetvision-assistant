@@ -170,8 +170,39 @@ export async function POST(
           resolvedId = byMeta.id;
           console.log('[RecordPayment] Resolved non-UUID via metadata:', id, '→', resolvedId);
         } else {
-          console.warn('[RecordPayment] Could not resolve non-UUID contract ID:', id);
+          // Strategy 3: Look up by reference_quote_number (handles aquote-XXX format)
+          const { data: byRef } = await supabaseAdmin
+            .from('contracts')
+            .select('id')
+            .eq('reference_quote_number', id)
+            .eq('iso_agent_id', authResult.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (byRef) {
+            resolvedId = byRef.id;
+            console.log('[RecordPayment] Resolved non-UUID via reference_quote_number:', id, '→', resolvedId);
+          } else {
+            console.warn('[RecordPayment] Could not resolve non-UUID contract ID:', id);
+          }
         }
+      }
+    }
+
+    // Strategy 4: If URL id still unresolved but requestId is in body, find contract by request
+    if (!uuidRegex.test(resolvedId) && body.requestId && uuidRegex.test(body.requestId)) {
+      const { data: byRequest } = await supabaseAdmin
+        .from('contracts')
+        .select('id')
+        .eq('request_id', body.requestId)
+        .eq('iso_agent_id', authResult.id)
+        .not('status', 'in', '("cancelled","expired")')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (byRequest) {
+        resolvedId = byRequest.id;
+        console.log('[RecordPayment] Resolved via requestId fallback:', body.requestId, '→', resolvedId);
       }
     }
 

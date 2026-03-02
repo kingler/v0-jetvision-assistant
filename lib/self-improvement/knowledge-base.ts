@@ -2,7 +2,7 @@
 // Self-Improving Agent -- Knowledge Base Service
 // ---------------------------------------------------------------------------
 
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { selfImprovementDb } from './db';
 import { MAX_AUTO_UPDATES_PER_DAY } from './constants';
 import type { KnowledgeEntry, KnowledgeCategory } from './types';
 
@@ -44,7 +44,7 @@ export function renderKnowledgeBase(entries: KnowledgeEntry[]): string {
  * Fetch all active knowledge base entries from the database.
  */
 export async function getActiveKnowledgeEntries(): Promise<KnowledgeEntry[]> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await selfImprovementDb
     .from('knowledge_base')
     .select('*')
     .eq('is_active', true)
@@ -65,7 +65,7 @@ export async function getActiveKnowledgeEntries(): Promise<KnowledgeEntry[]> {
 export async function addKnowledgeEntry(
   entry: Omit<KnowledgeEntry, 'id' | 'times_relevant' | 'is_active' | 'created_at' | 'updated_at'>
 ): Promise<KnowledgeEntry | null> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await selfImprovementDb
     .from('knowledge_base')
     .insert({
       ...entry,
@@ -90,7 +90,7 @@ export async function canAutoUpdate(): Promise<boolean> {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const { count, error } = await supabaseAdmin
+  const { count, error } = await selfImprovementDb
     .from('knowledge_base')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startOfDay.toISOString());

@@ -1,5 +1,6 @@
 export * from './types';
 export * from './constants';
+export * from './db';
 export * from './signal-capture';
 export * from './signal-persistence';
 export * from './rubric';

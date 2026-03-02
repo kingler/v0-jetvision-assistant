@@ -1,70 +1,188 @@
 # Analyze Codebase Readiness
 
-You are tasked with analyzing the software project to determine its current status, readiness for deployment, and any remaining development work. Follow these steps carefully to provide a comprehensive assessment:
+You are tasked with analyzing the software project to determine its current status, readiness for deployment, and any remaining development work. This includes a **full Linear board review, cleanup, and synchronization** to ensure the project tracker reflects reality.
 
-    1. Generate a directory tree to understand the project structure:
-    - Execute the command: find . -type f -not -path "*/node_modules/*" -not -path "*/.git/*" | sort
-    - Analyze the directory structure to understand the organization of the codebase
-    - Note any new files or directories since the last analysis (if status report exists)
-    - Compare the current structure with the proposed structure in the restructuring plan (if available)
-    - Highlight any new files or directories since the last analysis (if status report exists)
-    - Access the 1_business_requirements/business_requirements_document.md file to understand the project's purpose and scope
-    - Access the 2_product_requirements @ /docs/product_requirements_document.md file to understand the project's functional and non-functional requirements
-    - Access the 3_design_specifications @ /docs/design_specifications.md file to understand the project's design specifications
-    - Access the 4_user_stories @ /docs/4_user_stories/individual_stories/epic{1,2,3,...}_template_management/story_{1,2,3,...}.md file to understand the project's design specifications
+## Phase 1: Codebase Analysis
 
-    2. Review the provided project materials:
+1. **Map the project structure**:
+   - Execute: `find . -type f -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/.next/*" | sort`
+   - Analyze directory organization and note changes since the last analysis
+   - Compare with the structure documented in `.context/project_structure.md`
 
-    <project_codebase>
-    $INCLUDE_CODEBASE
-    </project_codebase>
+2. **Review project materials** (if available):
+   - Business requirements: `docs/business_requirements_document.md`
+   - Product requirements: `docs/product_requirements_document.md`
+   - Design specifications: `docs/design_specifications.md`
+   - Architecture docs: `docs/architecture/MULTI_AGENT_SYSTEM.md`
+   - Previous status report: `.context/overall_project_status.md`
 
-    <requirements_doc>
-    $REQUIREMENTS
-    </requirements_doc>
+3. **Analyze codebase completeness**:
+   - For each feature or component, estimate its percentage of completion
+   - Identify missing or incomplete features
+   - Note any code smells, security issues, or refactoring opportunities
 
-    <status_report>
-    $STATUS_REPORT
-    </status_report>
+4. **Run tests** (if environment permits):
+   - Execute `npm run test:unit` and capture results
+   - Execute `npm run lint` and capture results
+   - Note coverage gaps and failing tests
 
-    3. Analyze the provided documents, focusing on the requirements, feature requests, and any existing status reports. If these documents are not available or are incomplete, you will need to analyze the codebase thoroughly.
+## Phase 2: Linear Board Review & Cleanup
 
-    4. Follow this step-by-step process:
-    - a. Examine the requirements document and status report (if available).
-    - b. If a feature or task list exists, use it as a basis for your analysis.
-    - c. If no feature or task list exists, analyze the codebase to create a feature checklist.
-    - d. For each feature or component, estimate its percentage of completion.
-    - e. Run an end-to-end full coverage test to identify issues, code smells, and refactoring opportunities.
-    - f. Based on your analysis. Assess the overall progress of the project.
-    - g. Identify what's missing or incomplete in the current state of the project.
+**IMPORTANT:** Invoke the `linear-cleanup` skill to perform a full multi-phase cleanup of the Linear board.
 
-    5. If you need to create a feature checklist, follow these steps:
-    - a. Analyze the project structure and main components.
-    - b. Identify key features and functionalities.
-    - c. List these features and estimate their completion percentage.
-    - d. Note any missing or incomplete features.
+```
+Skill: linear-cleanup
+Args: One Kaleidoscope --scope=all
+```
 
-    6. Conduct an end-to-end full coverage test:
-    - a. Identify and list any bugs or issues found.
-    - b. Note any code smells or areas that need refactoring.
-    - c. Assess the overall code quality and test coverage.
+This executes the following sub-phases:
 
-    7. Based on your analysis, prepare a comprehensive project status report that includes:
-    - a. Overall project status (percentage complete, readiness for deployment)
-    - b. Feature checklist with completion percentages
-    - c. Identified issues, bugs, and areas needing improvement
-    - d. Recommendations for next steps or areas of focus
-    - e. Assessment of whether the project is ready for deployment
+### 2a. Deduplication
+- Identify duplicate issues across the ONEK project
+- Flag or merge duplicates, preserving the most complete version
 
-    8. Present your findings in a clear, structured format. Use your first-principle thinking to ensure your assessment is thorough and well-reasoned.
+### 2b. Status Validation
+- Cross-reference Linear issue statuses against actual codebase/test state
+- Issues marked "Done" should have merged PRs and passing tests
+- Issues marked "In Progress" should have active branches
+- Flag mismatches for correction
 
-Your final output should be the creation of the following files in the .context/ directory if they do not exist. If files exist, update them:
+### 2c. Codebase Synchronization
+- Map implemented features (merged branches, existing code) to Linear issues
+- Identify work completed in the codebase that has no corresponding Linear issue
+- Identify Linear issues with no corresponding codebase work
 
-1. Overall Project Status: overall_project_status.md
-2. Feature Checklist and Completion Percentages: $feature_checklist.md
-3. Identified Issues and Areas for Improvement: $identified_issues.md
-4. Recommendations: $recommendations.md
-5. Deployment Readiness Assessment: $deployment_readiness.md
-6. Project Structure: project_structure.md (include the directory tree and highlight any new files since last analysis)
+### 2d. Backlog Triage
+- Review and prioritize the backlog
+- Identify stale issues (no activity >30 days)
+- Flag issues that are blocked and document blockers
 
-Ensure that your report is comprehensive, well-reasoned, and based on the analysis of the provided materials. Do not include any of your internal thought processes or the step-by-step analysis in the final output. Focus on presenting a clear, concise, and actionable project status report.
+### 2e. UAT Readiness
+- For issues ready for UAT, verify acceptance criteria exist
+- Post UAT-ready comments with user stories and acceptance criteria
+
+## Phase 3: Linear Summary Generation
+
+For each major completed or in-progress epic/feature, generate a development summary:
+
+```
+Skill: linear-update-summary
+Args: <issue-id>
+```
+
+Apply this to:
+- Recently completed issues (last 2 sprints)
+- Key in-progress issues that need status visibility
+- Any issues flagged during cleanup that need context updates
+
+## Phase 4: Consolidated Report
+
+Synthesize findings from Phases 1-3 into a comprehensive status update.
+
+### Output Files
+
+Create or update the following files in `.context/`:
+
+1. **`overall_project_status.md`** - Master status document including:
+   - Executive summary with overall completion percentage
+   - Readiness snapshot (production readiness, strengths, blockers)
+   - **Linear Board Health** section:
+     - Total issues: open / in-progress / done / backlog
+     - Duplicates found and resolved
+     - Status mismatches corrected
+     - Stale issues flagged
+     - Sync gaps (code without issues, issues without code)
+   - Test status summary
+   - Key risks and blockers
+   - Analysis date and next review date
+
+2. **`feature_checklist.md`** - Feature completion percentages, mapped to Linear epics where possible
+
+3. **`identified_issues.md`** - Bugs, code smells, security concerns, and Linear sync issues
+
+4. **`recommendations.md`** - Prioritized next steps informed by both codebase analysis and Linear board state
+
+5. **`deployment_readiness.md`** - Go/no-go assessment with checklist
+
+6. **`project_structure.md`** - Updated directory tree with highlights of changes since last analysis
+
+### `overall_project_status.md` Template
+
+The master status file should follow this structure:
+
+```markdown
+# Overall Project Status - Jetvision AI Assistant
+
+**Analysis Date**: YYYY-MM-DD
+**Next Review**: YYYY-MM-DD (2 weeks out)
+**Project**: Jetvision AI Assistant
+**Stack**: Next.js 14, TypeScript, Supabase, Clerk, MCP Servers, BullMQ
+**Linear Team**: One Kaleidoscope (ONEK)
+
+## Executive Summary
+
+**Overall Completion**: X% (estimated)
+
+[1-2 paragraph summary of project state]
+
+## Readiness Snapshot
+
+- **Production Readiness**: [Ready / Partial / Not Ready]
+- **Key Strengths**: [bullet list]
+- **Primary Blockers**: [bullet list]
+
+## Linear Board Health
+
+| Metric | Count |
+|--------|-------|
+| Total Issues | X |
+| Done | X |
+| In Progress | X |
+| Backlog | X |
+| Duplicates Resolved | X |
+| Status Mismatches Fixed | X |
+| Stale Issues (>30 days) | X |
+| Code Without Issues | X |
+| Issues Without Code | X |
+
+### Key Findings from Linear Cleanup
+- [Finding 1]
+- [Finding 2]
+- [Finding 3]
+
+### Sprint Progress
+- **Current Sprint**: [name/dates]
+- **Velocity**: [X points completed]
+- **Burndown**: [on track / behind / ahead]
+
+## Feature Status
+
+| Feature | Completion | Linear Epic | Status |
+|---------|-----------|-------------|--------|
+| [Feature 1] | X% | ONEK-XXX | [status] |
+| [Feature 2] | X% | ONEK-XXX | [status] |
+
+## Test Status
+
+- **Unit Tests**: X passing / X failing
+- **Integration Tests**: X passing / X failing
+- **Coverage**: X% (threshold: 75%)
+
+## Key Risks & Blockers
+
+1. [Risk/Blocker 1]
+2. [Risk/Blocker 2]
+
+## Recommendations
+
+1. [Priority 1 action]
+2. [Priority 2 action]
+3. [Priority 3 action]
+```
+
+## Execution Notes
+
+- Present findings clearly and concisely — no internal reasoning in the output
+- If Linear API access fails, document the failure and proceed with codebase-only analysis
+- If tests cannot be run (environment limitations), note this and estimate based on code review
+- Always compare against the previous status report to highlight what changed

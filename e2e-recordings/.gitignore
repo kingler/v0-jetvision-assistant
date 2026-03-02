@@ -1,0 +1,8 @@
+# Ignore all recording files (MP4, GIF, WebM) — too large for git
+*.mp4
+*.gif
+*.webm
+
+# Keep the directory structure
+!.gitkeep
+!.gitignore

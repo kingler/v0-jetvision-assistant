@@ -7,7 +7,7 @@
 // plus helpers to create new versions and roll back to previous ones.
 // ---------------------------------------------------------------------------
 
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { selfImprovementDb } from './db';
 import { PROMPT_CACHE_TTL_MS } from './constants';
 import type { PromptSection, SystemPromptVersion } from './types';
 
@@ -63,7 +63,7 @@ export async function getActivePromptSection(
   const cached = promptCache.get(section);
   if (cached) return cached;
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await selfImprovementDb
     .from('system_prompt_versions')
     .select('content')
     .eq('section', section)
@@ -91,7 +91,7 @@ export async function createPromptVersion(
   createdBy: 'system' | 'human' = 'system'
 ): Promise<SystemPromptVersion | null> {
   // Get current active version
-  const { data: current } = await supabaseAdmin
+  const { data: current } = await selfImprovementDb
     .from('system_prompt_versions')
     .select('id, version, locked')
     .eq('section', section)
@@ -110,14 +110,14 @@ export async function createPromptVersion(
 
   // Deactivate current
   if (current) {
-    await supabaseAdmin
+    await selfImprovementDb
       .from('system_prompt_versions')
       .update({ is_active: false })
       .eq('id', current.id);
   }
 
   // Insert new version
-  const { data: newPrompt, error } = await supabaseAdmin
+  const { data: newPrompt, error } = await selfImprovementDb
     .from('system_prompt_versions')
     .insert({
       version: newVersion,
@@ -138,7 +138,7 @@ export async function createPromptVersion(
     );
     // Attempt to reactivate old version
     if (current) {
-      await supabaseAdmin
+      await selfImprovementDb
         .from('system_prompt_versions')
         .update({ is_active: true })
         .eq('id', current.id);
@@ -161,14 +161,14 @@ export async function rollbackPromptVersion(
   targetVersionId: string
 ): Promise<boolean> {
   // Deactivate current
-  await supabaseAdmin
+  await selfImprovementDb
     .from('system_prompt_versions')
     .update({ is_active: false })
     .eq('section', section)
     .eq('is_active', true);
 
   // Activate target
-  const { error } = await supabaseAdmin
+  const { error } = await selfImprovementDb
     .from('system_prompt_versions')
     .update({ is_active: true })
     .eq('id', targetVersionId);

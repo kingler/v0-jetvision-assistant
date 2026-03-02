@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { selfImprovementDb } from './db';
 
 /**
  * Seed initial prompt versions from the hardcoded system prompt.
@@ -12,7 +12,7 @@ export async function seedInitialPromptVersions(
     { name: 'scenario_handlers' as const, content: scenarioHandlers },
     { name: 'response_formats' as const, content: responseFormats },
   ]) {
-    const { count } = await supabaseAdmin
+    const { count } = await selfImprovementDb
       .from('system_prompt_versions')
       .select('*', { count: 'exact', head: true })
       .eq('section', section.name);
@@ -22,7 +22,7 @@ export async function seedInitialPromptVersions(
       continue;
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await selfImprovementDb
       .from('system_prompt_versions')
       .insert({
         version: 1,

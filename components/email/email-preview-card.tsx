@@ -233,14 +233,16 @@ export function EmailPreviewCard({
     }
   }
 
+  const isSent = status === 'sent'
+
   return (
-    <Card className="w-full">
+    <Card className={`w-full${isSent ? ' opacity-75' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-muted-foreground shrink-0" />
             <CardTitle className="text-sm sm:text-base font-semibold text-foreground">
-              Review Email Before Sending
+              {isSent ? 'Email Sent' : 'Review Email Before Sending'}
             </CardTitle>
           </div>
           {renderStatusBadge()}
@@ -507,7 +509,7 @@ export function EmailPreviewCard({
         )}
 
         {/* Generated timestamp */}
-        {generatedAt && (
+        {generatedAt && !isSent && (
           <p className="text-xs text-muted-foreground text-right" suppressHydrationWarning>
             Draft generated {new Date(generatedAt).toLocaleString()}
           </p>

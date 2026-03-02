@@ -640,7 +640,7 @@ export function AgentMessage({
         </div>
       )}
 
-      {showEmailApprovalRequest && emailApprovalData && emailApprovalStatus !== 'sent' && (
+      {showEmailApprovalRequest && emailApprovalData && (
         <div className="mt-4 w-full">
           <EmailPreviewCard
             proposalId={emailApprovalData.proposalId}

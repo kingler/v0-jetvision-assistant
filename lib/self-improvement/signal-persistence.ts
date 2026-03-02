@@ -2,10 +2,10 @@
 // Self-Improving Agent -- Signal Persistence Service
 // ---------------------------------------------------------------------------
 // Database layer for saving detected signals and workflow stage transitions.
-// Uses supabaseAdmin (service role) for all operations.
+// Uses selfImprovementDb (service role) for all operations.
 // ---------------------------------------------------------------------------
 
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { selfImprovementDb } from './db';
 import type { AgentSignal } from './types';
 
 /**
@@ -15,7 +15,7 @@ import type { AgentSignal } from './types';
 export async function saveSignals(signals: AgentSignal[]): Promise<void> {
   if (signals.length === 0) return;
 
-  const { error } = await supabaseAdmin
+  const { error } = await selfImprovementDb
     .from('agent_signals')
     .insert(signals);
 
@@ -37,7 +37,7 @@ export async function recordStageTransition(
 
   // Close the previous stage entry (set exited_at)
   if (previousStage) {
-    await supabaseAdmin
+    await selfImprovementDb
       .from('workflow_stage_timestamps')
       .update({ exited_at: now })
       .eq('request_id', requestId)
@@ -46,7 +46,7 @@ export async function recordStageTransition(
   }
 
   // Insert the new stage entry
-  const { error } = await supabaseAdmin
+  const { error } = await selfImprovementDb
     .from('workflow_stage_timestamps')
     .insert({
       request_id: requestId,
@@ -66,7 +66,7 @@ export async function recordStageTransition(
  */
 export async function getSignalsSinceLastReflection(): Promise<AgentSignal[]> {
   // Find last reflection timestamp
-  const { data: lastReflection } = await supabaseAdmin
+  const { data: lastReflection } = await selfImprovementDb
     .from('reflection_logs')
     .select('created_at')
     .order('created_at', { ascending: false })
@@ -75,7 +75,7 @@ export async function getSignalsSinceLastReflection(): Promise<AgentSignal[]> {
 
   const since = lastReflection?.created_at || '2000-01-01T00:00:00Z';
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await selfImprovementDb
     .from('agent_signals')
     .select('*')
     .gte('created_at', since)
@@ -94,7 +94,7 @@ export async function getSignalsSinceLastReflection(): Promise<AgentSignal[]> {
  * Used to decide whether enough data has accumulated for a new reflection cycle.
  */
 export async function countCompletedSessionsSinceLastReflection(): Promise<number> {
-  const { data: lastReflection } = await supabaseAdmin
+  const { data: lastReflection } = await selfImprovementDb
     .from('reflection_logs')
     .select('created_at')
     .order('created_at', { ascending: false })
@@ -103,7 +103,7 @@ export async function countCompletedSessionsSinceLastReflection(): Promise<numbe
 
   const since = lastReflection?.created_at || '2000-01-01T00:00:00Z';
 
-  const { count, error } = await supabaseAdmin
+  const { count, error } = await selfImprovementDb
     .from('requests')
     .select('*', { count: 'exact', head: true })
     .in('session_status', ['archived'])

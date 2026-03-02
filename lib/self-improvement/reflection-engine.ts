@@ -10,7 +10,7 @@
 //   - runReflection()             -- full loop: check -> gather -> evaluate -> decide -> log -> apply
 // ---------------------------------------------------------------------------
 
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { selfImprovementDb } from './db';
 import {
   MIN_SESSIONS_FOR_REFLECTION,
   COOLDOWN_HOURS,
@@ -58,7 +58,7 @@ export async function canRunReflection(): Promise<{
   reason?: string;
 }> {
   // Check cooldown
-  const { data: lastReflection } = await supabaseAdmin
+  const { data: lastReflection } = await selfImprovementDb
     .from('reflection_logs')
     .select('created_at')
     .order('created_at', { ascending: false })
@@ -95,7 +95,7 @@ export async function canRunReflection(): Promise<{
  * along with their messages.
  */
 async function gatherConversations(): Promise<ConversationForEval[]> {
-  const { data: lastReflection } = await supabaseAdmin
+  const { data: lastReflection } = await selfImprovementDb
     .from('reflection_logs')
     .select('created_at')
     .order('created_at', { ascending: false })
@@ -104,7 +104,7 @@ async function gatherConversations(): Promise<ConversationForEval[]> {
 
   const since = lastReflection?.created_at || '2000-01-01T00:00:00Z';
 
-  const { data: requests } = await supabaseAdmin
+  const { data: requests } = await selfImprovementDb
     .from('requests')
     .select('id, workflow_state, session_status')
     .in('session_status', ['archived'])
@@ -117,7 +117,7 @@ async function gatherConversations(): Promise<ConversationForEval[]> {
   const conversations: ConversationForEval[] = [];
 
   for (const req of requests) {
-    const { data: messages } = await supabaseAdmin
+    const { data: messages } = await selfImprovementDb
       .from('messages')
       .select('sender_type, content, metadata')
       .eq('request_id', req.id)
@@ -152,18 +152,18 @@ async function gatherOutcomes(
   const outcomes: WorkflowOutcome[] = [];
 
   for (const id of conversationIds) {
-    const { data: timestamps } = await supabaseAdmin
+    const { data: timestamps } = await selfImprovementDb
       .from('workflow_stage_timestamps')
       .select('*')
       .eq('request_id', id)
       .order('entered_at', { ascending: true });
 
-    const { count: msgCount } = await supabaseAdmin
+    const { count: msgCount } = await selfImprovementDb
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .eq('request_id', id);
 
-    const { data: req } = await supabaseAdmin
+    const { data: req } = await selfImprovementDb
       .from('requests')
       .select('workflow_state')
       .eq('id', id)
@@ -208,7 +208,7 @@ async function applyImprovements(
         });
       }
     } else {
-      await supabaseAdmin.from('prompt_suggestions').insert({
+      await selfImprovementDb.from('prompt_suggestions').insert({
         reflection_log_id: reflectionLogId,
         severity: improvement.severity,
         target_section: improvement.target_section,
@@ -270,7 +270,7 @@ export async function runReflection(): Promise<{
   const action = decideAction(evaluation.scores.overall_score);
 
   // 5. Log reflection
-  const { data: reflectionLog, error } = await supabaseAdmin
+  const { data: reflectionLog, error } = await selfImprovementDb
     .from('reflection_logs')
     .insert({
       conversations_analyzed: conversations.length,
