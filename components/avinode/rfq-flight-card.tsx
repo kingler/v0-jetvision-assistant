@@ -456,7 +456,7 @@ export function RFQFlightCard({
   /**
    * Determine medical availability - use prop if provided, otherwise from amenities
    */
-  const medicalAvailable = hasMedical !== undefined ? hasMedical : flight.amenities.medical;
+  const medicalAvailable = hasMedical !== undefined ? hasMedical : flight.amenities?.medical;
 
   /**
    * Determine package availability - use prop if provided, default to false
@@ -842,9 +842,9 @@ export function RFQFlightCard({
             <div data-testid="amenities-section" className="flex-1 space-y-2 pt-2 border-t border-border">
               <h5 className="text-xs sm:text-sm font-semibold text-foreground">Amenities</h5>
               <div className="space-y-1 text-xs sm:text-sm text-foreground">
-                <p><span className="font-medium">Pets Allowed:</span> {flight.amenities.pets ? 'YES' : 'NO'}</p>
-                <p><span className="font-medium">Smoking Allowed:</span> {flight.amenities.smoking ? 'YES' : 'NO'}</p>
-                <p><span className="font-medium">Wi-Fi:</span> {flight.amenities.wifi ? 'YES' : 'NO'}</p>
+                <p><span className="font-medium">Pets Allowed:</span> {flight.amenities?.pets ? 'YES' : 'NO'}</p>
+                <p><span className="font-medium">Smoking Allowed:</span> {flight.amenities?.smoking ? 'YES' : 'NO'}</p>
+                <p><span className="font-medium">Wi-Fi:</span> {flight.amenities?.wifi ? 'YES' : 'NO'}</p>
               </div>
             </div>
           </div>

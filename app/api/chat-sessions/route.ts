@@ -257,7 +257,15 @@ export async function GET(request: NextRequest) {
         validUntil: quote.valid_until,
         declineReason: quote.decline_reason,
         createdAt: quote.created_at,
-        // Merge any additional fields from metadata
+        amenities: {
+          wifi: false,
+          pets: false,
+          smoking: false,
+          galley: false,
+          lavatory: false,
+          medical: false,
+        },
+        // Merge any additional fields from metadata (may override amenities defaults)
         ...(quote.metadata || {}),
       })),
     }));
