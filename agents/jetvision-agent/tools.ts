@@ -555,6 +555,61 @@ export const DATABASE_TOOLS: OpenAIToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'send_contract_email',
+      description: 'Send a generated contract to the client via email. Updates contract status from draft to sent. The contract_id is auto-resolved from the active session if not provided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contract_id: {
+            type: 'string',
+            description: 'Contract UUID or contract number (optional — auto-resolved from active session if omitted)',
+          },
+          to_email: {
+            type: 'string',
+            description: 'Recipient email address (optional — auto-resolved from contract record)',
+          },
+          to_name: {
+            type: 'string',
+            description: 'Recipient name (optional — auto-resolved from contract record)',
+          },
+          subject: {
+            type: 'string',
+            description: 'Custom email subject (optional — defaults to flight route)',
+          },
+          message: {
+            type: 'string',
+            description: 'Custom email body text (optional)',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_contract_status',
+      description: 'Update the status of a contract (e.g., draft → sent, sent → signed, etc.). The contract_id is auto-resolved from the active session if not provided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contract_id: {
+            type: 'string',
+            description: 'Contract UUID or contract number (optional — auto-resolved from active session if omitted)',
+          },
+          status: {
+            type: 'string',
+            enum: ['sent', 'viewed', 'signed', 'payment_pending', 'paid', 'completed', 'cancelled'],
+            description: 'New contract status',
+          },
+        },
+        required: ['status'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'confirm_payment',
       description: 'Record payment received for a contract and close the deal. Use this when the customer has paid. The contract_id is auto-resolved from the active session if not provided.',
       parameters: {
@@ -820,6 +875,8 @@ export const TOOL_CATEGORIES: Record<string, 'avinode' | 'database' | 'gmail'> =
   create_proposal: 'database',
   get_proposal: 'database',
   generate_contract: 'database',
+  send_contract_email: 'database',
+  update_contract_status: 'database',
   confirm_payment: 'database',
   update_request_status: 'database',
   get_pipeline: 'database',

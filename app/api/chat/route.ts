@@ -789,6 +789,30 @@ export async function POST(req: NextRequest) {
         };
       }
 
+      // ONEK-338 C3: Extract send_contract_email results for ContractSentConfirmation card
+      if (toolName === 'send_contract_email' && tr.success && tr.data) {
+        const data = tr.data as Record<string, unknown>;
+        console.log('[Chat API] ✅ send_contract_email tool succeeded:', {
+          contractId: data.contractId,
+          contractNumber: data.contractNumber,
+        });
+        contractSentData = {
+          contractId: data.contractId as string,
+          contractNumber: data.contractNumber as string,
+          status: (data.status as string) || 'sent',
+          pdfUrl: data.pdfUrl as string | undefined,
+          customer: {
+            name: (data.customerName as string) || 'Customer',
+            email: (data.customerEmail as string) || '',
+          },
+          pricing: {
+            totalAmount: (data.totalAmount as number) || 0,
+            currency: (data.currency as string) || 'USD',
+          },
+          flightRoute: (data.flightRoute as string) || '',
+        };
+      }
+
       // ONEK-300: Extract confirm_payment results for PaymentConfirmedCard
       if (toolName === 'confirm_payment' && tr.success && tr.data) {
         const data = tr.data as Record<string, unknown>;

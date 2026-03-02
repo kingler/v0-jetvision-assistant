@@ -127,7 +127,7 @@ test.describe('Phase 6: Trip Type Lifecycle', () => {
     // Send multi-city trip request
     await sendChatMessage(
       page,
-      'I need a multi-city trip: KTEB to London Luton (EGGW) on March 10, then London Luton to Paris Le Bourget (LFPB) on March 12, then Paris Le Bourget back to KTEB on March 15. 4 passengers'
+      'I need a multi-city trip for 4 passengers: Leg 1: KTEB to EGGW on March 10, 2026 at 8:00am EST. Leg 2: EGGW to LFPB on March 12, 2026 at 10:00am GMT. Leg 3: LFPB to KTEB on March 15, 2026 at 2:00pm CET.'
     );
 
     // Wait for trip card to render

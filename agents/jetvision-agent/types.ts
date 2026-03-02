@@ -306,6 +306,25 @@ export interface DatabaseTools {
     result: Record<string, unknown>;
   };
 
+  send_contract_email: {
+    params: {
+      contract_id?: string;
+      to_email?: string;
+      to_name?: string;
+      subject?: string;
+      message?: string;
+    };
+    result: Record<string, unknown>;
+  };
+
+  update_contract_status: {
+    params: {
+      contract_id?: string;
+      status: 'sent' | 'viewed' | 'signed' | 'payment_pending' | 'paid' | 'completed' | 'cancelled';
+    };
+    result: Record<string, unknown>;
+  };
+
   confirm_payment: {
     params: {
       contract_id?: string;
