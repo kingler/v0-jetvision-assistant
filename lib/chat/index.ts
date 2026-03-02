@@ -90,3 +90,10 @@ export {
 
 // Book Flight customer derivation (selected proposal customer for contract modal)
 export { getBookFlightCustomer } from './book-flight-customer';
+
+// Flight lookup with fallbacks (ONEK-337: fixes silent failure on Book Flight button)
+export {
+  findFlightWithFallbacks,
+  type FlightLookupSources,
+  type FlightLookupResult,
+} from './find-flight';

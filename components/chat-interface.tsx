@@ -65,6 +65,8 @@ import {
   extractRouteParts,
   // Book Flight customer derivation
   getBookFlightCustomer,
+  // Flight lookup with fallbacks (ONEK-337)
+  findFlightWithFallbacks,
   // Agent notification utilities (ONEK-173)
   formatQuoteReceivedMessage,
   formatOperatorMessageNotification,
@@ -2183,11 +2185,27 @@ export function ChatInterface({
   const handleBookFlight = useCallback((flightId: string, quoteId?: string) => {
     console.log('[ChatInterface] Book flight:', { flightId, quoteId })
 
-    // Find the flight from rfqFlights
-    const flight = rfqFlights.find(f => f.id === flightId)
+    // ONEK-337: Find flight with fallback lookup sources.
+    // After page reload, the rfqFlights memo may be empty even though
+    // activeChat.rfqFlights or activeChat.quotes still have the data.
+    const { flight, source } = findFlightWithFallbacks(flightId, {
+      rfqFlightsMemo: rfqFlights,
+      activeChatRfqFlights: activeChat.rfqFlights as RFQFlight[] | undefined,
+      activeChatQuotes: activeChat.quotes,
+    })
+
     if (!flight) {
-      console.error('[ChatInterface] Flight not found:', flightId)
+      console.error('[ChatInterface] Flight not found after all fallbacks:', {
+        flightId,
+        rfqFlightsCount: rfqFlights.length,
+        activeChatRfqFlightsCount: activeChat.rfqFlights?.length ?? 0,
+        activeChatQuotesCount: activeChat.quotes?.length ?? 0,
+      })
       return
+    }
+
+    if (source !== 'memo') {
+      console.warn(`[ChatInterface] Flight found via fallback source: ${source}`, { flightId })
     }
 
     // Check if there's an existing proposal with customer data
@@ -2218,7 +2236,7 @@ export function ChatInterface({
     setPendingBookFlightId(flightId)
     setPendingBookFlightQuoteId(quoteId)
     setIsBookingCustomerDialogOpen(true)
-  }, [rfqFlights, activeChat.messages])
+  }, [rfqFlights, activeChat.messages, activeChat.rfqFlights, activeChat.quotes])
 
   /**
    * Handle customer selection for booking
@@ -2234,11 +2252,25 @@ export function ChatInterface({
       return
     }
 
-    // Find the flight from rfqFlights
-    const flight = rfqFlights.find(f => f.id === pendingBookFlightId)
+    // ONEK-337: Find flight with fallback lookup sources (same fix as handleBookFlight)
+    const { flight, source } = findFlightWithFallbacks(pendingBookFlightId, {
+      rfqFlightsMemo: rfqFlights,
+      activeChatRfqFlights: activeChat.rfqFlights as RFQFlight[] | undefined,
+      activeChatQuotes: activeChat.quotes,
+    })
+
     if (!flight) {
-      console.error('[ChatInterface] Flight not found:', pendingBookFlightId)
+      console.error('[ChatInterface] Flight not found after all fallbacks:', {
+        flightId: pendingBookFlightId,
+        rfqFlightsCount: rfqFlights.length,
+        activeChatRfqFlightsCount: activeChat.rfqFlights?.length ?? 0,
+        activeChatQuotesCount: activeChat.quotes?.length ?? 0,
+      })
       return
+    }
+
+    if (source !== 'memo') {
+      console.warn(`[ChatInterface] Flight found via fallback source: ${source}`, { flightId: pendingBookFlightId })
     }
 
     // Set the selected customer for booking
@@ -2257,7 +2289,7 @@ export function ChatInterface({
     // Clear pending state
     setPendingBookFlightId(null)
     setPendingBookFlightQuoteId(undefined)
-  }, [pendingBookFlightId, rfqFlights])
+  }, [pendingBookFlightId, rfqFlights, activeChat.rfqFlights, activeChat.quotes])
 
   /**
    * Handle contract sent - called when contract is successfully sent from the modal
