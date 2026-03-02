@@ -250,6 +250,37 @@ export function safeParseTimestamp(timestamp: Date | string | undefined | null):
 }
 
 /**
+ * Convert markdown-formatted text to plain text.
+ *
+ * Strips bold, italic, headers, code blocks, links, list markers,
+ * and standalone JSON object lines (tool results leaked by model).
+ *
+ * @param text - Markdown text to strip
+ * @returns Plain text with markdown formatting removed
+ *
+ * @example
+ * stripMarkdown('**Hello** _world_') // 'Hello world'
+ * stripMarkdown('# Title\n\nBody') // 'Title\n\nBody'
+ */
+export function stripMarkdown(text: string): string {
+  return text
+    // Remove standalone JSON object lines (tool results leaked by model)
+    .replace(/^\s*\{"[^"]+"\s*:.*\}\s*$/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[\s]*[-*+]\s+/gm, '• ')
+    .replace(/^[\s]*(\d+)\.\s+/gm, '$1. ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
  * Format a number with thousand separators
  *
  * @param num - Number to format

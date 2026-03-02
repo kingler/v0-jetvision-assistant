@@ -21,4 +21,6 @@ export {
   getMostRecentByType,
   hasUnreadOperatorMessages,
   countByType,
+  isProposalConfirmation,
+  deduplicateMessages,
 } from './messageTransformers';

@@ -38,7 +38,9 @@ export function shouldShowFlightProgress(chat: ChatSession): boolean {
  * @returns Whether a trip has been created
  */
 function hasTripCreated(chat: ChatSession): boolean {
-  return !!(chat.tripId || chat.deepLink || chat.requestId);
+  // Note: requestId is intentionally excluded — it's the conversation/session ID
+  // set on every API response, not an indicator of trip creation
+  return !!(chat.tripId || chat.deepLink);
 }
 
 /**
@@ -113,8 +115,10 @@ export function calculateCurrentStep(
     return 4;
   }
 
-  // Step 3: If we have tripId and RFQs are not loaded yet
-  if (chat.tripId && rfqFlightsCount === 0) {
+  // Step 3: If we have tripId (regardless of whether RFQs are loaded)
+  // FIX: Previously checked `rfqFlightsCount === 0` which caused fallthrough
+  // when tripId existed with RFQs but !tripIdSubmitted
+  if (chat.tripId) {
     return 3;
   }
 

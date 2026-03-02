@@ -16,104 +16,14 @@ import { FlightSearchProgress } from '@/components/avinode/flight-search-progres
 import { UserMessage } from './UserMessage';
 import { OperatorMessage } from './OperatorMessage';
 import type { ChatMessageListProps, UnifiedMessage, OperatorMessageItem } from '../types';
+import { stripMarkdown } from '@/lib/utils/format';
+import { calculateCurrentStep as calculateCurrentStepFromChat } from '../utils/flightProgressValidation';
+import { deduplicateMessages, isProposalConfirmation } from '../utils/messageTransformers';
+import type { ChatSession } from '@/components/chat-sidebar';
 
 /**
- * Strip markdown formatting from text for plain text display
- */
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/__([^_]+)__/g, '$1')
-    .replace(/_([^_]+)_/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/^[\s]*[-*+]\s+/gm, '• ')
-    .replace(/^[\s]*(\d+)\.\s+/gm, '$1. ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-/**
- * Check if a message is a proposal confirmation
- */
-function isProposalConfirmation(message: UnifiedMessage): boolean {
-  if (message.showProposalSentConfirmation && message.proposalSentData) {
-    return true;
-  }
-
-  const content = message.content?.toLowerCase() || '';
-  return (
-    (content.includes('proposal') && content.includes('sent')) ||
-    content.includes('was sent to')
-  );
-}
-
-/**
- * Deduplicate messages by ID and content
- */
-function deduplicateMessages(
-  messages: UnifiedMessage[]
-): Array<{ message: UnifiedMessage; index: number }> {
-  return messages.reduce((acc, message, index) => {
-    // Always keep user messages and operator messages (check by ID only)
-    if (message.type === 'user' || message.type === 'operator') {
-      const hasDuplicateId = acc.some(
-        ({ message: existing }) => existing.id === message.id
-      );
-      if (!hasDuplicateId) {
-        acc.push({ message, index });
-      }
-      return acc;
-    }
-
-    // Always keep proposal-sent confirmation messages
-    if (message.showProposalSentConfirmation && message.proposalSentData) {
-      const hasDuplicateId = acc.some(
-        ({ message: existing }) => existing.id === message.id
-      );
-      if (!hasDuplicateId) {
-        acc.push({ message, index });
-      }
-      return acc;
-    }
-
-    // For agent messages, check for true duplicates
-    const messageContent = (message.content || '').trim();
-
-    // Check if we already have a message with the same ID
-    const hasDuplicateId = acc.some(
-      ({ message: existing }) => existing.id === message.id && message.id !== undefined
-    );
-    if (hasDuplicateId) {
-      return acc;
-    }
-
-    // Check if we already have a message with exact same content
-    const hasDuplicateContent = acc.some(({ message: existing }) => {
-      if (existing.type !== 'agent' || message.type !== 'agent') return false;
-      const existingContent = (existing.content || '').trim();
-      return existingContent === messageContent && messageContent.length > 0;
-    });
-    if (hasDuplicateContent) {
-      return acc;
-    }
-
-    acc.push({ message, index });
-    return acc;
-  }, [] as Array<{ message: UnifiedMessage; index: number }>);
-}
-
-/**
- * Calculate the current step for FlightSearchProgress
- *
- * Step progression:
- * 1. Trip request created (basic info captured)
- * 2. Deep link available (user can open Avinode)
- * 3. Trip ID available (RFQs can be viewed/fetched)
- * 4. RFQ flights loaded AND user has submitted/viewed (ready for proposal)
+ * Calculate the current step for FlightSearchProgress.
+ * Delegates to the shared implementation in flightProgressValidation.ts.
  */
 function calculateCurrentStep(
   currentStep: number | undefined,
@@ -122,25 +32,11 @@ function calculateCurrentStep(
   rfqFlightsCount: number,
   tripIdSubmitted: boolean
 ): number {
-  // Step 4: If we have RFQ flights AND tripId is submitted (ready to send proposal)
-  if (rfqFlightsCount > 0 && tripIdSubmitted) {
-    return 4;
-  }
-
-  // Step 3: If we have tripId (regardless of whether RFQs are loaded)
-  // This ensures Step 3 is shown when tripId exists with or without RFQs
-  // FIX: Previously fell through to Step 2 when tripId existed but rfqFlightsCount > 0 and !tripIdSubmitted
-  if (tripId) {
-    return 3;
-  }
-
-  // Step 2: If we have deepLink (means request created, ready to select in Avinode)
-  if (deepLink) {
-    return 2;
-  }
-
-  // Step 1: Default (request created)
-  return currentStep || 1;
+  return calculateCurrentStepFromChat(
+    { tripId, deepLink, currentStep } as ChatSession,
+    rfqFlightsCount,
+    tripIdSubmitted
+  );
 }
 
 /**
@@ -377,6 +273,7 @@ export function ChatMessageList({
           paymentConfirmationData={message.paymentConfirmationData}
           showClosedWon={message.showClosedWon}
           closedWonData={message.closedWonData}
+          pdfPreviewBase64={message.pdfPreviewBase64}
           showEmailApprovalRequest={message.showEmailApprovalRequest}
           emailApprovalData={message.emailApprovalData}
           onViewRequest={onViewRequest}

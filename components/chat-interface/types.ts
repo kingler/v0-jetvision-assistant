@@ -57,9 +57,35 @@ export interface UnifiedMessage {
     contractSentAt?: string;
     paymentReceivedAt?: string;
   };
+  // PDF proposal preview
+  pdfPreviewBase64?: string;
   // Email approval workflow
   showEmailApprovalRequest?: boolean;
   emailApprovalData?: EmailApprovalRequestContent;
+  // Margin selection
+  showMarginSelection?: boolean;
+  marginSelectionCompleted?: boolean;
+  marginSelectionData?: {
+    customerName: string;
+    customerEmail: string;
+    companyName: string;
+    marginPercentage: number;
+    selectedAt: string;
+  };
+  // Email approval sent status
+  emailApprovalSentStatus?: 'sent' | 'error';
+  // MCP UI tool results (feature-flagged)
+  toolResults?: Array<{ name: string; input: Record<string, unknown>; result: Record<string, unknown> }>;
+  // System event notification properties (ONEK-173)
+  isSystemEvent?: boolean;
+  systemEventData?: {
+    eventType: 'quote_received' | 'operator_message' | 'quote_declined' | 'proposal_ready' | 'contract_sent';
+    operatorName?: string;
+    quoteId?: string;
+    batchCount?: number;
+    tripId?: string;
+    messagePreview?: string;
+  };
   // Empty leg search results
   showEmptyLegs?: boolean;
   emptyLegData?: Array<Record<string, unknown>>;

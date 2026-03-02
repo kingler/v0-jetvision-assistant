@@ -18,10 +18,11 @@ describe('calculateCurrentStep', () => {
     expect(calculateCurrentStep({ ...baseChat, tripId: 'trp123' }, 0, false)).toBe(3);
   });
 
-  // tripId + RFQs loaded + NOT submitted → falls through to default (step 1)
-  // Step 3 only applies when rfqFlightsCount === 0 (waiting for quotes)
-  it('returns 1 when tripId exists with RFQs but not submitted', () => {
-    expect(calculateCurrentStep({ ...baseChat, tripId: 'trp123' }, 5, false)).toBe(1);
+  // tripId + RFQs loaded + NOT submitted → step 3 (awaiting submission)
+  // FIX: Previously fell through to step 1; now correctly returns step 3
+  // because tripId is present (regardless of rfqFlightsCount)
+  it('returns 3 when tripId exists with RFQs but not submitted', () => {
+    expect(calculateCurrentStep({ ...baseChat, tripId: 'trp123' }, 5, false)).toBe(3);
   });
 
   it('returns 2 when only deepLink exists', () => {
@@ -94,6 +95,17 @@ describe('shouldShowFlightProgress', () => {
         route: 'KTEB → KLAX',
         date: '2025-06-15',
         passengers: 0,
+      } as any)
+    ).toBe(false);
+  });
+
+  it('returns false with only requestId (no tripId or deepLink)', () => {
+    expect(
+      shouldShowFlightProgress({
+        requestId: 'req-123',
+        route: 'KTEB → KLAX',
+        date: '2025-06-15',
+        passengers: 4,
       } as any)
     ).toBe(false);
   });

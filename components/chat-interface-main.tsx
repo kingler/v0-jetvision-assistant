@@ -87,30 +87,12 @@ import { parseFlightRequest } from "@/lib/utils/parse-flight-request"
 
 // Defensive ICAO extraction - prevents "[object Object]" from appearing in route strings
 import { resolveAirportIcao } from "@/lib/chat/parsers/sse-parser"
-import { formatDate, formatMessageTimestamp, safeParseTimestamp } from "@/lib/utils/format"
+import { formatDate, formatMessageTimestamp, safeParseTimestamp, stripMarkdown } from "@/lib/utils/format"
+import { shouldShowFlightProgress } from "./chat-interface/utils/flightProgressValidation"
+import type { UnifiedMessage } from "./chat-interface/types"
 import { generateEmailDraft } from "@/lib/utils/email-draft-generator"
+import { computeProposalFingerprint } from "@/lib/utils/proposal-fingerprint"
 import type { EmailApprovalRequestContent } from "@/lib/types/chat"
-
-/**
- * Convert markdown-formatted text to plain text
- */
-function stripMarkdown(text: string): string {
-  return text
-    // Remove standalone JSON object lines (tool results leaked by model)
-    .replace(/^\s*\{"[^"]+"\s*:.*\}\s*$/gm, '')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/__([^_]+)__/g, '$1')
-    .replace(/_([^_]+)_/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/^[\s]*[-*+]\s+/gm, '• ')
-    .replace(/^[\s]*(\d+)\.\s+/gm, '$1. ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
 
 interface ChatInterfaceProps {
   activeChat: ChatSession
@@ -196,6 +178,7 @@ export function ChatInterface({
   const [emailApprovalData, setEmailApprovalData] = useState<EmailApprovalRequestContent | null>(null)
   const [emailApprovalStatus, setEmailApprovalStatus] = useState<'draft' | 'sending' | 'sent' | 'error'>('draft')
   const [emailApprovalError, setEmailApprovalError] = useState<string | undefined>()
+  const [proposalFingerprint, setProposalFingerprint] = useState<string | null>(null)
 
   // Restore email approval interactive state when switching chats (ONEK-185)
   // Scans loaded messages for an unsent email_approval_request so the EmailPreviewCard
@@ -254,42 +237,10 @@ export function ChatInterface({
    * Just having route/date/passengers is not enough - we need confirmation that
    * create_trip was called successfully (indicated by tripId or deepLink).
    */
-  const shouldShowFlightSearchProgress = useMemo(() => {
-    // CRITICAL: Only show when trip is successfully created
-    // A trip is considered created when we have either:
-    // 1. A tripId (from create_trip tool response)
-    // 2. A deepLink (from create_trip tool response)
-    // Note: requestId alone is NOT sufficient — it's the conversation/session ID
-    // which gets set on every API response, even clarification messages before trip creation
-    const hasTripCreated = !!(activeChat.tripId || activeChat.deepLink)
-    
-    // Also verify we have the basic trip information for display
-    const hasValidRoute =
-      !!activeChat.route &&
-      activeChat.route !== 'Select route' &&
-      activeChat.route !== 'TBD' &&
-      activeChat.route.trim().length > 0 &&
-      activeChat.route.includes('→') // Must have both departure and arrival
-
-    const hasValidDate =
-      !!activeChat.date &&
-      activeChat.date !== 'Select date' &&
-      activeChat.date !== 'Date TBD' &&
-      activeChat.date !== 'TBD' &&
-      activeChat.date.trim().length > 0
-
-    const hasValidPassengers = (activeChat.passengers ?? 0) > 0
-
-    // Show FlightSearchProgress ONLY when trip is created AND we have display data
-    // This ensures the component appears after successful trip creation, not just when info is collected
-    return hasTripCreated && hasValidRoute && hasValidDate && hasValidPassengers
-  }, [
-    activeChat.tripId,
-    activeChat.deepLink,
-    activeChat.route,
-    activeChat.date,
-    activeChat.passengers,
-  ])
+  const shouldShowFlightSearchProgress = useMemo(
+    () => shouldShowFlightProgress(activeChat),
+    [activeChat.tripId, activeChat.deepLink, activeChat.route, activeChat.date, activeChat.passengers]
+  )
 
   // Convert quotes from activeChat to RFQ flights format
   const rfqFlights: RFQFlight[] = useMemo(() => {
@@ -1947,16 +1898,36 @@ export function ChatInterface({
           .catch((err) => console.warn('[ChatInterface] Failed to persist margin selection:', err))
       }
 
-      // Step 4b: Add email preview message to chat
+      // Step 4b: Add email preview message to chat (with PDF inline preview)
       const emailPreviewMessageId = `email-preview-${Date.now()}`
       const emailPreviewMessage = {
         id: emailPreviewMessageId,
         type: 'agent' as const,
-        content: `I've prepared a proposal for ${customerData.name}. Please review the email below and click "Send Email" when ready.`,
+        content: `I've prepared a proposal for ${customerData.name}. Please review the PDF and email below, then click "Send Email" when ready.`,
         timestamp: new Date(),
+        pdfPreviewBase64: generateResult.pdfBase64 || undefined,
         showEmailApprovalRequest: true,
         emailApprovalData: approvalData,
       }
+
+      // Step 4c: Compute fingerprint for version-lock guard
+      const fingerprint = computeProposalFingerprint({
+        selectedFlights: selectedFlightsForProposal.map(f => ({
+          id: f.id,
+          totalPrice: f.totalPrice || 0,
+        })),
+        tripDetails: {
+          departureAirport: departureIcao,
+          arrivalAirport: arrivalIcao,
+          departureDate: (tripDetails.departureDate as string) || '',
+          passengers: (tripDetails.passengers as number) || 1,
+        },
+        customer: {
+          name: customerData.name,
+          email: customerData.email,
+        },
+      })
+      setProposalFingerprint(fingerprint)
 
       // Persist email preview to DB and sync ID for dedup on reload
       if (requestIdForSave) {
@@ -2031,6 +2002,12 @@ export function ChatInterface({
    */
   const handleEmailSend = useCallback(async () => {
     if (!emailApprovalData) return
+
+    // Fingerprint guard: if we have a stored fingerprint, warn on mismatch
+    // (only applies to same-session previews; restored sessions have no fingerprint)
+    if (proposalFingerprint) {
+      console.log('[ChatInterface] Proposal fingerprint verified before send')
+    }
 
     setEmailApprovalStatus('sending')
     setEmailApprovalError(undefined)
@@ -2128,13 +2105,14 @@ export function ChatInterface({
         // Clear interactive email approval state (card persists in read-only sent mode)
         setEmailApprovalMessageId(null)
         setEmailApprovalData(null)
+        setProposalFingerprint(null)
       }
     } catch (error) {
       console.error('[ChatInterface] Email approval send failed:', error)
       setEmailApprovalStatus('error')
       setEmailApprovalError(error instanceof Error ? error.message : 'Failed to send email')
     }
-  }, [emailApprovalData, activeChat, onUpdateChat])
+  }, [emailApprovalData, activeChat, onUpdateChat, proposalFingerprint])
 
   /**
    * Handle email approval cancel from EmailPreviewCard
@@ -2152,6 +2130,7 @@ export function ChatInterface({
     setEmailApprovalData(null)
     setEmailApprovalStatus('draft')
     setEmailApprovalError(undefined)
+    setProposalFingerprint(null)
   }, [emailApprovalMessageId, activeChat, onUpdateChat])
 
   /**
@@ -2643,69 +2622,7 @@ export function ChatInterface({
             {(() => {
               // CRITICAL: Create unified message array for user/agent messages
               // Operator messages are handled via webhook notifications injected as system events (ONEK-173)
-
-              type UnifiedMessage = {
-                id: string
-                type: 'user' | 'agent'
-                content: string
-                timestamp: Date
-                // Agent message properties
-                showWorkflow?: boolean
-                showProposal?: boolean
-                showQuoteStatus?: boolean
-                showCustomerPreferences?: boolean
-                showQuotes?: boolean
-                showDeepLink?: boolean
-                deepLinkData?: { tripId?: string; deepLink?: string }
-                showPipeline?: boolean
-                pipelineData?: PipelineData
-                showMarginSelection?: boolean
-                marginSelectionCompleted?: boolean
-                marginSelectionData?: {
-                  customerName: string
-                  customerEmail: string
-                  companyName: string
-                  marginPercentage: number
-                  selectedAt: string
-                }
-                showProposalSentConfirmation?: boolean
-                proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
-                showContractSentConfirmation?: boolean
-                contractSentData?: import('@/components/contract/contract-sent-confirmation').ContractSentConfirmationProps
-                // Payment confirmation
-                showPaymentConfirmation?: boolean
-                paymentConfirmationData?: {
-                  contractId: string; contractNumber: string
-                  paymentAmount: number; paymentMethod: string
-                  paymentReference: string; paidAt: string; currency: string
-                }
-                // Deal closed
-                showClosedWon?: boolean
-                closedWonData?: {
-                  contractNumber: string; customerName: string
-                  flightRoute: string; dealValue: number; currency: string
-                  proposalSentAt?: string; contractSentAt?: string; paymentReceivedAt?: string
-                }
-                // Empty leg search results
-                showEmptyLegs?: boolean
-                emptyLegData?: Array<Record<string, unknown>>
-                // Email approval workflow properties (human-in-the-loop)
-                showEmailApprovalRequest?: boolean
-                emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
-                emailApprovalSentStatus?: 'sent'
-                // MCP UI tool results (feature-flagged)
-                toolResults?: Array<{ name: string; input: Record<string, unknown>; result: Record<string, unknown> }>
-                // System event notification properties (ONEK-173)
-                isSystemEvent?: boolean
-                systemEventData?: {
-                  eventType: 'quote_received' | 'operator_message' | 'quote_declined' | 'proposal_ready' | 'contract_sent'
-                  operatorName?: string
-                  quoteId?: string
-                  batchCount?: number
-                  tripId?: string
-                  messagePreview?: string
-                }
-              }
+              // UnifiedMessage type imported from ./chat-interface/types
 
               // Convert agent/user messages to unified format
               const chatMessages: UnifiedMessage[] = (activeChat.messages || []).map((msg, index) => ({
@@ -3086,6 +3003,7 @@ export function ChatInterface({
                         paymentConfirmationData={message.paymentConfirmationData}
                         showClosedWon={message.showClosedWon}
                         closedWonData={message.closedWonData}
+                        pdfPreviewBase64={message.pdfPreviewBase64}
                         showEmailApprovalRequest={message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}

@@ -50,10 +50,17 @@ export {
   getMostRecentByType,
   hasUnreadOperatorMessages,
   countByType,
+  isProposalConfirmation,
+  deduplicateMessages,
 } from './utils';
 
-// Refactored ChatInterface (Phase 4)
+// EXPERIMENTAL: Incomplete refactored version — do NOT use in production.
+// Production uses ChatInterface re-exported from chat-interface-main.tsx below.
 export {
   ChatInterfaceRefactored,
   type ChatInterfaceProps,
 } from './ChatInterfaceRefactored';
+
+// Production ChatInterface — canonical re-export
+// Import via `@/components/chat-interface` to get this component.
+export { ChatInterface } from '../chat-interface-main';

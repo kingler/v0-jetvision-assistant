@@ -1,14 +1,17 @@
 /**
- * ChatInterface (Refactored)
+ * ChatInterface (Refactored) - EXPERIMENTAL
+ *
+ * @experimental This is an incomplete refactored version of the chat interface.
+ *
+ * WARNING: This is an incomplete refactored version. Production uses ChatInterface
+ * from chat-interface-main.tsx. Missing: email approval, payment workflow, contracts,
+ * Supabase realtime, webhook handling, and many other features.
  *
  * Refactored chat interface using extracted UI components.
- * This version reduces the original 2,475 lines to ~400 lines through:
+ * This version reduces the original monolith to ~400 lines through:
  * - Extracted UI components (MessageList, ChatInput, StreamingIndicator, ErrorDisplay)
  * - Utility functions (messageTransformers, flightProgressValidation)
  * - Simplified local state management
- *
- * Note: This is a simplified version that can be used as a drop-in replacement.
- * For the full feature set, see the original chat-interface.tsx.
  *
  * @module components/chat-interface/ChatInterfaceRefactored
  */

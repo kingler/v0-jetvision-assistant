@@ -90,6 +90,7 @@ function transformChatMessage(message: ChatMessage): UnifiedMessage {
     pipelineData: message.pipelineData,
     showProposalSentConfirmation: message.showProposalSentConfirmation,
     proposalSentData: message.proposalSentData,
+    pdfPreviewBase64: message.pdfPreviewBase64,
     showEmailApprovalRequest: message.showEmailApprovalRequest,
     emailApprovalData: message.emailApprovalData,
   };
@@ -241,6 +242,85 @@ export function hasUnreadOperatorMessages(
 
     return m.timestamp > new Date(lastRead);
   });
+}
+
+/**
+ * Check if a message is a proposal confirmation.
+ *
+ * @param message - Unified message to check
+ * @returns Whether the message is a proposal confirmation
+ */
+export function isProposalConfirmation(message: UnifiedMessage): boolean {
+  if (message.showProposalSentConfirmation && message.proposalSentData) {
+    return true;
+  }
+
+  const content = message.content?.toLowerCase() || '';
+  return (
+    (content.includes('proposal') && content.includes('sent')) ||
+    content.includes('was sent to')
+  );
+}
+
+/**
+ * Deduplicate messages by ID and content.
+ *
+ * Preserves user, operator, and proposal-sent messages by ID uniqueness.
+ * For agent messages, also deduplicates by exact content match.
+ *
+ * @param messages - Unified messages array
+ * @returns Deduplicated messages with their original indices
+ */
+export function deduplicateMessages(
+  messages: UnifiedMessage[]
+): Array<{ message: UnifiedMessage; index: number }> {
+  return messages.reduce((acc, message, index) => {
+    // Always keep user messages and operator messages (check by ID only)
+    if (message.type === 'user' || message.type === 'operator') {
+      const hasDuplicateId = acc.some(
+        ({ message: existing }) => existing.id === message.id
+      );
+      if (!hasDuplicateId) {
+        acc.push({ message, index });
+      }
+      return acc;
+    }
+
+    // Always keep proposal-sent confirmation messages
+    if (message.showProposalSentConfirmation && message.proposalSentData) {
+      const hasDuplicateId = acc.some(
+        ({ message: existing }) => existing.id === message.id
+      );
+      if (!hasDuplicateId) {
+        acc.push({ message, index });
+      }
+      return acc;
+    }
+
+    // For agent messages, check for true duplicates
+    const messageContent = (message.content || '').trim();
+
+    // Check if we already have a message with the same ID
+    const hasDuplicateId = acc.some(
+      ({ message: existing }) => existing.id === message.id && message.id !== undefined
+    );
+    if (hasDuplicateId) {
+      return acc;
+    }
+
+    // Check if we already have a message with exact same content
+    const hasDuplicateContent = acc.some(({ message: existing }) => {
+      if (existing.type !== 'agent' || message.type !== 'agent') return false;
+      const existingContent = (existing.content || '').trim();
+      return existingContent === messageContent && messageContent.length > 0;
+    });
+    if (hasDuplicateContent) {
+      return acc;
+    }
+
+    acc.push({ message, index });
+    return acc;
+  }, [] as Array<{ message: UnifiedMessage; index: number }>);
 }
 
 /**
