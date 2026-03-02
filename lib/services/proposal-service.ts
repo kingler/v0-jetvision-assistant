@@ -81,6 +81,72 @@ export async function findQuoteByAvinodeId(
 }
 
 /**
+ * Upsert a quote record from RFQ flight data into the CRM quotes table.
+ *
+ * Uses the avinode_quote_id unique constraint so repeated calls for the same
+ * quote are idempotent — the row is created on first call and updated on
+ * subsequent calls.
+ *
+ * @param rfqFlight - Flight/quote data returned from the Avinode get_rfq tool
+ * @param requestId - CRM request UUID that this quote belongs to
+ * @returns The quote's database UUID on success, null on error
+ */
+export async function upsertQuoteFromRFQ(
+  rfqFlight: Record<string, unknown>,
+  requestId: string
+): Promise<string | null> {
+  // Accept both camelCase (RFQFlight type) and snake_case (raw MCP result)
+  const avinodeQuoteId = (rfqFlight.quote_id ?? rfqFlight.quoteId ?? rfqFlight.id) as string | undefined;
+
+  if (!avinodeQuoteId) {
+    console.warn('[ProposalService] upsertQuoteFromRFQ: no quote_id on rfqFlight, skipping');
+    return null;
+  }
+
+  if (!requestId) {
+    console.warn('[ProposalService] upsertQuoteFromRFQ: no requestId provided for quote', avinodeQuoteId);
+    return null;
+  }
+
+  const record = {
+    request_id: requestId,
+    avinode_quote_id: avinodeQuoteId,
+    operator_name: (rfqFlight.operator_name ?? rfqFlight.operatorName ?? 'Unknown Operator') as string,
+    operator_id: (rfqFlight.operator_id ?? rfqFlight.operatorId ?? null) as string | null,
+    aircraft_type: (rfqFlight.aircraft_type ?? rfqFlight.aircraftType ?? 'Unknown') as string,
+    aircraft_tail_number: (rfqFlight.aircraft_tail_number ?? rfqFlight.tailNumber ?? null) as string | null,
+    aircraft_details: (rfqFlight.aircraft_details ?? null) as Json,
+    base_price: (rfqFlight.base_price ?? rfqFlight.totalPrice ?? 0) as number,
+    total_price: (rfqFlight.total_price ?? rfqFlight.totalPrice ?? rfqFlight.base_price ?? 0) as number,
+    currency: (rfqFlight.currency ?? 'USD') as string,
+    status: (rfqFlight.status ?? rfqFlight.rfqStatus ?? 'received') as string,
+    valid_until: (rfqFlight.valid_until ?? rfqFlight.validUntil ?? null) as string | null,
+    schedule: (rfqFlight.schedule ?? null) as Json,
+    operator_contact: (rfqFlight.operator_contact ?? null) as Json,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from('quotes')
+    .upsert(record, { onConflict: 'avinode_quote_id' })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('[ProposalService] Error upserting quote from RFQ:', error);
+    return null;
+  }
+
+  console.log('[ProposalService] Upserted quote from RFQ:', {
+    quoteId: data.id,
+    avinodeQuoteId,
+    requestId,
+  });
+
+  return data.id as string;
+}
+
+/**
  * Find a request by Avinode Trip ID
  * Wrapper around admin.findRequestByTripId for proposal service use
  *
