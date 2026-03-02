@@ -166,6 +166,11 @@ export class ToolExecutor {
       this.storeQuoteAuditRecords(result, params).catch(err => {
         console.warn('[ToolExecutor] Failed to store quote audit records:', err);
       });
+
+      // ONEK-363: Persist quotes to CRM quotes table so create_proposal can resolve them
+      this.storeQuotesToCRM(result, params).catch(err => {
+        console.warn('[ToolExecutor] Failed to store quotes to CRM:', err);
+      });
     }
 
     return result;
@@ -221,6 +226,90 @@ export class ToolExecutor {
     }
 
     console.log(`[ToolExecutor] Stored ${flights.length} quote audit records for trip ${tripId}`);
+  }
+
+  /**
+   * ONEK-363: Persist quotes from get_rfq to CRM quotes table
+   * This ensures findQuoteByAvinodeId() can resolve quotes for create_proposal
+   */
+  private async storeQuotesToCRM(
+    rfqResult: unknown,
+    params: Record<string, unknown>
+  ): Promise<void> {
+    const result = rfqResult as Record<string, unknown>;
+    const flights = result?.flights as Array<Record<string, unknown>> | undefined;
+
+    if (!flights || flights.length === 0) return;
+
+    const tripId = (result.trip_id as string) || (params.rfq_id as string) || '';
+
+    // Resolve request_id from trip_id or use context
+    let requestId = this.context.requestId || null;
+    if (!requestId && tripId) {
+      const { data } = await supabaseAdmin
+        .from('requests')
+        .select('id')
+        .eq('avinode_trip_id', tripId)
+        .limit(1)
+        .maybeSingle();
+      requestId = data?.id || null;
+    }
+
+    if (!requestId) {
+      console.warn('[ToolExecutor] Cannot store quotes to CRM: no request_id for trip', tripId);
+      return;
+    }
+
+    let stored = 0;
+    for (const flight of flights) {
+      const quoteId = (flight.quoteId as string) || (flight.id as string) || '';
+      if (!quoteId) continue;
+
+      // Extract price from multiple possible formats
+      const sellerPrice = flight.sellerPrice as Record<string, unknown> | undefined;
+      const totalPrice =
+        (sellerPrice?.price as number) ??
+        (flight.totalPrice as number) ??
+        (flight.price as number) ??
+        0;
+      const currency =
+        (sellerPrice?.currency as string) ??
+        (flight.currency as string) ??
+        'USD';
+
+      try {
+        const { error } = await supabaseAdmin
+          .from('quotes')
+          .upsert(
+            {
+              request_id: requestId,
+              avinode_quote_id: quoteId,
+              operator_id: (flight.operatorId as string) || (flight.operator_id as string) || 'unknown',
+              operator_name: (flight.operatorName as string) || (flight.operator as string) || 'Unknown Operator',
+              aircraft_type: (flight.aircraftType as string) || (flight.aircraft_type as string) || 'Unknown',
+              aircraft_tail_number: (flight.tailNumber as string) || (flight.aircraft_tail_number as string) || null,
+              base_price: totalPrice,
+              total_price: totalPrice,
+              status: 'received' as const,
+              schedule: JSON.parse(JSON.stringify((flight.schedule as Record<string, unknown>) || {})) as Json,
+              raw_message_details: JSON.parse(JSON.stringify({ source: 'api_poll', flight })) as Json,
+            },
+            { onConflict: 'avinode_quote_id' }
+          );
+
+        if (error) {
+          console.warn('[ToolExecutor] Failed to upsert quote to CRM:', quoteId, error.message);
+        } else {
+          stored++;
+        }
+      } catch (err) {
+        console.warn('[ToolExecutor] Error upserting quote to CRM:', quoteId, err);
+      }
+    }
+
+    if (stored > 0) {
+      console.log(`[ToolExecutor] ONEK-363: Stored ${stored}/${flights.length} quotes to CRM for trip ${tripId}`);
+    }
   }
 
   // ===========================================================================
