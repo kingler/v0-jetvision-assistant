@@ -378,10 +378,25 @@ export async function storeOperatorQuote(
 
   // Build quote record
   // ONEK-175 FIX: Price priority: sellerPrice (fetched) > webhook totalPrice > 0
+  // ONEK-362 FIX: Extract real quote ID from messageDetails for declined quotes
+  // Priority: webhook quote > extracted quoteData > messageDetails nested > messageDetails top-level > pseudo-ID fallback
+  const resolvedQuoteId =
+    webhookData.quote?.id ||
+    quoteData?.id ||
+    msgDetails?.data?.id ||
+    msgDetails?.id ||
+    null;
+
+  if (!resolvedQuoteId) {
+    console.warn(
+      '[storeOperatorQuote] No real Avinode quote ID found, using pseudo-ID fallback.',
+      { eventId: webhookPayload.eventId, status: webhookData.request?.status }
+    );
+  }
+
   const quoteRecord = {
     request_id: requestId,
-    avinode_quote_id:
-      webhookData.quote?.id || quoteData?.id || `decline-${webhookPayload.eventId}`,
+    avinode_quote_id: resolvedQuoteId || `decline-${webhookPayload.eventId}`,
     operator_id: webhookData.seller?.id || 'unknown',
     operator_name: webhookData.seller?.name || 'Unknown Operator',
     operator_contact: senderData
