@@ -74,7 +74,9 @@ const TOOL_REFERENCE = `## Available Tools (29 total)
 | \`list_preferred_operators\` | Partner operators | (optional filters) | User wants preferred operators |
 | \`create_proposal\` | Generate proposal | request_id, quote_id, title | User wants to create a proposal |
 | \`get_proposal\` | Proposal details | proposal_id | User asks about a proposal |
-| \`generate_contract\` | Create contract from proposal | proposal_id, request_id | After customer accepts proposal, user says "generate contract" |
+| \`generate_contract\` | Create draft contract from proposal (generates PDF) | proposal_id, request_id | After customer accepts proposal, user says "generate contract" |
+| \`send_contract_email\` | Send contract to client via email (updates status to sent) | contract_id, to_email, to_name | After contract is generated, user says "send contract" |
+| \`update_contract_status\` | Update contract status | contract_id, status | User wants to change contract status (e.g., signed, cancelled) |
 | \`confirm_payment\` | Record payment received | contract_id, payment_amount, payment_method, payment_reference | User says "payment received" with details |
 | \`update_request_status\` | Change request status | request_id, status | User asks to update a request's status |
 | \`archive_session\` | Archive completed session | session_id | User says "archive" or "close" the deal/session |
@@ -574,8 +576,11 @@ Check: Is workflow at \`proposal_sent\` or later?
 **Positive Reply Signals**: "yes", "interested", "proceed", "book", "let's go", "approved", "confirmed"
 **Negative Reply Signals**: "no", "not interested", "too expensive", "cancel", "pass"
 
-### 14. Generate Contract
+### 14. Generate and Send Contract (Two-Step Flow)
 **Trigger**: User says "book the flight", "generate contract", "send contract", or workflow is at \`customer_replied\`
+
+**Step 1: Generate Draft Contract** — Call \`generate_contract\` (creates draft record + PDF)
+**Step 2: Send Contract Email** — Call \`send_contract_email\` (sends email + updates status to sent)
 
 \`\`\`
 START
@@ -598,13 +603,23 @@ Check: Is workflow at \`customer_replied\` or later?
                                    User confirms → Call \`generate_contract\` with proposal_id, request_id
                                      |
                                      v
-                                   Response: "Contract [Number] has been generated and sent to [Email].
+                                   Draft contract created (ContractSentConfirmation card renders)
+                                     |
+                                     v
+                                   Ask: "Contract [Number] has been generated. Shall I send it to [Email]?"
+                                     |
+                                     v
+                                   User confirms → Call \`send_contract_email\` with contract_id
+                                     |
+                                     v
+                                   Response: "Contract [Number] sent to [Email].
                                    The customer will receive it shortly. I'll help you track payment
                                    once received."
-                                   (ContractSentConfirmation UI component renders automatically)
 \`\`\`
 
 **IMPORTANT**: Contract generation is handled by the UI's "Book Flight" button which opens a review modal for human approval. When the user asks to book a flight or generate a contract via chat, respond with guidance to click the "Book Flight" button on the quote card instead of calling \`generate_contract\` directly. Example: "To book this flight, please click the **Book Flight** button on the quote card above. This will open a review screen where you can confirm the details before sending the contract." The \`generate_contract\` tool is a fallback for cases where the UI button is unavailable.
+
+**Contract Status Tracking**: Use \`update_contract_status\` when the user reports contract status changes (e.g., "customer signed the contract" → status: signed, "cancel the contract" → status: cancelled).
 
 ### 15. Confirm Payment Received
 **Trigger**: User says "payment received", "customer paid", "confirm payment"
@@ -1298,7 +1313,7 @@ export const FORCED_TOOL_PATTERNS: Array<{
     toolName: 'prepare_proposal_email',
     description: 'Email proposal by ID',
   },
-  // Broad catch-all: any "send proposal" / "email proposal" not caught above
+  // Broad catch-all: remaining "send proposal" / "email proposal" not caught above
   // This MUST be last among proposal patterns to avoid shadowing specific ones
   {
     pattern: /(?:send|email)\s+(?:the\s+)?(?:a\s+)?proposal(?:\s+email)?(?:\b)/i,
@@ -1339,6 +1354,42 @@ export const FORCED_TOOL_PATTERNS: Array<{
     pattern: /(?:show|view|open)\s+(?:my\s+)?(?:pipeline|dashboard|deals)/i,
     toolName: 'get_pipeline',
     description: 'View deals pipeline',
+  },
+
+  // Generate contract patterns
+  {
+    pattern: /(?:generate|create|draft)\s+(?:a\s+)?contract/i,
+    toolName: 'generate_contract',
+    description: 'Generate draft contract',
+  },
+
+  // Send contract email patterns
+  {
+    pattern: /(?:send|email)\s+(?:the\s+)?contract/i,
+    toolName: 'send_contract_email',
+    description: 'Send contract to client via email',
+  },
+  {
+    pattern: /(?:send|email)\s+(?:the\s+)?contract\s+(?:to|for)/i,
+    toolName: 'send_contract_email',
+    description: 'Send contract to specific recipient',
+  },
+
+  // Update contract status patterns
+  {
+    pattern: /(?:update|change|set)\s+(?:the\s+)?contract\s+status/i,
+    toolName: 'update_contract_status',
+    description: 'Update contract status',
+  },
+  {
+    pattern: /(?:customer|client)\s+(?:has\s+)?signed\s+(?:the\s+)?contract/i,
+    toolName: 'update_contract_status',
+    description: 'Customer signed contract',
+  },
+  {
+    pattern: /(?:cancel)\s+(?:the\s+)?contract/i,
+    toolName: 'update_contract_status',
+    description: 'Cancel contract',
   },
 
   // Confirm payment patterns

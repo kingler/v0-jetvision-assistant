@@ -30,11 +30,15 @@ import {
   updateProposalStatus,
 } from '@/lib/services/proposal-service';
 
-// Import Contract Service for UUID resolution
+// Import Contract Service for UUID resolution and status updates
 import {
+  getContractById,
   getContractByNumber,
   getContractsByRequest,
   getContractsByProposal,
+  updateContractGenerated,
+  updateContractSent,
+  updateContractStatus,
 } from '@/lib/services/contract-service';
 
 // Import Supabase admin for direct DB operations
@@ -254,6 +258,10 @@ export class ToolExecutor {
         return this.getProposal(params);
       case 'generate_contract':
         return this.generateContract(params);
+      case 'send_contract_email':
+        return this.sendContractEmail(params);
+      case 'update_contract_status':
+        return this.updateContractStatusTool(params);
       case 'confirm_payment':
         return this.confirmPayment(params);
       case 'update_request_status':
@@ -540,6 +548,13 @@ export class ToolExecutor {
           contractNumber: activeContract.contract_number,
           status: activeContract.status,
           pdfUrl: activeContract.file_url,
+          // ONEK-338 C2+C6: Include enriched data for ContractSentConfirmation card
+          customerName: activeContract.client_name || 'Customer',
+          customerEmail: activeContract.client_email || '',
+          flightRoute: `${activeContract.departure_airport || ''} → ${activeContract.arrival_airport || ''}`,
+          departureDate: activeContract.departure_date || '',
+          totalAmount: activeContract.total_amount || 0,
+          currency: 'USD',
           message: `Contract ${activeContract.contract_number} already exists for this request (status: ${activeContract.status})`,
         };
       }
@@ -571,6 +586,21 @@ export class ToolExecutor {
     const aircraftType = (request.aircraft_type as string) || '';
     const passengers = (request.passengers as number) || 1;
 
+    // Prepare customer and pricing data
+    const customerName = proposal.sent_to_name || 'Customer';
+    const customerEmail = proposal.sent_to_email || '';
+    const totalAmount = proposal.final_amount || proposal.total_amount || 0;
+
+    const contractPricing = {
+      flightCost: proposal.total_amount || 0,
+      federalExciseTax: 0,
+      domesticSegmentFee: 0,
+      subtotal: proposal.total_amount || 0,
+      creditCardFeePercentage: 0,
+      totalAmount,
+      currency: 'USD',
+    };
+
     // Create contract record via service
     const { createContract } = await import('@/lib/services/contract-service');
 
@@ -579,8 +609,8 @@ export class ToolExecutor {
       iso_agent_id: this.context.isoAgentId,
       proposal_id: proposal_id as string,
       customer: {
-        name: proposal.sent_to_name || 'Customer',
-        email: proposal.sent_to_email || '',
+        name: customerName,
+        email: customerEmail,
       },
       flightDetails: {
         departureAirport: { icao: departureAirport },
@@ -589,30 +619,267 @@ export class ToolExecutor {
         aircraftType,
         passengers,
       },
-      pricing: {
-        flightCost: proposal.total_amount || 0,
-        federalExciseTax: 0,
-        domesticSegmentFee: 0,
-        subtotal: proposal.total_amount || 0,
-        creditCardFeePercentage: 0,
-        totalAmount: proposal.final_amount || proposal.total_amount || 0,
-        currency: 'USD',
-      },
+      pricing: contractPricing,
     });
+
+    // ONEK-338 C4: Generate PDF and upload to storage so file_url is populated
+    let pdfUrl: string | undefined;
+    try {
+      const { generateContract: generateContractPdf } = await import('@/lib/pdf');
+      const { uploadContractPdf } = await import('@/lib/supabase/admin');
+
+      const pdfResult = await generateContractPdf({
+        requestId: request_id as string,
+        isoAgentId: this.context.isoAgentId,
+        proposalId: proposal_id as string,
+        customer: {
+          name: customerName,
+          email: customerEmail,
+        },
+        flightDetails: {
+          departureAirport: { icao: departureAirport },
+          arrivalAirport: { icao: arrivalAirport },
+          departureDate,
+          aircraftType,
+          passengers,
+        },
+        pricing: contractPricing,
+      });
+
+      // Upload PDF to Supabase storage
+      const uploadResult = await uploadContractPdf(
+        pdfResult.pdfBuffer,
+        pdfResult.fileName,
+        this.context.isoAgentId
+      );
+
+      if (uploadResult.success && uploadResult.publicUrl && uploadResult.filePath) {
+        // Update contract record with file metadata
+        await updateContractGenerated(contract.id, {
+          file_name: pdfResult.fileName,
+          file_url: uploadResult.publicUrl,
+          file_path: uploadResult.filePath,
+          file_size_bytes: uploadResult.fileSizeBytes ?? pdfResult.pdfBuffer.length,
+        });
+        pdfUrl = uploadResult.publicUrl;
+        console.log('[ToolExecutor] Contract PDF generated and uploaded:', {
+          contractId: contract.id,
+          pdfUrl,
+        });
+      } else {
+        console.warn('[ToolExecutor] PDF upload failed:', uploadResult.error);
+      }
+    } catch (pdfError) {
+      // PDF generation is non-blocking -- contract record is already created
+      console.warn('[ToolExecutor] PDF generation failed (contract record still valid):', pdfError);
+    }
 
     return {
       contractId: contract.id,
       contractNumber: contract.contract_number,
       status: contract.status,
-      // Enriched data for ContractSentConfirmation card (ONEK-299)
-      customerName: proposal.sent_to_name || 'Customer',
-      customerEmail: proposal.sent_to_email || '',
+      pdfUrl,
+      // Enriched data for ContractSentConfirmation card (ONEK-299 / ONEK-338 C2+C6)
+      customerName,
+      customerEmail,
       flightRoute: `${departureAirport} → ${arrivalAirport}`,
-      departureDate: departureDate,
-      totalAmount: proposal.final_amount || proposal.total_amount || 0,
+      departureDate,
+      totalAmount,
       currency: 'USD',
-      message: `Contract ${contract.contract_number} created successfully`,
+      message: `Contract ${contract.contract_number} created successfully (draft). Use send_contract_email to send it to the customer.`,
     };
+  }
+
+  // ===========================================================================
+  // ONEK-338 C3: send_contract_email tool
+  // ===========================================================================
+
+  private async sendContractEmail(params: Record<string, unknown>): Promise<unknown> {
+    let { contract_id } = params;
+    const { to_email, to_name, subject, message } = params;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Resolve contract by UUID or contract number
+    if (contract_id && typeof contract_id === 'string' && !uuidRegex.test(contract_id)) {
+      const match = await getContractByNumber(contract_id);
+      if (match) {
+        contract_id = match.id;
+      }
+    }
+
+    // Fallback: resolve from request context
+    if (!contract_id && this.context.requestId) {
+      const contracts = await getContractsByRequest(this.context.requestId);
+      if (contracts && contracts.length > 0) {
+        const activeContract = contracts.find(c => c.status !== 'cancelled' && c.status !== 'expired');
+        if (activeContract) {
+          contract_id = activeContract.id;
+          console.log('[ToolExecutor] Auto-resolved contract_id for send_contract_email:', contract_id);
+        }
+      }
+    }
+
+    if (!contract_id) {
+      throw new Error('contract_id is required and could not be auto-resolved. Please provide a contract UUID or contract number.');
+    }
+
+    // Fetch the contract record
+    const contract = await getContractById(contract_id as string);
+    if (!contract) {
+      throw new Error(`Contract not found: ${contract_id}`);
+    }
+
+    // Determine recipient email and name
+    const recipientEmail = (to_email as string) || contract.client_email || '';
+    const recipientName = (to_name as string) || contract.client_name || 'Customer';
+
+    if (!recipientEmail) {
+      throw new Error('Recipient email is required. Please provide to_email or ensure the contract has a client_email.');
+    }
+
+    // Build email subject and body
+    const emailSubject = (subject as string) ||
+      `Your Flight Contract: ${contract.departure_airport || ''} → ${contract.arrival_airport || ''}`;
+
+    const emailBody = this.buildContractEmailBody(
+      contract,
+      recipientName,
+      message as string | undefined
+    );
+
+    // Send email
+    const emailResult = await this.sendEmail({
+      to: recipientEmail,
+      subject: emailSubject,
+      body_html: emailBody,
+    });
+
+    // Update contract status to 'sent'
+    let statusUpdated = false;
+    try {
+      await updateContractSent(contract_id as string, {
+        sent_to_email: recipientEmail,
+        email_message_id: emailResult.message_id,
+      });
+      statusUpdated = true;
+      console.log('[ToolExecutor] Contract status updated to sent:', {
+        contractId: contract_id,
+        sentTo: recipientEmail,
+      });
+    } catch (statusError) {
+      console.error(
+        '[ToolExecutor] CRITICAL: Email sent but contract status update failed.',
+        'Contract', contract_id, 'remains in previous status.',
+        'Error:', statusError instanceof Error ? statusError.message : String(statusError)
+      );
+    }
+
+    return {
+      contractId: contract.id,
+      contractNumber: contract.contract_number,
+      status: statusUpdated ? 'sent' : contract.status,
+      pdfUrl: contract.file_url,
+      emailSent: true,
+      messageId: emailResult.message_id,
+      sentAt: emailResult.sent_at,
+      // Enriched data for ContractSentConfirmation card
+      customerName: recipientName,
+      customerEmail: recipientEmail,
+      flightRoute: `${contract.departure_airport || ''} → ${contract.arrival_airport || ''}`,
+      departureDate: contract.departure_date || '',
+      totalAmount: contract.total_amount || 0,
+      currency: 'USD',
+      message: `Contract ${contract.contract_number} sent to ${recipientName} (${recipientEmail})`,
+    };
+  }
+
+  // ===========================================================================
+  // ONEK-338 C7: update_contract_status tool
+  // ===========================================================================
+
+  private async updateContractStatusTool(params: Record<string, unknown>): Promise<unknown> {
+    let { contract_id } = params;
+    const { status } = params;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!status) {
+      throw new Error('status is required');
+    }
+
+    // Resolve contract by UUID or contract number
+    if (contract_id && typeof contract_id === 'string' && !uuidRegex.test(contract_id)) {
+      const match = await getContractByNumber(contract_id);
+      if (match) {
+        contract_id = match.id;
+      }
+    }
+
+    // Fallback: resolve from request context
+    if (!contract_id && this.context.requestId) {
+      const contracts = await getContractsByRequest(this.context.requestId);
+      if (contracts && contracts.length > 0) {
+        const activeContract = contracts.find(c => c.status !== 'cancelled' && c.status !== 'expired');
+        if (activeContract) {
+          contract_id = activeContract.id;
+          console.log('[ToolExecutor] Auto-resolved contract_id for update_contract_status:', contract_id);
+        }
+      }
+    }
+
+    if (!contract_id) {
+      throw new Error('contract_id is required and could not be auto-resolved.');
+    }
+
+    if (typeof contract_id === 'string' && !uuidRegex.test(contract_id)) {
+      throw new Error(`Could not resolve contract "${contract_id}" to a database UUID.`);
+    }
+
+    const updatedContract = await updateContractStatus(
+      contract_id as string,
+      status as 'sent' | 'viewed' | 'signed' | 'payment_pending' | 'paid' | 'completed' | 'cancelled'
+    );
+
+    return {
+      contractId: updatedContract.id,
+      contractNumber: updatedContract.contract_number,
+      status: updatedContract.status,
+      message: `Contract ${updatedContract.contract_number} status updated to ${updatedContract.status}`,
+    };
+  }
+
+  // ===========================================================================
+  // CONTRACT EMAIL TEMPLATE
+  // ===========================================================================
+
+  private buildContractEmailBody(
+    contract: Record<string, unknown>,
+    recipientName: string,
+    customMessage?: string
+  ): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Flight Contract</h2>
+        <p>Dear ${recipientName},</p>
+        ${customMessage ? `<p>${customMessage}</p>` : '<p>Please find your charter flight contract below.</p>'}
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p><strong>Contract:</strong> ${contract.contract_number || 'N/A'}</p>
+          <p><strong>Route:</strong> ${contract.departure_airport || 'TBD'} → ${contract.arrival_airport || 'TBD'}</p>
+          <p><strong>Date:</strong> ${contract.departure_date || 'TBD'}</p>
+          ${contract.total_amount ? `<p><strong>Total:</strong> $${(contract.total_amount as number).toLocaleString()}</p>` : ''}
+        </div>
+        ${contract.file_url ? `
+        <p>
+          <a href="${contract.file_url}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+            View Contract PDF
+          </a>
+        </p>
+        ` : ''}
+        <p>Please review the contract and let us know if you have any questions.</p>
+        <p>Best regards,<br>Your Charter Team</p>
+      </div>
+    `;
   }
 
   private async confirmPayment(params: Record<string, unknown>): Promise<unknown> {
