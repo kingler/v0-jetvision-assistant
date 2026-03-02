@@ -1158,6 +1158,7 @@ export class ToolExecutor {
     proposal_url: string;
     sent_at: string;
     proposal_number: string;
+    status_updated: boolean;
   }> {
     const { proposal_id, to_email, to_name, custom_message } = params;
 
@@ -1187,21 +1188,44 @@ export class ToolExecutor {
     });
 
     // Update proposal status using proposal-service with full email metadata
-    const updateResult = await updateProposalSent(proposal_id as string, {
-      sent_to_email: to_email as string,
-      sent_to_name: (to_name as string) || 'Customer',
-      email_subject: subject,
-      email_body: body,
-      email_message_id: emailResult.message_id,
-    });
+    // This is wrapped in try/catch because the email is already sent at this point —
+    // a DB failure should not cause the tool result to report failure.
+    let statusUpdated = false;
+    let sentAt = emailResult.sent_at;
+    let proposalNumber = proposal.proposal_number || '';
 
-    console.log('[ToolExecutor] Proposal sent via proposal-service:', updateResult);
+    try {
+      const updateResult = await updateProposalSent(proposal_id as string, {
+        sent_to_email: to_email as string,
+        sent_to_name: (to_name as string) || 'Customer',
+        email_subject: subject,
+        email_body: body,
+        email_message_id: emailResult.message_id,
+      });
+
+      statusUpdated = true;
+      sentAt = updateResult.sent_at || sentAt;
+      proposalNumber = updateResult.proposal_number || proposalNumber;
+      console.log('[ToolExecutor] Proposal status updated to sent:', {
+        proposalId: proposal_id,
+        proposalNumber,
+        sentTo: to_email,
+      });
+    } catch (statusError) {
+      // Log the failure prominently — email was sent but DB status is stale
+      console.error(
+        '[ToolExecutor] CRITICAL: Email sent but proposal status update failed.',
+        'Proposal', proposal_id, 'remains in previous status.',
+        'Error:', statusError instanceof Error ? statusError.message : String(statusError)
+      );
+    }
 
     return {
       message_id: emailResult.message_id,
       proposal_url: proposal.file_url || '',
-      sent_at: updateResult.sent_at || emailResult.sent_at,
-      proposal_number: updateResult.proposal_number,
+      sent_at: sentAt,
+      proposal_number: proposalNumber,
+      status_updated: statusUpdated,
     };
   }
 

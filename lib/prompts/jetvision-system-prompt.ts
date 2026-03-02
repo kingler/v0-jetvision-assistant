@@ -1259,13 +1259,20 @@ export const FORCED_TOOL_PATTERNS: Array<{
   },
 
   // Send proposal immediately (bypass draft) — MUST be before prepare_proposal_email patterns
+  // Only matches explicit bypass phrases: "skip review", "send immediately", "without preview"
   {
-    pattern: /(?:send|email)\s+(?:the\s+)?proposal\s+(?:immediately|now|right\s+away|without\s+review)/i,
+    pattern: /(?:send|email)\s+(?:the\s+)?proposal\s+(?:immediately|right\s+away|without\s+(?:review|preview))\b/i,
     toolName: 'send_proposal_email',
     description: 'Send proposal email bypassing draft review',
   },
+  {
+    pattern: /\b(?:skip\s+(?:the\s+)?(?:review|preview|approval))\b.*proposal/i,
+    toolName: 'send_proposal_email',
+    description: 'Skip review and send proposal directly',
+  },
 
   // Email proposal patterns (human-in-the-loop approval)
+  // These MUST catch all "send proposal" variants that don't explicitly bypass review
   {
     pattern: /(?:prepare|generate|create|draft)\s+(?:a\s+)?(?:proposal\s+)?email/i,
     toolName: 'prepare_proposal_email',
@@ -1290,6 +1297,13 @@ export const FORCED_TOOL_PATTERNS: Array<{
     pattern: /proposal\s+(?:id|ID)\s+[a-f0-9-]+.*(?:email|send)/i,
     toolName: 'prepare_proposal_email',
     description: 'Email proposal by ID',
+  },
+  // Broad catch-all: any "send proposal" / "email proposal" not caught above
+  // This MUST be last among proposal patterns to avoid shadowing specific ones
+  {
+    pattern: /(?:send|email)\s+(?:the\s+)?(?:a\s+)?proposal(?:\s+email)?(?:\b)/i,
+    toolName: 'prepare_proposal_email',
+    description: 'Catch-all: route send/email proposal to prepare flow',
   },
 
   // Airport search patterns
