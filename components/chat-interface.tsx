@@ -2110,6 +2110,10 @@ export function ChatInterface({
           if (m.showEmailApprovalRequest) {
             return { ...m, emailApprovalSentStatus: 'sent' as const }
           }
+          // V2 path: mark messages with prepare_proposal_email tool results as sent
+          if (m.toolResults?.some((tr: { name: string }) => tr.name === 'prepare_proposal_email')) {
+            return { ...m, emailApprovalSentStatus: 'sent' as const }
+          }
           if (m.showMarginSelection) {
             return { ...m, marginSelectionCompleted: true }
           }
@@ -2632,7 +2636,7 @@ export function ChatInterface({
       />
 
       {/* Messages Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
         <div className="max-w-4xl mx-auto p-4">
           <div className="space-y-4">
 
@@ -2965,9 +2969,27 @@ export function ChatInterface({
                       <AgentMessageV2
                         content={stripMarkdown(message.content)}
                         timestamp={message.timestamp}
-                        toolResults={shouldShowFlightSearchProgress
-                          ? message.toolResults?.filter(tr => tr.name !== 'create_trip')
-                          : message.toolResults}
+                        toolResults={(() => {
+                          let results = shouldShowFlightSearchProgress
+                            ? message.toolResults?.filter(tr => tr.name !== 'create_trip')
+                            : message.toolResults
+                          // Derive email sent status: check message flag, or later messages with
+                          // send_proposal_email tool result, or showProposalSentConfirmation flag
+                          const emailSent = message.emailApprovalSentStatus === 'sent' ||
+                            (message.toolResults?.some(tr => tr.name === 'prepare_proposal_email') &&
+                              (activeChat.messages || []).some(m =>
+                                m.showProposalSentConfirmation ||
+                                m.toolResults?.some((tr: { name: string }) => tr.name === 'send_proposal_email')
+                              ))
+                          if (emailSent && results) {
+                            results = results.map(tr =>
+                              tr.name === 'prepare_proposal_email'
+                                ? { ...tr, result: { ...tr.result, _sent: true } }
+                                : tr
+                            )
+                          }
+                          return results
+                        })()}
                         actionContext={{
                           sendMessage: (msg: string) => {
                             setInputValue(msg)
@@ -3118,7 +3140,7 @@ export function ChatInterface({
 
                   {/* FlightSearchProgress Steps 1-2 */}
                   {shouldInsertProgressAtEnd && (
-                    <div ref={workflowRef} className="mt-4 mb-4" style={{ overflow: 'visible' }}>
+                    <div ref={workflowRef} className="mt-4 mb-4">
                       <FlightSearchProgress
                         renderMode="steps-1-2"
                         currentStep={computedCurrentStep}
@@ -3168,7 +3190,7 @@ export function ChatInterface({
 
                   {/* FlightSearchProgress Steps 3-4 - only shown when RFQs are submitted/loaded */}
                   {shouldShowSteps34 && (
-                    <div className="mt-4 mb-4" style={{ overflow: 'visible' }}>
+                    <div className="mt-4 mb-4">
                       <FlightSearchProgress
                         renderMode="steps-3-4"
                         currentStep={computedCurrentStep}

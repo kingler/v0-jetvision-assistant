@@ -337,6 +337,8 @@ function extractEmailApprovalProps(
     pricing: result.pricing,
     generatedAt: result.generated_at,
     requestId: result.request_id,
+    // Pass sent status from injected _sent flag (set by chat-interface.tsx when email was sent)
+    status: result._sent ? ('sent' as const) : undefined,
     onAction,
   };
 }

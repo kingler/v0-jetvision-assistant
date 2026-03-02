@@ -30,6 +30,8 @@ export interface EmailApprovalUIProps {
   pricing?: { subtotal: number; total: number; currency: string };
   generatedAt?: string;
   requestId?: string;
+  /** Override status (e.g. 'sent' for read-only display after email was sent) */
+  status?: 'draft' | 'sending' | 'sent' | 'error';
   onAction: (action: UIActionResult) => void;
 }
 
@@ -44,8 +46,11 @@ export function EmailApprovalUI({
   pricing,
   generatedAt,
   requestId,
+  status,
   onAction,
 }: EmailApprovalUIProps) {
+  const effectiveStatus = status || 'draft';
+
   return (
     <EmailPreviewCard
       proposalId={proposalId}
@@ -56,10 +61,10 @@ export function EmailApprovalUI({
       attachments={attachments}
       flightDetails={flightDetails}
       pricing={pricing}
-      status="draft"
+      status={effectiveStatus}
       generatedAt={generatedAt}
       requestId={requestId}
-      onSend={async () => {
+      onSend={effectiveStatus === 'sent' ? undefined : async () => {
         onAction(
           uiActionResultToolCall('send_proposal_email', {
             proposal_id: proposalId,
@@ -69,7 +74,7 @@ export function EmailApprovalUI({
         );
         onAction(uiActionResultNotification('Sending email...'));
       }}
-      onCancel={() => {
+      onCancel={effectiveStatus === 'sent' ? undefined : () => {
         onAction(uiActionResultNotification('Email cancelled'));
       }}
     />
