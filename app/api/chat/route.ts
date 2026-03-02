@@ -31,6 +31,7 @@ import {
   saveSignals,
   recordStageTransition,
 } from '@/lib/self-improvement/signal-persistence';
+import { canRunReflection, runReflection } from '@/lib/self-improvement/reflection-engine';
 
 // =============================================================================
 // REQUEST VALIDATION
@@ -653,6 +654,20 @@ export async function POST(req: NextRequest) {
       ...(result.tripId ? { avinode_trip_id: result.tripId } : {}),
     };
     await createOrUpdateChatSession(sessionData, conversationId);
+
+    // 9b. Check if reflection should run (after session completion)
+    if (wasArchived) {
+      try {
+        const { canRun } = await canRunReflection();
+        if (canRun) {
+          runReflection().catch((err) =>
+            console.error('[Chat API] Background reflection failed:', err)
+          );
+        }
+      } catch (reflectionError) {
+        console.error('[Chat API] Reflection check error:', reflectionError);
+      }
+    }
 
     // 10. Transform tool results to tool_calls format for frontend
     const toolCalls = result.toolResults.map((tr) => ({
