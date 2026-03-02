@@ -35,6 +35,40 @@ import { ContractSentConfirmation } from '@/components/contract/contract-sent-co
 import type { RFQFlight } from '@/lib/chat/types';
 
 // =============================================================================
+// SCHEDULE HELPERS (ONEK-344)
+// =============================================================================
+
+/**
+ * Format an ISO datetime string to a readable time (e.g., "8:00 AM").
+ * Returns empty string if input is falsy or not parseable.
+ */
+function formatScheduleTime(isoString: unknown): string {
+  if (!isoString || typeof isoString !== 'string') return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+/**
+ * Compute duration between two ISO timestamps (e.g., "5h 30m").
+ * Returns empty string if either input is missing or invalid.
+ */
+function computeScheduleDuration(departureIso: unknown, arrivalIso: unknown): string {
+  if (!departureIso || !arrivalIso || typeof departureIso !== 'string' || typeof arrivalIso !== 'string') return '';
+  const dep = new Date(departureIso);
+  const arr = new Date(arrivalIso);
+  if (isNaN(dep.getTime()) || isNaN(arr.getTime())) return '';
+  const diffMs = arr.getTime() - dep.getTime();
+  if (diffMs <= 0) return '';
+  const totalMinutes = Math.round(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+// =============================================================================
 // REGISTRY TYPES
 // =============================================================================
 
@@ -197,17 +231,34 @@ function extractGetQuotesProps(
 ): Record<string, unknown> {
   const quotes = (result.quotes as Array<Record<string, unknown>>) || [];
   return {
-    quotes: quotes.map((q) => ({
-      id: q.id || q.quote_id || '',
-      operatorName: q.operator_name || q.operatorName || 'Unknown',
-      aircraftType: q.aircraft_type || q.aircraftType || 'Unknown',
-      price: q.total_price || q.totalPrice || q.base_price || 0,
-      departureTime: q.departure_time || q.departureTime || '',
-      arrivalTime: q.arrival_time || q.arrivalTime || '',
-      flightDuration: q.flight_duration || q.flightDuration || '',
-      score: q.score as number | undefined,
-      isRecommended: q.isRecommended as boolean | undefined,
-    })),
+    quotes: quotes.map((q) => {
+      // ONEK-344: Parse schedule JSONB for departure/arrival times
+      const schedule = q.schedule as Record<string, unknown> | null;
+      const legs = (schedule?.legs as Array<Record<string, unknown>>) || [];
+      const firstLeg = legs[0];
+
+      let departureTime = (q.departure_time || q.departureTime || '') as string;
+      let arrivalTime = (q.arrival_time || q.arrivalTime || '') as string;
+      let flightDuration = (q.flight_duration || q.flightDuration || '') as string;
+
+      if (firstLeg && !departureTime) {
+        departureTime = formatScheduleTime(firstLeg.departure);
+        arrivalTime = formatScheduleTime(firstLeg.arrival);
+        flightDuration = computeScheduleDuration(firstLeg.departure, firstLeg.arrival);
+      }
+
+      return {
+        id: q.id || q.quote_id || '',
+        operatorName: q.operator_name || q.operatorName || 'Unknown',
+        aircraftType: q.aircraft_type || q.aircraftType || 'Unknown',
+        price: q.total_price || q.totalPrice || q.base_price || 0,
+        departureTime: departureTime || '—',
+        arrivalTime: arrivalTime || '—',
+        flightDuration: flightDuration || '—',
+        score: q.score as number | undefined,
+        isRecommended: q.isRecommended as boolean | undefined,
+      };
+    }),
     onAction,
   };
 }

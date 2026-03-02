@@ -512,9 +512,18 @@ export class ToolExecutor {
   private async updateQuoteStatus(params: Record<string, unknown>): Promise<unknown> {
     const { quote_id, status, notes } = params;
 
+    // ONEK-346: Resolve Avinode quote ID to UUID if needed
+    let resolvedQuoteId = quote_id as string;
+    if (typeof quote_id === 'string' && quote_id.startsWith('aquote-')) {
+      const { findQuoteByAvinodeId } = await import('@/lib/services/proposal-service');
+      const uuid = await findQuoteByAvinodeId(quote_id);
+      if (!uuid) throw new Error(`No quote found with Avinode ID: ${quote_id}`);
+      resolvedQuoteId = uuid;
+    }
+
     const result = await updateRow(
       'quotes',
-      { id: quote_id },
+      { id: resolvedQuoteId },
       {
         status,
         analysis_notes: notes,
@@ -560,11 +569,20 @@ export class ToolExecutor {
   private async createProposal(params: Record<string, unknown>): Promise<unknown> {
     const { request_id, quote_id, title, margin_applied, trip_id, customer_email } = params;
 
+    // Resolve Avinode quote ID to UUID if needed (ONEK-346)
+    let resolvedQuoteId = quote_id as string | undefined;
+    if (typeof quote_id === 'string' && quote_id.startsWith('aquote-')) {
+      const { findQuoteByAvinodeId } = await import('@/lib/services/proposal-service');
+      const uuid = await findQuoteByAvinodeId(quote_id);
+      if (!uuid) throw new Error(`No quote found with Avinode ID: ${quote_id}`);
+      resolvedQuoteId = uuid;
+    }
+
     // Use proposal-service with automatic resolution of trip_id and customer_email
     const result = await createProposalWithResolution(
       {
         request_id: request_id as string | undefined,
-        quote_id: quote_id as string | undefined,
+        quote_id: resolvedQuoteId,
         iso_agent_id: this.context.isoAgentId,
         title: (title as string) || 'Charter Flight Proposal',
         margin_applied: margin_applied as number | undefined,
@@ -579,8 +597,36 @@ export class ToolExecutor {
       throw new Error('Failed to create proposal - could not resolve request from trip_id');
     }
 
-    console.log('[ToolExecutor] Created proposal via proposal-service:', result);
-    return result;
+    // ONEK-343: Enrich result with request + quote data for frontend rendering
+    const enrichedResult = { ...(result as unknown as Record<string, unknown>) };
+    const resolvedRequestId = enrichedResult.request_id as string | undefined;
+
+    if (resolvedRequestId) {
+      const request = await this.getRequest({ request_id: resolvedRequestId }) as Record<string, unknown> | null;
+      if (request) {
+        enrichedResult.departure_airport = request.departure_airport;
+        enrichedResult.arrival_airport = request.arrival_airport;
+        enrichedResult.departure_date = request.departure_date;
+        enrichedResult.passengers = request.passengers;
+        enrichedResult.return_date = request.return_date;
+        enrichedResult.trip_type = request.trip_type;
+      }
+    }
+
+    const enrichedQuoteId = enrichedResult.quote_id as string | undefined;
+    if (enrichedQuoteId && resolvedRequestId) {
+      const quotesResult = await this.getQuotes({ request_id: resolvedRequestId });
+      const quotes = quotesResult.quotes as Array<Record<string, unknown>>;
+      const quote = quotes.find(q => q.id === enrichedQuoteId);
+      if (quote) {
+        enrichedResult.operator_name = quote.operator_name;
+        enrichedResult.aircraft_type = quote.aircraft_type;
+        enrichedResult.total_price = quote.total_price;
+      }
+    }
+
+    console.log('[ToolExecutor] Created proposal via proposal-service:', enrichedResult);
+    return enrichedResult;
   }
 
   private async getProposal(params: Record<string, unknown>): Promise<unknown> {

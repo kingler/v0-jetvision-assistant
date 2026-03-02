@@ -161,6 +161,21 @@ export async function POST(req: NextRequest) {
     }
     console.log('[Chat API] ✅ Found ISO agent:', { clerkUserId: userId, isoAgentId });
 
+    // 3b. ONEK-345: Fetch agent profile for email signature personalization
+    let agentName = '';
+    let agentEmail = '';
+    {
+      const { data: agentProfile } = await supabaseAdmin
+        .from('iso_agents')
+        .select('full_name, email')
+        .eq('id', isoAgentId)
+        .single();
+      if (agentProfile) {
+        agentName = (agentProfile.full_name as string) || '';
+        agentEmail = (agentProfile.email as string) || '';
+      }
+    }
+
     // 4. Get or create conversation
     const conversationType = classifyConversationType(message);
     let conversationId = context?.conversationId ?? topLevelRequestId;
@@ -242,6 +257,10 @@ export async function POST(req: NextRequest) {
     if (requestTripId || context?.tripId) {
       workingMemory.tripId = workingMemory.tripId || requestTripId || context?.tripId;
     }
+
+    // ONEK-345: Inject agent identity into working memory for email signature
+    if (agentName) workingMemory.agentName = agentName;
+    if (agentEmail) workingMemory.agentEmail = agentEmail;
 
     console.log('[Chat API] Working memory loaded:', {
       conversationId,
