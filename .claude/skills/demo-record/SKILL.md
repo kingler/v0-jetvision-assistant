@@ -142,7 +142,7 @@ bash scripts/convert-recordings.sh --gif
 bash scripts/convert-recordings.sh --output-dir ./demo-videos
 ```
 
-Output goes to `e2e-screenshots/recordings/`.
+Output goes to `e2e-recordings/`.
 
 ---
 
@@ -177,6 +177,32 @@ tabId: <tab-id>
 filename: "phase1-one-way-flight.gif"
 download: true
 ```
+
+---
+
+## Recording Best Practices
+
+### Scroll the Chat Thread (Required)
+
+Before every screenshot and during recordings, scroll the Jetvision chat thread from **top to bottom** so the full conversation is captured. Chat responses push earlier content out of view — scrolling reveals the complete flow including trip cards, deep links, quote cards, and agent responses.
+
+**Per-step procedure:**
+1. After each agent response settles, scroll to the **top** of the chat thread
+2. Slowly scroll **down** through the entire conversation
+3. Pause at key UI components (TripRequestCard, RFQFlightsList, ProposalPreview, etc.)
+4. Take the screenshot or let the recording capture the full scroll
+
+**Interactive mode (Claude-in-Chrome):**
+```javascript
+// Scroll to top
+document.querySelector('[data-testid="chat-messages"]')?.scrollTo({ top: 0, behavior: 'smooth' });
+
+// Scroll to bottom
+const el = document.querySelector('[data-testid="chat-messages"]');
+el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+```
+
+**Playwright mode:** Include scroll actions between assertion steps in test helpers.
 
 ---
 
@@ -227,8 +253,8 @@ download: true
 | Type | Location | Format |
 |------|----------|--------|
 | Video recordings | `test-results/*/video.webm` | WebM (Playwright native) |
-| Step screenshots | `e2e-screenshots/recordings/<scenario>/` | PNG |
-| Converted video | `e2e-screenshots/recordings/` | MP4 and/or GIF |
+| Step screenshots | `e2e-screenshots/<scenario>/` | PNG |
+| Converted video | `e2e-recordings/` | MP4 and/or GIF |
 | HTML report | `playwright-report/index.html` | HTML |
 | Error context | `test-results/*/error-context.md` | Markdown (ARIA snapshot) |
 
@@ -299,7 +325,7 @@ Or use the slash command:
 ```
 
 This will:
-1. Scan `e2e-screenshots/recordings/` for your MP4/GIF recordings
+1. Scan `e2e-recordings/` for your MP4/GIF recordings
 2. Extract representative video thumbnails
 3. Generate a slide deck with scenario descriptions and verification points
 4. Output a Google Slides-compatible PPTX to `demo-presentations/`

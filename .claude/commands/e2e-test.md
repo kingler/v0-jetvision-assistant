@@ -2,7 +2,9 @@
 
 End-to-end browser automation test covering the complete charter flight lifecycle: authentication, flight request, Avinode RFP exchange, proposal, contract, payment, deal closure, and archival.
 
-## Full Scenario Map (13 scenarios)
+## Full Scenario Map (27 scenarios)
+
+### Flight Request Creation (Scenarios 1-6)
 
 | # | Scenario | Phase | Trigger |
 |---|----------|-------|---------|
@@ -12,15 +14,70 @@ End-to-end browser automation test covering the complete charter flight lifecycl
 | 4 | Ambiguous: tomorrow to Canada | Flight request | Chat input |
 | 5 | Ambiguous: Florida to California | Flight request | Chat input |
 | 6 | Ambiguous: round trip vague date | Flight request | Chat input |
-| 7 | Send RFQ via Avinode Marketplace | Avinode RFP exchange | Click "Open in Avinode Marketplace" on TripRequestCard |
-| 8 | Operator approves quote | Avinode RFP exchange | Switch account → Selling → Approve |
-| 9 | Update RFQ in Jetvision | Avinode RFP exchange | Click "Update RFQ" button in Jetvision |
-| 10 | Proposal generation & send | Post-quote lifecycle | Click "Generate Proposal" on quote card |
-| 11 | Contract generation & send (Book Flight) | Post-quote lifecycle | Click "Book Flight" on quote card |
-| 12 | Payment confirmation | Post-quote lifecycle | Chat input |
-| 13 | Deal closure & archive | Post-quote lifecycle | Automatic after payment |
+
+### Track A: One-Way Full Lifecycle (Scenarios 7-13)
+
+| # | Scenario | Phase | Trigger |
+|---|----------|-------|---------|
+| 7 | Send RFQ — one-way | Avinode RFP exchange | Click "Open in Avinode Marketplace" |
+| 8 | Operator approves — one-way | Avinode RFP exchange | Switch account → Selling → Approve |
+| 9 | Update RFQ — one-way | Avinode RFP exchange | Click "Update RFQ" |
+| 10 | Proposal — one-way | Post-quote lifecycle | Click "Generate Proposal" |
+| 11 | Contract — one-way | Post-quote lifecycle | Click "Book Flight" |
+| 12 | Payment — one-way | Post-quote lifecycle | Chat input |
+| 13 | Closure — one-way | Post-quote lifecycle | Automatic after payment |
+
+### Track B: Round-Trip Full Lifecycle (Scenarios 14-20)
+
+| # | Scenario | Phase | Trigger |
+|---|----------|-------|---------|
+| 14 | Send RFQ — round-trip | Avinode RFP exchange | Click "Open in Avinode Marketplace" |
+| 15 | Operator approves — round-trip | Avinode RFP exchange | Switch account → Selling → Approve |
+| 16 | Update RFQ — round-trip | Avinode RFP exchange | Click "Update RFQ" |
+| 17 | Proposal — round-trip | Post-quote lifecycle | Click "Generate Proposal" |
+| 18 | Contract — round-trip | Post-quote lifecycle | Click "Book Flight" |
+| 19 | Payment — round-trip | Post-quote lifecycle | Chat input |
+| 20 | Closure — round-trip | Post-quote lifecycle | Automatic after payment |
+
+### Track C: Multi-City Full Lifecycle (Scenarios 21-27)
+
+| # | Scenario | Phase | Trigger |
+|---|----------|-------|---------|
+| 21 | Send RFQ — multi-city | Avinode RFP exchange | Click "Open in Avinode Marketplace" |
+| 22 | Operator approves — multi-city | Avinode RFP exchange | Switch account → Selling → Approve |
+| 23 | Update RFQ — multi-city | Avinode RFP exchange | Click "Update RFQ" |
+| 24 | Proposal — multi-city | Post-quote lifecycle | Click "Generate Proposal" |
+| 25 | Contract — multi-city | Post-quote lifecycle | Click "Book Flight" |
+| 26 | Payment — multi-city | Post-quote lifecycle | Chat input |
+| 27 | Closure — multi-city | Post-quote lifecycle | Automatic after payment |
+
+### Lifecycle Track Parameters
+
+| Parameter | Track A (One-Way) | Track B (Round-Trip) | Track C (Multi-City) |
+|-----------|-------------------|---------------------|---------------------|
+| **Source Scenario** | 1 | 2 | 3 |
+| **Route** | KTEB → KVNY | EGGW → KVNY → EGGW | KTEB → EGGW → LFPB → KTEB |
+| **Legs** | 1 | 2 | 3 |
+| **Payment amount** | $45,000 | $62,000 | $95,000 |
+| **Payment reference** | WT-2026-TEST-001 | WT-2026-TEST-002 | WT-2026-TEST-003 |
+| **Screenshot folder** | `one-way-lifecycle/` | `round-trip-lifecycle/` | `multi-city-lifecycle/` |
+
+**IMPORTANT:** Each lifecycle track runs in its own chat session. Start a new chat session before beginning each track.
 
 ---
+
+## Scope Flags
+
+Use these flags to target specific scenarios when running `demo-record` or Playwright directly:
+
+| Flag | Values | Description | Example |
+|------|--------|-------------|---------|
+| `--scenario` | `1`-`27` | Run a single scenario | `--scenario 10` |
+| `--step` | `T1`-`T7` | Run one lifecycle step across all tracks | `--step T4` |
+| `--track` | `A`, `B`, `C` | Run all 7 lifecycle steps for one track | `--track B` |
+| `--phase` | `1`-`5`, `all` | Run an entire phase (default: `all`) | `--phase 3` |
+
+**Combining flags:** `--track` + `--step` narrows to a single scenario (e.g., `--track B --step T4` = Scenario 17).
 
 ## Recording Mode (Video Demos)
 
@@ -35,25 +92,50 @@ npm run test:e2e:demo
 # Record with visible browser
 npm run test:e2e:demo:headed
 
-# Convert WebM to MP4
+# Record single phase
+npx playwright test --project=demo phase1
+
+# Record single scenario by name
+npx playwright test --project=demo -g "Scenario 10"
+
+# Convert WebM to MP4 (outputs to e2e-recordings/)
 npm run demo:convert
 
 # Convert to both MP4 and GIF
 bash scripts/convert-recordings.sh --gif
+
+# Convert Track A recordings only
+bash scripts/convert-recordings.sh --phase 3
+
+# Convert a single scenario
+bash scripts/convert-recordings.sh --scenario 10
 ```
 
-Videos are saved to `test-results/` (WebM) and converted to `e2e-screenshots/recordings/` (MP4/GIF).
+Videos are saved to `test-results/` (WebM) and converted to `e2e-recordings/` (MP4/GIF).
 
-Demo spec files are in `__tests__/e2e/demo/` split by phase:
+### Recording Output Directory
+
+```
+e2e-recordings/
+├── phase1-flight-requests/        # Scenarios 1-3
+├── phase2-ambiguous-requests/     # Scenarios 4-6
+├── track-a-one-way/               # Scenarios 7-13
+├── track-b-round-trip/            # Scenarios 14-20
+├── track-c-multi-city/            # Scenarios 21-27
+└── full-demo/                     # Concatenated full-length recordings
+```
+
+### Demo Spec Files
+
+Located in `__tests__/e2e/demo/` split by phase:
 
 | File | Scenarios | Phase |
 |------|-----------|-------|
 | `phase1-flight-requests.demo.spec.ts` | 1-3 | Flight requests |
 | `phase2-ambiguous-requests.demo.spec.ts` | 4-6 | Ambiguous flows |
-| `phase3-avinode-rfq.demo.spec.ts` | 7-8 | Avinode RFQ + operator |
-| `phase4-update-rfq.demo.spec.ts` | 9 | Update RFQ |
-| `phase5-proposal-to-close.demo.spec.ts` | 10-13 | Proposal to closure |
-| `phase6-trip-type-lifecycle.demo.spec.ts` | 14-15 | Trip type ID traceability |
+| `phase3-oneway-lifecycle.demo.spec.ts` | 7-13 | One-way full lifecycle (Track A) |
+| `phase4-roundtrip-lifecycle.demo.spec.ts` | 14-20 | Round-trip full lifecycle (Track B) |
+| `phase5-multicity-lifecycle.demo.spec.ts` | 21-27 | Multi-city full lifecycle (Track C) |
 
 ### gif_creator (Interactive) — Per-Scenario
 
@@ -75,11 +157,12 @@ When running scenarios interactively via Claude-in-Chrome, wrap each scenario wi
 1. Chrome browser open with Claude-in-Chrome extension active
 2. Jetvision dev server running (`npm run dev:app`) at `http://localhost:3000`
 3. Valid Avinode Sandbox credentials (key resets every Monday)
-4. Gmail MCP server configured (for proposal/contract email in Scenarios 10-11)
-5. Screenshot directories created:
+4. Gmail MCP server configured (for proposal/contract email in lifecycle tracks)
+5. Screenshot and recording directories created:
 
 ```bash
-mkdir -p /Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/e2e-screenshots/{auth,one-way,round-trip,multi-city,ambiguous,avinode-rfq,operator-quote,update-rfq,proposal,contract,payment,closure}
+mkdir -p /Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/e2e-screenshots/{auth,one-way,round-trip,multi-city,ambiguous,one-way-lifecycle,round-trip-lifecycle,multi-city-lifecycle}
+mkdir -p /Volumes/SeagatePortableDrive/Projects/Software/v0-jetvision-assistant/e2e-recordings/{phase1-flight-requests,phase2-ambiguous-requests,track-a-one-way,track-b-round-trip,track-c-multi-city,full-demo}
 ```
 
 ---
@@ -188,17 +271,24 @@ request (avinode_trip_id, avinode_rfp_id)
       -> contract (request_id, proposal_id)
 ```
 
-### Per-Scenario ID Verification
+### Per-Scenario ID Verification (repeated per track)
 
-| Scenario | ID Captured | Source | DB Verification |
-|----------|------------|--------|-----------------|
-| 7 | tripId | Deep link URL + `data-trip-id` | `requests.avinode_trip_id` is set |
-| 8 | — | — | `avinode_webhook_events` has TripRequestSellerResponse |
-| 9 | quoteId, flightId | `data-quote-id`, `data-flight-id` on RFQFlightCard | `quotes` table has record |
-| 10 | proposalId | `data-proposal-id` on ProposalSentConfirmation | `proposals.request_id` is set |
-| 11 | contractId, contractNumber | `data-contract-id`, `data-contract-number` | `contracts.request_id` set, `contract.proposal_id == proposal.id` |
-| 12 | — | — | `contracts.payment_reference` = WT-2026-TEST-001 |
-| 13 | — | — | Full FK chain: request -> proposal -> contract |
+Each lifecycle track (A/B/C) captures and verifies the full ID chain independently. The table below uses Track A scenario numbers — add 7 for Track B (14-20) and 14 for Track C (21-27).
+
+| Step | ID Captured | Source | DB Verification |
+|------|------------|--------|-----------------|
+| T1 (7/14/21) | tripId | Deep link URL + `data-trip-id` | `requests.avinode_trip_id` is set |
+| T2 (8/15/22) | — | — | `avinode_webhook_events` has TripRequestSellerResponse |
+| T3 (9/16/23) | quoteId, flightId | `data-quote-id`, `data-flight-id` on RFQFlightCard | `quotes` table has record |
+| T4 (10/17/24) | proposalId | `data-proposal-id` on ProposalSentConfirmation | `proposals.request_id` is set |
+| T5 (11/18/25) | contractId, contractNumber | `data-contract-id`, `data-contract-number` | `contracts.request_id` set, `contract.proposal_id == proposal.id` |
+| T6 (12/19/26) | — | — | `contracts.payment_reference` = {PAYMENT_REFERENCE} |
+| T7 (13/20/27) | — | — | Full FK chain: request -> proposal -> contract |
+
+**Payment references per track:**
+- Track A: WT-2026-TEST-001
+- Track B: WT-2026-TEST-002
+- Track C: WT-2026-TEST-003
 
 ### `data-*` Attributes Reference
 
@@ -211,13 +301,6 @@ request (avinode_trip_id, avinode_rfp_id)
 | `ContractSentConfirmation` | `data-contract-id` | `contractId` |
 | `ContractSentConfirmation` | `data-contract-number` | `contractNumber` |
 | `BookFlightModal` | `data-quote-id` | `flight.quoteId` |
-
-### Phase 6: Trip Type Lifecycle Variants
-
-| File | Test | What it verifies |
-|------|------|-----------------|
-| `phase6-trip-type-lifecycle.demo.spec.ts` | Round-trip | `data-trip-id` + `data-quote-id` populated for 2-leg trips |
-| `phase6-trip-type-lifecycle.demo.spec.ts` | Multi-city | `data-trip-id` + per-leg `data-quote-id` populated for 3+ legs |
 
 ---
 
@@ -261,14 +344,28 @@ Create these tasks to track progress:
 | 4 | Test ambiguous request: tomorrow to Canada | Testing ambiguous Canada request | Send vague request, verify clarifying questions |
 | 5 | Test ambiguous request: Florida to California | Testing ambiguous Florida request | Send vague request, verify clarifying questions |
 | 6 | Test ambiguous request: round trip vague dates | Testing ambiguous round trip | Send vague request, verify clarifying questions |
-| 7 | Send RFQ via Avinode Marketplace | Testing Avinode RFP send | Click "Open in Avinode Marketplace" on TripRequestCard, new tab opens with pre-loaded flights, filter by seller, send RFQ, view in trips |
-| 8 | Operator approves quote | Testing Operator role | Switch account, navigate Selling, approve RFQ |
-| 9 | Update RFQ in Jetvision | Testing quote pull-in | Click Update RFQ, verify quote data in Jetvision |
-| 10 | Proposal generation for ABC Corp | Testing proposal flow | Click Generate Proposal, select customer, approve and send email |
-| 11 | Contract generation for ABC Corp (Book Flight) | Testing contract flow | Click Book Flight, approve and send contract email |
-| 12 | Payment confirmation | Testing payment recording | Enter payment details, verify PaymentConfirmedCard |
-| 13 | Deal closure & archive | Testing deal lifecycle end | Verify ClosedWonConfirmation, archive, read-only state |
-| 14 | Generate E2E test report | Generating test report | Compile all results into summary + DB verification |
+| 7 | [Track A] Send RFQ — one-way | Testing one-way RFQ send | Open Avinode Marketplace from one-way trip, filter, send RFQ |
+| 8 | [Track A] Operator approves — one-way | Testing one-way operator approval | Switch to operator, approve one-way RFQ |
+| 9 | [Track A] Update RFQ — one-way | Testing one-way quote pull-in | Click Update RFQ, verify one-way quote data |
+| 10 | [Track A] Proposal — one-way (ABC Corp) | Testing one-way proposal | Generate proposal for one-way, select customer, send |
+| 11 | [Track A] Contract — one-way (Book Flight) | Testing one-way contract | Book Flight for one-way, approve and send |
+| 12 | [Track A] Payment — one-way | Testing one-way payment | Confirm $45,000 payment, ref WT-2026-TEST-001 |
+| 13 | [Track A] Closure — one-way | Testing one-way closure | Verify ClosedWonConfirmation, archive |
+| 14 | [Track B] Send RFQ — round-trip | Testing round-trip RFQ send | Open Avinode Marketplace from round-trip, filter, send RFQ |
+| 15 | [Track B] Operator approves — round-trip | Testing round-trip operator approval | Switch to operator, approve round-trip RFQ |
+| 16 | [Track B] Update RFQ — round-trip | Testing round-trip quote pull-in | Click Update RFQ, verify round-trip quote data |
+| 17 | [Track B] Proposal — round-trip (ABC Corp) | Testing round-trip proposal | Generate proposal for round-trip, send |
+| 18 | [Track B] Contract — round-trip (Book Flight) | Testing round-trip contract | Book Flight for round-trip, approve and send |
+| 19 | [Track B] Payment — round-trip | Testing round-trip payment | Confirm $62,000 payment, ref WT-2026-TEST-002 |
+| 20 | [Track B] Closure — round-trip | Testing round-trip closure | Verify ClosedWonConfirmation, archive |
+| 21 | [Track C] Send RFQ — multi-city | Testing multi-city RFQ send | Open Avinode Marketplace from multi-city trip, filter, send RFQ |
+| 22 | [Track C] Operator approves — multi-city | Testing multi-city operator approval | Switch to operator, approve multi-city RFQ |
+| 23 | [Track C] Update RFQ — multi-city | Testing multi-city quote pull-in | Click Update RFQ, verify multi-city quote data |
+| 24 | [Track C] Proposal — multi-city (ABC Corp) | Testing multi-city proposal | Generate proposal for multi-city, send |
+| 25 | [Track C] Contract — multi-city (Book Flight) | Testing multi-city contract | Book Flight for multi-city, approve and send |
+| 26 | [Track C] Payment — multi-city | Testing multi-city payment | Confirm $95,000 payment, ref WT-2026-TEST-003 |
+| 27 | [Track C] Closure — multi-city | Testing multi-city closure | Verify ClosedWonConfirmation, archive |
+| 28 | Generate E2E test report | Generating test report | Compile all 27 results into summary + 3x DB verification |
 
 ---
 
@@ -1097,7 +1194,7 @@ Payment received from ABC Corp - $45,000 wire transfer, reference WT-2026-TEST-0
 **Date:** [current date]
 **Auth:** Google OAuth (kinglerbercy@gmail.com) — [PASS/FAIL]
 
-### Test Results
+### Flight Request Results
 
 | # | Scenario | Status | Notes |
 |---|----------|--------|-------|
@@ -1107,24 +1204,84 @@ Payment received from ABC Corp - $45,000 wire transfer, reference WT-2026-TEST-0
 | 4 | Ambiguous: tomorrow to Canada | [PASS/FAIL] | [notes] |
 | 5 | Ambiguous: Florida to California | [PASS/FAIL] | [notes] |
 | 6 | Ambiguous: round trip vague date | [PASS/FAIL] | [notes] |
-| 7 | Send RFQ via Avinode Marketplace | [PASS/FAIL] | [notes] |
-| 8 | Operator approves quote | [PASS/FAIL] | [notes] |
-| 9 | Update RFQ in Jetvision | [PASS/FAIL] | [notes] |
-| 10 | Proposal generation (ABC Corp) | [PASS/FAIL] | [notes] |
-| 11 | Contract / Book Flight (ABC Corp) | [PASS/FAIL] | [notes] |
-| 12 | Payment confirmation | [PASS/FAIL] | [notes] |
-| 13 | Deal closure & archive | [PASS/FAIL] | [notes] |
 
-### Database Verification (Supabase)
+### Track A: One-Way Lifecycle Results
+
+| # | Scenario | Status | Notes |
+|---|----------|--------|-------|
+| 7 | Send RFQ — one-way | [PASS/FAIL] | [notes] |
+| 8 | Operator approves — one-way | [PASS/FAIL] | [notes] |
+| 9 | Update RFQ — one-way | [PASS/FAIL] | [notes] |
+| 10 | Proposal — one-way | [PASS/FAIL] | [notes] |
+| 11 | Contract — one-way | [PASS/FAIL] | [notes] |
+| 12 | Payment — one-way ($45k) | [PASS/FAIL] | [notes] |
+| 13 | Closure — one-way | [PASS/FAIL] | [notes] |
+
+### Track B: Round-Trip Lifecycle Results
+
+| # | Scenario | Status | Notes |
+|---|----------|--------|-------|
+| 14 | Send RFQ — round-trip | [PASS/FAIL] | [notes] |
+| 15 | Operator approves — round-trip | [PASS/FAIL] | [notes] |
+| 16 | Update RFQ — round-trip | [PASS/FAIL] | [notes] |
+| 17 | Proposal — round-trip | [PASS/FAIL] | [notes] |
+| 18 | Contract — round-trip | [PASS/FAIL] | [notes] |
+| 19 | Payment — round-trip ($62k) | [PASS/FAIL] | [notes] |
+| 20 | Closure — round-trip | [PASS/FAIL] | [notes] |
+
+### Track C: Multi-City Lifecycle Results
+
+| # | Scenario | Status | Notes |
+|---|----------|--------|-------|
+| 21 | Send RFQ — multi-city | [PASS/FAIL] | [notes] |
+| 22 | Operator approves — multi-city | [PASS/FAIL] | [notes] |
+| 23 | Update RFQ — multi-city | [PASS/FAIL] | [notes] |
+| 24 | Proposal — multi-city | [PASS/FAIL] | [notes] |
+| 25 | Contract — multi-city | [PASS/FAIL] | [notes] |
+| 26 | Payment — multi-city ($95k) | [PASS/FAIL] | [notes] |
+| 27 | Closure — multi-city | [PASS/FAIL] | [notes] |
+
+### Database Verification (Supabase) — Per Track
+
+#### Track A (One-Way)
 
 | Table | Check | Expected | Status |
 |-------|-------|----------|--------|
-| `avinode_webhook_events` | Webhook recorded | Quote webhook stored | [PASS/FAIL] |
+| `avinode_webhook_events` | Webhook recorded | Quote webhook for one-way trip | [PASS/FAIL] |
 | `quotes` | Quote exists | Price + operator match Scenario 8 | [PASS/FAIL] |
 | `proposals` | Proposal exists | PROP-YYYY-NNN, status = "sent" | [PASS/FAIL] |
-| `contracts` | Contract exists | CONTRACT-YYYY-NNN, status = "paid" | [PASS/FAIL] |
+| `contracts` | Contract exists | CONTRACT-YYYY-NNN, status = "paid", ref = WT-2026-TEST-001 | [PASS/FAIL] |
 | `requests` | Session archived | session_status = "archived" | [PASS/FAIL] |
-| `messages` | Chat history | All messages in session | [PASS/FAIL] |
+
+#### Track B (Round-Trip)
+
+| Table | Check | Expected | Status |
+|-------|-------|----------|--------|
+| `avinode_webhook_events` | Webhook recorded | Quote webhook for round-trip | [PASS/FAIL] |
+| `quotes` | Quote exists | Price + operator match Scenario 15 | [PASS/FAIL] |
+| `proposals` | Proposal exists | PROP-YYYY-NNN, status = "sent" | [PASS/FAIL] |
+| `contracts` | Contract exists | CONTRACT-YYYY-NNN, status = "paid", ref = WT-2026-TEST-002 | [PASS/FAIL] |
+| `requests` | Session archived | session_status = "archived" | [PASS/FAIL] |
+
+#### Track C (Multi-City)
+
+| Table | Check | Expected | Status |
+|-------|-------|----------|--------|
+| `avinode_webhook_events` | Webhook recorded | Quote webhook for multi-city | [PASS/FAIL] |
+| `quotes` | Quote exists | Price + operator match Scenario 22 | [PASS/FAIL] |
+| `proposals` | Proposal exists | PROP-YYYY-NNN, status = "sent" | [PASS/FAIL] |
+| `contracts` | Contract exists | CONTRACT-YYYY-NNN, status = "paid", ref = WT-2026-TEST-003 | [PASS/FAIL] |
+| `requests` | Session archived | session_status = "archived" | [PASS/FAIL] |
+
+### Summary
+
+| Metric | Value |
+|--------|-------|
+| Total scenarios | 27 |
+| Passed | [count] |
+| Failed | [count] |
+| Lifecycle tracks completed | [0/1/2/3] of 3 |
+| Full FK chain verified | [Track A: Y/N] [Track B: Y/N] [Track C: Y/N] |
 
 ### Issues Found
 - [description] — [severity: high/medium/low]
@@ -1135,70 +1292,75 @@ Payment received from ABC Corp - $45,000 wire transfer, reference WT-2026-TEST-0
 ### Screenshots
 All saved to: `e2e-screenshots/`
 - `e2e-screenshots/auth/` — Authentication flow
-- `e2e-screenshots/one-way/` — One-way flight test
-- `e2e-screenshots/round-trip/` — Round-trip flight test
-- `e2e-screenshots/multi-city/` — Multi-city trip test
-- `e2e-screenshots/ambiguous/` — Ambiguous request tests
-- `e2e-screenshots/avinode-rfq/` — Avinode Marketplace RFQ send
-- `e2e-screenshots/operator-quote/` — Operator role switch & quote approval
-- `e2e-screenshots/update-rfq/` — Update RFQ in Jetvision
-- `e2e-screenshots/proposal/` — Proposal generation & send
-- `e2e-screenshots/contract/` — Contract generation & send
-- `e2e-screenshots/payment/` — Payment confirmation
-- `e2e-screenshots/closure/` — Deal closure & archive
+- `e2e-screenshots/one-way/` — One-way flight request (Scenario 1)
+- `e2e-screenshots/round-trip/` — Round-trip flight request (Scenario 2)
+- `e2e-screenshots/multi-city/` — Multi-city trip request (Scenario 3)
+- `e2e-screenshots/ambiguous/` — Ambiguous request tests (Scenarios 4-6)
+- `e2e-screenshots/one-way-lifecycle/` — Track A full lifecycle (Scenarios 7-13)
+- `e2e-screenshots/round-trip-lifecycle/` — Track B full lifecycle (Scenarios 14-20)
+- `e2e-screenshots/multi-city-lifecycle/` — Track C full lifecycle (Scenarios 21-27)
 
 ---
 
 ## Ordering Dependencies
 
-Scenarios must be run in order when testing the full lifecycle:
+Each lifecycle track must run its scenarios in order. The three tracks are independent and can run sequentially or in separate sessions.
 
 ```
-Scenario 1/2/3 (trip created)
-    → Scenario 7 (RFQ sent via Avinode Marketplace)
-        → Scenario 8 (Operator approves quote)
-            → Scenario 9 (quotes pulled into Jetvision)
-                → Scenario 10 (proposal sent to ABC Corp)
-                    → Scenario 11 (contract sent — Book Flight)
-                        → Scenario 12 (payment confirmed)
-                            → Scenario 13 (deal closed & archived)
+Scenario 1 (one-way trip created)
+    → Track A: 7 → 8 → 9 → 10 → 11 → 12 → 13
+
+Scenario 2 (round-trip created)
+    → Track B: 14 → 15 → 16 → 17 → 18 → 19 → 20
+
+Scenario 3 (multi-city created)
+    → Track C: 21 → 22 → 23 → 24 → 25 → 26 → 27
+
+Scenarios 4-6 (ambiguous) — independent, any order
 ```
 
-Scenarios 4-6 (ambiguous requests) are independent and can be run in any order.
+**Recommended execution order:**
+1. Scenarios 1-3 (flight requests — creates trips for all tracks)
+2. Scenarios 4-6 (ambiguous — independent, can run anytime)
+3. Track A: Scenarios 7-13 (one-way lifecycle)
+4. Track B: Scenarios 14-20 (round-trip lifecycle — new session)
+5. Track C: Scenarios 21-27 (multi-city lifecycle — new session)
 
 ## Browser Tab Management
 
-| Scenario | Active Tab | Notes |
-|----------|-----------|-------|
+| Scenario(s) | Active Tab | Notes |
+|-------------|-----------|-------|
 | 1-6 | Jetvision (localhost:3000) | Original tab |
-| 7 | Avinode Marketplace (NEW tab) | Opens via deep link click |
-| 8 | Avinode Marketplace | Same Avinode tab, switch account |
-| 9 | Jetvision (localhost:3000) | Switch BACK to original tab |
-| 10 | Jetvision + PDF tab | "View Full Proposal PDF" opens NEW tab (user-initiated click) |
-| 11 | Jetvision + PDF tab | Contract PDF **auto-opens** in NEW tab on "Approve & Send" (`window.open`) |
-| 12-13 | Jetvision (localhost:3000) | All remaining work in Jetvision |
+| T1 (7/14/21) | Avinode Marketplace (NEW tab) | Opens via deep link click |
+| T2 (8/15/22) | Avinode Marketplace | Same Avinode tab, switch account |
+| T3 (9/16/23) | Jetvision (localhost:3000) | Switch BACK to original tab |
+| T4 (10/17/24) | Jetvision + PDF tab | "View Full Proposal PDF" opens NEW tab |
+| T5 (11/18/25) | Jetvision + PDF tab | Contract PDF **auto-opens** in NEW tab |
+| T6-T7 (12-13/19-20/26-27) | Jetvision (localhost:3000) | All remaining work in Jetvision |
+
+**Between tracks:** Close the Avinode and PDF tabs. Start a new Jetvision chat session for each track.
 
 ## Key Component Reference
 
 | Component | File Path | Used In |
 |-----------|-----------|---------|
-| `TripRequestCard` | `components/avinode/trip-request-card.tsx` | Scenarios 1-6 |
+| `TripRequestCard` | `components/avinode/trip-request-card.tsx` | Scenarios 1-6, T1 |
 | `AvinodeSearchCard` | `components/avinode/avinode-search-card.tsx` | Scenarios 1-3 |
 | `DeepLinkPrompt` | `components/avinode/deep-link-prompt.tsx` | Scenarios 1-3 |
-| `AvinodeDeepLinks` | `components/avinode/avinode-deep-links.tsx` | Scenario 7 |
-| `RFQFlightsList` | `components/avinode/rfq-flights-list.tsx` | Scenarios 9-11 |
-| `RFQFlightCard` | `components/avinode/rfq-flight-card.tsx` | Scenarios 9-11 |
-| `RfqQuoteDetailsCard` | `components/avinode/rfq-quote-details-card.tsx` | Scenario 9 |
-| `SendProposalStep` | `components/avinode/send-proposal-step.tsx` | Scenario 10 |
-| `CustomerSelectionDialog` | `components/customer-selection-dialog.tsx` | Scenario 10 |
-| `ProposalPreview` | `components/message-components/proposal-preview.tsx` | Scenario 10 |
-| `ProposalSentConfirmation` | `components/proposal/proposal-sent-confirmation.tsx` | Scenario 10 |
-| `BookFlightModal` | `components/avinode/book-flight-modal.tsx` | Scenario 11 |
-| `ContractSentConfirmation` | `components/contract/contract-sent-confirmation.tsx` | Scenario 11 |
-| `PaymentConfirmedCard` | `components/contract/payment-confirmed-card.tsx` | Scenario 12 |
-| `PaymentConfirmationModal` | `components/contract/payment-confirmation-modal.tsx` | Scenario 12 |
-| `ClosedWonConfirmation` | `components/contract/closed-won-confirmation.tsx` | Scenario 13 |
-| `FlightRequestCard` | `components/chat/flight-request-card.tsx` | Scenario 13 (archive) |
+| `AvinodeDeepLinks` | `components/avinode/avinode-deep-links.tsx` | T1 |
+| `RFQFlightsList` | `components/avinode/rfq-flights-list.tsx` | T3-T5 |
+| `RFQFlightCard` | `components/avinode/rfq-flight-card.tsx` | T3-T5 |
+| `RfqQuoteDetailsCard` | `components/avinode/rfq-quote-details-card.tsx` | T3 |
+| `SendProposalStep` | `components/avinode/send-proposal-step.tsx` | T4 |
+| `CustomerSelectionDialog` | `components/customer-selection-dialog.tsx` | T4 |
+| `ProposalPreview` | `components/message-components/proposal-preview.tsx` | T4 |
+| `ProposalSentConfirmation` | `components/proposal/proposal-sent-confirmation.tsx` | T4 |
+| `BookFlightModal` | `components/avinode/book-flight-modal.tsx` | T5 |
+| `ContractSentConfirmation` | `components/contract/contract-sent-confirmation.tsx` | T5 |
+| `PaymentConfirmedCard` | `components/contract/payment-confirmed-card.tsx` | T6 |
+| `PaymentConfirmationModal` | `components/contract/payment-confirmation-modal.tsx` | T6 |
+| `ClosedWonConfirmation` | `components/contract/closed-won-confirmation.tsx` | T7 |
+| `FlightRequestCard` | `components/chat/flight-request-card.tsx` | T7 (archive) |
 | `FlightSearchProgress` | `components/avinode/flight-search-progress.tsx` | Scenarios 1-3 |
 
 ## Troubleshooting

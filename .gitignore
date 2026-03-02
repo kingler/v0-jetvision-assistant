@@ -67,6 +67,7 @@ build-output.log
 .windsurf/
 .conductor/
 .context/
+.auto-claude/
 
 # Git Worktree Workspaces (phase directories only, keep archive and config)
 .context/workspaces/phase-*/
@@ -80,7 +81,10 @@ build-output.log
 # Vercel project settings (local only)
 .vercel/
 
+# Test output directories
 test-output/
+test-results/
+playwright-report/
 
 # Google OAuth credentials
 client_secret*.json
@@ -93,6 +97,7 @@ client_secret*.json
 # .claude/plans/
 # Agent identity docs (local reference)
 agents/jetvision-agent/
+.agent/
 
 # Scripts
 
@@ -101,3 +106,12 @@ scripts/generate-demo-slides.js
 
 # Files
 prompt.md
+
+# Directories
+screenshots/
+e2e-recordings/
+e2e-screenshots/
+examples/
+logs/
+reports/
+tasks/

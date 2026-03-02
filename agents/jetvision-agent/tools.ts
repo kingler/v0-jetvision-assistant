@@ -427,7 +427,7 @@ export const DATABASE_TOOLS: OpenAIToolDefinition[] = [
         properties: {
           quote_id: {
             type: 'string',
-            description: 'Quote UUID',
+            description: 'Quote ID — accepts both UUID format and Avinode format (aquote-*)',
           },
           status: {
             type: 'string',
@@ -499,7 +499,7 @@ export const DATABASE_TOOLS: OpenAIToolDefinition[] = [
           },
           quote_id: {
             type: 'string',
-            description: 'Quote UUID to base proposal on',
+            description: 'Quote ID — accepts both UUID format and Avinode format (aquote-*)',
           },
           title: {
             type: 'string',
@@ -818,7 +818,7 @@ export const GMAIL_TOOLS: OpenAIToolDefinition[] = [
           },
           quote_ids: {
             type: 'string',
-            description: 'Comma-separated quote UUIDs to include',
+            description: 'Comma-separated quote IDs to include — accepts both UUID and Avinode format (aquote-*)',
           },
           to_email: {
             type: 'string',
