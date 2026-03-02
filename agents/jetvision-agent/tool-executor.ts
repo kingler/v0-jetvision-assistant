@@ -966,10 +966,15 @@ export class ToolExecutor {
       };
     }
 
+    // PM2: Partial payment validation — compare to contract total
+    const contractTotal = existingContract?.total_amount as number | undefined;
+    const paymentAmt = payment_amount as number;
+    const isPartialPayment = contractTotal != null && paymentAmt < contractTotal;
+
     // Record payment
     const paymentResult = await updateContractPayment(contract_id as string, {
       payment_reference: payment_reference as string,
-      payment_amount: payment_amount as number,
+      payment_amount: paymentAmt,
       payment_date: new Date().toISOString().split('T')[0],
       payment_method: payment_method as 'wire' | 'credit_card',
     });
@@ -983,21 +988,24 @@ export class ToolExecutor {
     let proposalSentAt: string | undefined;
     let contractSentAt: string | undefined;
 
+    // PM1b: Use contract.request_id as fallback when context.requestId is missing
+    const enrichmentRequestId = this.context.requestId || existingContract?.request_id;
+
     try {
       // Get request data for route
-      if (this.context.requestId) {
+      if (enrichmentRequestId) {
         const { data: reqData } = await supabaseAdmin
           .from('requests')
           .select('departure_airport, arrival_airport')
-          .eq('id', this.context.requestId)
+          .eq('id', enrichmentRequestId)
           .single();
         if (reqData) {
           flightRoute = `${reqData.departure_airport || ''} → ${reqData.arrival_airport || ''}`;
         }
       }
       // Get proposal data for customer name and timeline
-      if (this.context.requestId) {
-        const proposals = await getProposalsByRequest(this.context.requestId);
+      if (enrichmentRequestId) {
+        const proposals = await getProposalsByRequest(enrichmentRequestId);
         if (proposals && proposals.length > 0) {
           const sentProposal = proposals.find((p: Record<string, unknown>) => p.status === 'sent') || proposals[0];
           customerName = (sentProposal as Record<string, unknown>).sent_to_name as string || '';
@@ -1011,22 +1019,67 @@ export class ToolExecutor {
       console.warn('[ToolExecutor] Could not fetch enrichment data for payment:', err);
     }
 
+    const paidAt = new Date().toISOString();
+
+    // Build partial payment warning fields (PM2)
+    const partialPaymentFields: Record<string, unknown> = {};
+    if (isPartialPayment) {
+      partialPaymentFields.partial_payment = true;
+      partialPaymentFields.remaining_balance = contractTotal! - paymentAmt;
+    }
+
+    // PM1: Build explicit nested objects for SSE extraction
+    const paymentConfirmationData = {
+      contractId: paymentResult.id,
+      contractNumber: paymentResult.contract_number,
+      paymentAmount: paymentResult.payment_amount,
+      paymentMethod: payment_method as string,
+      paymentReference: paymentResult.payment_reference,
+      paidAt,
+      currency: 'USD',
+      ...partialPaymentFields,
+    };
+
+    const closedWonData = {
+      contractNumber: paymentResult.contract_number,
+      customerName,
+      flightRoute,
+      dealValue: paymentAmt,
+      currency: 'USD',
+      proposalSentAt,
+      contractSentAt,
+      paymentReceivedAt: paidAt,
+      ...partialPaymentFields,
+    };
+
+    // Build message
+    const baseMessage = `Payment of ${payment_amount} recorded. Contract ${paymentResult.contract_number} is now complete.`;
+    const message = isPartialPayment
+      ? `Payment of ${payment_amount} recorded (partial payment — remaining balance: ${contractTotal! - paymentAmt}). Contract ${paymentResult.contract_number} is now complete.`
+      : baseMessage;
+
     return {
+      // Flat fields (backward compat with route.ts SSE extraction)
       contractId: paymentResult.id,
       contractNumber: paymentResult.contract_number,
       status: completed.status,
       paymentReference: paymentResult.payment_reference,
       paymentAmount: paymentResult.payment_amount,
       paymentMethod: payment_method as string,
-      paidAt: new Date().toISOString(),
+      paidAt,
       currency: 'USD',
-      // Enriched data for ClosedWonConfirmation (mirrors handlePaymentConfirm)
+      // Enriched flat fields for ClosedWonConfirmation (mirrors handlePaymentConfirm)
       customerName,
       flightRoute,
-      dealValue: payment_amount as number,
+      dealValue: paymentAmt,
       proposalSentAt,
       contractSentAt,
-      message: `Payment of ${payment_amount} recorded. Contract ${paymentResult.contract_number} is now complete.`,
+      // PM2: Partial payment warning fields (flat)
+      ...partialPaymentFields,
+      // PM1: Explicit nested objects — self-documenting, resilient to extraction changes
+      paymentConfirmationData,
+      closedWonData,
+      message,
     };
   }
 
