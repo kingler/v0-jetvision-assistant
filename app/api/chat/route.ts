@@ -22,6 +22,16 @@ import {
   createOrUpdateChatSession,
   type ChatSessionInsert,
 } from '@/lib/sessions/track-chat-session';
+import {
+  detectCorrectionSignals,
+  detectToolRetrySignals,
+  detectWorkflowBacktrack,
+} from '@/lib/self-improvement/signal-capture';
+import {
+  saveSignals,
+  recordStageTransition,
+} from '@/lib/self-improvement/signal-persistence';
+import { canRunReflection, runReflection } from '@/lib/self-improvement/reflection-engine';
 
 // =============================================================================
 // REQUEST VALIDATION
@@ -373,6 +383,8 @@ export async function POST(req: NextRequest) {
       console.log('[Chat API] Skipping assistant message persistence for:', { conversationId, messagePreview: result.message.slice(0, 50) });
     }
 
+    const previousWorkflowStage = workingMemory.workflowStage as string | undefined;
+
     // 7b. Update working memory from tool results
     for (const tr of result.toolResults) {
       if (tr.name === 'create_trip' && tr.success && tr.data) {
@@ -461,6 +473,39 @@ export async function POST(req: NextRequest) {
       workflowStage: workingMemory.workflowStage || null,
       fieldCount: Object.keys(workingMemory).length,
     });
+
+    // 7c. Capture implicit signals (self-improvement)
+    try {
+      const allSignals = [
+        ...detectCorrectionSignals(
+          conversationHistory.map((m) => ({ role: m.role, content: m.content })),
+          conversationId
+        ),
+        ...detectToolRetrySignals(
+          result.toolResults.map((tr) => ({
+            name: tr.name as string,
+            success: tr.success,
+            input: tr.input as Record<string, unknown>,
+          })),
+          conversationId
+        ),
+      ];
+
+      const backtrackSignal = detectWorkflowBacktrack(
+        previousWorkflowStage,
+        workingMemory.workflowStage as string | undefined,
+        conversationId
+      );
+      if (backtrackSignal) allSignals.push(backtrackSignal);
+
+      if (allSignals.length > 0) {
+        saveSignals(allSignals).catch((err) =>
+          console.error('[Chat API] Signal save failed:', err)
+        );
+      }
+    } catch (signalError) {
+      console.error('[Chat API] Signal capture error:', signalError);
+    }
 
     // 8. Update request with trip info and flight details if created
     if (result.tripId || result.rfpData) {
@@ -583,6 +628,14 @@ export async function POST(req: NextRequest) {
       .update({ workflow_state: workingMemory as unknown as Record<string, never> })
       .eq('id', conversationId);
 
+    // 8c. Record workflow stage transition for deal velocity tracking
+    const newStage = workingMemory.workflowStage as string | undefined;
+    if (newStage && newStage !== previousWorkflowStage) {
+      recordStageTransition(conversationId, newStage, previousWorkflowStage).catch(
+        (err) => console.error('[Chat API] Stage transition record failed:', err)
+      );
+    }
+
     // 9. Update chat session
     // Detect if archive_session was called successfully in this turn
     const wasArchived = result.toolResults.some(
@@ -601,6 +654,20 @@ export async function POST(req: NextRequest) {
       ...(result.tripId ? { avinode_trip_id: result.tripId } : {}),
     };
     await createOrUpdateChatSession(sessionData, conversationId);
+
+    // 9b. Check if reflection should run (after session completion)
+    if (wasArchived) {
+      try {
+        const { canRun } = await canRunReflection();
+        if (canRun) {
+          runReflection().catch((err) =>
+            console.error('[Chat API] Background reflection failed:', err)
+          );
+        }
+      } catch (reflectionError) {
+        console.error('[Chat API] Reflection check error:', reflectionError);
+      }
+    }
 
     // 10. Transform tool results to tool_calls format for frontend
     const toolCalls = result.toolResults.map((tr) => ({
@@ -651,6 +718,8 @@ export async function POST(req: NextRequest) {
     // 11c. ONEK-299: Extract contract_sent_data from generate_contract tool results
     let contractSentData: {
       contractId: string;
+      /** Database UUID — preferred over contractId for API calls */
+      dbContractId?: string;
       contractNumber: string;
       status: string;
       pdfUrl?: string;
@@ -774,6 +843,7 @@ export async function POST(req: NextRequest) {
         });
         contractSentData = {
           contractId: data.contractId as string,
+          dbContractId: (data.dbContractId as string) || (data.contractId as string),
           contractNumber: data.contractNumber as string,
           status: (data.status as string) || 'sent',
           pdfUrl: data.pdfUrl as string | undefined,
@@ -798,6 +868,7 @@ export async function POST(req: NextRequest) {
         });
         contractSentData = {
           contractId: data.contractId as string,
+          dbContractId: (data.dbContractId as string) || (data.contractId as string),
           contractNumber: data.contractNumber as string,
           status: (data.status as string) || 'sent',
           pdfUrl: data.pdfUrl as string | undefined,

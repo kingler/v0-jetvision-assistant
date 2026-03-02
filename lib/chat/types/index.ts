@@ -480,6 +480,8 @@ export interface SSEParseResult {
   /** Contract sent confirmation data from generate_contract tool */
   contractSentData?: {
     contractId: string;
+    /** Database UUID — preferred over contractId for API calls */
+    dbContractId?: string;
     contractNumber: string;
     status: string;
     pdfUrl?: string;
@@ -546,6 +548,10 @@ export interface ChatMessage {
   showEmailApprovalRequest?: boolean;
   /** Email approval data from prepare_proposal_email tool */
   emailApprovalData?: EmailApprovalData;
+  /** Tracks whether the email was sent (persisted for read-only display) */
+  emailApprovalSentStatus?: 'sent';
+  /** Tracks whether margin selection has been completed */
+  marginSelectionCompleted?: boolean;
   /** Tool results with input for MCP UI registry rendering (feature-flagged) */
   toolResults?: ToolResultWithInput[];
 }

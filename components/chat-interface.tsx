@@ -197,19 +197,16 @@ export function ChatInterface({
   const [emailApprovalStatus, setEmailApprovalStatus] = useState<'draft' | 'sending' | 'sent' | 'error'>('draft')
   const [emailApprovalError, setEmailApprovalError] = useState<string | undefined>()
 
-  // Restore email approval state when switching chats (ONEK-185)
-  // Scans loaded messages for an email_approval_request so the EmailPreviewCard
-  // and "Send Email" handler work after chat switch or page refresh.
-  // If a proposal-sent confirmation already exists, the email was already sent
-  // so we skip restoring the approval card.
+  // Restore email approval interactive state when switching chats (ONEK-185)
+  // Scans loaded messages for an unsent email_approval_request so the EmailPreviewCard
+  // editing and "Send Email" handler work after chat switch or page refresh.
+  // Messages with emailApprovalSentStatus === 'sent' are displayed read-only via props
+  // and don't need interactive state restored.
   useEffect(() => {
     const msgs = activeChat.messages || []
-    const alreadySent = msgs.some(
-      (msg) => msg.showProposalSentConfirmation || msg.showContractSentConfirmation
+    const emailMsg = msgs.find(
+      (msg) => msg.showEmailApprovalRequest && msg.emailApprovalData && !msg.emailApprovalSentStatus
     )
-    const emailMsg = alreadySent
-      ? undefined
-      : msgs.find((msg) => msg.showEmailApprovalRequest && msg.emailApprovalData)
 
     if (emailMsg) {
       setEmailApprovalMessageId(emailMsg.id)
@@ -221,11 +218,6 @@ export function ChatInterface({
       setEmailApprovalStatus('draft')
     }
   }, [activeChat.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Suppress email approval card when a proposal/contract confirmation already exists (ONEK-185)
-  const emailAlreadySent = (activeChat.messages || []).some(
-    (msg) => msg.showProposalSentConfirmation || msg.showContractSentConfirmation
-  )
 
   // Book flight modal state for contract generation
   const [isBookFlightModalOpen, setIsBookFlightModalOpen] = useState(false)
@@ -1031,6 +1023,7 @@ export function ChatInterface({
       showContractSentConfirmation: !!result.contractSentData,
       contractSentData: result.contractSentData ? {
         contractId: result.contractSentData.contractId,
+        dbContractId: result.contractSentData.dbContractId,
         contractNumber: result.contractSentData.contractNumber,
         status: (result.contractSentData.status as 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed') || 'sent',
         pdfUrl: result.contractSentData.pdfUrl,
@@ -2111,30 +2104,24 @@ export function ChatInterface({
           proposalSentData,
         }
 
-        // Replace email preview and margin selection with confirmation (not append)
+        // Mark email and margin messages as completed, then append confirmation
         const existingMessages = activeChat.messages || []
-        let replaced = false
-        const updatedMessages = existingMessages.reduce<typeof existingMessages>((acc, m) => {
+        const updatedMessages = existingMessages.map(m => {
           if (m.showEmailApprovalRequest) {
-            if (!replaced) {
-              acc.push(confirmationMessage)
-              replaced = true
-            }
-            return acc
+            return { ...m, emailApprovalSentStatus: 'sent' as const }
           }
-          if (m.showMarginSelection) return acc
-          acc.push(m)
-          return acc
-        }, [])
-        if (!replaced) {
-          updatedMessages.push(confirmationMessage)
-        }
+          if (m.showMarginSelection) {
+            return { ...m, marginSelectionCompleted: true }
+          }
+          return m
+        })
+        updatedMessages.push(confirmationMessage)
         onUpdateChat(activeChat.id, {
           messages: updatedMessages,
           status: 'proposal_sent' as const,
         })
 
-        // Clear email approval state so the card doesn't linger
+        // Clear interactive email approval state (card persists in read-only sent mode)
         setEmailApprovalMessageId(null)
         setEmailApprovalData(null)
       }
@@ -2669,6 +2656,7 @@ export function ChatInterface({
                 showPipeline?: boolean
                 pipelineData?: PipelineData
                 showMarginSelection?: boolean
+                marginSelectionCompleted?: boolean
                 marginSelectionData?: {
                   customerName: string
                   customerEmail: string
@@ -2700,6 +2688,7 @@ export function ChatInterface({
                 // Email approval workflow properties (human-in-the-loop)
                 showEmailApprovalRequest?: boolean
                 emailApprovalData?: import('@/lib/types/chat').EmailApprovalRequestContent
+                emailApprovalSentStatus?: 'sent'
                 // MCP UI tool results (feature-flagged)
                 toolResults?: Array<{ name: string; input: Record<string, unknown>; result: Record<string, unknown> }>
                 // System event notification properties (ONEK-173)
@@ -2730,6 +2719,7 @@ export function ChatInterface({
                 showPipeline: msg.showPipeline,
                 pipelineData: msg.pipelineData,
                 showMarginSelection: msg.showMarginSelection,
+                marginSelectionCompleted: msg.marginSelectionCompleted,
                 marginSelectionData: msg.marginSelectionData,
                 showProposalSentConfirmation: msg.showProposalSentConfirmation,
                 proposalSentData: msg.proposalSentData,
@@ -2737,6 +2727,7 @@ export function ChatInterface({
                 contractSentData: msg.contractSentData,
                 showEmailApprovalRequest: msg.showEmailApprovalRequest,
                 emailApprovalData: msg.emailApprovalData,
+                emailApprovalSentStatus: msg.emailApprovalSentStatus,
                 toolResults: msg.toolResults,
                 isSystemEvent: msg.isSystemEvent,
                 systemEventData: msg.systemEventData,
@@ -3073,13 +3064,13 @@ export function ChatInterface({
                         paymentConfirmationData={message.paymentConfirmationData}
                         showClosedWon={message.showClosedWon}
                         closedWonData={message.closedWonData}
-                        showEmailApprovalRequest={!emailAlreadySent && message.showEmailApprovalRequest}
+                        showEmailApprovalRequest={message.showEmailApprovalRequest}
                         emailApprovalData={message.emailApprovalData}
                         onEmailEdit={handleEmailEdit}
                         onEmailSend={handleEmailSend}
                         onEmailCancel={handleEmailCancel}
-                        emailApprovalStatus={!emailAlreadySent && message.showEmailApprovalRequest ? emailApprovalStatus : undefined}
-                        emailApprovalError={!emailAlreadySent && message.showEmailApprovalRequest ? emailApprovalError : undefined}
+                        emailApprovalStatus={message.emailApprovalSentStatus === 'sent' ? 'sent' : (message.showEmailApprovalRequest ? emailApprovalStatus : undefined)}
+                        emailApprovalError={message.showEmailApprovalRequest && !message.emailApprovalSentStatus ? emailApprovalError : undefined}
                         onViewRequest={(requestId) => {
                           console.log('[Pipeline] View request:', requestId)
                         }}

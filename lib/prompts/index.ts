@@ -10,6 +10,7 @@
 export {
   buildCompleteSystemPrompt,
   buildSystemPromptWithWorkingMemory,
+  buildDynamicSystemPrompt,
   renderWorkingMemory,
   buildSystemPromptWithIntent as buildSystemPromptWithIntentBase,
   detectForcedTool,

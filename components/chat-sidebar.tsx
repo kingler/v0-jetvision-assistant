@@ -185,6 +185,8 @@ export interface ChatSession {
     showProposalSentConfirmation?: boolean
     /** Data for ProposalSentConfirmation when showProposalSentConfirmation is true */
     proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
+    /** Tracks whether margin selection has been completed */
+    marginSelectionCompleted?: boolean
     /** Whether to show email approval request card (human-in-the-loop) */
     showEmailApprovalRequest?: boolean
     /** Data for EmailPreviewCard when showEmailApprovalRequest is true */
@@ -208,6 +210,8 @@ export interface ChatSession {
       generatedAt?: string
       requestId?: string
     }
+    /** Tracks whether the email was sent (persisted for read-only display) */
+    emailApprovalSentStatus?: 'sent'
     /** Whether to show contract-sent confirmation card */
     showContractSentConfirmation?: boolean
     /** Data for ContractSentConfirmation card */
@@ -365,11 +369,11 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
         </div>
       </div>
 
-      {/* Chat List */}
+      {/* Chat List — cards use mx-1 margins instead of container padding to avoid Radix ScrollArea's internal display:table wrapper eating left/right padding */}
       <div className="relative flex-1 min-h-0 w-full overflow-x-hidden">
         <ScrollArea className="h-full w-full overflow-x-hidden">
           {activeTab === 'active' ? (
-            <div className="p-1 sm:p-2 space-y-2 flex flex-col items-center">
+            <div className="py-1 sm:py-2 space-y-2 flex flex-col">
               {validSessions.map((session) => (
                 session.conversationType === 'general' ? (
                   <GeneralChatCard
@@ -394,7 +398,7 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
               ))}
             </div>
           ) : (
-            <div className="p-1 sm:p-2 space-y-2 flex flex-col items-center">
+            <div className="py-1 sm:py-2 space-y-2 flex flex-col">
               {isLoadingArchive ? (
                 <div className="flex items-center justify-center py-8 text-muted-foreground">
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -426,27 +430,6 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
         </ScrollArea>
       </div>
 
-      {/* Footer */}
-      <div className="p-3 sm:p-4 border-t border-border">
-        <div className="text-[clamp(0.6875rem,1.5vw,0.75rem)] text-muted-foreground space-y-1">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-status-proposal-sent rounded-full shrink-0"></div>
-            <span>Proposal Sent</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-status-proposal-ready rounded-full shrink-0"></div>
-            <span>Proposal Ready</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-status-processing rounded-full shrink-0"></div>
-            <span>Processing</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-status-pending rounded-full shrink-0"></div>
-            <span>Pending</span>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

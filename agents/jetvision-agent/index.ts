@@ -15,7 +15,7 @@ import type { AgentContext, ToolResult, ToolName } from './types';
 import { ALL_TOOLS } from './tools';
 import { ToolExecutor, createToolExecutor } from './tool-executor';
 import {
-  buildSystemPromptWithWorkingMemory,
+  buildDynamicSystemPrompt,
   detectForcedTool,
   detectForcedToolFromContext,
   detectIntentWithHistory,
@@ -99,7 +99,7 @@ export class JetvisionAgent {
     // Detect intent from message AND conversation history
     // This fixes the multi-turn bug where clarification responses lose context
     const intent = detectIntentWithHistory(userMessage, conversationHistory);
-    let systemPrompt = buildSystemPromptWithWorkingMemory(workingMemory);
+    let systemPrompt = await buildDynamicSystemPrompt(workingMemory);
 
     // Append intent-specific instructions if detected
     if (intent) {
