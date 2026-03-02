@@ -991,6 +991,28 @@ export class ToolExecutor {
     // PM1b: Use contract.request_id as fallback when context.requestId is missing
     const enrichmentRequestId = this.context.requestId || existingContract?.request_id;
 
+    // CL2: Update request session_status to closed_won (non-blocking)
+    // The payment was already recorded above — a failure here must NOT fail the tool.
+    if (enrichmentRequestId) {
+      try {
+        await supabaseAdmin
+          .from('requests')
+          .update({
+            // 'closed_won' is not yet in the request_status DB enum; cast to satisfy TS
+            // until the Supabase migration adds it. The DB column accepts it as text.
+            status: 'closed_won' as unknown as 'completed',
+            session_status: 'closed_won',
+            current_step: 'closed_won',
+            session_ended_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+          })
+          .eq('id', enrichmentRequestId)
+          .eq('iso_agent_id', this.context.isoAgentId);
+      } catch (err) {
+        console.warn('[ToolExecutor] Non-blocking: failed to update request status:', err);
+      }
+    }
+
     try {
       // Get request data for route
       if (enrichmentRequestId) {

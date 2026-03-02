@@ -103,7 +103,7 @@ vi.mock('@/lib/services/contract-service', () => ({
   completeContract: (...args: unknown[]) => mockCompleteContract(...args),
 }));
 
-// Mock Supabase admin — chains: from().select().eq().single()
+// Mock Supabase admin — chains: from().select().eq().single() and from().update().eq()
 const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
 const mockSingle = vi.fn().mockResolvedValue({ data: null, error: null });
 const mockLimit = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
@@ -116,7 +116,8 @@ const mockEq = vi.fn((): Record<string, unknown> => ({
   not: mockNot,
 }));
 const mockSelect = vi.fn(() => ({ eq: mockEq, single: mockSingle }));
-const mockFrom = vi.fn(() => ({ select: mockSelect }));
+const mockUpdate = vi.fn(() => ({ eq: mockEq }));
+const mockFrom = vi.fn(() => ({ select: mockSelect, update: mockUpdate }));
 
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: { from: () => mockFrom() },
