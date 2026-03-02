@@ -289,7 +289,7 @@ export const FlightRequestCard = React.memo(function FlightRequestCard({ session
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden w-full max-w-[300px] min-w-[260px] box-border py-0 gap-0",
+        "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden max-w-[300px] min-w-[230px] box-border py-0 gap-0 mx-1",
         !isActive && "hover:bg-surface-secondary",
       )}
       style={isActive ? { backgroundColor: '#e6f7fc', borderColor: '#00a8e8', borderWidth: '3px' } : undefined}

@@ -5,6 +5,19 @@ import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
 
 import { cn } from '@/lib/utils'
 
+/**
+ * Radix ScrollArea injects an internal `<div style="min-width:100%; display:table">`
+ * inside the Viewport. The table layout causes child content to overflow the viewport
+ * width, breaking margins/padding. This ref callback overrides it to `display:block`.
+ */
+function neutralizeTableLayout(node: HTMLDivElement | null) {
+  if (!node) return
+  const inner = node.firstElementChild as HTMLElement | null
+  if (inner?.style?.display === 'table') {
+    inner.style.display = 'block'
+  }
+}
+
 function ScrollArea({
   className,
   children,
@@ -17,6 +30,7 @@ function ScrollArea({
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
+        ref={neutralizeTableLayout}
         data-slot="scroll-area-viewport"
         className="focus-visible:ring-ring/50 h-full w-full max-w-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
       >

@@ -369,11 +369,11 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
         </div>
       </div>
 
-      {/* Chat List */}
+      {/* Chat List — cards use mx-1 margins instead of container padding to avoid Radix ScrollArea's internal display:table wrapper eating left/right padding */}
       <div className="relative flex-1 min-h-0 w-full overflow-x-hidden">
         <ScrollArea className="h-full w-full overflow-x-hidden">
           {activeTab === 'active' ? (
-            <div className="p-1 pr-3.5 sm:p-2 sm:pr-4 space-y-2 flex flex-col items-center">
+            <div className="py-1 sm:py-2 space-y-2 flex flex-col">
               {validSessions.map((session) => (
                 session.conversationType === 'general' ? (
                   <GeneralChatCard
@@ -398,7 +398,7 @@ export function ChatSidebar({ chatSessions, activeChatId, onSelectChat, onNewCha
               ))}
             </div>
           ) : (
-            <div className="p-1 pr-3.5 sm:p-2 sm:pr-4 space-y-2 flex flex-col items-center">
+            <div className="py-1 sm:py-2 space-y-2 flex flex-col">
               {isLoadingArchive ? (
                 <div className="flex items-center justify-center py-8 text-muted-foreground">
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

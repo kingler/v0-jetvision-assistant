@@ -36,5 +36,4 @@ export type SelfImprovementTable =
  * const { data } = await selfImprovementDb.from('knowledge_base').select('*');
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const selfImprovementDb = supabaseAdmin as SupabaseClient<any, 'public', any>;
+export const selfImprovementDb = supabaseAdmin as SupabaseClient<any, 'public', any>; // intentional: tables not yet in generated types
