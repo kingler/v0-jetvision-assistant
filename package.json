@@ -27,6 +27,7 @@
     "test:e2e:auth": "playwright test clerk-supabase-integration.spec.ts",
     "test:e2e:report": "playwright show-report",
     "demo:convert": "bash scripts/convert-recordings.sh",
+    "demo:combine": "bash scripts/combine-recordings.sh",
     "type-check": "tsc --noEmit",
     "agents:create": "tsx scripts/agents/create-agent.ts",
     "agents:list": "tsx scripts/agents/list-agents.ts",

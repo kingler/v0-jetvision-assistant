@@ -3,11 +3,10 @@ import { setupClerkTestingToken, clerk } from '@clerk/testing/playwright';
 import * as fs from 'fs';
 import * as path from 'path';
 
-/** Base directory for demo screenshots */
+/** Base directory for demo screenshots (PNGs only — videos go to e2e-recordings/) */
 export const SCREENSHOTS_DIR = path.join(
   process.cwd(),
-  'e2e-screenshots',
-  'recordings'
+  'e2e-screenshots'
 );
 
 /** Ensure screenshots directory exists */
