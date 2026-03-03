@@ -115,9 +115,9 @@ Each trip type follows the same 9-step lifecycle. The only differences are the c
 | 3 | `rfq` | Filter → select → Send RFQ | Sandbox Dev Operator → Send RFQ |
 | 4 | `approve` | Operator approves quote | Switch account → Selling → Approve |
 | 5 | `switch-back` | Switch back to Jetvision LLC | Avatar → Switch company |
-| 6 | `quotes` | Pull quotes into Jetvision | Click "View RFQs" button on FlightSearchProgress |
-| 7 | `proposal` | Generate & send proposal | Click "Generate Proposal" |
-| 8 | `contract` | Book flight & send contract | Click "Book Flight" |
+| 6 | `quotes` | Pull quotes into Jetvision | Click "View RFQs" → RFQFlightCards with Messages button |
+| 7 | `proposal` | Generate & send proposal | Click "Generate Proposal" → CustomerSelectionDialog → Margin selector → Approve & Send |
+| 8 | `contract` | Book flight & send contract | Click "Book Flight" → BookFlightModal (ready → email_review → Approve & Send) |
 | 9 | `payment` | Confirm $45K → auto-close | Click "Mark Payment Received" → PaymentConfirmationModal → confirm → archive |
 
 ### Round-Trip Lifecycle (Scenarios 10-18)
@@ -129,9 +129,9 @@ Each trip type follows the same 9-step lifecycle. The only differences are the c
 | 12 | `rfq` | Filter → select → Send RFQ | Sandbox Dev Operator → Send RFQ |
 | 13 | `approve` | Operator approves quote | Switch account → Selling → Approve |
 | 14 | `switch-back` | Switch back to Jetvision LLC | Avatar → Switch company |
-| 15 | `quotes` | Pull quotes into Jetvision | Click "Update RFQ" |
-| 16 | `proposal` | Generate & send proposal | Click "Generate Proposal" |
-| 17 | `contract` | Book flight & send contract | Click "Book Flight" |
+| 15 | `quotes` | Pull quotes into Jetvision | Click "Update RFQ" → RFQFlightCards with Messages button |
+| 16 | `proposal` | Generate & send proposal | Click "Generate Proposal" → CustomerSelectionDialog → Margin selector → Approve & Send |
+| 17 | `contract` | Book flight & send contract | Click "Book Flight" → BookFlightModal (ready → email_review → Approve & Send) |
 | 18 | `payment` | Confirm $62K → auto-close | Click "Mark Payment Received" → PaymentConfirmationModal → confirm → archive |
 
 ### Multi-City Lifecycle (Scenarios 19-27)
@@ -143,9 +143,9 @@ Each trip type follows the same 9-step lifecycle. The only differences are the c
 | 21 | `rfq` | Filter → select → Send RFQ | Sandbox Dev Operator → Send RFQ |
 | 22 | `approve` | Operator approves quote | Switch account → Selling → Approve |
 | 23 | `switch-back` | Switch back to Jetvision LLC | Avatar → Switch company |
-| 24 | `quotes` | Pull quotes into Jetvision | Click "Update RFQ" |
-| 25 | `proposal` | Generate & send proposal | Click "Generate Proposal" |
-| 26 | `contract` | Book flight & send contract | Click "Book Flight" |
+| 24 | `quotes` | Pull quotes into Jetvision | Click "Update RFQ" → RFQFlightCards with Messages button |
+| 25 | `proposal` | Generate & send proposal | Click "Generate Proposal" → CustomerSelectionDialog → Margin selector → Approve & Send |
+| 26 | `contract` | Book flight & send contract | Click "Book Flight" → BookFlightModal (ready → email_review → Approve & Send) |
 | 27 | `payment` | Confirm $95K → auto-close | Click "Mark Payment Received" → PaymentConfirmationModal → confirm → archive |
 
 ### Ambiguous Requests (Scenarios 28-30 — extras)
@@ -279,6 +279,72 @@ Tool: mcp__claude-in-chrome__gif_creator
 Action: stop_recording / export
 filename: "one-way-lifecycle.gif"
 ```
+
+---
+
+## Nuanced Feature Details (Steps 6-8)
+
+These features require special attention during recording to capture the full user experience.
+
+### Messages Button (Step 6 — quotes)
+
+Each `RFQFlightCard` has a **"Messages"** button (MessageSquare icon) in the action bar:
+
+| Element | Behavior |
+|---------|----------|
+| **Button label** | "Messages" (compact view) / "View Messages" (expanded view) |
+| **Notification dot** | Blue dot at top-right when `hasNewMessages=true` (new/unread operator messages) |
+| **Click action** | Calls `onViewChat(flightId, quoteId, messageId)` — loads the operator–agent chat thread |
+| **Operator message preview** | Truncated to 140 chars on the card body |
+
+**Recording tip:** After clicking "View RFQs", pause on the quote cards to capture the Messages button and any notification dots. Click "Messages" to show the operator conversation loading into the chat thread.
+
+### CustomerSelectionDialog (Step 7 — proposal)
+
+Clicking "Generate Proposal" opens a dialog with **two modes**:
+
+**SELECT mode** (default):
+1. Typeahead search field — filters by company, contact, or email
+2. Dropdown with customer list + **"Create New Customer"** button (orange Plus icon) at top
+3. Click a customer → detail preview card appears below search
+4. **Profit margin selector** appears (see below)
+5. Click **"Generate Proposal"** button in footer
+
+**CREATE mode** (if customer not in list):
+1. Click "Create New Customer" in dropdown → switches to form
+2. Fill: Company Name*, Contact Name*, Email*, Phone (optional)
+3. Click **"Create & Select"** → auto-selects new customer, returns to SELECT mode
+4. "Back to customer list" link returns to SELECT without creating
+
+### Profit Margin Selector (Step 7 — proposal)
+
+After selecting a customer, the **Jetvision Service Charge** selector appears:
+
+| Element | Description |
+|---------|-------------|
+| **Preset buttons** | `8%`, `10%`, `20%` — click to select |
+| **Custom button** | Reveals number input (0–100%) |
+| **Default** | 10% pre-selected |
+| **Help text** | "This charge is added on top of the operator cost. The client proposal shows only the total." |
+
+**Recording tip:** Slowly scroll to capture: (1) customer search, (2) customer selection, (3) margin selector with preset buttons, (4) "Generate Proposal" click. For demo variety, use 10% for one-way, 20% for round-trip, Custom 15% for multi-city.
+
+**PDF auto-open:** After "Approve & Send" on the proposal email review, a **new browser tab auto-opens** with the proposal PDF (`window.open(pdfUrl, '_blank')`). The recording should capture the tab switching to the PDF. A manual "View Full Proposal PDF" button also appears on the ProposalSentConfirmation card afterward.
+
+### BookFlightModal State Machine (Step 8 — contract)
+
+The "Book Flight" modal progresses through **6 states**:
+
+| State | What's Shown | Footer Buttons |
+|-------|-------------|----------------|
+| `ready` | Customer info + flight details + pricing (FET 7.5%, segment $5.20/pax, CC 5%) | Cancel, **Preview**, **Send Contract** |
+| `generating` | Spinner | "Generating Contract..." (disabled) |
+| `preview` | PDF blob viewable | Cancel, **Open PDF**, **Send Contract** |
+| `email_review` | Editable email: To (read-only), Subject, Body textarea | **Back**, **Approve & Send** |
+| `sending` | Spinner | "Sending Contract..." (disabled) |
+| `success` | "Contract Sent Successfully!" + contract number | **Done** |
+
+**Recording tip:** The typical path is `ready` → `email_review` → `sending` → `success`. Capture: (1) the pricing breakdown in `ready`, (2) the editable email fields in `email_review`, (3) the "Approve & Send" click, (4) the PDF auto-opening in a new tab. For a more complete demo, use the Preview path: `ready` → `generating` → `preview` → `email_review` → `sending` → `success`.
 
 ---
 

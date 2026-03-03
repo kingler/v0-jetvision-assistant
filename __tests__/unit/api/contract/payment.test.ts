@@ -45,6 +45,7 @@ vi.mock('@/lib/services/contract-service', () => ({
   getContractByNumber: (...args: unknown[]) => mockGetContractByNumber(...args),
   updateContractPayment: (...args: unknown[]) => mockUpdateContractPayment(...args),
   completeContract: (...args: unknown[]) => mockCompleteContract(...args),
+  createContractWithResolution: vi.fn().mockResolvedValue(null),
 }));
 
 // Mock supabaseAdmin for non-UUID contract ID resolution via metadata lookup
@@ -277,7 +278,8 @@ describe('POST /api/contract/[id]/payment', () => {
   // ---------------------------------------------------------------------------
 
   describe('Status Validation', () => {
-    it.each(['draft', 'paid', 'completed', 'cancelled', 'expired'] as const)(
+    // ONEK-383: 'draft' status now auto-promotes to 'sent' instead of rejecting
+    it.each(['paid', 'completed', 'cancelled', 'expired'] as const)(
       'rejects contract in "%s" status',
       async (status) => {
         mockGetContractById.mockResolvedValue({
@@ -292,6 +294,35 @@ describe('POST /api/contract/[id]/payment', () => {
         expect(data.error).toContain(status);
       }
     );
+
+    it('auto-promotes draft contract to sent before recording payment (ONEK-383)', async () => {
+      // Set up supabase update chain for auto-promotion
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      });
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+            }),
+          }),
+        }),
+        update: mockUpdate,
+      });
+
+      mockGetContractById.mockResolvedValue({
+        ...mockContractRow,
+        status: 'draft',
+      });
+
+      const response = await callPOST(mockPaymentRequestBody);
+      const data = await response.json();
+
+      // Should succeed (200) after auto-promotion
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+    });
 
     it.each(['sent', 'signed', 'payment_pending'] as const)(
       'accepts contract in "%s" status',

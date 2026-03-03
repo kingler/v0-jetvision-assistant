@@ -350,6 +350,9 @@ export async function POST(
     }
 
     // Create contract record in database
+    // ONEK-349: Contract MUST be persisted before sending email.
+    // Without a DB record, downstream operations (payment confirmation,
+    // deal closure) fail because the local contract ID cannot be resolved.
     try {
       console.log('[SendContract] Creating contract record:', {
         effectiveRequestId,
@@ -381,41 +384,64 @@ export async function POST(
         body.customer.email
       );
 
-      if (createResult) {
-        dbContractId = createResult.id;
-        contractNumber = createResult.contract_number;
-
-        // Update with file metadata if upload succeeded
-        if (uploadResult.success && uploadResult.publicUrl && uploadResult.filePath) {
-          await updateContractGenerated(dbContractId, {
-            file_name: contractResult.fileName,
-            file_url: uploadResult.publicUrl,
-            file_path: uploadResult.filePath,
-            file_size_bytes: uploadResult.fileSizeBytes ?? contractResult.pdfBuffer.length,
-          });
-        }
-
-        console.log('[SendContract] Created contract record:', {
-          dbId: dbContractId,
-          contractNumber,
-          requestId: body.requestId,
-          effectiveRequestId,
-        });
-      } else {
-        console.warn('[SendContract] Could not create contract record - createContractWithResolution returned null', {
+      if (!createResult) {
+        // ONEK-349: Do NOT continue without a DB record — abort before email
+        console.error('[SendContract] createContractWithResolution returned null:', {
           effectiveRequestId,
           tripId: body.tripId,
           isUUID: uuidRegex.test(effectiveRequestId),
         });
+        return NextResponse.json(
+          {
+            success: false,
+            contractId: contractResult.contractId,
+            emailSent: false,
+            pdfUrl: uploadResult.publicUrl,
+            fileName: contractResult.fileName,
+            error: 'Failed to persist contract to database. Please try again.',
+          },
+          { status: 500 }
+        );
       }
+
+      dbContractId = createResult.id;
+      contractNumber = createResult.contract_number;
+
+      // Update with file metadata if upload succeeded
+      if (uploadResult.success && uploadResult.publicUrl && uploadResult.filePath) {
+        await updateContractGenerated(dbContractId, {
+          file_name: contractResult.fileName,
+          file_url: uploadResult.publicUrl,
+          file_path: uploadResult.filePath,
+          file_size_bytes: uploadResult.fileSizeBytes ?? contractResult.pdfBuffer.length,
+        });
+      }
+
+      console.log('[SendContract] Created contract record:', {
+        dbId: dbContractId,
+        contractNumber,
+        requestId: body.requestId,
+        effectiveRequestId,
+      });
     } catch (dbError) {
-      // Log error but don't fail the request - DB tracking is secondary
+      // ONEK-349: Do NOT continue without a DB record — abort before email
       console.error('[SendContract] Error creating contract record:', {
         error: dbError instanceof Error ? dbError.message : String(dbError),
         stack: dbError instanceof Error ? dbError.stack : undefined,
         effectiveRequestId,
         tripId: body.tripId,
       });
+      return NextResponse.json(
+        {
+          success: false,
+          contractId: contractResult.contractId,
+          emailSent: false,
+          pdfUrl: uploadResult.publicUrl,
+          fileName: contractResult.fileName,
+          error: 'Failed to persist contract to database. Please try again.',
+        },
+        { status: 500 }
+      );
     }
 
     // Build email subject and body
@@ -510,6 +536,7 @@ export async function POST(
           pdfUrl: uploadResult.publicUrl ?? '',
           fileName: contractResult.fileName,
           contractId: dbContractId || contractResult.contractId,
+          dbContractId,
           contractNumber,
           pricing: {
             total: body.pricing.totalAmount,

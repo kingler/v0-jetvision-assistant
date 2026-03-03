@@ -622,6 +622,16 @@ flowchart TD
 5. Wait for quote data to load (button shows loading spinner)
 6. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/15-rfq-results-loaded.png`
 7. Verify RFQFlightsList shows: quote price, aircraft, operator ("Sandbox Dev Operator"), "Generate Proposal" button
+8. Verify **"Messages" button** (MessageSquare icon) is visible on each RFQ flight card
+9. Click "Messages" on a quoted flight card — this calls `onViewChat(flightId, quoteId, messageId)` and loads the chat conversation between the ISO agent and the operator
+10. Verify the operator's message preview text appears on the card (truncated to 140 chars if long)
+11. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/15b-messages-button.png`
+
+**Messages button behavior:**
+- Located in the action bar of every `RFQFlightCard` (both compact and expanded views)
+- Shows a **blue notification dot** at top-right corner when `hasNewMessages=true` (new/unread operator messages)
+- Label: "Messages" (compact) or "View Messages" (expanded)
+- Clicking loads the operator–agent chat thread into the Jetvision chat interface
 
 **Post-update DB verification:**
 - `avinode_webhook_events`: webhook event stored
@@ -658,32 +668,79 @@ flowchart TD
     style H fill:#e8f5e9,stroke:#4CAF50
 ```
 
+**CustomerSelectionDialog — Two Modes:**
+
+The dialog (`components/customer-selection-dialog.tsx`) has two modes:
+
+| Mode | Title | Purpose | Footer Buttons |
+|------|-------|---------|----------------|
+| **SELECT** | "Select Customer for Proposal" | Search and pick existing customer | Cancel, Generate Proposal |
+| **CREATE** | "Create New Customer" | Add new customer to client profiles | Cancel, Create & Select |
+
+**SELECT mode features:**
+- Typeahead search input filters by company name, contact name, or email
+- Keyboard navigation: Arrow keys to highlight, Enter to select, Escape to close dropdown
+- "Create New Customer" button at top of dropdown (orange Plus icon) → switches to CREATE mode
+- Selected customer shows green checkmark + detail preview card below the search field
+- `lockedCustomerId` prop prevents switching to a different customer (shows Lock icon)
+
+**CREATE mode features (new customer form):**
+- "Back to customer list" link at top → returns to SELECT mode
+- **Required fields:** Company Name, Contact Name, Email
+- **Optional field:** Phone
+- Email validation (must match `user@domain.tld` pattern)
+- On submit: POST to `/api/clients`, auto-selects new customer, returns to SELECT mode
+
+**Profit Margin Selector (Jetvision Service Charge):**
+
+After selecting a customer, the **profit margin selector** appears (when `showMarginSlider=true`, which is the default):
+
+| Element | Description |
+|---------|-------------|
+| **Preset buttons** | `8%`, `10%`, `20%` — click to select |
+| **Custom button** | Click to reveal a number input (0–100%) |
+| **Default** | 10% (selected on open) |
+| **Label** | "Jetvision Service Charge" |
+| **Help text** | "This charge is added on top of the operator cost. The client proposal shows only the total." |
+
+The margin percentage is passed to the parent as `onSelect(customer, marginPercentage)` and used in proposal pricing calculations.
+
 **Browser automation steps:**
 1. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/16-quote-card-before.png`
 2. Click "Generate Proposal" on the quote card
-3. Wait for CustomerSelectionDialog
+3. Wait for CustomerSelectionDialog to open in **SELECT mode**
 4. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/17-customer-dialog.png`
 5. Type "Willy" or "ABC" in search field
-6. Click "Willy Bercy — ABC Corp" (or create inline if not in seed data)
-7. Wait for ProposalPreview to render inline
-8. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/18-email-preview.png`
-9. Verify: recipient = Willy Bercy, subject has PROP-YYYY-NNN, PDF attached
-10. Click "Approve & Send"
-11. Wait for confirmation
-12. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/19-sent-confirmation.png`
-13. Verify: ProposalSentConfirmation card, "View Full Proposal PDF" button
-14. Click "View Full Proposal PDF" → verify new tab opens with PDF
-15. **Screenshot** of PDF tab → `e2e-screenshots/{SCREENSHOT_FOLDER}/20-proposal-pdf.png`
-16. Switch back to Jetvision tab
+6. Click "Willy Bercy — ABC Corp" from dropdown (or click "Create New Customer" if not in seed data — see CREATE mode above)
+7. Verify customer detail preview card appears below the search (company, contact, email)
+8. Verify **Jetvision Service Charge** selector appears with preset buttons: 8%, 10%, 20%, Custom
+9. Select desired margin (default 10% is pre-selected) — or click "Custom" and enter a value
+10. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/17b-margin-selector.png`
+11. Click **"Generate Proposal"** button in the dialog footer
+12. Wait for ProposalPreview to render inline
+13. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/18-email-preview.png`
+14. Verify: recipient = Willy Bercy, subject has PROP-YYYY-NNN, PDF attached
+15. Click "Approve & Send"
+16. Wait for **NEW BROWSER TAB to auto-open** with the proposal PDF (auto-triggered by `chat-interface-main.tsx`)
+17. **Screenshot** of PDF tab → `e2e-screenshots/{SCREENSHOT_FOLDER}/20-proposal-pdf-auto.png`
+18. Switch back to Jetvision tab
+19. Wait for ProposalSentConfirmation card to render in chat
+20. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/19-sent-confirmation.png`
+21. Verify: ProposalSentConfirmation card with "View Full Proposal PDF" button
+22. Click "View Full Proposal PDF" → verify PDF opens (same or new tab)
+23. Switch back to Jetvision tab
 
 **Post-send DB verification:**
 - `proposals`: `status = 'sent'`, proposal number matches PROP-YYYY-NNN
 
 **CRITICAL assertions:**
 - FAIL if CustomerSelectionDialog does NOT appear
+- FAIL if **profit margin selector** does not appear after customer is selected (must show 8%, 10%, 20%, Custom buttons)
 - FAIL if agent uses `send_proposal_email` directly (must use `prepare_proposal_email`)
 - FAIL if email sends without "Approve & Send" click
+- FAIL if **proposal PDF does not auto-open** in a new browser tab after "Approve & Send"
 - FAIL if ProposalSentConfirmation missing "View Full Proposal PDF" button
+- FAIL if "Create New Customer" flow does not auto-select the new customer and return to SELECT mode
 
 ---
 
@@ -712,31 +769,65 @@ flowchart TD
     style FAIL fill:#ffebee,stroke:#f44336
 ```
 
+**BookFlightModal State Machine:**
+
+The modal progresses through a 6-state machine. Each state has specific UI elements:
+
+| State | UI | Footer Buttons |
+|-------|-----|----------------|
+| `ready` | Customer info + flight details + pricing breakdown | Cancel, **Preview** (FileText icon), **Send Contract** (Mail icon) |
+| `generating` | Spinner "Generating Contract..." | Disabled spinner button |
+| `preview` | PDF blob generated, viewable | Cancel, **Open PDF** (ExternalLink icon), **Send Contract** (Mail icon) |
+| `email_review` | Editable email: To (read-only), Subject (editable), Body (editable textarea) | **Back** (ArrowLeft icon), **Approve & Send** (Send icon) |
+| `sending` | Spinner "Sending Contract..." | Disabled spinner button |
+| `success` | Green confirmation: "Contract Sent Successfully!" + contract number | **Done** |
+
+**Pricing breakdown shown in `ready` state:**
+- Flight Cost (base price from operator)
+- FET — 7.5% Federal Excise Tax
+- Segment Fee — $5.20 per passenger per segment
+- **Total** (bold, highlighted)
+- Note: "5% fee applies for credit card payments"
+
 **Browser automation steps:**
 1. Locate "Book Flight" button (visible after proposal sent)
 2. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/21-book-flight-before.png`
 3. Click "Book Flight"
 4. Verify NO customer selection dialog appears
-5. Wait for BookFlightModal to render inline
-6. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/22-contract-preview.png`
-7. Verify: recipient = Willy Bercy (auto-populated), subject has CONTRACT-YYYY-NNN, PDF with terms & CC auth
-8. Click "Approve & Send"
-9. Wait for NEW BROWSER TAB to auto-open with contract PDF
-10. **Screenshot** of PDF tab → `e2e-screenshots/{SCREENSHOT_FOLDER}/23-contract-pdf.png`
-11. Switch back to Jetvision tab
-12. Wait for ContractSentConfirmation card
-13. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/24-contract-confirmation.png`
-14. Verify: contract number, pricing, "View Contract PDF" button
+5. Wait for BookFlightModal to open in **`ready` state**
+6. Verify: Customer section shows Willy Bercy / kingler@me.com (auto-populated from proposal)
+7. Verify: Pricing breakdown shows Flight Cost, FET (7.5%), Segment Fee, Total
+8. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/22-contract-ready.png`
+9. Click **"Send Contract"** button (skips preview, goes to email review)
+10. Wait for modal to transition to **`email_review` state**
+11. Verify: To field shows "Willy Bercy <kingler@me.com>" (read-only)
+12. Verify: Subject field shows "Jetvision Flight Contract: {DEP} → {ARR}" (editable)
+13. Verify: Body textarea has full contract email template (editable)
+14. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/22b-contract-email-review.png`
+15. Click **"Approve & Send"** button
+16. Wait for `sending` state → then `success` state
+17. Wait for NEW BROWSER TAB to auto-open with contract PDF
+18. **Screenshot** of PDF tab → `e2e-screenshots/{SCREENSHOT_FOLDER}/23-contract-pdf.png`
+19. Switch back to Jetvision tab
+20. Wait for ContractSentConfirmation card
+21. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/24-contract-confirmation.png`
+22. Verify: contract number, pricing, "View Contract PDF" button
+
+**Optional Preview path (alternative to step 9):**
+- Click **"Preview"** instead of "Send Contract" → transitions to `generating` → `preview`
+- In `preview` state: click "Open PDF" to view, then "Send Contract" to proceed to `email_review`
 
 **Post-send DB verification:**
 - `contracts`: `status = 'sent'`, contract number matches CONTRACT-YYYY-NNN
 
 **CRITICAL assertions:**
-- FAIL if customer selection dialog appears
-- FAIL if contract sends without "Approve & Send"
+- FAIL if customer selection dialog appears (customer is reused from proposal)
+- FAIL if contract sends without going through `email_review` state and clicking "Approve & Send"
 - FAIL if "Book Flight" was available before proposal was sent
 - FAIL if contract PDF missing terms & conditions or CC auth form
 - FAIL if no new tab auto-opens with contract PDF
+- FAIL if pricing breakdown doesn't show FET (7.5%), segment fee, and total
+- FAIL if email review doesn't show editable subject and body fields
 
 ---
 
@@ -1016,6 +1107,8 @@ request (avinode_trip_id, avinode_rfp_id)
 | `PaymentConfirmationModal` | `components/contract/payment-confirmation-modal.tsx` | payment |
 | `ClosedWonConfirmation` | `components/contract/closed-won-confirmation.tsx` | payment |
 | `FlightRequestCard` | `components/chat/flight-request-card.tsx` | payment (archive) |
+| `AircraftImageGallery` | `components/avinode/aircraft-image-gallery.tsx` | quotes (card image) |
+| `SendProposalStep` | `components/avinode/send-proposal-step.tsx` | proposal (margin display) |
 
 ---
 

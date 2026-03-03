@@ -21,6 +21,7 @@ import {
   getContractByNumber,
   updateContractPayment,
   completeContract,
+  createContractWithResolution,
 } from '@/lib/services/contract-service';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { ContractPaymentData, ContractStatus } from '@/lib/types/contract';
@@ -206,6 +207,74 @@ export async function POST(
       }
     }
 
+    // Strategy 5: Create contract on-demand when all resolution strategies failed.
+    // This handles the case where the contract email was sent successfully but the
+    // DB record was never created (e.g., due to a transient DB error during send).
+    if (!uuidRegex.test(resolvedId) && body.requestId && uuidRegex.test(body.requestId)) {
+      console.warn('[RecordPayment] All strategies failed — attempting on-demand contract creation for request:', body.requestId);
+      try {
+        // Fetch the request to get flight details for the contract record
+        const { data: requestRow } = await supabaseAdmin
+          .from('requests')
+          .select('id, departure_airport, arrival_airport, departure_date, passengers, avinode_trip_id, metadata')
+          .eq('id', body.requestId)
+          .eq('iso_agent_id', authResult.id)
+          .maybeSingle();
+
+        if (requestRow) {
+          // Extract metadata fields if available (client info stored in metadata JSON)
+          const reqMeta = requestRow.metadata as Record<string, unknown> | null;
+          const clientName = body.customerName || (reqMeta?.client_name as string) || 'Customer';
+          const clientEmail = (reqMeta?.client_email as string) || '';
+
+          const created = await createContractWithResolution(
+            {
+              iso_agent_id: authResult.id,
+              request_id: body.requestId,
+              customer: {
+                name: clientName,
+                email: clientEmail,
+              },
+              flightDetails: {
+                departureAirport: { icao: requestRow.departure_airport || 'XXXX' },
+                arrivalAirport: { icao: requestRow.arrival_airport || 'XXXX' },
+                departureDate: requestRow.departure_date || new Date().toISOString(),
+                aircraftType: 'N/A',
+                passengers: requestRow.passengers || 1,
+              },
+              pricing: {
+                flightCost: body.payment_amount,
+                federalExciseTax: 0,
+                domesticSegmentFee: 0,
+                subtotal: body.payment_amount,
+                creditCardFeePercentage: 0,
+                totalAmount: body.payment_amount,
+                currency: 'USD',
+              },
+              metadata: {
+                createdViaPaymentFallback: true,
+                originalLocalContractId: id,
+              },
+            },
+            requestRow.avinode_trip_id || undefined,
+            clientEmail || undefined
+          );
+
+          if (created) {
+            resolvedId = created.id;
+            // Update status to 'sent' so it's in a payable state
+            await supabaseAdmin
+              .from('contracts')
+              .update({ status: 'sent', updated_at: new Date().toISOString() })
+              .eq('id', created.id);
+            console.log('[RecordPayment] On-demand contract created and set to sent:', created.id, created.contract_number);
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('[RecordPayment] On-demand contract creation failed:', fallbackErr);
+      }
+    }
+
     if (!uuidRegex.test(resolvedId)) {
       return NextResponse.json(
         { success: false, error: `Contract not found: unable to resolve "${id}" to a valid contract` },
@@ -231,8 +300,16 @@ export async function POST(
     }
 
     // Verify contract is in a payable state (signed or payment_pending)
+    // If the contract is in 'draft' status (e.g., created via on-demand fallback),
+    // auto-promote it to 'sent' so payment can proceed.
     const payableStatuses: ContractStatus[] = ['sent', 'signed', 'payment_pending'];
-    if (!payableStatuses.includes(contract.status as ContractStatus)) {
+    if (contract.status === 'draft') {
+      console.log('[RecordPayment] Auto-promoting draft contract to sent:', resolvedId);
+      await supabaseAdmin
+        .from('contracts')
+        .update({ status: 'sent', updated_at: new Date().toISOString() })
+        .eq('id', resolvedId);
+    } else if (!payableStatuses.includes(contract.status as ContractStatus)) {
       return NextResponse.json(
         { success: false, error: `Cannot record payment for contract in '${contract.status}' status` },
         { status: 400 }

@@ -133,15 +133,46 @@ export async function createContract(
   // Generate contract number
   const contractNumber = await generateContractNumber();
 
+  // UUID regex for validating FK fields that must be valid UUIDs
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // Validate and coerce UUID FK columns — non-UUID strings (e.g., Avinode IDs
+  // like "aquote-398402531") must be set to null and stored in
+  // reference_quote_number instead to avoid PG FK constraint violations.
+  const resolvedProposalId = input.proposal_id && uuidRegex.test(input.proposal_id)
+    ? input.proposal_id
+    : null;
+  const resolvedQuoteId = input.quote_id && uuidRegex.test(input.quote_id)
+    ? input.quote_id
+    : null;
+
+  if (input.proposal_id && !resolvedProposalId) {
+    console.warn(
+      '[ContractService] proposal_id is not a valid UUID — setting to null. ' +
+      `Field: proposal_id, Value: "${input.proposal_id}". ` +
+      'Non-UUID values are stored in reference_quote_number instead.'
+    );
+  }
+  if (input.quote_id && !resolvedQuoteId) {
+    console.warn(
+      '[ContractService] quote_id is not a valid UUID — setting to null. ' +
+      `Field: quote_id, Value: "${input.quote_id}". ` +
+      'Non-UUID values are stored in reference_quote_number instead.'
+    );
+  }
+
   // Prepare insert data
   const insertData: ContractInsert = {
     request_id: input.request_id,
     iso_agent_id: input.iso_agent_id,
-    proposal_id: input.proposal_id ?? null,
-    quote_id: input.quote_id ?? null,
+    proposal_id: resolvedProposalId,
+    quote_id: resolvedQuoteId,
     client_profile_id: input.client_profile_id ?? null,
     contract_number: contractNumber,
-    reference_quote_number: input.reference_quote_number ?? null,
+    // If the caller didn't supply an explicit reference number, and the quote_id
+    // is a non-UUID (e.g., "aquote-398402531"), store it here for traceability.
+    reference_quote_number: input.reference_quote_number
+      ?? (input.quote_id && !resolvedQuoteId ? input.quote_id : null),
     // Client info
     client_name: input.customer.name,
     client_email: input.customer.email,
@@ -181,7 +212,16 @@ export async function createContract(
     .single();
 
   if (error) {
-    console.error('[ContractService] Error creating contract:', error);
+    console.error('[ContractService] Error creating contract:', {
+      errorCode: error.code,
+      errorMessage: error.message,
+      requestId: input.request_id,
+      quoteId: input.quote_id ?? null,
+      resolvedQuoteId,
+      proposalId: input.proposal_id ?? null,
+      resolvedProposalId,
+      isoAgentId: input.iso_agent_id,
+    });
     throw new Error(`Failed to create contract: ${error.message}`);
   }
 

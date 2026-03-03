@@ -984,6 +984,8 @@ export function ChatInterface({
         departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
         totalAmount: result.contractSentData.pricing?.totalAmount || 0,
         currency: result.contractSentData.pricing?.currency || 'USD',
+        tripType: activeChat.tripType,
+        returnDate: activeChat.returnDate,
       } : undefined,
       // ONEK-300: Payment confirmed card
       showPaymentConfirmation: !!result.paymentConfirmationData,
@@ -1060,8 +1062,20 @@ export function ChatInterface({
       }
     }
     const passengerCount = tripData?.passengers || rfpData?.passengers
+    // Extract segments for multi-city trips
+    const segments = tripData?.segments || rfpData?.segments
+    if (segments && Array.isArray(segments) && segments.length > 0) {
+      updates.segments = segments as ChatSession['segments']
+    }
     if (passengerCount) {
       updates.passengers = passengerCount
+    } else if (segments && Array.isArray(segments) && segments.length > 0) {
+      // For multi-city: derive top-level passenger count from first segment
+      // when the backend doesn't return a top-level passengers field
+      const segPassengers = (segments[0] as unknown as Record<string, unknown>)?.passengers;
+      if (typeof segPassengers === 'number' && segPassengers > 0) {
+        updates.passengers = segPassengers;
+      }
     }
     // Extract trip type and return date from SSE data
     const tripType = tripData?.trip_type || rfpData?.trip_type
@@ -1071,11 +1085,6 @@ export function ChatInterface({
     const returnDate = tripData?.return_date || rfpData?.return_date
     if (returnDate) {
       updates.returnDate = returnDate
-    }
-    // Extract segments for multi-city trips
-    const segments = tripData?.segments || rfpData?.segments
-    if (segments && Array.isArray(segments) && segments.length > 0) {
-      updates.segments = segments as ChatSession['segments']
     }
 
     // Generate a descriptive name for the sidebar card
