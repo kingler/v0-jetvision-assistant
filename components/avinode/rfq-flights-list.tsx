@@ -356,13 +356,6 @@ export function RFQFlightsList({
   return (
     <div
       className={cn('space-y-4', className)}
-      style={{ 
-        height: 'auto', 
-        minHeight: 'auto',
-        overflow: 'visible',
-        display: 'block',
-        width: '100%'
-      }}
     >
       {/* Header with controls */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -433,7 +426,6 @@ export function RFQFlightsList({
                 role="list"
                 aria-label="Outbound flight options"
                 className={cn('space-y-6', compact && 'space-y-4')}
-                style={{ height: 'auto', overflow: 'visible' }}
               >
                 {groupedFlights.outbound.map((flight) => renderFlightCard(flight, 'outbound'))}
               </ul>
@@ -457,7 +449,6 @@ export function RFQFlightsList({
                 role="list"
                 aria-label="Return flight options"
                 className={cn('space-y-6', compact && 'space-y-4')}
-                style={{ height: 'auto', overflow: 'visible' }}
               >
                 {groupedFlights.return.map((flight) => renderFlightCard(flight, 'return'))}
               </ul>
@@ -481,7 +472,6 @@ export function RFQFlightsList({
                 role="list"
                 aria-label="Additional flight options"
                 className={cn('space-y-6', compact && 'space-y-4')}
-                style={{ height: 'auto', overflow: 'visible' }}
               >
                 {groupedFlights.unassigned.map((flight) => renderFlightCard(flight, 'other'))}
               </ul>
@@ -495,7 +485,6 @@ export function RFQFlightsList({
           role="list"
           aria-label="Available flights"
           className={cn('space-y-6', compact && 'space-y-4')}
-          style={{ height: 'auto', overflow: 'visible' }}
         >
           {processedFlights.map((flight) => renderFlightCard(flight, 'ungrouped'))}
         </ul>

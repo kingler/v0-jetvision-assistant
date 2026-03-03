@@ -1440,18 +1440,56 @@ export function ChatInterface({
       }
 
       // Update chat with RFQ data
-      // Count flights that have responded: either status 'quoted' or has a non-zero price
-      const quotedCount = newRfqFlights.filter((f) => f.rfqStatus === 'quoted' || (f.totalPrice && f.totalPrice > 0)).length
+      // Guard: only overwrite rfqFlights when we actually have new data.
+      // When the API returns empty, preserve existing flights (same pattern as handleSSEResult:1088).
+      const existingFlights = chat.rfqFlights || [];
+
       const updates: Partial<ChatSession> = {
         tripId,
         tripIdSubmitted: true,
-        rfqFlights: newRfqFlights,
         rfqsLastFetchedAt: new Date().toISOString(),
-        quotesTotal: newRfqFlights.length,
-        quotesReceived: quotedCount,
-        // Update status based on whether we have quotes
-        status: quotedCount > 0 ? 'analyzing_options' as const : 'requesting_quotes' as const,
-        currentStep: newRfqFlights.length > 0 ? 4 : 3,
+        // rfqFlights handling: conditional based on what we received
+        ...(newRfqFlights.length > 0
+          ? (() => {
+              // MERGE new flights with existing (same pattern as handleSSEResult:1088-1147)
+              const existingIds = new Set(existingFlights.map(f => f.id));
+              const uniqueNew = newRfqFlights.filter(f => !existingIds.has(f.id));
+              const updatedExisting = existingFlights.map(existing => {
+                const updated = newRfqFlights.find(f => f.id === existing.id || f.quoteId === existing.quoteId);
+                if (updated) {
+                  return {
+                    ...existing, ...updated,
+                    totalPrice: updated.totalPrice && updated.totalPrice > 0 ? updated.totalPrice : existing.totalPrice,
+                    rfqStatus: updated.rfqStatus || existing.rfqStatus,
+                    currency: updated.currency || existing.currency || 'USD',
+                    lastUpdated: updated.lastUpdated || new Date().toISOString(),
+                  };
+                }
+                return existing;
+              });
+              const allFlights = [...updatedExisting, ...uniqueNew];
+              const qCount = allFlights.filter(f => f.rfqStatus === 'quoted' || (f.totalPrice && f.totalPrice > 0)).length;
+              return {
+                rfqFlights: allFlights,
+                quotesTotal: allFlights.length,
+                quotesReceived: qCount,
+                status: qCount > 0 ? 'analyzing_options' as const : 'requesting_quotes' as const,
+                currentStep: allFlights.length > 0 ? 4 : 3,
+              };
+            })()
+          : existingFlights.length > 0
+            ? {
+                // PRESERVE existing flights -- API returned nothing, don't clear
+              }
+            : {
+                // Genuinely no flights (first load, no quotes yet)
+                rfqFlights: [] as RFQFlight[],
+                quotesTotal: 0,
+                quotesReceived: 0,
+                status: 'requesting_quotes' as const,
+                currentStep: 3,
+              }
+        ),
         // Sync session IDs from API response (same as sendMessageWithStreaming)
         // This ensures the frontend has the correct database IDs for proposal persistence
         // IMPORTANT: Preserve existing requestId if API doesn't return one
@@ -1468,10 +1506,12 @@ export function ChatInterface({
 
       console.log('[ChatInterface] 📊 Updating chat with RFQ data:', {
         tripId,
-        rfqFlightsCount: newRfqFlights.length,
-        quotedCount,
-        status: updates.status,
-        currentStep: updates.currentStep,
+        newRfqFlightsCount: newRfqFlights.length,
+        existingFlightsCount: existingFlights.length,
+        action: newRfqFlights.length > 0 ? 'MERGE' : existingFlights.length > 0 ? 'PRESERVE' : 'EMPTY',
+        rfqFlightsInUpdate: updates.rfqFlights ? (updates.rfqFlights as RFQFlight[]).length : 'not set (preserved)',
+        status: updates.status || 'not set (preserved)',
+        currentStep: updates.currentStep || 'not set (preserved)',
         conversationId: result.conversationId || 'not returned',
         requestIdSynced: !!result.conversationId,
         existingRequestId: chat.requestId || 'none',

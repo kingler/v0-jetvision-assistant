@@ -129,7 +129,7 @@ export function LandingPage({ onStartChat, userName, userContext }: LandingPageP
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Type your message to start a new chat..."
-              className="pr-12 h-12 sm:h-14 text-base sm:text-lg border-2 border-border focus:border-primary"
+              className="pr-12 h-12 sm:h-14 text-base sm:text-lg border-2 border-border bg-white dark:bg-white focus:border-primary"
             />
             <Button
               type="submit"

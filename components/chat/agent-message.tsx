@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { FileText } from "lucide-react"
+import { FileText, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProposalPreview } from "../proposal-preview"
 import {
@@ -255,6 +255,8 @@ export interface AgentMessageProps {
   showEmptyLegs?: boolean
   /** Empty leg search result data */
   emptyLegData?: Array<Record<string, unknown>>
+  /** Base64-encoded PDF for inline proposal preview */
+  pdfPreviewBase64?: string
   /** Whether to show email approval request card (human-in-the-loop) */
   showEmailApprovalRequest?: boolean
   /** Data for EmailPreviewCard when showEmailApprovalRequest is true */
@@ -350,6 +352,7 @@ export function AgentMessage({
   paymentConfirmationData,
   showClosedWon,
   closedWonData,
+  pdfPreviewBase64,
   showEmailApprovalRequest,
   emailApprovalData,
   onEmailEdit,
@@ -637,6 +640,31 @@ export function AgentMessage({
       {showMarginSelection && marginSelectionData && (
         <div className="mt-4 w-full">
           <MarginSelectionCard {...marginSelectionData} />
+        </div>
+      )}
+
+      {/* PDF Proposal Preview - inline iframe */}
+      {pdfPreviewBase64 && (
+        <div className="mt-4 w-full">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Proposal Preview
+            </h4>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.open(`data:application/pdf;base64,${pdfPreviewBase64}`, '_blank')}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Open in New Tab
+            </Button>
+          </div>
+          <iframe
+            src={`data:application/pdf;base64,${pdfPreviewBase64}`}
+            className="w-full h-[400px] rounded-lg border"
+            title="Proposal PDF Preview"
+          />
         </div>
       )}
 

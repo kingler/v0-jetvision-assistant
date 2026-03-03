@@ -544,6 +544,8 @@ export interface ChatMessage {
   showCustomerPreferences?: boolean;
   showPipeline?: boolean;
   pipelineData?: PipelineData;
+  /** Base64-encoded PDF for inline proposal preview */
+  pdfPreviewBase64?: string;
   /** Human-in-the-loop email approval request */
   showEmailApprovalRequest?: boolean;
   /** Email approval data from prepare_proposal_email tool */

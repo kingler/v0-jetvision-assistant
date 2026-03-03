@@ -42,23 +42,8 @@ export const INTENT_PROMPTS: Record<string, string> = {
    - "Your trip has been created successfully. Please visit the Avinode Marketplace using the link above to review available flights, select your preferred aircraft, and submit RFQs to operators."
    - DO NOT list trip ID, route, date, passengers, or deep link (UI components display these)
    - Focus on next steps and what the user should do
-
-### Multi-Turn Parameter Extraction
-When user provides clarification (e.g., airport codes after you asked for them):
-- **SCAN THE ENTIRE CONVERSATION** to build complete \`create_trip\` parameters
-- Airports: From the clarification message (e.g., "KTEB to KMCI")
-- Date: From earlier message (e.g., "May 3, 2026" → "2026-05-03")
-- Time: From earlier message (e.g., "4:00pm EST" → "16:00", "morning" → "09:00")
-- Passengers: From earlier message (e.g., "4 passengers" → 4)
-- Trip type: From earlier message (e.g., "one way" → no return_date, "round trip" → ask for return_date)
-- NEVER call \`create_trip\` with missing required params - extract them from history first
-
-### Time Conversion
-- "4:00pm" or "4pm" → "16:00"
-- "10am" → "10:00"
-- "morning" → "09:00" (confirm with user)
-- "afternoon" → "14:00" (confirm with user)
-- Ignore timezone mentions - Avinode uses local airport time
+7. For multi-turn parameter extraction, see Context Rules §7
+8. For time conversion, see Scenario Handlers > Shared: Time Conversion
 
 ### Response Template (After Trip Creation)
 "Your trip has been created successfully. Please visit the Avinode Marketplace using the link above to review available flights, select your preferred aircraft, and submit RFQs to operators.
