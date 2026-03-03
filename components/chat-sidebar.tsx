@@ -187,6 +187,8 @@ export interface ChatSession {
     proposalSentData?: import('@/components/proposal/proposal-sent-confirmation').ProposalSentConfirmationProps
     /** Tracks whether margin selection has been completed */
     marginSelectionCompleted?: boolean
+    /** Base64-encoded PDF for inline proposal preview */
+    pdfPreviewBase64?: string
     /** Whether to show email approval request card (human-in-the-loop) */
     showEmailApprovalRequest?: boolean
     /** Data for EmailPreviewCard when showEmailApprovalRequest is true */

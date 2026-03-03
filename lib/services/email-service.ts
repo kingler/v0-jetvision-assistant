@@ -158,7 +158,7 @@ export function wrapInBrandedTemplate(bodyContent: string, preheader?: string): 
 /**
  * Generate default proposal email subject
  */
-function generateDefaultSubject(
+export function generateDefaultSubject(
   departureAirport: string,
   arrivalAirport: string
 ): string {
@@ -169,7 +169,7 @@ function generateDefaultSubject(
  * Generate default proposal email body
  * Only called when tripDetails and pricing are defined
  */
-function generateDefaultEmailBody(options: Required<Pick<SendProposalEmailOptions, 'customerName' | 'tripDetails' | 'pricing' | 'proposalId'>>): string {
+export function generateDefaultEmailBody(options: Required<Pick<SendProposalEmailOptions, 'customerName' | 'tripDetails' | 'pricing' | 'proposalId'>>): string {
   const { customerName, tripDetails, pricing, proposalId } = options;
 
   const formattedPrice = new Intl.NumberFormat('en-US', {

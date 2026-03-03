@@ -486,7 +486,7 @@ The Jetvision Team`;
       }}
     >
       <ResponsiveModalContent
-        className="sm:max-w-[550px]"
+        className="sm:max-w-[550px] flex flex-col max-h-[90vh]"
         data-testid="book-flight-modal"
         data-quote-id={flight?.quoteId}
         onInteractOutside={(e: Event) => {
@@ -510,7 +510,7 @@ The Jetvision Team`;
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
-        <div className="space-y-3 md:space-y-4 py-2 md:py-4">
+        <div className="flex-1 overflow-y-auto space-y-3 md:space-y-4 py-2 md:py-4">
           {/* Customer Info: selected customer from generated proposal (name + email required for contract) */}
           <div className="rounded-lg border border-border p-3 md:p-4">
             <h4 className="text-xs md:text-sm font-medium text-foreground mb-2">
@@ -718,7 +718,7 @@ The Jetvision Team`;
           )}
         </div>
 
-        <ResponsiveModalFooter className="flex-col sm:flex-row gap-2">
+        <ResponsiveModalFooter className="flex-shrink-0 flex-col sm:flex-row gap-2 border-t border-border pt-4">
           {state === 'ready' && (
             <>
               <Button variant="outline" onClick={handleClose} className="min-h-[44px] md:min-h-0">

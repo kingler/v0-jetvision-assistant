@@ -147,14 +147,21 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     const emailApproval = msg.richContent[RICH_CONTENT_EMAIL_APPROVAL_KEY];
     if (emailApproval && typeof emailApproval === 'object') {
       const emailData = emailApproval as EmailApprovalData;
-      // Only show approval UI if not already sent
-      if (emailData.status !== 'sent') {
+      if (emailData.status === 'sent') {
+        // Already sent — render card in read-only "sent" state
         return {
           ...base,
           showEmailApprovalRequest: true,
           emailApprovalData: emailData,
+          emailApprovalSentStatus: 'sent' as const,
         };
       }
+      // Not yet sent — show interactive approval UI
+      return {
+        ...base,
+        showEmailApprovalRequest: true,
+        emailApprovalData: emailData,
+      };
     }
   }
 

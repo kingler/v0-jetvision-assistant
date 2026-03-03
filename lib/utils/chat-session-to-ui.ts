@@ -112,6 +112,7 @@ function mapCurrentStepToStatus(currentStep: string | null): ChatSession['status
   if (!currentStep) return 'understanding_request';
 
   const stepMap: Record<string, ChatSession['status']> = {
+    // Canonical workflow status names
     understanding_request: 'understanding_request',
     searching_aircraft: 'searching_aircraft',
     requesting_quotes: 'requesting_quotes',
@@ -122,6 +123,12 @@ function mapCurrentStepToStatus(currentStep: string | null): ChatSession['status
     contract_sent: 'contract_sent',
     payment_pending: 'payment_pending',
     closed_won: 'closed_won',
+    // Values written by chat API via workingMemory.workflowStage
+    trip_created: 'searching_aircraft',
+    quotes_received: 'analyzing_options',
+    customer_replied: 'proposal_sent',
+    deal_closed: 'closed_won',
+    payment_received: 'closed_won',
   };
 
   return stepMap[currentStep] || 'understanding_request';
@@ -134,6 +141,7 @@ function getWorkflowStepFromCurrentStep(currentStep: string | null): number {
   if (!currentStep) return 1;
 
   const stepMap: Record<string, number> = {
+    // Canonical workflow status names
     understanding_request: 1,
     searching_aircraft: 2,
     requesting_quotes: 3,
@@ -144,6 +152,12 @@ function getWorkflowStepFromCurrentStep(currentStep: string | null): number {
     contract_sent: 8,
     payment_pending: 9,
     closed_won: 10,
+    // Values written by chat API via workingMemory.workflowStage
+    trip_created: 2,
+    quotes_received: 4,
+    customer_replied: 6,
+    deal_closed: 10,
+    payment_received: 10,
   };
 
   return stepMap[currentStep] || 1;
@@ -275,16 +289,38 @@ export function chatSessionToUIFormat(chatSessionRow: ChatSessionRow): ChatSessi
   const date = formatDateForDisplay(request?.departure_date || null);
 
   // Map status - prefer current_step, then request.status, then chat_session status
-  const status = chatSessionRow.current_step
+  let status: ChatSession['status'] = chatSessionRow.current_step
     ? mapCurrentStepToStatus(chatSessionRow.current_step)
     : (request?.status ? mapRequestStatusToUIStatus(request.status) : null)
       ?? mapChatSessionStatusToUIStatus(chatSessionRow.status);
 
   // Get workflow step - prefer current_step, then request.status, then default
-  const currentStep = chatSessionRow.current_step
+  let currentStep: number = chatSessionRow.current_step
     ? getWorkflowStepFromCurrentStep(chatSessionRow.current_step)
     : (request?.status ? getWorkflowStepFromRequestStatus(request.status) : null)
       ?? 1;
+
+  // Smart fallback: if status is still understanding_request but we have RFQ data or a tripId,
+  // derive a better status from the available data
+  if (status === 'understanding_request') {
+    const rfqFlights = chatSessionRow.rfqFlights;
+    const hasTripId = !!(chatSessionRow.avinode_trip_id || request?.avinode_trip_id);
+    const hasRfqFlights = rfqFlights && rfqFlights.length > 0;
+    const quotedCount = hasRfqFlights
+      ? rfqFlights.filter(f => f.rfqStatus === 'quoted' || (f.totalPrice && f.totalPrice > 0)).length
+      : 0;
+
+    if (hasRfqFlights && quotedCount > 0) {
+      status = 'analyzing_options';
+      currentStep = 4;
+    } else if (hasRfqFlights) {
+      status = 'requesting_quotes';
+      currentStep = 3;
+    } else if (hasTripId) {
+      status = 'searching_aircraft';
+      currentStep = 2;
+    }
+  }
 
   // Build ChatSession object for sidebar display
   const resolvedId = chatSessionRow.request_id || chatSessionRow.id;

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -49,18 +49,28 @@ export function PaymentConfirmationModal({
   currency,
   onConfirm,
 }: PaymentConfirmationModalProps) {
-  const [paymentAmount, setPaymentAmount] = useState(totalAmount)
+  const [paymentAmount, setPaymentAmount] = useState<number | ''>(totalAmount > 0 ? totalAmount : '')
   const [paymentMethod, setPaymentMethod] = useState('wire')
   const [paymentReference, setPaymentReference] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Re-sync amount and reset form fields each time the modal opens
+  useEffect(() => {
+    if (open) {
+      setPaymentAmount(totalAmount > 0 ? totalAmount : '')
+      setPaymentMethod('wire')
+      setPaymentReference('')
+      setError(null)
+    }
+  }, [open, totalAmount])
 
   const handleSubmit = async () => {
     if (!paymentReference.trim()) {
       setError('Payment reference is required')
       return
     }
-    if (paymentAmount <= 0) {
+    if (!paymentAmount || paymentAmount <= 0) {
       setError('Payment amount must be greater than 0')
       return
     }
@@ -103,7 +113,11 @@ export function PaymentConfirmationModal({
               min="0"
               step="0.01"
               value={paymentAmount}
-              onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+              placeholder="Enter payment amount"
+              onChange={(e) => {
+                const parsed = parseFloat(e.target.value)
+                setPaymentAmount(e.target.value === '' ? '' : (isNaN(parsed) ? '' : parsed))
+              }}
               disabled={isSubmitting}
               className="min-h-[44px] md:min-h-0"
             />

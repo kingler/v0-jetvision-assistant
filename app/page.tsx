@@ -1232,6 +1232,13 @@ export default function JetvisionAgent() {
           // CRITICAL: If rfqFlights is being updated, ensure it's a new array reference
           // This forces React to detect the change and trigger re-renders
           if (updates.rfqFlights) {
+            // Diagnostic: detect when non-empty rfqFlights are being cleared
+            if (Array.isArray(updates.rfqFlights) && updates.rfqFlights.length === 0
+                && session.rfqFlights && session.rfqFlights.length > 0) {
+              console.warn('[handleUpdateChat] ⚠️ rfqFlights overwrite detected:',
+                session.rfqFlights.length, '→ 0 for chat:', chatId,
+                new Error().stack)
+            }
             updatedSession.rfqFlights = Array.isArray(updates.rfqFlights)
               ? [...updates.rfqFlights] // Create new array reference
               : updates.rfqFlights

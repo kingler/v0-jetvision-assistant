@@ -149,8 +149,8 @@ describe('Prompt Sections', () => {
   });
 
   describe('TOOL_REFERENCE section', () => {
-    it('should document all 29 tools', () => {
-      expect(TOOL_REFERENCE).toContain('29 total');
+    it('should document all 31 tools', () => {
+      expect(TOOL_REFERENCE).toContain('31 total');
     });
 
     it('should document Avinode tools (8)', () => {
@@ -165,8 +165,8 @@ describe('Prompt Sections', () => {
       expect(TOOL_REFERENCE).toContain('search_empty_legs');
     });
 
-    it('should document Database/CRM tools (17)', () => {
-      expect(TOOL_REFERENCE).toContain('Database/CRM Tools (17)');
+    it('should document Database/CRM tools (19)', () => {
+      expect(TOOL_REFERENCE).toContain('Database/CRM Tools (19)');
       expect(TOOL_REFERENCE).toContain('get_client');
       expect(TOOL_REFERENCE).toContain('list_clients');
       expect(TOOL_REFERENCE).toContain('create_client');
@@ -259,11 +259,8 @@ describe('Prompt Sections', () => {
   });
 
   describe('AIRPORT_REFERENCE section', () => {
-    it('should include common US airports', () => {
-      expect(AIRPORT_REFERENCE).toContain('KTEB');
-      expect(AIRPORT_REFERENCE).toContain('KLAX');
-      expect(AIRPORT_REFERENCE).toContain('KJFK');
-      expect(AIRPORT_REFERENCE).toContain('KORD');
+    it('should direct to search_airports tool instead of static table', () => {
+      expect(AIRPORT_REFERENCE).toContain('search_airports');
     });
 
     it('should include ICAO to IATA mapping note', () => {
@@ -634,11 +631,11 @@ describe('Multi-Turn Conversation Bug Fix', () => {
       expect(prompt).toContain('passengers');
     });
 
-    it('should include multi-turn parameter extraction guidance in create_rfp intent', () => {
+    it('should include required information checklist in create_rfp intent', () => {
       const prompt = buildSystemPromptWithIntent('create_rfp', INTENT_PROMPTS);
 
-      expect(prompt).toContain('Multi-Turn Parameter Extraction');
-      expect(prompt).toContain('SCAN THE ENTIRE CONVERSATION');
+      expect(prompt).toContain('Required Information Checklist');
+      expect(prompt).toContain('Departure airport');
     });
   });
 

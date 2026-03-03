@@ -27,6 +27,11 @@ import {
   createProposalWithResolution,
   findQuoteByAvinodeId,
 } from '@/lib/services/proposal-service';
+import {
+  generateDefaultSubject,
+  generateDefaultEmailBody,
+} from '@/lib/services/email-service';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { RFQFlight } from '@/lib/mcp/clients/avinode-client';
 
 // Force dynamic rendering - API routes should not be statically generated
@@ -101,6 +106,10 @@ interface GenerateProposalResponse {
     /** Cost for return leg (round-trip only) */
     returnCost?: number;
   };
+  /** Email draft subject (when saveDraft=true) */
+  emailDraftSubject?: string;
+  /** Email draft body HTML (when saveDraft=true) */
+  emailDraftBody?: string;
   error?: string;
 }
 
@@ -346,6 +355,48 @@ export async function POST(
       } catch (draftError) {
         // Log error but don't fail the request - draft saving is optional
         console.error('[Generate] Error creating draft proposal:', draftError);
+      }
+    }
+
+    // Generate email draft when saveDraft is requested
+    if (body.saveDraft) {
+      try {
+        const depIcao = body.tripDetails.departureAirport.icao;
+        const arrIcao = body.tripDetails.arrivalAirport.icao;
+        const emailSubject = generateDefaultSubject(depIcao, arrIcao);
+        const emailBody = generateDefaultEmailBody({
+          customerName: body.customer.name,
+          tripDetails: {
+            departureAirport: depIcao,
+            arrivalAirport: arrIcao,
+            departureDate: body.tripDetails.departureDate,
+          },
+          pricing: {
+            total: result.pricing.total,
+            currency: result.pricing.currency,
+          },
+          proposalId: result.proposalId,
+        });
+
+        response.emailDraftSubject = emailSubject;
+        response.emailDraftBody = emailBody;
+
+        // Persist email draft to DB if we have a proposal record
+        if (response.dbProposalId) {
+          await supabaseAdmin
+            .from('proposals')
+            .update({
+              email_draft_subject: emailSubject,
+              email_draft_body: emailBody,
+              email_draft_generated_at: new Date().toISOString(),
+              email_approval_status: 'pending',
+            })
+            .eq('id', response.dbProposalId);
+          console.log('[Generate] Saved email draft to proposal:', response.dbProposalId);
+        }
+      } catch (emailDraftError) {
+        console.error('[Generate] Error generating email draft:', emailDraftError);
+        // Non-fatal - still return the PDF
       }
     }
 

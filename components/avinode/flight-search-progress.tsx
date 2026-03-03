@@ -433,10 +433,6 @@ export function FlightSearchProgress({
               data-testid="step-3-content"
               className="text-card-foreground flex flex-col gap-4 rounded-xl py-6 shadow-sm w-full bg-card border border-border mb-6"
               style={{
-                minHeight: 'auto',
-                height: 'auto',
-                overflow: 'visible',
-                width: '100%',
                 position: 'relative'
               }}
             >
@@ -530,24 +526,11 @@ export function FlightSearchProgress({
                 Without proper background, the container can collapse to 0 height, showing black background.
                 Added explicit height auto and overflow visible to ensure content expands naturally and isn't clipped during scroll.
               */}
-              <div 
+              <div
                 className="bg-card"
-                style={{ 
-                  height: 'auto', 
-                  minHeight: 'auto',
-                  overflow: 'visible',
-                  display: 'block',
-                  width: '100%'
-                }}
               >
-                <div 
-                  className="p-6 pt-4" 
-                  style={{ 
-                    height: 'auto', 
-                    minHeight: '100%',
-                    overflow: 'visible',
-                    display: 'block'
-                  }}
+                <div
+                  className="p-6 pt-4"
                 >
                   {/* Show loading state when fetching RFQs and no flights yet */}
                   {isRfqFlightsLoading && !rfqFlights.length && !tripIdSubmitted && (
@@ -560,14 +543,8 @@ export function FlightSearchProgress({
                   {/* Show RFQ Flights List when Trip ID is submitted OR we have flights to display */}
                   {/* FIXED: Always render if we have flights OR if trip ID is submitted (even during loading) */}
                   {(tripIdSubmitted || rfqFlights.length > 0 || isRfqFlightsLoading) && (
-                    <div 
-                      className="space-y-6" 
-                      style={{ 
-                        height: 'auto', 
-                        minHeight: 'auto',
-                        overflow: 'visible',
-                        display: 'block'
-                      }}
+                    <div
+                      className="space-y-6"
                     >
                       {/* Success message - Only show when Trip ID is submitted */}
                       {tripIdSubmitted && (
