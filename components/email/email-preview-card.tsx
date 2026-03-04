@@ -12,6 +12,7 @@ import {
   Check,
   Loader2,
   RotateCcw,
+  CreditCard,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -35,10 +36,18 @@ import { Label } from "@/components/ui/label"
  */
 
 export interface EmailPreviewCardProps {
-  /** Proposal ID */
-  proposalId: string
+  /** Proposal ID (optional — not needed for contracts) */
+  proposalId?: string
   /** Proposal number for display */
   proposalNumber?: string
+  /** Document type: 'proposal' (default) or 'contract' */
+  documentType?: 'proposal' | 'contract'
+  /** Contract ID (when documentType === 'contract') */
+  contractId?: string
+  /** Contract number for display (when documentType === 'contract') */
+  contractNumber?: string
+  /** Callback for "Mark Payment Received" (contract only, shown when status === 'sent') */
+  onMarkPayment?: () => void
   /** Recipient information */
   to: {
     email: string
@@ -114,6 +123,10 @@ function stripHtml(html: string): string {
 export function EmailPreviewCard({
   proposalId,
   proposalNumber,
+  documentType = 'proposal',
+  contractId,
+  contractNumber,
+  onMarkPayment,
   to,
   subject: initialSubject,
   body: initialBody,
@@ -234,6 +247,7 @@ export function EmailPreviewCard({
   }
 
   const isSent = status === 'sent'
+  const isContract = documentType === 'contract'
 
   return (
     <Card className={`w-full${isSent ? ' opacity-75' : ''}`}>
@@ -247,7 +261,12 @@ export function EmailPreviewCard({
           </div>
           {renderStatusBadge()}
         </div>
-        {proposalNumber && (
+        {isContract && contractNumber && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Contract: {contractNumber}
+          </p>
+        )}
+        {!isContract && proposalNumber && (
           <p className="text-sm text-muted-foreground mt-1">
             Proposal: {proposalNumber}
           </p>
@@ -505,6 +524,20 @@ export function EmailPreviewCard({
                 )}
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* Mark Payment Received - contract only, shown when sent */}
+        {isContract && isSent && onMarkPayment && (
+          <div className="pt-2 border-t border-border">
+            <Button
+              size="sm"
+              onClick={onMarkPayment}
+              className="text-xs"
+            >
+              <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+              Mark Payment Received
+            </Button>
           </div>
         )}
 

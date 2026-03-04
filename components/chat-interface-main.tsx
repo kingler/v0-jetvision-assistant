@@ -972,21 +972,33 @@ export function ChatInterface({
       pipelineData: result.pipelineData,
       // ONEK-299: Contract sent confirmation card
       showContractSentConfirmation: !!result.contractSentData,
-      contractSentData: result.contractSentData ? {
-        contractId: result.contractSentData.contractId,
-        dbContractId: result.contractSentData.dbContractId,
-        contractNumber: result.contractSentData.contractNumber,
-        status: (result.contractSentData.status as 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed') || 'sent',
-        pdfUrl: result.contractSentData.pdfUrl,
-        customerName: result.contractSentData.customer?.name || 'Customer',
-        customerEmail: result.contractSentData.customer?.email || '',
-        flightRoute: result.contractSentData.flightRoute || '',
-        departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
-        totalAmount: result.contractSentData.pricing?.totalAmount || 0,
-        currency: result.contractSentData.pricing?.currency || 'USD',
-        tripType: activeChat.tripType,
-        returnDate: activeChat.returnDate,
-      } : undefined,
+      contractSentData: result.contractSentData ? (() => {
+        const cd = result.contractSentData as Record<string, unknown>;
+        const cdCustomer = cd.customer as { name?: string; email?: string } | undefined;
+        const cdPricing = cd.pricing as { totalAmount?: number; currency?: string } | undefined;
+        const cdFlight = cd.flightDetails as { departureAirport?: string; arrivalAirport?: string; passengers?: number } | undefined;
+        return {
+          contractId: result.contractSentData.contractId,
+          dbContractId: result.contractSentData.dbContractId,
+          contractNumber: result.contractSentData.contractNumber,
+          status: (result.contractSentData.status as 'draft' | 'sent' | 'signed' | 'payment_pending' | 'paid' | 'completed') || 'sent',
+          pdfUrl: result.contractSentData.pdfUrl,
+          customerName: cdCustomer?.name || 'Customer',
+          customerEmail: cdCustomer?.email || '',
+          flightRoute: result.contractSentData.flightRoute || '',
+          departureDate: activeChat.isoDate || new Date().toISOString().split('T')[0],
+          totalAmount: cdPricing?.totalAmount || 0,
+          currency: cdPricing?.currency || 'USD',
+          tripType: activeChat.tripType,
+          returnDate: activeChat.returnDate,
+          emailSubject: cd.emailSubject as string | undefined,
+          emailMessage: (cd.emailMessage as string) || (cd.emailBody as string) || undefined,
+          fileName: cd.fileName as string | undefined,
+          departureAirport: cdFlight?.departureAirport || (cd.departureAirport as string) || undefined,
+          arrivalAirport: cdFlight?.arrivalAirport || (cd.arrivalAirport as string) || undefined,
+          passengers: cdFlight?.passengers || (cd.passengers as number) || undefined,
+        };
+      })() : undefined,
       // ONEK-300: Payment confirmed card
       showPaymentConfirmation: !!result.paymentConfirmationData,
       paymentConfirmationData: result.paymentConfirmationData,

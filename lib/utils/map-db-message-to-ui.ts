@@ -205,12 +205,29 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     typeof msg.richContent === 'object' &&
     'contractSent' in msg.richContent
   ) {
-    const contractData = msg.richContent.contractSent;
-    if (contractData && typeof contractData === 'object') {
+    const raw = msg.richContent.contractSent as Record<string, unknown>;
+    if (raw && typeof raw === 'object') {
+      // Normalize DB format (client.name, pricing.total) to UI format (customerName, totalAmount)
+      const client = raw.client as { name?: string; email?: string } | undefined;
+      const pricing = raw.pricing as { total?: number; totalAmount?: number; currency?: string } | undefined;
+      const flightDetails = raw.flightDetails as { departureAirport?: string; arrivalAirport?: string; departureDate?: string; passengers?: number } | undefined;
+      const contractData = {
+        ...raw,
+        customerName: (raw.customerName as string) || client?.name || 'Customer',
+        customerEmail: (raw.customerEmail as string) || client?.email || '',
+        totalAmount: (raw.totalAmount as number) || pricing?.total || pricing?.totalAmount || 0,
+        currency: (raw.currency as string) || pricing?.currency || 'USD',
+        departureAirport: (raw.departureAirport as string) || flightDetails?.departureAirport,
+        arrivalAirport: (raw.arrivalAirport as string) || flightDetails?.arrivalAirport,
+        passengers: (raw.passengers as number) || flightDetails?.passengers,
+        emailSubject: raw.emailSubject as string | undefined,
+        emailMessage: (raw.emailMessage as string) || (raw.emailBody as string) || undefined,
+        fileName: raw.fileName as string | undefined,
+      };
       return {
         ...base,
         showContractSentConfirmation: true,
-        contractSentData: contractData as ChatMessageUI['contractSentData'],
+        contractSentData: contractData as unknown as ChatMessageUI['contractSentData'],
       };
     }
   }

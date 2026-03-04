@@ -542,6 +542,9 @@ export async function POST(
             total: body.pricing.totalAmount,
             currency: body.pricing.currency,
           },
+          emailSubject,
+          emailBody,
+          passengers: body.flightDetails.passengers,
         };
         const msgId = await saveMessage({
           requestId: effectiveRequestId,
@@ -573,6 +576,8 @@ export async function POST(
       pricing: contractResult.pricing,
       pdfUrl: uploadResult.publicUrl,
       fileName: contractResult.fileName,
+      emailSubject,
+      emailBody,
       ...(savedMessageId != null ? { savedMessageId } : {}),
     });
   } catch (error) {

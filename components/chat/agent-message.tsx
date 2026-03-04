@@ -700,12 +700,50 @@ export function AgentMessage({
       {/* Contract Sent Confirmation - inline after contract is sent via Book Flight */}
       {showContractSentConfirmation && contractSentData && (
         <div className="mt-4 w-full">
-          <ContractSentConfirmation
-            {...contractSentData}
-            onMarkPayment={onMarkPayment
-              ? () => onMarkPayment(contractSentData.dbContractId || contractSentData.contractId, contractSentData)
-              : undefined}
-          />
+          {contractSentData.emailSubject ? (
+            <EmailPreviewCard
+              documentType="contract"
+              contractId={contractSentData.dbContractId || contractSentData.contractId}
+              contractNumber={contractSentData.contractNumber}
+              to={{ name: contractSentData.customerName, email: contractSentData.customerEmail }}
+              subject={contractSentData.emailSubject}
+              body={contractSentData.emailMessage || ''}
+              attachments={contractSentData.pdfUrl ? [{
+                name: contractSentData.fileName || `Contract-${contractSentData.contractNumber}.pdf`,
+                url: contractSentData.pdfUrl,
+                type: 'application/pdf',
+              }] : []}
+              flightDetails={contractSentData.departureAirport && contractSentData.arrivalAirport ? {
+                departureAirport: contractSentData.departureAirport,
+                arrivalAirport: contractSentData.arrivalAirport,
+                departureDate: contractSentData.departureDate,
+                passengers: contractSentData.passengers,
+                tripType: contractSentData.tripType,
+                returnDate: contractSentData.returnDate,
+                segments: contractSentData.segments?.map(s => ({
+                  departureAirport: s.departureAirport,
+                  arrivalAirport: s.arrivalAirport,
+                  date: s.departureDate,
+                })),
+              } : undefined}
+              pricing={contractSentData.totalAmount ? {
+                subtotal: contractSentData.totalAmount,
+                total: contractSentData.totalAmount,
+                currency: contractSentData.currency,
+              } : undefined}
+              status="sent"
+              onMarkPayment={onMarkPayment
+                ? () => onMarkPayment(contractSentData.dbContractId || contractSentData.contractId, contractSentData)
+                : undefined}
+            />
+          ) : (
+            <ContractSentConfirmation
+              {...contractSentData}
+              onMarkPayment={onMarkPayment
+                ? () => onMarkPayment(contractSentData.dbContractId || contractSentData.contractId, contractSentData)
+                : undefined}
+            />
+          )}
         </div>
       )}
 

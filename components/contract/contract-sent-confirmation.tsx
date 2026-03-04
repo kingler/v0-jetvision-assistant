@@ -31,6 +31,18 @@ export interface ContractSentPayload {
     arrivalAirport: string
     departureDate: string
   }>
+  /** Auto-generated email subject (for EmailPreviewCard in chat) */
+  emailSubject?: string
+  /** Auto-generated email message body (for EmailPreviewCard in chat) */
+  emailMessage?: string
+  /** PDF file name (for attachment display) */
+  fileName?: string
+  /** Departure airport ICAO code */
+  departureAirport?: string
+  /** Arrival airport ICAO code */
+  arrivalAirport?: string
+  /** Number of passengers */
+  passengers?: number
 }
 
 export interface ContractSentConfirmationProps extends ContractSentPayload {

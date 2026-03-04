@@ -21,21 +21,15 @@ import {
   ResponsiveModalTitle,
 } from '@/components/ui/responsive-modal';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import {
   Loader2,
   Plane,
   Calendar,
   Users,
-  DollarSign,
-  Mail,
   FileText,
   CheckCircle,
   AlertCircle,
   ExternalLink,
-  ArrowLeft,
   Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -101,7 +95,7 @@ export interface BookFlightModalProps {
   onContractSent?: (contractData: ContractSentPayload) => void;
 }
 
-type ModalState = 'ready' | 'generating' | 'preview' | 'email_review' | 'sending' | 'success' | 'error';
+type ModalState = 'ready' | 'generating' | 'preview' | 'sending' | 'success' | 'error';
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -233,8 +227,6 @@ export function BookFlightModal({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [contractId, setContractId] = useState<string | null>(null);
   const [contractNumber, setContractNumber] = useState<string | null>(null);
-  const [emailSubject, setEmailSubject] = useState<string>('');
-  const [emailBody, setEmailBody] = useState<string>('');
 
   // Calculate pricing
   const pricing = calculatePricing(flight, tripDetails.passengers);
@@ -299,67 +291,26 @@ export function BookFlightModal({
   }, [requestId, flight, customer, flightDetails, pricing, amenities]);
 
   /**
-   * Handle prepare email — builds default subject/body and shows review step
+   * Handle close and reset
    */
-  const handlePrepareEmail = useCallback(() => {
-    const dep = flight.departureAirport?.icao || tripDetails.departureAirport.icao;
-    const arr = flight.arrivalAirport?.icao || tripDetails.arrivalAirport.icao;
+  const handleClose = useCallback(() => {
+    // Clean up blob URL if exists
+    if (pdfUrl && pdfUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pdfUrl);
+    }
 
-    const defaultSubject = `Jetvision Flight Contract: ${dep} \u2192 ${arr}`;
+    // Reset state
+    setState('ready');
+    setError(null);
+    setPdfUrl(null);
+    setContractId(null);
+    setContractNumber(null);
 
-    const formattedPrice = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: pricing.currency,
-      maximumFractionDigits: 0,
-    }).format(pricing.totalAmount);
-
-    const rawDate = flight.departureDate || tripDetails.departureDate;
-    // Append T00:00:00 to date-only strings so they parse as local time, not UTC
-    const dateStr = typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)
-      ? `${rawDate}T00:00:00`
-      : rawDate;
-    const formattedDate = new Date(dateStr).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-
-    const defaultBody = `Dear ${customer.name},
-
-Thank you for choosing Jetvision for your private charter flight.
-
-Please find attached your Flight Charter Service Agreement for your upcoming trip:
-
-Flight Details:
-\u2022 Route: ${dep} \u2192 ${arr}
-\u2022 Date: ${formattedDate}
-\u2022 Aircraft: ${flight.aircraftType}
-\u2022 Total: ${formattedPrice}
-
-The attached PDF contains your complete contract including:
-\u2022 Flight summary and pricing breakdown
-\u2022 Terms and conditions
-\u2022 Signature page
-\u2022 Credit card authorization form (if paying by card)
-
-Please review the contract carefully. To proceed with booking:
-1. Sign the agreement on the signature page
-2. Complete the payment information
-3. Return the signed contract via email
-
-If you have any questions or need any modifications, please reply to this email or contact our team directly.
-
-Best regards,
-The Jetvision Team`;
-
-    setEmailSubject(defaultSubject);
-    setEmailBody(defaultBody);
-    setState('email_review');
-  }, [flight, tripDetails, customer.name, pricing]);
+    onClose();
+  }, [pdfUrl, onClose]);
 
   /**
-   * Handle send contract
+   * Handle send contract — auto-generates email subject/body and sends
    */
   const handleSendContract = useCallback(async () => {
     setState('sending');
@@ -374,6 +325,57 @@ The Jetvision Team`;
       return;
     }
 
+    // Auto-generate email subject and body (previously done in handlePrepareEmail)
+    const dep = flight.departureAirport?.icao || tripDetails.departureAirport.icao;
+    const arr = flight.arrivalAirport?.icao || tripDetails.arrivalAirport.icao;
+
+    const autoSubject = `Jetvision Flight Contract: ${dep} → ${arr}`;
+
+    const formattedPrice = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: pricing.currency,
+      maximumFractionDigits: 0,
+    }).format(pricing.totalAmount);
+
+    const rawDate = flight.departureDate || tripDetails.departureDate;
+    const dateStr = typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)
+      ? `${rawDate}T00:00:00`
+      : rawDate;
+    const formattedDate = new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const autoBody = `Dear ${customer.name},
+
+Thank you for choosing Jetvision for your private charter flight.
+
+Please find attached your Flight Charter Service Agreement for your upcoming trip:
+
+Flight Details:
+• Route: ${dep} → ${arr}
+• Date: ${formattedDate}
+• Aircraft: ${flight.aircraftType}
+• Total: ${formattedPrice}
+
+The attached PDF contains your complete contract including:
+• Flight summary and pricing breakdown
+• Terms and conditions
+• Signature page
+• Credit card authorization form (if paying by card)
+
+Please review the contract carefully. To proceed with booking:
+1. Sign the agreement on the signature page
+2. Complete the payment information
+3. Return the signed contract via email
+
+If you have any questions or need any modifications, please reply to this email or contact our team directly.
+
+Best regards,
+The Jetvision Team`;
+
     try {
       const response = await fetch('/api/contract/send', {
         method: 'POST',
@@ -387,8 +389,8 @@ The Jetvision Team`;
           flightDetails,
           pricing,
           amenities,
-          emailSubject: emailSubject || undefined,
-          emailMessage: emailBody || undefined,
+          emailSubject: autoSubject,
+          emailMessage: autoBody,
         }),
       });
 
@@ -409,13 +411,9 @@ The Jetvision Team`;
         setPdfUrl(data.pdfUrl);
         window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
       }
-      setState('success');
 
       // Pass full contract data to parent for rich chat card rendering
-      // Fire even without dbContractId — local contractId and email confirmation are valid
       if (onContractSent) {
-        const dep = flight.departureAirport?.icao || tripDetails.departureAirport.icao;
-        const arr = flight.arrivalAirport?.icao || tripDetails.arrivalAirport.icao;
         onContractSent({
           contractId: data.dbContractId || data.contractId,
           dbContractId: data.dbContractId,
@@ -430,35 +428,23 @@ The Jetvision Team`;
           tripType: tripDetails.tripType,
           returnDate: tripDetails.returnDate,
           segments: tripDetails.segments,
+          emailSubject: autoSubject,
+          emailMessage: autoBody,
+          fileName: data.fileName,
+          departureAirport: dep,
+          arrivalAirport: arr,
+          passengers: tripDetails.passengers,
         });
       }
+
+      // Auto-close the modal on success
+      handleClose();
     } catch (err) {
       console.error('[BookFlightModal] Error sending contract:', err);
       setError(err instanceof Error ? err.message : 'Failed to send contract');
       setState('error');
     }
-  }, [requestId, flight, tripDetails, customer, flightDetails, pricing, amenities, emailSubject, emailBody, onContractSent]);
-
-  /**
-   * Handle close and reset
-   */
-  const handleClose = useCallback(() => {
-    // Clean up blob URL if exists
-    if (pdfUrl && pdfUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(pdfUrl);
-    }
-
-    // Reset state
-    setState('ready');
-    setError(null);
-    setPdfUrl(null);
-    setContractId(null);
-    setContractNumber(null);
-    setEmailSubject('');
-    setEmailBody('');
-
-    onClose();
-  }, [pdfUrl, onClose]);
+  }, [requestId, flight, tripDetails, customer, flightDetails, pricing, amenities, onContractSent, handleClose]);
 
   /**
    * Open PDF in new tab
@@ -490,7 +476,7 @@ The Jetvision Team`;
         data-testid="book-flight-modal"
         data-quote-id={flight?.quoteId}
         onInteractOutside={(e: Event) => {
-          if (['email_review', 'generating', 'sending'].includes(state)) {
+          if (['generating', 'sending'].includes(state)) {
             e.preventDefault();
           }
         }}
@@ -628,52 +614,6 @@ The Jetvision Team`;
             </div>
           </div>
 
-          {/* Email Review State */}
-          {state === 'email_review' && (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-info-border bg-info-bg p-3 md:p-4">
-                <h4 className="text-xs md:text-sm font-medium text-info mb-3">
-                  Review Email Before Sending
-                </h4>
-
-                {/* Recipient (read-only) */}
-                <div className="mb-3">
-                  <Label className="text-xs text-muted-foreground">To</Label>
-                  <p className="text-sm text-foreground mt-0.5">
-                    {customer.name} &lt;{customer.email}&gt;
-                  </p>
-                </div>
-
-                {/* Subject */}
-                <div className="mb-3">
-                  <Label htmlFor="email-subject" className="text-xs text-muted-foreground">
-                    Subject
-                  </Label>
-                  <Input
-                    id="email-subject"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-
-                {/* Body */}
-                <div>
-                  <Label htmlFor="email-body" className="text-xs text-muted-foreground">
-                    Message
-                  </Label>
-                  <Textarea
-                    id="email-body"
-                    value={emailBody}
-                    onChange={(e) => setEmailBody(e.target.value)}
-                    rows={10}
-                    className="mt-1 text-xs md:text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Success State */}
           {state === 'success' && (
             <div className="rounded-lg bg-success-bg border border-success-border p-4">
@@ -736,13 +676,13 @@ The Jetvision Team`;
                 Preview
               </Button>
               <Button
-                onClick={handlePrepareEmail}
+                onClick={handleSendContract}
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
                 className="min-h-[44px] md:min-h-0"
                 data-testid="contract-generate-btn"
               >
-                <Mail className="mr-2 h-4 w-4" />
+                <Send className="mr-2 h-4 w-4" />
                 Send Contract
               </Button>
             </>
@@ -765,26 +705,13 @@ The Jetvision Team`;
                 Open PDF
               </Button>
               <Button
-                onClick={handlePrepareEmail}
+                onClick={handleSendContract}
                 disabled={!hasValidCustomer}
                 title={!hasValidCustomer ? 'Select a customer by generating a proposal first' : undefined}
                 data-testid="contract-email-btn"
               >
-                <Mail className="mr-2 h-4 w-4" />
-                Send Contract
-              </Button>
-            </>
-          )}
-
-          {state === 'email_review' && (
-            <>
-              <Button variant="outline" onClick={() => setState('ready')} className="min-h-[44px] md:min-h-0" data-testid="contract-back-btn">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              <Button onClick={handleSendContract} className="min-h-[44px] md:min-h-0" data-testid="approve-send">
                 <Send className="mr-2 h-4 w-4" />
-                Approve &amp; Send
+                Send Contract
               </Button>
             </>
           )}
