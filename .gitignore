@@ -106,6 +106,8 @@ scripts/generate-demo-slides.js
 
 # Files
 prompt.md
+MAS-Framework.md
+WARP.md
 
 # Directories
 screenshots/
