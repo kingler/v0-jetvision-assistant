@@ -1,18 +1,36 @@
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
-  // Simple test: redirect /dashboard to /chat
+const isPublicRoute = createRouteMatcher([
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/api/webhooks(.*)',
+  '/api/chat',
+  '/api/chat/test',
+  '/component-demo(.*)',
+  '/onboarding(.*)',
+])
+
+export default clerkMiddleware(async (auth, request) => {
+  const { userId } = await auth()
+
+  if (userId && (request.nextUrl.pathname.startsWith('/sign-in') || request.nextUrl.pathname.startsWith('/sign-up'))) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/chat', request.url))
   }
 
-  // Add a custom header to prove middleware ran
-  const response = NextResponse.next()
-  response.headers.set('x-middleware-ran', 'true')
-  return response
-}
+  if (!isPublicRoute(request) && !userId) {
+    const signInUrl = new URL('/sign-in', request.url)
+    signInUrl.searchParams.set('redirect_url', request.url)
+    return NextResponse.redirect(signInUrl)
+  }
+})
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
