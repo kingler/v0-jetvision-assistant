@@ -431,7 +431,7 @@ export function EmailPreviewCard({
           <div className="flex flex-wrap items-center justify-between gap-1 text-sm bg-muted rounded-lg px-3 py-2">
             <span className="text-muted-foreground shrink-0">Total Price</span>
             <span className="font-semibold text-foreground break-words">
-              {pricing.currency} {pricing.total.toLocaleString(undefined, {
+              {pricing.currency} {(typeof pricing.total === 'number' && !isNaN(pricing.total) ? pricing.total : 0).toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}

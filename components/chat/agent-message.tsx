@@ -726,7 +726,7 @@ export function AgentMessage({
                   date: s.departureDate,
                 })),
               } : undefined}
-              pricing={contractSentData.totalAmount ? {
+              pricing={contractSentData.totalAmount != null ? {
                 subtotal: contractSentData.totalAmount,
                 total: contractSentData.totalAmount,
                 currency: contractSentData.currency,

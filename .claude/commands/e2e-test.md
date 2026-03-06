@@ -203,8 +203,8 @@ flowchart LR
 | 22 | `approve` | Operator approves quote | Switch account → Selling → Approve |
 | 23 | `switch-back` | Switch back to Jetvision LLC | Avatar → Switch company → Jetvision LLC |
 | 24 | `quotes` | Pull quotes into Jetvision | Switch to Jetvision tab → Click "Update RFQ" |
-| 25 | `proposal` | Generate & send proposal | Click "Generate Proposal" → CustomerSelectionDialog |
-| 26 | `contract` | Book flight & send contract | Click "Book Flight" → BookFlightModal |
+| 25 | `proposal` | Generate & send proposal via email | Click "Generate Proposal" → CustomerSelectionDialog |
+| 26 | `contract` | Book flight & send contract via email | Click "Book Flight" → BookFlightModal |
 | 27 | `payment` | Confirm payment → auto-close | Click "Confirm Payment" → PaymentConfirmationModal → fill $95,000, Wire Transfer, WT-2026-TEST-003 → confirm → archive |
 
 ### Ambiguous Requests (Scenarios 28-30 — extras)
@@ -228,7 +228,7 @@ I need a one way flight from KTEB to KVNY for 4 passengers on March 25, 2026 at 
 
 **Round-trip (request step):**
 ```
-I need a round trip flight from EGGW to KVNY for 4 passengers. Departing March 2, 2026 at 9:00am EST, returning March 5, 2026 at 2:00pm EST
+I need a round trip flight from EGGW to KVNY for 4 passengers. Departing March 20, 2026 at 9:00am EST, returning March 23, 2026 at 2:00pm EST
 ```
 
 **Multi-city (request step):**
@@ -435,7 +435,7 @@ Plus one final task: `Generate E2E test report` / `Generating test report`.
 **Browser automation steps:**
 1. Type the chat input and press Enter
 2. Wait for agent response (up to 60 seconds)
-3. If agent asks for return date (round-trip), provide: `Return on March 5, 2026 at 2:00pm EST`
+3. If agent asks for return date (round-trip), provide: `Return on March 23, 2026 at 2:00pm EST`
 4. **Screenshot** → `e2e-screenshots/{SCREENSHOT_FOLDER}/01-trip-created.png`
 5. Verify TripRequestCard shows correct route and passenger count
 6. Verify deep link button is visible
@@ -1141,7 +1141,7 @@ Ambiguous:  28, 29, 30 (independent, any order)
 | Payment not recording | Include amount, method, reference explicitly. |
 | Archive button not visible | Only appears for terminal states. |
 | Session conflicts between lifecycles | Start a NEW chat session per lifecycle. |
-| Round-trip return date prompt | Provide: `Return on March 5, 2026 at 2:00pm EST` |
+| Round-trip return date prompt | Provide: `Return on March 23, 2026 at 2:00pm EST` |
 | Multi-city date clarification | Provide per-leg dates: Mar 10, Mar 12, Mar 15. |
 
 ---

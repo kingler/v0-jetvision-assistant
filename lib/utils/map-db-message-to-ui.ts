@@ -87,17 +87,6 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
     timestamp: ts ? new Date(ts) : new Date(),
   };
 
-  // Debug logging for special message types
-  if (
-    msg.contentType === 'proposal_shared' ||
-    msg.contentType === 'email_approval_request' ||
-    msg.contentType === 'margin_selection' ||
-    msg.contentType === 'contract_shared' ||
-    msg.contentType === 'payment_confirmed' ||
-    msg.contentType === 'deal_closed' ||
-    (msg.richContent && (RICH_CONTENT_PROPOSAL_KEY in msg.richContent || RICH_CONTENT_EMAIL_APPROVAL_KEY in msg.richContent || 'marginSelection' in msg.richContent || 'contractSent' in msg.richContent || 'paymentConfirmed' in msg.richContent || 'dealClosed' in msg.richContent))
-  ) {
-  }
 
   // Handle proposal_shared contentType
   if (
@@ -211,15 +200,23 @@ export function mapDbMessageToChatMessage(msg: DbMessageLike): ChatMessageUI {
       const client = raw.client as { name?: string; email?: string } | undefined;
       const pricing = raw.pricing as { total?: number; totalAmount?: number; currency?: string } | undefined;
       const flightDetails = raw.flightDetails as { departureAirport?: string; arrivalAirport?: string; departureDate?: string; passengers?: number } | undefined;
+      const depAirport = (raw.departureAirport as string) || flightDetails?.departureAirport || '';
+      const arrAirport = (raw.arrivalAirport as string) || flightDetails?.arrivalAirport || '';
       const contractData = {
         ...raw,
         customerName: (raw.customerName as string) || client?.name || 'Customer',
         customerEmail: (raw.customerEmail as string) || client?.email || '',
         totalAmount: (raw.totalAmount as number) || pricing?.total || pricing?.totalAmount || 0,
         currency: (raw.currency as string) || pricing?.currency || 'USD',
-        departureAirport: (raw.departureAirport as string) || flightDetails?.departureAirport,
-        arrivalAirport: (raw.arrivalAirport as string) || flightDetails?.arrivalAirport,
+        departureAirport: depAirport || undefined,
+        arrivalAirport: arrAirport || undefined,
         passengers: (raw.passengers as number) || flightDetails?.passengers,
+        flightRoute: (raw.flightRoute as string) || (depAirport && arrAirport ? `${depAirport} → ${arrAirport}` : ''),
+        departureDate: (raw.departureDate as string) || flightDetails?.departureDate || '',
+        status: (raw.status as string) || 'sent',
+        tripType: raw.tripType as string | undefined,
+        returnDate: raw.returnDate as string | undefined,
+        segments: raw.segments as Array<{ departureAirport: string; arrivalAirport: string; departureDate: string }> | undefined,
         emailSubject: raw.emailSubject as string | undefined,
         emailMessage: (raw.emailMessage as string) || (raw.emailBody as string) || undefined,
         fileName: raw.fileName as string | undefined,

@@ -274,6 +274,8 @@ export interface ChatSession {
   initialUserMessage?: string
   /** Flag indicating if tripId was auto-submitted to check for quotes */
   tripIdSubmitted?: boolean
+  /** Flag indicating user clicked "Open in Avinode Marketplace" — triggers Step 3 visibility */
+  deepLinkClicked?: boolean
 }
 
 interface ChatSidebarProps {

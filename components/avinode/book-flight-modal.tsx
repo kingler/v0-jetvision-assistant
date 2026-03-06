@@ -27,7 +27,6 @@ import {
   Calendar,
   Users,
   FileText,
-  CheckCircle,
   AlertCircle,
   ExternalLink,
   Send,
@@ -95,7 +94,7 @@ export interface BookFlightModalProps {
   onContractSent?: (contractData: ContractSentPayload) => void;
 }
 
-type ModalState = 'ready' | 'generating' | 'preview' | 'sending' | 'success' | 'error';
+type ModalState = 'ready' | 'generating' | 'preview' | 'sending' | 'error';
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -146,7 +145,8 @@ function formatDate(dateString: string): string {
  * Calculate contract pricing from flight data
  */
 function calculatePricing(flight: RFQFlight, passengers: number): ContractPricing {
-  const flightCost = flight.priceBreakdown?.basePrice ?? flight.totalPrice;
+  const rawCost = flight.priceBreakdown?.basePrice ?? flight.totalPrice;
+  const flightCost = typeof rawCost === 'number' && !isNaN(rawCost) ? rawCost : 0;
   const FET_RATE = 0.075; // 7.5%
   const SEGMENT_FEE = 5.20; // Per passenger per segment
   const CC_FEE_PCT = 5.0;
@@ -408,6 +408,10 @@ The Jetvision Team`;
       setContractId(data.dbContractId || data.contractId);
       setContractNumber(data.contractNumber);
       if (data.pdfUrl) {
+        // Revoke old blob URL before overwriting to prevent memory leak
+        if (pdfUrl && pdfUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(pdfUrl);
+        }
         setPdfUrl(data.pdfUrl);
         window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
       }
@@ -614,32 +618,6 @@ The Jetvision Team`;
             </div>
           </div>
 
-          {/* Success State */}
-          {state === 'success' && (
-            <div className="rounded-lg bg-success-bg border border-success-border p-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-success">
-                    Contract Sent Successfully!
-                  </p>
-                  <p className="text-sm text-success mt-1">
-                    Contract {contractNumber} has been sent to {customer.email}.
-                  </p>
-                  {pdfUrl && (
-                    <button
-                      onClick={handleOpenPdf}
-                      className="text-sm text-success hover:underline mt-2 flex items-center gap-1"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      View Contract PDF
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Error State */}
           {state === 'error' && error && (
             <div className="rounded-lg bg-error-bg border border-error-border p-4">
@@ -720,12 +698,6 @@ The Jetvision Team`;
             <Button disabled>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Sending Contract...
-            </Button>
-          )}
-
-          {state === 'success' && (
-            <Button onClick={handleClose} data-testid="contract-done-btn">
-              Done
             </Button>
           )}
 

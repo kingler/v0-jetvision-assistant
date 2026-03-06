@@ -146,8 +146,10 @@ export function RFQFlightsList({
   });
 
   // Compute sorted flights (filtering removed as not needed with 2-3 RFQs average)
+  // Deduplicate by flight ID to prevent React key collisions from duplicate webhook/DB entries
   const processedFlights = useMemo(() => {
-    let result = flights;
+    const unique = Array.from(new Map(flights.map(f => [f.id, f])).values());
+    let result = unique;
     if (sortable) {
       result = sortFlights(result, sortBy);
     }

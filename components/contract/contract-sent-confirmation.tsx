@@ -159,7 +159,7 @@ export function ContractSentConfirmation({
                   <div>
                     <span className="text-muted-foreground">Route</span>
                     <p className="font-medium text-foreground">
-                      {tripType === 'round_trip' ? flightRoute.replace('→', '⇄') : flightRoute}
+                      {tripType === 'round_trip' ? (flightRoute ?? '').replace('→', '⇄') : (flightRoute ?? '')}
                     </p>
                   </div>
                   <div>

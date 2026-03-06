@@ -151,11 +151,11 @@ function validateRequest(body: SendContractRequest): string | null {
   if (!body.pricing) {
     return 'Pricing information is required';
   }
-  if (typeof body.pricing.flightCost !== 'number' || body.pricing.flightCost < 0) {
-    return 'Flight cost must be a non-negative number';
+  if (typeof body.pricing.flightCost !== 'number' || isNaN(body.pricing.flightCost) || body.pricing.flightCost < 0) {
+    return 'Flight cost must be a valid non-negative number';
   }
-  if (typeof body.pricing.totalAmount !== 'number' || body.pricing.totalAmount < 0) {
-    return 'Total amount must be a non-negative number';
+  if (typeof body.pricing.totalAmount !== 'number' || isNaN(body.pricing.totalAmount) || body.pricing.totalAmount < 0) {
+    return 'Total amount must be a valid non-negative number';
   }
 
   // Request ID is required
@@ -289,8 +289,8 @@ export async function POST(
       }
     }
 
-    // Use resolved UUID for all downstream operations; fall back to original if resolution failed
-    const effectiveRequestId = resolvedRequestId || body.requestId;
+    // resolvedRequestId is guaranteed defined here (early return above handles undefined case)
+    const effectiveRequestId = resolvedRequestId;
     console.log('[SendContract] Using effectiveRequestId:', effectiveRequestId, '(original:', body.requestId, ')');
 
     // Fetch proposal PDF to include as first pages (if available)
@@ -538,6 +538,9 @@ export async function POST(
           contractId: dbContractId || contractResult.contractId,
           dbContractId,
           contractNumber,
+          flightRoute: `${dep} → ${arr}`,
+          departureDate: body.flightDetails.departureDate,
+          status: 'sent',
           pricing: {
             total: body.pricing.totalAmount,
             currency: body.pricing.currency,

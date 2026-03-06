@@ -12,7 +12,7 @@ import { ChatSkeletonTheme, Skeleton } from '@/components/ui/chat-skeleton'
 export function ChatLoadingSkeleton() {
   return (
     <ChatSkeletonTheme>
-      <div className="flex-1 flex flex-col min-h-0 bg-background">
+      <div className="flex-1 flex flex-col bg-background" style={{ minHeight: 0 }}>
         {/* Message area skeleton */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-4">

@@ -167,7 +167,7 @@ I need a one way flight from KTEB to KVNY for 4 passengers on March 25, 2026 at 
 
 **Round-trip:**
 ```
-I need a round trip flight from EGGW to KVNY for 4 passengers. Departing March 2, 2026 at 9:00am EST, returning March 5, 2026 at 2:00pm EST
+I need a round trip flight from EGGW to KVNY for 4 passengers. Departing March 20, 2026 at 9:00am EST, returning March 23, 2026 at 2:00pm EST
 ```
 
 **Multi-city:**
@@ -562,7 +562,7 @@ Ambiguous:  28, 29, 30 (independent, any order)
 | Video too fast | Verify `--project=demo` (has `slowMo: 500`). |
 | ffmpeg not found | `brew install ffmpeg`. |
 | GIF too large | `--gif` flag scales to 800px width. |
-| Round-trip return date prompt | Provide: `Return on March 5, 2026 at 2:00pm EST` |
+| Round-trip return date prompt | Provide: `Return on March 23, 2026 at 2:00pm EST` |
 | Multi-city date clarification | Provide per-leg dates: Mar 10, Mar 12, Mar 15. |
 | Session conflicts between lifecycles | Start a NEW chat session per lifecycle. |
 

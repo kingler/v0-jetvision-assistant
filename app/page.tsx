@@ -1791,14 +1791,14 @@ export default function JetvisionAgent() {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0" style={{ minHeight: 0 }}>
         <AppHeader
           sidebarOpen={sidebarOpen}
           onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
           isMobile={isTabletOrSmaller}
         />
 
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
           {currentView === "landing" && (
             <LandingPage
               onStartChat={handleStartChat}
@@ -1806,14 +1806,16 @@ export default function JetvisionAgent() {
             />
           )}
           {currentView === "chat" && activeChat && (
-            <ChatInterface
-              activeChat={activeChat}
-              isProcessing={isProcessing}
-              onProcessingChange={setIsProcessing}
-              onUpdateChat={handleUpdateChat}
-              onArchiveChat={handleArchiveChat}
-              isLoading={isSessionDataLoading}
-            />
+            <div className="flex-1 relative" style={{ minHeight: 0 }}>
+              <ChatInterface
+                activeChat={activeChat}
+                isProcessing={isProcessing}
+                onProcessingChange={setIsProcessing}
+                onUpdateChat={handleUpdateChat}
+                onArchiveChat={handleArchiveChat}
+                isLoading={isSessionDataLoading}
+              />
+            </div>
           )}
         </main>
       </div>

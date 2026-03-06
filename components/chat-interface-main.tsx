@@ -159,6 +159,9 @@ export function ChatInterface({
   const [tripIdError, setTripIdError] = useState<string | undefined>(undefined)
   const [tripIdSubmitted, setTripIdSubmitted] = useState(activeChat.tripIdSubmitted || false)
 
+  // Deep link clicked state — persisted so Step 3 survives page reload
+  const [deepLinkClicked, setDeepLinkClicked] = useState(activeChat.deepLinkClicked || false)
+
   // RFQ flight selection state
   const [selectedRfqFlightIds, setSelectedRfqFlightIds] = useState<string[]>([])
 
@@ -223,6 +226,11 @@ export function ChatInterface({
       setTripIdSubmitted(activeChat.tripIdSubmitted)
     }
   }, [activeChat.tripIdSubmitted])
+
+  // Sync deepLinkClicked with activeChat (handles chat switching)
+  useEffect(() => {
+    setDeepLinkClicked(activeChat.deepLinkClicked || false)
+  }, [activeChat.id, activeChat.deepLinkClicked])
 
   // Parse route to get airport info using extracted utility
   const routeParts = extractRouteParts(activeChat.route)
@@ -1266,6 +1274,17 @@ export function ChatInterface({
     setStreamingContent("")
     streamingContentRef.current = ""
   }
+
+  /**
+   * Handle "Open in Avinode Marketplace" click — transitions UI to show Step 3
+   * so the user can fetch RFQs after returning from Avinode.
+   */
+  const handleDeepLinkClick = useCallback(() => {
+    if (!deepLinkClicked) {
+      setDeepLinkClicked(true)
+      onUpdateChat(activeChat.id, { deepLinkClicked: true })
+    }
+  }, [deepLinkClicked, activeChat.id, onUpdateChat])
 
   /**
    * Handle trip ID submit (from deep link card)
@@ -2649,7 +2668,7 @@ export function ChatInterface({
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col min-h-0 bg-background">
+      <div className="absolute inset-0 flex flex-col bg-background">
         <DynamicChatHeader
           activeChat={activeChat}
           flightRequestName={activeChat.generatedName}
@@ -2664,7 +2683,7 @@ export function ChatInterface({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-background">
+    <div className="absolute inset-0 flex flex-col bg-background">
       {/* Dynamic Chat Header - shows flight name, IDs, and quote requests */}
       <DynamicChatHeader
         activeChat={activeChat}
@@ -2675,8 +2694,8 @@ export function ChatInterface({
         onCopyTripId={() => console.log('[Chat] Trip ID copied to clipboard')}
       />
 
-      {/* Messages Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
+      {/* Messages Area - flex-1 with overflow-y-auto; absolute parent ensures height is constrained */}
+      <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
         <div className="max-w-4xl mx-auto p-4">
           <div className="space-y-4">
 
@@ -2806,9 +2825,11 @@ export function ChatInterface({
               // Determine if we should show FlightSearchProgress (trip is created and we have valid data)
               const shouldInsertProgressAtEnd = shouldShowFlightSearchProgress
 
-              // Determine if Steps 3-4 card should be shown (only when RFQs are submitted/loaded)
+              // Determine if Steps 3-4 card should be shown
+              // Triggers: deep link clicked (user opened Avinode), trip ID submitted, or RFQs already loaded
               const shouldShowSteps34 = shouldInsertProgressAtEnd &&
-                (tripIdSubmitted || activeChat.tripIdSubmitted ||
+                (deepLinkClicked || activeChat.deepLinkClicked ||
+                 tripIdSubmitted || activeChat.tripIdSubmitted ||
                  rfqFlights.length > 0 ||
                  !!activeChat.rfqsLastFetchedAt)
 
@@ -2817,6 +2838,8 @@ export function ChatInterface({
                 const isTripIdSubmitted = tripIdSubmitted || activeChat.tripIdSubmitted || false
                 if (rfqFlights.length > 0 && isTripIdSubmitted) return 4
                 if (activeChat.tripId && rfqFlights.length === 0) return 3
+                // User clicked "Open in Avinode Marketplace" — advance to Step 3
+                if (deepLinkClicked || activeChat.deepLinkClicked) return 3
                 if (activeChat.deepLink) return 2
                 return activeChat.currentStep || 1
               })()
@@ -3154,6 +3177,7 @@ export function ChatInterface({
                         onViewChat={handleViewChat}
                         onGenerateProposal={handleGenerateProposal}
                         proposalSentForSession={proposalSentForSession}
+                        onDeepLinkClick={handleDeepLinkClick}
                         onReviewAndBook={handleReviewAndBook}
                         onBookFlight={handleBookFlight}
                         bookFlightDisabled={false}
